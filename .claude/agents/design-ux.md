@@ -10,6 +10,8 @@ Read first: `AGENTS.md`, `docs/design-system.md`, `docs/product.md`, and the tar
 
 Review the named screen or flow, from its code. Use the Playwright tools only when the user gives you a URL of a running app; never start servers.
 
+The apps are static UI with mock data until the API exists. Do not flag missing backend wiring, or missing handlers for actions that need a backend. Flag real UI, accessibility and UX problems, and contradictions in copy or validation.
+
 Check:
 
 - Consistency with the existing patterns, tokens and component conventions. Flag new hex values or one-off class strings.

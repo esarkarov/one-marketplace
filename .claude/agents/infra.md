@@ -17,6 +17,7 @@ Rules:
 - Compose: ports bound to `127.0.0.1`, image tags pinned to a major version, a healthcheck per service, no default passwords.
 - CI: keep `permissions: contents: read`, pin third-party actions to a full commit SHA with the version in a comment, never widen permissions without asking.
 - Keep the `typescript` alias and `@typescript/native` setup intact. Do not relax `minimumReleaseAge`.
+- Do not modify `.claude/settings.json` or anything in `.claude/hooks/` unless the request names those paths.
 - Hooks and gitleaks stay enabled; never use `--no-verify`.
 - No unnecessary comments. Use pnpm only; shared versions come from the catalog.
 

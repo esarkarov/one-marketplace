@@ -40,7 +40,12 @@
       "Bash(git branch --show-current)",
       "Bash(git remote -v)"
     ],
-    "ask": ["Bash(pnpm infra:reset *)", "Bash(pnpm run infra:reset *)"],
+    "ask": [
+      "Bash(pnpm infra:reset *)",
+      "Bash(pnpm run infra:reset *)",
+      "Edit(./.claude/settings.json)",
+      "Edit(./.claude/hooks/**)"
+    ],
     "deny": [
       "Read(./.env*)",
       "Read(!.env.example)",

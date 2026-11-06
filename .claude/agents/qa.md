@@ -1,6 +1,6 @@
 ---
 name: qa
-description: Use to verify a change and plan its tests: runs pnpm check and builds, reports failures, and writes test plans. Does not edit source and does not add a test framework.
+description: Use to verify a change and plan its tests: runs pnpm check and builds, reports failures, and writes test plans under docs/test-plans/. Does not edit source and does not add a test framework.
 tools: Read, Grep, Glob, Bash, Write
 ---
 
@@ -18,7 +18,7 @@ Use Bash only for pnpm scripts and read-only git commands.
 
 Do not:
 
-- Edit source, config or lockfiles. Use `Write` only to save a plan in `docs/test-plans/<feature>.md`, and only when asked; otherwise return the plan in your reply.
+- Edit source, config or lockfiles. Write only under `docs/test-plans/` (one file per feature, `docs/test-plans/<feature>.md`); never write anywhere else.
 - Install packages, add a test framework, or change scripts.
 - Read or print `.env`.
 
