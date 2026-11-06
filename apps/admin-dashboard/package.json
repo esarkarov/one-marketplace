@@ -15,6 +15,7 @@
     "react-dom": "catalog:"
   },
   "devDependencies": {
+    "@onemarketplace/tsconfig": "workspace:*",
     "@tailwindcss/postcss": "catalog:",
     "@types/node": "catalog:",
     "@types/react": "catalog:",
