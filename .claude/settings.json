@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(pnpm check *)",
+      "Bash(pnpm lint *)",
+      "Bash(pnpm typecheck *)",
+      "Bash(pnpm build *)",
+      "Bash(pnpm format *)",
+      "Bash(pnpm format:check *)",
+      "Bash(pnpm infra:up *)",
+      "Bash(pnpm infra:down *)",
+      "Bash(pnpm infra:logs *)",
+      "Bash(pnpm run check *)",
+      "Bash(pnpm run lint *)",
+      "Bash(pnpm run typecheck *)",
+      "Bash(pnpm run build *)",
+      "Bash(pnpm run format *)",
+      "Bash(pnpm run format:check *)",
+      "Bash(pnpm run infra:up *)",
+      "Bash(pnpm run infra:down *)",
+      "Bash(pnpm run infra:logs *)",
+      "Bash(pnpm -r lint)",
+      "Bash(pnpm -r typecheck)",
+      "Bash(pnpm -r build)",
+      "Bash(pnpm -r --no-bail lint)",
+      "Bash(pnpm -r --no-bail typecheck)",
+      "Bash(pnpm -r --no-bail build)",
+      "Bash(pnpm --filter * lint)",
+      "Bash(pnpm --filter * typecheck)",
+      "Bash(pnpm --filter * build)",
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git show *)",
+      "Bash(git blame *)",
+      "Bash(git ls-files *)",
+      "Bash(git rev-parse *)",
+      "Bash(git branch --list *)",
+      "Bash(git branch --show-current)",
+      "Bash(git remote -v)"
+    ],
+    "ask": ["Bash(pnpm infra:reset *)", "Bash(pnpm run infra:reset *)"],
+    "deny": [
+      "Read(./.env*)",
+      "Read(!.env.example)",
+      "Bash(cat *.env)",
+      "Bash(cat *.env.local)",
+      "Bash(type *.env)",
+      "Bash(type *.env.local)",
+      "Bash(head *.env)",
+      "Bash(head *.env.local)",
+      "Bash(tail *.env)",
+      "Bash(tail *.env.local)",
+      "Bash(less *.env)",
+      "Bash(more *.env)",
+      "Bash(grep *.env)",
+      "Bash(rg *.env)",
+      "Bash(Get-Content *.env)",
+      "Bash(Get-Content *.env.local)",
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Bash(git push * --force*)",
+      "Bash(git push * -f*)",
+      "Bash(git push * +*)",
+      "Bash(rm -rf *)",
+      "Bash(rm -fr *)",
+      "Bash(rm -r -f *)",
+      "Bash(rm -f -r *)",
+      "Bash(rm -Rf *)",
+      "Bash(rm -fR *)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": ["${CLAUDE_PROJECT_DIR}/.claude/hooks/protect-files.mjs"]
+          }
+        ]
+      }
+    ]
+  }
+}

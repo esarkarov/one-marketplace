@@ -31,3 +31,4 @@ Thumbs.db
 .idea/
 
 .vercel
+.claude/settings.local.json
