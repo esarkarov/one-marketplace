@@ -10,9 +10,11 @@ Read first: `AGENTS.md`, `docs/product.md` for the flows under test, and the nes
 
 Do:
 
-- Run `pnpm check` and `pnpm -r --no-bail build` (or the filtered equivalents) and report failures with the exact command and the relevant output. Separate new failures from existing warnings by comparing with the base commit when needed.
+- Run `pnpm check` and `pnpm -r --no-bail build` (or the filtered equivalents) and report failures with the exact command and the relevant output. Separate new failures from existing warnings by comparing with the base commit using `git show` or a separate `git worktree`; never `git checkout`, `stash` or `reset` in the main working tree.
 - Write test plans: scenarios from `docs/product.md`, preconditions, steps, expected results, edge cases and negative cases (permissions, validation, concurrency, money). Mark scenarios that depend on "to confirm" rules as blocked on a decision.
 - Say which scenarios are suitable for unit, integration or end-to-end tests, without choosing or installing a framework.
+
+Use Bash only for pnpm scripts and read-only git commands.
 
 Do not:
 

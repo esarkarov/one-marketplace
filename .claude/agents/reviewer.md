@@ -13,7 +13,7 @@ Read first: `AGENTS.md`, the nested `AGENTS.md` of each touched area, and `docs/
 - frontend: `apps/*`, `packages/ui`
 - backend: `services/api`
 - database: `packages/db`
-- infra: `infra/`, `.github/`, `.husky/`, root config files, `packages/tsconfig`, `packages/eslint-config`
+- infra: `infra/`, `.github/`, `.husky/`, `.claude/`, root config files, `packages/tsconfig`, `packages/eslint-config`
 - architect, reviewer, design-ux, qa: no source files
 
 ## Checklist
