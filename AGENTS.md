@@ -74,4 +74,4 @@ MCP servers (`.mcp.json`, exact versions, approve each on first use):
 - `context7`: library documentation.
 - `playwright`: browser automation, used by `design-ux` on a running app.
 
-Guards in `.claude/settings.json`: `.env*` (except `.env.example`) and `pnpm-lock.yaml` cannot be edited, and edits to `.claude/settings.json` and `.claude/hooks/` ask first. Update a vendored skill by re-reviewing it, not by editing it in place.
+Guards in `.claude/settings.json`: `.env*` (except `.env.example`) and `pnpm-lock.yaml` cannot be changed with the Edit, Write or NotebookEdit tools, and edits to `.claude/settings.json` and `.claude/hooks/` ask first. Update a vendored skill by re-reviewing it, not by editing it in place.
