@@ -5,8 +5,18 @@ pnpm monorepo for a freelancing marketplace.
 ## Layout
 
 - apps/\*: Next.js dashboards (landing-page, client-dashboard, freelancer-dashboard, agency-dashboard, admin-dashboard)
-- services/\*: Express backend services, one folder per service named `<domain>-service`
+- services/api: Express modular monolith with one module per domain (planned)
 - packages/\*: shared code, scoped as `@onemarketplace/<folder-name>`
+- infra/docker: local Postgres and Redis
+
+## Docs
+
+- `docs/product.md`: roles and flows as the apps show them. Read it for product work.
+- `docs/design-system.md`: tokens and component conventions. Read it for UI work.
+- `docs/decisions/`: architecture decision records.
+- Nested `AGENTS.md` files in `services/api`, `packages/db` and `infra` add folder-specific rules.
+
+@docs/architecture.md
 
 ## Tooling
 
