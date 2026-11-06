@@ -6,6 +6,7 @@
     "node": ">=26"
   },
   "scripts": {
+    "prepare": "husky",
     "dev": "pnpm -r --parallel dev",
     "build": "pnpm -r build",
     "format": "prettier --write .",
