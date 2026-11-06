@@ -1,9 +1,5 @@
 export type NotificationCategory =
-  | "Contracts"
-  | "Proposals"
-  | "Messages"
-  | "Payments"
-  | "Account";
+  "Contracts" | "Proposals" | "Messages" | "Payments" | "Account";
 
 export type DashboardNotification = {
   id: number;

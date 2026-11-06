@@ -52,7 +52,9 @@ export function MemberCard({
         <div className="mt-5">
           <div className="flex items-center justify-between text-[11px]">
             <span className="text-[#7b8078]">Profile completeness</span>
-            <strong className="text-[#52784f]">{member.profileComplete}%</strong>
+            <strong className="text-[#52784f]">
+              {member.profileComplete}%
+            </strong>
           </div>
           <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[#e5e9e2]">
             <div

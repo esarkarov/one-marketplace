@@ -46,16 +46,14 @@ export function JobPostForm({ initialJob }: { initialJob?: ClientJob }) {
       expertise: initialJob?.level ?? "",
       duration: initialJob?.duration ?? "",
       skills: initialJob?.skills.join(", ") ?? "",
-      milestones:
-        initialJob?.milestones.map((milestone) => ({
-          title: milestone.title,
-          amount: milestone.amount,
-          due: normalizeDueDate(milestone.due),
-        })) ?? [{ title: "", amount: 0, due: "" }],
-      questions:
-        initialJob?.screeningQuestions.map((question) => ({
-          value: question,
-        })) ?? [{ value: "" }],
+      milestones: initialJob?.milestones.map((milestone) => ({
+        title: milestone.title,
+        amount: milestone.amount,
+        due: normalizeDueDate(milestone.due),
+      })) ?? [{ title: "", amount: 0, due: "" }],
+      questions: initialJob?.screeningQuestions.map((question) => ({
+        value: question,
+      })) ?? [{ value: "" }],
     },
   });
 
@@ -116,11 +114,7 @@ export function JobPostForm({ initialJob }: { initialJob?: ClientJob }) {
         title="Project basics"
         detail="This information appears on freelancer and agency job feeds."
       >
-        <FormField
-          label="Job title"
-          error={errors.title}
-          required
-        >
+        <FormField label="Job title" error={errors.title} required>
           <input
             {...register("title", {
               required: "Enter a clear job title.",
@@ -163,11 +157,7 @@ export function JobPostForm({ initialJob }: { initialJob?: ClientJob }) {
         </FormField>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <FormField
-            label="Expertise level"
-            error={errors.expertise}
-            required
-          >
+          <FormField label="Expertise level" error={errors.expertise} required>
             <select
               {...register("expertise", {
                 required: "Select an expertise level.",
@@ -180,11 +170,7 @@ export function JobPostForm({ initialJob }: { initialJob?: ClientJob }) {
               <option>Expert</option>
             </select>
           </FormField>
-          <FormField
-            label="Expected duration"
-            error={errors.duration}
-            required
-          >
+          <FormField label="Expected duration" error={errors.duration} required>
             <select
               {...register("duration", {
                 required: "Select an expected project duration.",
@@ -210,11 +196,7 @@ export function JobPostForm({ initialJob }: { initialJob?: ClientJob }) {
         title="Skills and discovery"
         detail="Tags help us match the job with the right independent professionals."
       >
-        <FormField
-          label="Skills and expertise"
-          error={errors.skills}
-          required
-        >
+        <FormField label="Skills and expertise" error={errors.skills} required>
           <input
             {...register("skills", {
               required: "Add at least one required skill.",
@@ -353,14 +335,9 @@ export function JobPostForm({ initialJob }: { initialJob?: ClientJob }) {
                     }}
                     render={({ field: dueDateField }) => {
                       const previousDueDate =
-                        index > 0
-                          ? milestones[index - 1]?.due
-                          : undefined;
+                        index > 0 ? milestones[index - 1]?.due : undefined;
                       const minimumDate = previousDueDate
-                        ? addDays(
-                            startOfDay(parseISO(previousDueDate)),
-                            1,
-                          )
+                        ? addDays(startOfDay(parseISO(previousDueDate)), 1)
                         : addDays(startOfDay(new Date()), 1);
 
                       return (
@@ -394,9 +371,7 @@ export function JobPostForm({ initialJob }: { initialJob?: ClientJob }) {
         <button
           type="button"
           disabled={milestoneIncomplete}
-          onClick={() =>
-            appendMilestone({ title: "", amount: 0, due: "" })
-          }
+          onClick={() => appendMilestone({ title: "", amount: 0, due: "" })}
           className="inline-flex h-10 cursor-pointer items-center gap-2 justify-self-start rounded-xl border border-black/10 px-4 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40"
         >
           <Icon icon="solar:add-circle-linear" width="17" />
@@ -486,9 +461,7 @@ function Section({
         <h2 className="font-semibold">{title}</h2>
         <p className="mt-1 text-xs text-[#7b8078]">{detail}</p>
       </header>
-      <div className="grid gap-5 border-t border-black/7 pt-5">
-        {children}
-      </div>
+      <div className="grid gap-5 border-t border-black/7 pt-5">{children}</div>
     </section>
   );
 }

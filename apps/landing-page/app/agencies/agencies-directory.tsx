@@ -239,8 +239,19 @@ export function AgenciesDirectory() {
               fill="none"
               aria-hidden="true"
             >
-              <circle cx="11" cy="11" r="6.5" stroke="currentColor" strokeWidth="1.8" />
-              <path d="m16 16 4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+              <circle
+                cx="11"
+                cy="11"
+                r="6.5"
+                stroke="currentColor"
+                strokeWidth="1.8"
+              />
+              <path
+                d="m16 16 4 4"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+              />
             </svg>
             <input
               value={search}
@@ -257,7 +268,10 @@ export function AgenciesDirectory() {
           <div className="rounded-2xl border border-black/8 bg-white p-6 lg:sticky lg:top-28">
             <div className="flex items-center justify-between">
               <h2 className={`${styles.uiHeading} text-lg`}>Filters</h2>
-              <button onClick={reset} className="cursor-pointer text-xs font-semibold text-[#52784f] hover:underline">
+              <button
+                onClick={reset}
+                className="cursor-pointer text-xs font-semibold text-[#52784f] hover:underline"
+              >
                 Reset
               </button>
             </div>
@@ -266,7 +280,10 @@ export function AgenciesDirectory() {
               <legend className="text-sm font-semibold">Expertise</legend>
               <div className="mt-4 grid gap-3">
                 {categories.map((item) => (
-                  <label key={item} className="flex cursor-pointer items-center gap-3 text-sm text-[#656a63]">
+                  <label
+                    key={item}
+                    className="flex cursor-pointer items-center gap-3 text-sm text-[#656a63]"
+                  >
                     <input
                       type="radio"
                       name="category"
@@ -284,7 +301,10 @@ export function AgenciesDirectory() {
               <legend className="text-sm font-semibold">Team size</legend>
               <div className="mt-4 grid gap-3">
                 {teamSizes.map((item) => (
-                  <label key={item} className="flex cursor-pointer items-center gap-3 text-sm text-[#656a63]">
+                  <label
+                    key={item}
+                    className="flex cursor-pointer items-center gap-3 text-sm text-[#656a63]"
+                  >
                     <input
                       type="checkbox"
                       checked={size.includes(item)}
@@ -300,7 +320,9 @@ export function AgenciesDirectory() {
             <div className="mt-7 border-t border-black/7 pt-6">
               <div className="flex items-center justify-between">
                 <p className="text-sm font-semibold">Hourly rate</p>
-                <span className="text-xs font-semibold text-[#52784f]">Up to ${maxRate}</span>
+                <span className="text-xs font-semibold text-[#52784f]">
+                  Up to ${maxRate}
+                </span>
               </div>
               <input
                 type="range"
@@ -365,7 +387,9 @@ export function AgenciesDirectory() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h2 className={`${styles.uiHeading} text-xl text-[#252824]`}>
+                      <h2
+                        className={`${styles.uiHeading} text-xl text-[#252824]`}
+                      >
                         {agency.name}
                       </h2>
                       {agency.verified && (
@@ -377,7 +401,9 @@ export function AgenciesDirectory() {
                         </span>
                       )}
                     </div>
-                    <p className="mt-1 text-sm text-[#737870]">{agency.location} · {agency.teamSize} people</p>
+                    <p className="mt-1 text-sm text-[#737870]">
+                      {agency.location} · {agency.teamSize} people
+                    </p>
                   </div>
                   {agency.featured && (
                     <span className="rounded-full bg-[#f4f0df] px-2.5 py-1 text-[10px] font-semibold tracking-wide text-[#8a7135] uppercase">
@@ -395,7 +421,10 @@ export function AgenciesDirectory() {
 
                 <div className="mt-5 flex flex-wrap gap-2">
                   {agency.skills.map((skill) => (
-                    <span key={skill} className="rounded-lg bg-[#eef2ec] px-2.5 py-1.5 text-xs font-medium text-[#596057]">
+                    <span
+                      key={skill}
+                      className="rounded-lg bg-[#eef2ec] px-2.5 py-1.5 text-xs font-medium text-[#596057]"
+                    >
                       {skill}
                     </span>
                   ))}
@@ -404,21 +433,31 @@ export function AgenciesDirectory() {
                 <div className="mt-6 grid grid-cols-3 gap-3 border-y border-black/7 py-4 text-center">
                   <div>
                     <p className="text-base font-semibold">{agency.success}%</p>
-                    <p className="mt-1 text-[11px] text-[#858a82]">Job success</p>
+                    <p className="mt-1 text-[11px] text-[#858a82]">
+                      Job success
+                    </p>
                   </div>
                   <div className="border-x border-black/7">
                     <p className="text-base font-semibold">{agency.projects}</p>
                     <p className="mt-1 text-[11px] text-[#858a82]">Projects</p>
                   </div>
                   <div>
-                    <p className="text-base font-semibold text-[#d4a334]">★ <span className="text-[#252824]">{agency.rating}</span></p>
-                    <p className="mt-1 text-[11px] text-[#858a82]">{agency.reviews} reviews</p>
+                    <p className="text-base font-semibold text-[#d4a334]">
+                      ★ <span className="text-[#252824]">{agency.rating}</span>
+                    </p>
+                    <p className="mt-1 text-[11px] text-[#858a82]">
+                      {agency.reviews} reviews
+                    </p>
                   </div>
                 </div>
 
                 <div className="mt-5 flex items-center justify-between gap-4">
                   <p className="text-sm text-[#7a7f77]">
-                    From <strong className="text-base text-[#252824]">${agency.hourlyRate}</strong>/hr
+                    From{" "}
+                    <strong className="text-base text-[#252824]">
+                      ${agency.hourlyRate}
+                    </strong>
+                    /hr
                   </p>
                   <Link
                     href="/signup?role=client"
@@ -433,9 +472,16 @@ export function AgenciesDirectory() {
 
           {!results.length && (
             <div className="rounded-2xl border border-dashed border-black/12 bg-white px-6 py-16 text-center">
-              <h2 className={`${styles.uiHeading} text-xl`}>No agencies match those filters</h2>
-              <p className="mt-2 text-sm text-[#777c75]">Try broadening your search or resetting the filters.</p>
-              <button onClick={reset} className="mt-5 cursor-pointer text-sm font-semibold text-[#52784f] hover:underline">
+              <h2 className={`${styles.uiHeading} text-xl`}>
+                No agencies match those filters
+              </h2>
+              <p className="mt-2 text-sm text-[#777c75]">
+                Try broadening your search or resetting the filters.
+              </p>
+              <button
+                onClick={reset}
+                className="mt-5 cursor-pointer text-sm font-semibold text-[#52784f] hover:underline"
+              >
                 Reset filters
               </button>
             </div>

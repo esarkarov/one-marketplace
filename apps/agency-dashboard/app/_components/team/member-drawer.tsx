@@ -2,11 +2,7 @@
 
 import { Icon } from "../ui/icon";
 import { allAgencyPermissions } from "./team-data";
-import type {
-  AgencyMember,
-  AgencyMemberRole,
-  AgencyPermission,
-} from "./types";
+import type { AgencyMember, AgencyMemberRole, AgencyPermission } from "./types";
 
 export function MemberDrawer({
   member,
@@ -139,10 +135,7 @@ export function MemberDrawer({
                     ["Specialty", member.specialty],
                     ["Location", member.location],
                     ["Profile", `${member.profileComplete}% complete`],
-                    [
-                      "Visibility",
-                      member.publicProfile ? "Public" : "Hidden",
-                    ],
+                    ["Visibility", member.publicProfile ? "Public" : "Hidden"],
                   ].map(([label, value]) => (
                     <div
                       key={label}

@@ -259,10 +259,7 @@ export function MessagesDashboard({
                 onClick={createMeeting}
                 className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-xl border border-black/10 px-3 text-xs font-semibold"
               >
-                <Icon
-                  icon="solar:videocamera-record-linear"
-                  width="18"
-                />
+                <Icon icon="solar:videocamera-record-linear" width="18" />
                 Create meeting
               </button>
             </header>
@@ -385,29 +382,73 @@ function AttachmentModal({
           <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#edf4ea] text-[#52784f]">
             <Icon icon="solar:paperclip-linear" width="23" />
           </span>
-          <button type="button" onClick={onClose} aria-label="Close attachment modal" className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-black/8">
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close attachment modal"
+            className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-black/8"
+          >
             <Icon icon="solar:close-circle-linear" width="19" />
           </button>
         </div>
         <h2 className="mt-4 text-xl font-semibold">Add an attachment</h2>
-        <p className="mt-2 text-sm leading-6 text-[#737970]">Review the file before sharing it in this project thread.</p>
+        <p className="mt-2 text-sm leading-6 text-[#737970]">
+          Review the file before sharing it in this project thread.
+        </p>
         <label className="mt-5 flex cursor-pointer flex-col items-center rounded-2xl border border-dashed border-black/15 bg-[#fafbf9] px-5 py-8 text-center">
-          <Icon icon="solar:upload-minimalistic-linear" width="25" className="text-[#52784f]" />
+          <Icon
+            icon="solar:upload-minimalistic-linear"
+            width="25"
+            className="text-[#52784f]"
+          />
           <span className="mt-2 text-sm font-semibold">Choose a file</span>
-          <span className="mt-1 text-[11px] text-[#858a82]">PDF, DOCX, PNG, JPG, or TXT · Maximum 5 MB</span>
-          <input type="file" accept=".pdf,.docx,.png,.jpg,.jpeg,.txt" className="sr-only" onChange={(event) => onChoose(event.target.files?.[0])} />
+          <span className="mt-1 text-[11px] text-[#858a82]">
+            PDF, DOCX, PNG, JPG, or TXT · Maximum 5 MB
+          </span>
+          <input
+            type="file"
+            accept=".pdf,.docx,.png,.jpg,.jpeg,.txt"
+            className="sr-only"
+            onChange={(event) => onChoose(event.target.files?.[0])}
+          />
         </label>
         {file && (
           <div className="mt-4 flex items-center gap-3 rounded-xl bg-[#f0f3ee] p-3">
             <Icon icon="solar:file-text-linear" width="21" />
-            <div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold">{file.name}</p><p className="mt-0.5 text-[10px] text-[#858a82]">{(file.size / 1024 / 1024).toFixed(1)} MB</p></div>
-            <Icon icon="solar:check-circle-bold" width="19" className="text-[#5d8759]" />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs font-semibold">{file.name}</p>
+              <p className="mt-0.5 text-[10px] text-[#858a82]">
+                {(file.size / 1024 / 1024).toFixed(1)} MB
+              </p>
+            </div>
+            <Icon
+              icon="solar:check-circle-bold"
+              width="19"
+              className="text-[#5d8759]"
+            />
           </div>
         )}
-        {error && <p role="alert" className="mt-3 text-xs font-medium text-[#9a5953]">{error}</p>}
+        {error && (
+          <p role="alert" className="mt-3 text-xs font-medium text-[#9a5953]">
+            {error}
+          </p>
+        )}
         <div className="mt-6 flex justify-end gap-2">
-          <button type="button" onClick={onClose} className="h-10 rounded-xl border border-black/10 px-4 text-sm font-semibold">Cancel</button>
-          <button type="button" onClick={onAttach} disabled={!file} className="h-10 rounded-xl bg-[#252724] px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-35">Attach file</button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="h-10 rounded-xl border border-black/10 px-4 text-sm font-semibold"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onAttach}
+            disabled={!file}
+            className="h-10 rounded-xl bg-[#252724] px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-35"
+          >
+            Attach file
+          </button>
         </div>
       </div>
     </div>
@@ -464,20 +505,24 @@ function TransactionMessage({
           )}
           <p>{message.text}</p>
           {message.attachment && (
-            <div className={`mt-3 flex items-center gap-3 rounded-xl p-3 ${message.sender === "client" ? "bg-white/10" : "bg-white"}`}>
+            <div
+              className={`mt-3 flex items-center gap-3 rounded-xl p-3 ${message.sender === "client" ? "bg-white/10" : "bg-white"}`}
+            >
               <Icon icon="solar:file-text-linear" width="20" />
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-xs font-semibold">{message.attachment.name}</span>
-                <span className="block text-[9px] opacity-60">{message.attachment.size}</span>
+                <span className="block truncate text-xs font-semibold">
+                  {message.attachment.name}
+                </span>
+                <span className="block text-[9px] opacity-60">
+                  {message.attachment.size}
+                </span>
               </span>
               <Icon icon="solar:download-minimalistic-linear" width="17" />
             </div>
           )}
           <p
             className={`mt-1 text-[9px] ${
-              message.sender === "client"
-                ? "text-white/50"
-                : "text-[#8a8f87]"
+              message.sender === "client" ? "text-white/50" : "text-[#8a8f87]"
             }`}
           >
             {message.time}
@@ -501,9 +546,7 @@ function TransactionMessage({
             {message.title}
           </p>
         </div>
-        <strong className="text-xs">
-          ${message.amount.toLocaleString()}
-        </strong>
+        <strong className="text-xs">${message.amount.toLocaleString()}</strong>
       </div>
     );
   }

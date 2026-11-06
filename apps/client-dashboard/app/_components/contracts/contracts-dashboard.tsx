@@ -288,8 +288,7 @@ function ContractDrawer({
                 .every((previous) => previous.status === "Paid") &&
               !contract.milestones.some(
                 (item) =>
-                  item.status === "In progress" ||
-                  item.status === "Submitted",
+                  item.status === "In progress" || item.status === "Submitted",
               );
 
             return (
@@ -297,88 +296,88 @@ function ContractDrawer({
                 key={milestone.id}
                 className={`rounded-xl border p-4 transition-colors ${tone.card}`}
               >
-              <div className="flex justify-between gap-4">
-                <div className="flex min-w-0 gap-3">
-                  <span
-                    className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold ${tone.marker}`}
-                  >
-                    {milestone.status === "Paid" ? (
-                      <Icon icon="solar:check-read-linear" width="15" />
-                    ) : (
-                      index + 1
-                    )}
-                  </span>
-                  <div>
-                    <p className="text-xs font-semibold">{milestone.title}</p>
+                <div className="flex justify-between gap-4">
+                  <div className="flex min-w-0 gap-3">
+                    <span
+                      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold ${tone.marker}`}
+                    >
+                      {milestone.status === "Paid" ? (
+                        <Icon icon="solar:check-read-linear" width="15" />
+                      ) : (
+                        index + 1
+                      )}
+                    </span>
+                    <div>
+                      <p className="text-xs font-semibold">{milestone.title}</p>
+                      <p className="mt-1 text-[10px] text-[#858a82]">
+                        Due {milestone.due}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p className="text-xs font-semibold">
+                      ${milestone.amount.toLocaleString()}
+                    </p>
                     <p className="mt-1 text-[10px] text-[#858a82]">
-                      Due {milestone.due}
+                      <span
+                        className={`inline-flex rounded-full px-2 py-1 font-semibold ${tone.badge}`}
+                      >
+                        {milestone.status}
+                      </span>
                     </p>
                   </div>
                 </div>
-                <div className="shrink-0 text-right">
-                  <p className="text-xs font-semibold">
-                    ${milestone.amount.toLocaleString()}
-                  </p>
-                  <p className="mt-1 text-[10px] text-[#858a82]">
-                    <span
-                      className={`inline-flex rounded-full px-2 py-1 font-semibold ${tone.badge}`}
+                {milestone.status === "Submitted" &&
+                  milestone.submissionComment && (
+                    <div className="mt-4 rounded-xl bg-white/80 p-3">
+                      <p className="flex items-center gap-1.5 text-[9px] font-semibold tracking-wide text-[#70806d] uppercase">
+                        <Icon icon="solar:letter-linear" width="14" />
+                        Freelancer submission comment
+                      </p>
+                      <p className="mt-2 text-[11px] leading-5 text-[#616860]">
+                        {milestone.submissionComment}
+                      </p>
+                    </div>
+                  )}
+                {milestone.status === "Submitted" && (
+                  <div className="mt-4 flex justify-end gap-2 border-t border-black/7 pt-4">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setDecision({ type: "changes", milestone })
+                      }
+                      className="h-9 cursor-pointer rounded-lg border border-black/10 px-3 text-xs font-semibold"
                     >
-                      {milestone.status}
-                    </span>
-                  </p>
-                </div>
-              </div>
-              {milestone.status === "Submitted" &&
-                milestone.submissionComment && (
-                  <div className="mt-4 rounded-xl bg-white/80 p-3">
-                    <p className="flex items-center gap-1.5 text-[9px] font-semibold tracking-wide text-[#70806d] uppercase">
-                      <Icon icon="solar:letter-linear" width="14" />
-                      Freelancer submission comment
-                    </p>
-                    <p className="mt-2 text-[11px] leading-5 text-[#616860]">
-                      {milestone.submissionComment}
-                    </p>
+                      Request changes
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setDecision({ type: "approve", milestone })
+                      }
+                      className="h-9 cursor-pointer rounded-lg bg-[#252724] px-3 text-xs font-semibold text-white"
+                    >
+                      Approve & release
+                    </button>
                   </div>
                 )}
-              {milestone.status === "Submitted" && (
-                <div className="mt-4 flex justify-end gap-2 border-t border-black/7 pt-4">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setDecision({ type: "changes", milestone })
-                    }
-                    className="h-9 cursor-pointer rounded-lg border border-black/10 px-3 text-xs font-semibold"
-                  >
-                    Request changes
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setDecision({ type: "approve", milestone })
-                    }
-                    className="h-9 cursor-pointer rounded-lg bg-[#252724] px-3 text-xs font-semibold text-white"
-                  >
-                    Approve & release
-                  </button>
-                </div>
-              )}
-              {canActivate && (
-                <div className="mt-4 flex flex-col justify-between gap-3 border-t border-black/7 pt-4 sm:flex-row sm:items-center">
-                  <p className="text-[10px] leading-5 text-[#747b72]">
-                    Previous work is complete. Fund this milestone to begin the
-                    next phase.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setDecision({ type: "activate", milestone })
-                    }
-                    className="h-9 shrink-0 cursor-pointer rounded-lg bg-[#52784f] px-3 text-xs font-semibold text-white"
-                  >
-                    Activate milestone
-                  </button>
-                </div>
-              )}
+                {canActivate && (
+                  <div className="mt-4 flex flex-col justify-between gap-3 border-t border-black/7 pt-4 sm:flex-row sm:items-center">
+                    <p className="text-[10px] leading-5 text-[#747b72]">
+                      Previous work is complete. Fund this milestone to begin
+                      the next phase.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setDecision({ type: "activate", milestone })
+                      }
+                      className="h-9 shrink-0 cursor-pointer rounded-lg bg-[#52784f] px-3 text-xs font-semibold text-white"
+                    >
+                      Activate milestone
+                    </button>
+                  </div>
+                )}
               </article>
             );
           })}
@@ -434,7 +433,9 @@ function MilestoneDecisionModal({
     event.preventDefault();
     const normalizedFeedback = feedback.trim();
     if (normalizedFeedback.length < 10) {
-      setError("Please describe the requested update in at least 10 characters.");
+      setError(
+        "Please describe the requested update in at least 10 characters.",
+      );
       return;
     }
     onRequestChanges(normalizedFeedback);
@@ -598,9 +599,7 @@ function MilestoneDecisionModal({
               />
               <p className="text-xs leading-5 text-[#536250]">
                 Approving will release{" "}
-                <strong>
-                  ${decision.milestone.amount.toLocaleString()}
-                </strong>{" "}
+                <strong>${decision.milestone.amount.toLocaleString()}</strong>{" "}
                 to {contract.talent} and permanently mark this milestone as
                 completed.
               </p>

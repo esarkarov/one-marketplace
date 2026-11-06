@@ -5,14 +5,39 @@ import Link from "next/link";
 import { useState } from "react";
 
 const members = [
-  { id: 1, initials: "SK", name: "Shahriar Sajeeb", role: "Full-stack product engineer" },
-  { id: 6, initials: "MR", name: "Maya Robinson", role: "Machine learning engineer" },
-  { id: 3, initials: "DC", name: "Daniel Cho", role: "Senior software engineer" },
-  { id: 4, initials: "AM", name: "Amelia Morgan", role: "Senior product designer" },
+  {
+    id: 1,
+    initials: "SK",
+    name: "Shahriar Sajeeb",
+    role: "Full-stack product engineer",
+  },
+  {
+    id: 6,
+    initials: "MR",
+    name: "Maya Robinson",
+    role: "Machine learning engineer",
+  },
+  {
+    id: 3,
+    initials: "DC",
+    name: "Daniel Cho",
+    role: "Senior software engineer",
+  },
+  {
+    id: 4,
+    initials: "AM",
+    name: "Amelia Morgan",
+    role: "Senior product designer",
+  },
   { id: 7, initials: "NR", name: "Nadia Rahman", role: "Product manager" },
   { id: 8, initials: "LM", name: "Lucas Martin", role: "Frontend engineer" },
   { id: 9, initials: "PN", name: "Priya Nair", role: "Data engineer" },
-  { id: 10, initials: "EW", name: "Ethan Williams", role: "Cloud infrastructure engineer" },
+  {
+    id: 10,
+    initials: "EW",
+    name: "Ethan Williams",
+    role: "Cloud infrastructure engineer",
+  },
 ];
 
 const membersPerPage = 4;
@@ -30,7 +55,9 @@ export function AgencyMembersPagination() {
           <p className="text-[10px] font-semibold tracking-[.13em] text-[#62805f] uppercase">
             Our specialists
           </p>
-          <h2 className="mt-2 text-xl font-semibold">Featured agency members</h2>
+          <h2 className="mt-2 text-xl font-semibold">
+            Featured agency members
+          </h2>
         </div>
         <p className="text-xs text-[#8a8f87]">
           {start + 1}–{Math.min(start + membersPerPage, members.length)} of{" "}
@@ -68,7 +95,9 @@ export function AgencyMembersPagination() {
         aria-label="Agency members pagination"
         className="mt-5 flex items-center justify-between border-t border-black/7 pt-5"
       >
-        <p className="text-xs text-[#838980]">Page {page} of {totalPages}</p>
+        <p className="text-xs text-[#838980]">
+          Page {page} of {totalPages}
+        </p>
         <div className="flex items-center gap-2">
           <button
             type="button"

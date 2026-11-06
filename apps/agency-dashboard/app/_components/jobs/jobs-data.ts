@@ -13,7 +13,13 @@ export const agencyJobs: AgencyJob[] = [
     duration: "3–6 months",
     description:
       "We are looking for an established product agency to design and build a secure member workspace. The project includes product discovery, interface design, Next.js development, and a production-ready handoff.",
-    skills: ["Product design", "Next.js", "TypeScript", "PostgreSQL", "Accessibility"],
+    skills: [
+      "Product design",
+      "Next.js",
+      "TypeScript",
+      "PostgreSQL",
+      "Accessibility",
+    ],
     proposals: "Less than 5",
     rating: 4.9,
     spent: "$214K spent",

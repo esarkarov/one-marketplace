@@ -30,8 +30,9 @@ export function ProposalsDashboard() {
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<AgencyProposal | null>(null);
   const [page, setPage] = useState(1);
-  const [withdrawTarget, setWithdrawTarget] =
-    useState<AgencyProposal | null>(null);
+  const [withdrawTarget, setWithdrawTarget] = useState<AgencyProposal | null>(
+    null,
+  );
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -45,10 +46,7 @@ export function ProposalsDashboard() {
     );
   }, [activeTab, proposals, search]);
 
-  const totalPages = Math.max(
-    1,
-    Math.ceil(filtered.length / proposalsPerPage),
-  );
+  const totalPages = Math.max(1, Math.ceil(filtered.length / proposalsPerPage));
   const currentPage = Math.min(page, totalPages);
   const pageStart = (currentPage - 1) * proposalsPerPage;
   const visibleProposals = filtered.slice(
@@ -143,10 +141,7 @@ export function ProposalsDashboard() {
             <span
               className={`flex h-11 w-11 items-center justify-center rounded-xl ${color}`}
             >
-              <Icon
-                name={icon as "message"}
-                size={22}
-              />
+              <Icon name={icon as "message"} size={22} />
             </span>
             <div>
               <p className="text-2xl font-semibold tracking-[-0.04em]">
@@ -196,9 +191,7 @@ export function ProposalsDashboard() {
         {visibleProposals.map((proposal, index) => (
           <article
             key={proposal.id}
-            className={`p-5 sm:p-6 ${
-              index ? "border-t border-black/7" : ""
-            }`}
+            className={`p-5 sm:p-6 ${index ? "border-t border-black/7" : ""}`}
           >
             <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-start">
               <div className="min-w-0 flex-1">

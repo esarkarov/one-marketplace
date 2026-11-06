@@ -58,7 +58,9 @@ export function FeaturedMembers() {
             }
             width="16"
           />
-          {expanded ? "Show fewer members" : `Show ${remainingCount} more members`}
+          {expanded
+            ? "Show fewer members"
+            : `Show ${remainingCount} more members`}
         </button>
         <Link
           href="/team"

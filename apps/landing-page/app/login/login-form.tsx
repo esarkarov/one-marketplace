@@ -14,7 +14,9 @@ export function LoginForm() {
   }
 
   function handleSocialLogin(provider: "Google" | "GitHub") {
-    setStatus(`${provider} login is ready to activate when Clerk is connected.`);
+    setStatus(
+      `${provider} login is ready to activate when Clerk is connected.`,
+    );
   }
 
   return (

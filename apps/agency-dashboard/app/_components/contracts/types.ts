@@ -1,7 +1,4 @@
-export type AgencyContractStatus =
-  | "Active"
-  | "Awaiting feedback"
-  | "Completed";
+export type AgencyContractStatus = "Active" | "Awaiting feedback" | "Completed";
 
 export type AgencyMilestoneStatus = "Paid" | "In progress" | "Upcoming";
 

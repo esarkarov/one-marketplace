@@ -26,8 +26,8 @@ const sections: LegalSection[] = [
       <>
         <p>
           You must be legally able to enter into contracts and provide accurate,
-          current information. You are responsible for your account activity
-          and for keeping your credentials confidential.
+          current information. You are responsible for your account activity and
+          for keeping your credentials confidential.
         </p>
         <p>
           You may not impersonate another person, create misleading profiles,
@@ -64,10 +64,14 @@ const sections: LegalSection[] = [
         <p>You agree not to:</p>
         <ul>
           <li>break the law or infringe another person’s rights;</li>
-          <li>post fraudulent, deceptive, discriminatory, or harmful content;</li>
+          <li>
+            post fraudulent, deceptive, discriminatory, or harmful content;
+          </li>
           <li>scrape, overload, disrupt, or bypass platform security;</li>
           <li>introduce malware or attempt unauthorized access;</li>
-          <li>manipulate ratings, reviews, search results, or account activity.</li>
+          <li>
+            manipulate ratings, reviews, search results, or account activity.
+          </li>
         </ul>
       </>
     ),
@@ -133,10 +137,7 @@ const sections: LegalSection[] = [
         </p>
         <p>
           Questions can be sent to{" "}
-          <a href="mailto:legal@onemarketplace.io">
-            legal@onemarketplace.io
-          </a>
-          .
+          <a href="mailto:legal@onemarketplace.io">legal@onemarketplace.io</a>.
         </p>
       </>
     ),

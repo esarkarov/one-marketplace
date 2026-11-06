@@ -4,12 +4,7 @@ import { Icon } from "@iconify/react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
-type Category =
-  | "Proposals"
-  | "Contracts"
-  | "Messages"
-  | "Payments"
-  | "Account";
+type Category = "Proposals" | "Contracts" | "Messages" | "Payments" | "Account";
 
 type Notification = {
   id: number;
@@ -63,8 +58,7 @@ const initialNotifications: Notification[] = [
     id: 4,
     icon: "solar:shield-check-linear",
     title: "Escrow funding confirmed",
-    description:
-      "$12,000 is protected for the collaboration milestone.",
+    description: "$12,000 is protected for the collaboration milestone.",
     time: "Yesterday",
     date: "Yesterday",
     href: "/contracts",
@@ -87,7 +81,8 @@ const initialNotifications: Notification[] = [
     id: 6,
     icon: "solar:verified-check-linear",
     title: "Identity verification required",
-    description: "Complete the secure Stripe Identity check before your first hire.",
+    description:
+      "Complete the secure Stripe Identity check before your first hire.",
     time: "July 25",
     date: "Earlier",
     href: "/settings?section=verifications",
@@ -249,10 +244,7 @@ export function ClientNotifications() {
                       className="inline-flex items-center gap-1 text-xs font-semibold text-[#4e774b] hover:underline"
                     >
                       View {item.category.toLowerCase()}
-                      <Icon
-                        icon="solar:arrow-right-up-linear"
-                        width="14"
-                      />
+                      <Icon icon="solar:arrow-right-up-linear" width="14" />
                     </Link>
                     <span className="text-[11px] text-[#949990]">
                       {item.time}

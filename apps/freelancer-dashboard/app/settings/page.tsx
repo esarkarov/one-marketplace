@@ -5,7 +5,8 @@ import { SettingsDashboard } from "./settings-dashboard";
 
 export const metadata: Metadata = {
   title: "Settings | OneMarketplace.io",
-  description: "Manage your freelancer account, finances, Connects, and security.",
+  description:
+    "Manage your freelancer account, finances, Connects, and security.",
 };
 
 export default async function SettingsPage({
@@ -20,10 +21,5 @@ export default async function SettingsPage({
     redirect("/settings?section=overview");
   }
 
-  return (
-    <SettingsDashboard
-      key={section}
-      initialSection={section}
-    />
-  );
+  return <SettingsDashboard key={section} initialSection={section} />;
 }

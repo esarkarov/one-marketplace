@@ -36,8 +36,7 @@ export function Header() {
     return () => window.removeEventListener("hashchange", updateActiveHash);
   }, [pathname]);
 
-  const isHowItWorksActive =
-    pathname === "/" && activeHash === "#how-it-works";
+  const isHowItWorksActive = pathname === "/" && activeHash === "#how-it-works";
 
   return (
     <header

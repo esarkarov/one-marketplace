@@ -153,9 +153,15 @@ export function ProposalsDashboard({
 
       <section className="mt-6 rounded-2xl border border-black/8 bg-white p-5 sm:p-6">
         <div className="grid gap-4 sm:grid-cols-4">
-          <JobMetric label="Fixed budget" value={`$${selectedJob.budget.toLocaleString()}`} />
+          <JobMetric
+            label="Fixed budget"
+            value={`$${selectedJob.budget.toLocaleString()}`}
+          />
           <JobMetric label="Proposals" value={String(selectedJob.proposals)} />
-          <JobMetric label="Shortlisted" value={String(selectedJob.shortlisted)} />
+          <JobMetric
+            label="Shortlisted"
+            value={String(selectedJob.shortlisted)}
+          />
           <JobMetric label="Hires" value={String(selectedJob.hires)} />
         </div>
         <div className="mt-5 flex flex-wrap gap-2 border-t border-black/7 pt-5">
@@ -189,38 +195,36 @@ export function ProposalsDashboard({
             "Offer sent",
             "Rejected",
             "Hired",
-          ].map(
-            (item) => {
-              const count =
-                item === "All"
-                  ? proposals.filter(
-                      (proposal) => proposal.jobId === selectedJob.id,
-                    ).length
-                  : proposals.filter(
-                      (proposal) =>
-                        proposal.jobId === selectedJob.id &&
-                        proposal.status === item,
-                    ).length;
-              return (
-                <button
-                  key={item}
-                  type="button"
-                  onClick={() => {
-                    setFilter(item);
-                    setPage(1);
-                  }}
-                  className={`inline-flex h-9 cursor-pointer items-center gap-2 rounded-lg px-3 text-xs font-semibold ${
-                    filter === item
-                      ? "bg-[#edf4ea] text-[#4e774b]"
-                      : "bg-white text-[#6f756d] hover:bg-black/3"
-                  }`}
-                >
-                  {item}
-                  <span className="text-[9px] opacity-65">{count}</span>
-                </button>
-              );
-            },
-          )}
+          ].map((item) => {
+            const count =
+              item === "All"
+                ? proposals.filter(
+                    (proposal) => proposal.jobId === selectedJob.id,
+                  ).length
+                : proposals.filter(
+                    (proposal) =>
+                      proposal.jobId === selectedJob.id &&
+                      proposal.status === item,
+                  ).length;
+            return (
+              <button
+                key={item}
+                type="button"
+                onClick={() => {
+                  setFilter(item);
+                  setPage(1);
+                }}
+                className={`inline-flex h-9 cursor-pointer items-center gap-2 rounded-lg px-3 text-xs font-semibold ${
+                  filter === item
+                    ? "bg-[#edf4ea] text-[#4e774b]"
+                    : "bg-white text-[#6f756d] hover:bg-black/3"
+                }`}
+              >
+                {item}
+                <span className="text-[9px] opacity-65">{count}</span>
+              </button>
+            );
+          })}
         </div>
         <p className="text-xs text-[#858a82]">
           {filteredProposals.length
@@ -584,9 +588,7 @@ function ProposalDrawer({
   return (
     <div
       className="fixed inset-0 z-50 bg-black/25"
-      onMouseDown={(event) =>
-        event.target === event.currentTarget && onClose()
-      }
+      onMouseDown={(event) => event.target === event.currentTarget && onClose()}
     >
       <aside className="absolute top-0 right-0 h-full w-full max-w-2xl overflow-y-auto bg-white p-5 shadow-2xl sm:p-7">
         <div className="flex justify-between gap-4">
@@ -623,10 +625,7 @@ function ProposalDrawer({
           <h3 className="text-sm font-semibold">Proposed milestones</h3>
           <div className="mt-3 divide-y divide-black/6 rounded-xl border border-black/7">
             {proposal.milestonePlan.map((item) => (
-              <div
-                key={item.title}
-                className="flex justify-between gap-4 p-4"
-              >
+              <div key={item.title} className="flex justify-between gap-4 p-4">
                 <div>
                   <p className="text-xs font-semibold">{item.title}</p>
                   <p className="mt-1 text-[10px] text-[#858a82]">

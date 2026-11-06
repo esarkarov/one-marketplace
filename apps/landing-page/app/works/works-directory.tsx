@@ -5,11 +5,7 @@ import { useMemo, useState } from "react";
 import styles from "./works.module.css";
 
 type Category =
-  | "Design"
-  | "Development"
-  | "Marketing"
-  | "Writing"
-  | "Data & AI";
+  "Design" | "Development" | "Marketing" | "Writing" | "Data & AI";
 type Experience = "Entry level" | "Intermediate" | "Expert";
 
 interface Job {
@@ -431,26 +427,26 @@ function JobCard({
           </span>
         ))}
       </div>
-	      <div className="mt-6 flex flex-col justify-between gap-4 border-t border-black/7 pt-5 sm:flex-row sm:items-center">
-	        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-[#737870]">
-	          <span className="inline-flex items-center gap-1.5 font-semibold text-[#31352f]">
-	            <svg
-	              viewBox="0 0 24 24"
-	              className="h-4 w-4 text-[#668c63]"
-	              fill="none"
-	              aria-hidden="true"
-	            >
-	              <path
-	                d="M4.5 20V7.5L12 4l7.5 3.5V20M8 10h1m3-1v1m3-1v1m-7 4h1m3-1v1m3-1v1M3 20h18"
-	                stroke="currentColor"
-	                strokeWidth="1.7"
-	                strokeLinecap="round"
-	                strokeLinejoin="round"
-	              />
-	            </svg>
-	            {job.client}
-	          </span>
-	          {job.paymentVerified ? (
+      <div className="mt-6 flex flex-col justify-between gap-4 border-t border-black/7 pt-5 sm:flex-row sm:items-center">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-[#737870]">
+          <span className="inline-flex items-center gap-1.5 font-semibold text-[#31352f]">
+            <svg
+              viewBox="0 0 24 24"
+              className="h-4 w-4 text-[#668c63]"
+              fill="none"
+              aria-hidden="true"
+            >
+              <path
+                d="M4.5 20V7.5L12 4l7.5 3.5V20M8 10h1m3-1v1m3-1v1m-7 4h1m3-1v1m3-1v1M3 20h18"
+                stroke="currentColor"
+                strokeWidth="1.7"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            {job.client}
+          </span>
+          {job.paymentVerified ? (
             <span className="inline-flex items-center gap-1 font-semibold text-[#4d764a]">
               <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[#e4f1e1] text-[10px]">
                 ✓

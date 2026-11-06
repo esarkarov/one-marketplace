@@ -103,8 +103,8 @@ export function InviteMemberModal({
           </button>
         </div>
         <p className="mt-4 text-sm leading-6 text-[#737870]">
-          Invited freelancers keep their personal accounts and choose whether
-          to join your agency.
+          Invited freelancers keep their personal accounts and choose whether to
+          join your agency.
         </p>
         <label className="mt-5 block text-xs font-semibold">
           Freelancer name

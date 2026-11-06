@@ -9,12 +9,7 @@ type JobCardProps = {
   onPropose: () => void;
 };
 
-export function JobCard({
-  job,
-  saved,
-  onSave,
-  onPropose,
-}: JobCardProps) {
+export function JobCard({ job, saved, onSave, onPropose }: JobCardProps) {
   return (
     <article className="rounded-2xl border border-black/8 bg-white p-5 transition hover:border-black/14 hover:shadow-lg hover:shadow-black/4 sm:p-7">
       <div className="flex items-start justify-between gap-4">
@@ -82,7 +77,9 @@ export function JobCard({
       <div className="mt-6 flex flex-col justify-between gap-5 border-t border-black/7 pt-5 xl:flex-row xl:items-center">
         <div>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-[#737870]">
-            <strong className="font-semibold text-[#30342f]">{job.company}</strong>
+            <strong className="font-semibold text-[#30342f]">
+              {job.company}
+            </strong>
             {job.verified && (
               <span className="inline-flex items-center gap-1 font-semibold text-[#4f784c]">
                 <Icon icon="solar:verified-check-bold" width="15" />

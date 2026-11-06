@@ -26,8 +26,17 @@ export function InboxList({
           <p className="mt-1 text-xs text-[#7b8078]">Client conversations</p>
         </div>
         <label className="mt-4 flex h-10 items-center gap-2 rounded-xl bg-[#f3f5f1] px-3">
-          <Icon icon="solar:magnifer-linear" width="17" className="text-[#858a82]" />
-          <input value={search} onChange={(event) => onSearch(event.target.value)} placeholder="Search conversations" className="min-w-0 flex-1 bg-transparent text-sm outline-none" />
+          <Icon
+            icon="solar:magnifer-linear"
+            width="17"
+            className="text-[#858a82]"
+          />
+          <input
+            value={search}
+            onChange={(event) => onSearch(event.target.value)}
+            placeholder="Search conversations"
+            className="min-w-0 flex-1 bg-transparent text-sm outline-none"
+          />
         </label>
       </header>
 
@@ -45,15 +54,25 @@ export function InboxList({
             >
               <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#496e67] text-xs font-semibold text-white">
                 {conversation.initials}
-                {conversation.online && <span className="absolute right-0 bottom-0 h-3 w-3 rounded-full border-2 border-white bg-[#64a665]" />}
+                {conversation.online && (
+                  <span className="absolute right-0 bottom-0 h-3 w-3 rounded-full border-2 border-white bg-[#64a665]" />
+                )}
               </span>
               <span className="min-w-0 flex-1">
                 <span className="flex items-center justify-between gap-2">
-                  <strong className="truncate text-sm">{conversation.client}</strong>
-                  <span className="shrink-0 text-[10px] text-[#8b9088]">{conversation.lastMessageTime}</span>
+                  <strong className="truncate text-sm">
+                    {conversation.client}
+                  </strong>
+                  <span className="shrink-0 text-[10px] text-[#8b9088]">
+                    {conversation.lastMessageTime}
+                  </span>
                 </span>
-                <span className="mt-0.5 block truncate text-[11px] font-medium text-[#687066]">{conversation.company}</span>
-                <span className={`mt-1 block truncate text-xs ${conversation.unread ? "font-semibold text-[#383c37]" : "text-[#81867e]"}`}>
+                <span className="mt-0.5 block truncate text-[11px] font-medium text-[#687066]">
+                  {conversation.company}
+                </span>
+                <span
+                  className={`mt-1 block truncate text-xs ${conversation.unread ? "font-semibold text-[#383c37]" : "text-[#81867e]"}`}
+                >
                   {conversation.lastMessage}
                 </span>
               </span>
@@ -71,7 +90,9 @@ export function InboxList({
               <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#edf4ea] text-[#52784f]">
                 <Icon icon="solar:chat-round-dots-linear" width="24" />
               </span>
-              <h2 className="mt-4 text-sm font-semibold">No results available</h2>
+              <h2 className="mt-4 text-sm font-semibold">
+                No results available
+              </h2>
               <p className="mt-1.5 text-xs leading-5 text-[#858a82]">
                 No conversations match “{search}”.
               </p>

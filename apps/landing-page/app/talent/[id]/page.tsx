@@ -299,9 +299,19 @@ export default async function TalentProfilePage({
                       className="inline-flex items-center gap-1.5 rounded-full bg-white/75 px-2.5 py-1 text-xs font-semibold text-[#477344]"
                       title="Identity verified with Stripe"
                     >
-                      <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" aria-hidden="true">
-                        <path fill="currentColor" d="m8 1.3 1.55 1.12 1.9-.04.55 1.82 1.56 1.08-.63 1.8.63 1.8L12 9.96l-.55 1.82-1.9-.04L8 12.86l-1.55-1.12-1.9.04L4 9.96 2.44 8.88l.63-1.8-.63-1.8L4 4.2l.55-1.82 1.9.04L8 1.3Z" />
-                        <path fill="white" d="m6.9 10.55-2.1-2.1.95-.95L6.9 8.65l3.35-3.35.95.95-4.3 4.3Z" />
+                      <svg
+                        viewBox="0 0 16 16"
+                        className="h-3.5 w-3.5"
+                        aria-hidden="true"
+                      >
+                        <path
+                          fill="currentColor"
+                          d="m8 1.3 1.55 1.12 1.9-.04.55 1.82 1.56 1.08-.63 1.8.63 1.8L12 9.96l-.55 1.82-1.9-.04L8 12.86l-1.55-1.12-1.9.04L4 9.96 2.44 8.88l.63-1.8-.63-1.8L4 4.2l.55-1.82 1.9.04L8 1.3Z"
+                        />
+                        <path
+                          fill="white"
+                          d="m6.9 10.55-2.1-2.1.95-.95L6.9 8.65l3.35-3.35.95.95-4.3 4.3Z"
+                        />
                       </svg>
                       Identity verified
                     </span>

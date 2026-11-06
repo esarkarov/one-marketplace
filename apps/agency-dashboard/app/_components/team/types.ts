@@ -1,7 +1,5 @@
 export type AgencyMemberRole =
-  | "Agency owner"
-  | "Business manager"
-  | "Agency member";
+  "Agency owner" | "Business manager" | "Agency member";
 
 export type AgencyMemberStatus = "Active" | "Invitation pending";
 

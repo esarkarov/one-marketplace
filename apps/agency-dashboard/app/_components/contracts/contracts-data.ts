@@ -18,10 +18,34 @@ export const initialAgencyContracts: AgencyContract[] = [
     description:
       "Design and build a secure healthcare member workspace, including discovery, product design, frontend and backend engineering, accessibility verification, and production launch.",
     milestones: [
-      { id: 1, title: "Discovery and product architecture", amount: "$8,000", due: "June 2", status: "Paid" },
-      { id: 2, title: "Design system and member experience", amount: "$10,000", due: "June 28", status: "Paid" },
-      { id: 3, title: "Member collaboration and notifications", amount: "$12,000", due: "August 18", status: "In progress" },
-      { id: 4, title: "Verification, launch, and handoff", amount: "$12,000", due: "September 12", status: "Upcoming" },
+      {
+        id: 1,
+        title: "Discovery and product architecture",
+        amount: "$8,000",
+        due: "June 2",
+        status: "Paid",
+      },
+      {
+        id: 2,
+        title: "Design system and member experience",
+        amount: "$10,000",
+        due: "June 28",
+        status: "Paid",
+      },
+      {
+        id: 3,
+        title: "Member collaboration and notifications",
+        amount: "$12,000",
+        due: "August 18",
+        status: "In progress",
+      },
+      {
+        id: 4,
+        title: "Verification, launch, and handoff",
+        amount: "$12,000",
+        due: "September 12",
+        status: "Upcoming",
+      },
     ],
   },
   {
@@ -41,10 +65,34 @@ export const initialAgencyContracts: AgencyContract[] = [
     description:
       "Build the production application, document intelligence pipeline, evaluation workflows, observability, and launch infrastructure for an AI-assisted research platform.",
     milestones: [
-      { id: 1, title: "Architecture and evaluation prototype", amount: "$14,500", due: "July 18", status: "Paid" },
-      { id: 2, title: "Document intelligence and citation workflow", amount: "$18,000", due: "September 12", status: "In progress" },
-      { id: 3, title: "Research workspace and collaboration", amount: "$20,000", due: "October 20", status: "Upcoming" },
-      { id: 4, title: "Production hardening and launch", amount: "$16,000", due: "November 18", status: "Upcoming" },
+      {
+        id: 1,
+        title: "Architecture and evaluation prototype",
+        amount: "$14,500",
+        due: "July 18",
+        status: "Paid",
+      },
+      {
+        id: 2,
+        title: "Document intelligence and citation workflow",
+        amount: "$18,000",
+        due: "September 12",
+        status: "In progress",
+      },
+      {
+        id: 3,
+        title: "Research workspace and collaboration",
+        amount: "$20,000",
+        due: "October 20",
+        status: "Upcoming",
+      },
+      {
+        id: 4,
+        title: "Production hardening and launch",
+        amount: "$16,000",
+        due: "November 18",
+        status: "Upcoming",
+      },
     ],
   },
   {
@@ -64,9 +112,27 @@ export const initialAgencyContracts: AgencyContract[] = [
     description:
       "Create a unified brand, messaging, and product design system for a new fintech platform, with production-ready guidance and component documentation.",
     milestones: [
-      { id: 1, title: "Positioning and brand strategy", amount: "$6,000", due: "June 22", status: "Paid" },
-      { id: 2, title: "Visual identity and product foundations", amount: "$9,000", due: "July 18", status: "Paid" },
-      { id: 3, title: "System documentation and handoff", amount: "$4,000", due: "August 2", status: "In progress" },
+      {
+        id: 1,
+        title: "Positioning and brand strategy",
+        amount: "$6,000",
+        due: "June 22",
+        status: "Paid",
+      },
+      {
+        id: 2,
+        title: "Visual identity and product foundations",
+        amount: "$9,000",
+        due: "July 18",
+        status: "Paid",
+      },
+      {
+        id: 3,
+        title: "System documentation and handoff",
+        amount: "$4,000",
+        due: "August 2",
+        status: "In progress",
+      },
     ],
   },
   {
@@ -87,10 +153,34 @@ export const initialAgencyContracts: AgencyContract[] = [
     description:
       "Designed and delivered a responsive commerce analytics suite with an accessible design system, production frontend, and visualization documentation.",
     milestones: [
-      { id: 1, title: "Product audit and information architecture", amount: "$8,000", due: "February 2", status: "Paid" },
-      { id: 2, title: "Design system and dashboard experience", amount: "$12,000", due: "March 4", status: "Paid" },
-      { id: 3, title: "Frontend implementation", amount: "$12,000", due: "April 10", status: "Paid" },
-      { id: 4, title: "QA and production launch", amount: "$4,000", due: "April 28", status: "Paid" },
+      {
+        id: 1,
+        title: "Product audit and information architecture",
+        amount: "$8,000",
+        due: "February 2",
+        status: "Paid",
+      },
+      {
+        id: 2,
+        title: "Design system and dashboard experience",
+        amount: "$12,000",
+        due: "March 4",
+        status: "Paid",
+      },
+      {
+        id: 3,
+        title: "Frontend implementation",
+        amount: "$12,000",
+        due: "April 10",
+        status: "Paid",
+      },
+      {
+        id: 4,
+        title: "QA and production launch",
+        amount: "$4,000",
+        due: "April 28",
+        status: "Paid",
+      },
     ],
   },
 ];

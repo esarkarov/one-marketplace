@@ -91,7 +91,10 @@ export function PublicMarketplaceProfile({
             <div className="mt-6 grid grid-cols-3 border-y border-black/7 py-4">
               <Stat value={`${profile.jobSuccess}%`} label="Job success" />
               <Stat value={String(profile.rating)} label="Rating" bordered />
-              <Stat value={String(profile.completedProjects)} label="Projects" />
+              <Stat
+                value={String(profile.completedProjects)}
+                label="Projects"
+              />
             </div>
             <div className="mt-5 text-left">
               <Detail
@@ -200,9 +203,7 @@ export function PublicMarketplaceProfile({
             </div>
           </ProfileSection>
 
-          {agency && (
-            <AgencyMembersPagination />
-          )}
+          {agency && <AgencyMembersPagination />}
 
           <WorkHistoryPagination averageRating={profile.rating} />
         </div>

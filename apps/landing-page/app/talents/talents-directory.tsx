@@ -5,11 +5,7 @@ import { useMemo, useState } from "react";
 import styles from "./talents.module.css";
 
 type Category =
-  | "Design"
-  | "Development"
-  | "Marketing"
-  | "Writing"
-  | "Data & AI";
+  "Design" | "Development" | "Marketing" | "Writing" | "Data & AI";
 
 interface Talent {
   id: number;
@@ -401,9 +397,7 @@ function TalentCard({ talent }: { talent: Talent }) {
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h2
-              className={`${styles.uiHeading} truncate text-base sm:text-lg`}
-            >
+            <h2 className={`${styles.uiHeading} truncate text-base sm:text-lg`}>
               {talent.name}
             </h2>
             {talent.verified && <VerifiedBadge />}
@@ -526,8 +520,7 @@ export function TalentsDirectory() {
         return second.completedProjects - first.completedProjects;
       if (sort === "rate-low") return first.hourlyRate - second.hourlyRate;
       return (
-        second.rating * second.jobSuccess -
-        first.rating * first.jobSuccess
+        second.rating * second.jobSuccess - first.rating * first.jobSuccess
       );
     });
   }, [
@@ -642,9 +635,7 @@ export function TalentsDirectory() {
         <div className="grid items-start gap-8 lg:grid-cols-[17rem_1fr]">
           <aside className="sticky top-6 hidden rounded-2xl border border-black/8 bg-white p-5 lg:block">
             <div className="mb-6 flex items-center justify-between">
-              <h2 className={`${styles.uiHeading} text-base`}>
-                Filters
-              </h2>
+              <h2 className={`${styles.uiHeading} text-base`}>Filters</h2>
             </div>
             <FilterControls prefix="desktop" {...filterProps} />
           </aside>
@@ -681,7 +672,9 @@ export function TalentsDirectory() {
               </div>
             ) : (
               <div className="rounded-2xl border border-dashed border-black/15 bg-white px-6 py-16 text-center">
-                <p className="text-lg font-semibold">No matching talent found</p>
+                <p className="text-lg font-semibold">
+                  No matching talent found
+                </p>
                 <p className="mt-2 text-sm text-[#777b74]">
                   Try a broader search or reset your filters.
                 </p>

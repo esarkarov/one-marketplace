@@ -52,10 +52,7 @@ export function WorkHistoryPagination({
   const [page, setPage] = useState(1);
   const totalPages = Math.ceil(completedWork.length / itemsPerPage);
   const pageStart = (page - 1) * itemsPerPage;
-  const visibleWork = completedWork.slice(
-    pageStart,
-    pageStart + itemsPerPage,
-  );
+  const visibleWork = completedWork.slice(pageStart, pageStart + itemsPerPage);
 
   const openPage = (nextPage: number) => {
     setPage(Math.min(Math.max(nextPage, 1), totalPages));
@@ -72,9 +69,7 @@ export function WorkHistoryPagination({
             Completed work and reviews
           </h2>
         </div>
-        <p className="text-xs text-[#8a8f87]">
-          {averageRating} average rating
-        </p>
+        <p className="text-xs text-[#8a8f87]">{averageRating} average rating</p>
       </div>
 
       <div className="grid gap-4">

@@ -82,8 +82,8 @@ const sections: LegalSection[] = [
         <p>
           We retain information for as long as needed to provide the service,
           satisfy legal obligations, resolve disputes, and enforce agreements.
-          Retention periods vary according to the type of information and why
-          it was collected.
+          Retention periods vary according to the type of information and why it
+          was collected.
         </p>
         <p>
           We use reasonable administrative, technical, and organizational
@@ -119,8 +119,8 @@ const sections: LegalSection[] = [
     title: "International data",
     content: (
       <p>
-        OneMarketplace.io is designed for a global community. Information may
-        be processed in countries other than your own. Where required, we use
+        OneMarketplace.io is designed for a global community. Information may be
+        processed in countries other than your own. Where required, we use
         appropriate safeguards for international transfers.
       </p>
     ),

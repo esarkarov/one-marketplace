@@ -125,7 +125,12 @@ export function FinancesDashboard({
                 />
               </section>
               <section className="overflow-hidden rounded-2xl border border-black/8 bg-white">
-                <PanelHeader title="Recent agency earnings" description="Milestone payments received by Northstar Digital" action="View all" onAction={() => openSection("earnings")} />
+                <PanelHeader
+                  title="Recent agency earnings"
+                  description="Milestone payments received by Northstar Digital"
+                  action="View all"
+                  onAction={() => openSection("earnings")}
+                />
                 <EarningsRows items={agencyEarnings.slice(0, 3)} />
               </section>
               <section className="rounded-2xl border border-black/8 bg-white p-5 sm:p-6">
@@ -414,9 +419,7 @@ function FinanceCard({
   return (
     <article
       className={`rounded-2xl p-5 ${
-        dark
-          ? "bg-[#252724] text-white"
-          : "border border-black/8 bg-white"
+        dark ? "bg-[#252724] text-white" : "border border-black/8 bg-white"
       }`}
     >
       <p className={`text-xs ${dark ? "text-white/60" : "text-[#7b8078]"}`}>
@@ -424,9 +427,7 @@ function FinanceCard({
       </p>
       <p className="mt-5 text-3xl font-semibold tracking-[-0.045em]">{value}</p>
       <p
-        className={`mt-1 text-xs ${
-          dark ? "text-white/55" : "text-[#7b8078]"
-        }`}
+        className={`mt-1 text-xs ${dark ? "text-white/55" : "text-[#7b8078]"}`}
       >
         {detail}
       </p>
@@ -475,11 +476,7 @@ function PanelHeader({
   );
 }
 
-function EarningsRows({
-  items,
-}: {
-  items: typeof agencyEarnings;
-}) {
+function EarningsRows({ items }: { items: typeof agencyEarnings }) {
   return (
     <div>
       {items.map((item, index) => (

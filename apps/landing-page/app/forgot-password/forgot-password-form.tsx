@@ -56,8 +56,9 @@ export function ForgotPasswordForm() {
           Check your email
         </h1>
         <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-[#72766f]">
-          If an account exists for <strong className="text-[#393c37]">{email}</strong>,
-          a password reset link will be sent there.
+          If an account exists for{" "}
+          <strong className="text-[#393c37]">{email}</strong>, a password reset
+          link will be sent there.
         </p>
 
         <div className="mt-8 grid gap-3">

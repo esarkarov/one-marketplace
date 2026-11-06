@@ -99,7 +99,10 @@ export function OverviewPanel({
       </div>
       <div className="border-t border-black/7 px-5 py-4 text-xs text-[#737870] sm:px-6">
         Financial settings, Connects, and statements are managed from the{" "}
-        <a href="/finances?section=overview" className="font-semibold text-[#52784f] hover:underline">
+        <a
+          href="/finances?section=overview"
+          className="font-semibold text-[#52784f] hover:underline"
+        >
           Finances page
         </a>
         .
@@ -180,7 +183,11 @@ export function ProfilePanel() {
         </section>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Agency name" defaultValue="Northstar Digital" />
-          <Field label="Website" defaultValue="https://northstar.digital" type="url" />
+          <Field
+            label="Website"
+            defaultValue="https://northstar.digital"
+            type="url"
+          />
         </div>
         <Field
           label="Profile title"
@@ -189,11 +196,21 @@ export function ProfilePanel() {
         <div className="grid gap-4 sm:grid-cols-2">
           <SelectField
             label="Primary specialty"
-            options={["Web & software development", "Design & creative", "Data & AI", "Marketing"]}
+            options={[
+              "Web & software development",
+              "Design & creative",
+              "Data & AI",
+              "Marketing",
+            ]}
           />
           <SelectField
             label="Agency size"
-            options={["2–5 members", "6–10 members", "11–25 members", "26+ members"]}
+            options={[
+              "2–5 members",
+              "6–10 members",
+              "11–25 members",
+              "26+ members",
+            ]}
             defaultValue="6–10 members"
           />
         </div>
@@ -404,7 +421,10 @@ export function MembersPanel() {
             className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:px-6"
           >
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#527a73] text-xs font-semibold text-white">
-              {name.split(" ").map((part) => part[0]).join("")}
+              {name
+                .split(" ")
+                .map((part) => part[0])
+                .join("")}
             </span>
             <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold">{name}</p>
@@ -509,8 +529,8 @@ export function VerificationPanel() {
           )}
         </div>
         <p className="mt-4 rounded-xl bg-[#f3f6f1] p-4 text-xs leading-5 text-[#667064]">
-          Stripe securely handles identity information. OneMarketplace does
-          not manually collect or review identity documents.
+          Stripe securely handles identity information. OneMarketplace does not
+          manually collect or review identity documents.
         </p>
       </div>
     </Panel>

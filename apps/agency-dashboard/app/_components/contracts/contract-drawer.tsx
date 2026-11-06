@@ -3,10 +3,7 @@
 import Link from "next/link";
 import { Icon } from "../ui/icon";
 import { contractStatusStyles } from "./contracts-data";
-import type {
-  AgencyContract,
-  AgencyMilestoneStatus,
-} from "./types";
+import type { AgencyContract, AgencyMilestoneStatus } from "./types";
 
 const milestoneStyles: Record<AgencyMilestoneStatus, string> = {
   Paid: "bg-[#e6f2e3] text-[#477344]",

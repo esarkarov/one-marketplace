@@ -39,7 +39,12 @@ export const clientJobs: ClientJob[] = [
       "How would you approach presence and conflict resolution?",
     ],
     milestones: [
-      { id: 1, title: "Architecture and prototype", amount: 3000, due: "Aug 12" },
+      {
+        id: 1,
+        title: "Architecture and prototype",
+        amount: 3000,
+        due: "Aug 12",
+      },
       { id: 2, title: "Collaboration workflow", amount: 5000, due: "Sep 2" },
       { id: 3, title: "Launch and handoff", amount: 4000, due: "Sep 24" },
     ],
@@ -59,7 +64,9 @@ export const clientJobs: ClientJob[] = [
     shortlisted: 4,
     hires: 1,
     visibility: "Marketplace",
-    screeningQuestions: ["Share your strongest analytics or dashboard project."],
+    screeningQuestions: [
+      "Share your strongest analytics or dashboard project.",
+    ],
     milestones: [
       { id: 1, title: "UX and visual direction", amount: 2000, due: "Aug 8" },
       { id: 2, title: "Dashboard implementation", amount: 3000, due: "Aug 25" },
@@ -83,7 +90,12 @@ export const clientJobs: ClientJob[] = [
     visibility: "Marketplace",
     screeningQuestions: [],
     milestones: [
-      { id: 1, title: "Research and evaluation plan", amount: 4500, due: "TBD" },
+      {
+        id: 1,
+        title: "Research and evaluation plan",
+        amount: 4500,
+        due: "TBD",
+      },
       { id: 2, title: "Core research workflow", amount: 9000, due: "TBD" },
       { id: 3, title: "Production launch", amount: 5000, due: "TBD" },
     ],
@@ -110,12 +122,7 @@ export type ClientProposal = {
   skills: string[];
   milestonePlan: { title: string; amount: number; duration: string }[];
   status:
-    | "New"
-    | "Shortlisted"
-    | "Interview"
-    | "Offer sent"
-    | "Rejected"
-    | "Hired";
+    "New" | "Shortlisted" | "Interview" | "Offer sent" | "Rejected" | "Hired";
 };
 
 export const clientProposals: ClientProposal[] = [
@@ -139,7 +146,11 @@ export const clientProposals: ClientProposal[] = [
       "I’ve built collaborative products with presence, optimistic updates, and conflict-aware syncing. I would begin with a focused technical prototype, validate the event model, then deliver the product in funded milestones.",
     skills: ["Next.js", "TypeScript", "PostgreSQL", "WebSockets"],
     milestonePlan: [
-      { title: "Architecture and presence prototype", amount: 3000, duration: "2 weeks" },
+      {
+        title: "Architecture and presence prototype",
+        amount: 3000,
+        duration: "2 weeks",
+      },
       { title: "Collaboration workflow", amount: 5000, duration: "5 weeks" },
       { title: "Launch and documentation", amount: 3500, duration: "3 weeks" },
     ],
@@ -165,8 +176,16 @@ export const clientProposals: ClientProposal[] = [
       "Northstar can provide a focused product squad covering architecture, interaction design, frontend engineering, and backend delivery while keeping one accountable point of contact.",
     skills: ["Next.js", "Product design", "Node.js", "Design systems"],
     milestonePlan: [
-      { title: "Product and technical foundation", amount: 3500, duration: "2 weeks" },
-      { title: "End-to-end collaboration features", amount: 5500, duration: "5 weeks" },
+      {
+        title: "Product and technical foundation",
+        amount: 3500,
+        duration: "2 weeks",
+      },
+      {
+        title: "End-to-end collaboration features",
+        amount: 5500,
+        duration: "5 weeks",
+      },
       { title: "Hardening and launch", amount: 3000, duration: "2 weeks" },
     ],
     status: "Shortlisted",
@@ -217,9 +236,17 @@ export const clientProposals: ClientProposal[] = [
       "I specialize in complex SaaS dashboards and can take this from interaction design through a production-ready component system, working closely with your engineering team.",
     skills: ["Product design", "Design systems", "Analytics", "Accessibility"],
     milestonePlan: [
-      { title: "Product UX and visual direction", amount: 2000, duration: "2 weeks" },
+      {
+        title: "Product UX and visual direction",
+        amount: 2000,
+        duration: "2 weeks",
+      },
       { title: "Dashboard design system", amount: 2500, duration: "3 weeks" },
-      { title: "Implementation support and QA", amount: 1500, duration: "2 weeks" },
+      {
+        title: "Implementation support and QA",
+        amount: 1500,
+        duration: "2 weeks",
+      },
     ],
     status: "Hired",
   },
@@ -243,7 +270,11 @@ export const clientProposals: ClientProposal[] = [
       "Our product design and frontend specialists can deliver the dashboard as one cohesive engagement, including accessible visualizations and reusable React components.",
     skills: ["Product design", "React", "Data visualization", "Storybook"],
     milestonePlan: [
-      { title: "Discovery and dashboard UX", amount: 2200, duration: "2 weeks" },
+      {
+        title: "Discovery and dashboard UX",
+        amount: 2200,
+        duration: "2 weeks",
+      },
       { title: "Design and implementation", amount: 3600, duration: "4 weeks" },
       { title: "QA and handoff", amount: 1000, duration: "2 weeks" },
     ],
@@ -384,8 +415,20 @@ export const clientContracts: ClientContract[] = [
     description:
       "Design and engineering of a secure collaborative workspace for clinical teams.",
     milestones: [
-      { id: 1, title: "Product and architecture foundation", amount: 10000, due: "Jun 30", status: "Paid" },
-      { id: 2, title: "Core workspace experience", amount: 8000, due: "Jul 22", status: "Paid" },
+      {
+        id: 1,
+        title: "Product and architecture foundation",
+        amount: 10000,
+        due: "Jun 30",
+        status: "Paid",
+      },
+      {
+        id: 2,
+        title: "Core workspace experience",
+        amount: 8000,
+        due: "Jul 22",
+        status: "Paid",
+      },
       {
         id: 3,
         title: "Collaboration milestone",
@@ -395,7 +438,13 @@ export const clientContracts: ClientContract[] = [
         submissionComment:
           "The collaboration workflow is ready for review. I completed presence indicators, threaded comments, mentions, and conflict-safe optimistic updates. Please test the shared workspace flow in the staging build.",
       },
-      { id: 4, title: "Launch and handoff", amount: 12000, due: "Sep 12", status: "Upcoming" },
+      {
+        id: 4,
+        title: "Launch and handoff",
+        amount: 12000,
+        due: "Sep 12",
+        status: "Upcoming",
+      },
     ],
   },
   {
@@ -414,9 +463,27 @@ export const clientContracts: ClientContract[] = [
     description:
       "Accessible analytics dashboard implementation and reusable component system.",
     milestones: [
-      { id: 1, title: "UX and visual direction", amount: 2000, due: "Jul 20", status: "Paid" },
-      { id: 2, title: "Dashboard implementation", amount: 3000, due: "Aug 25", status: "In progress" },
-      { id: 3, title: "QA and handoff", amount: 1000, due: "Sep 2", status: "Upcoming" },
+      {
+        id: 1,
+        title: "UX and visual direction",
+        amount: 2000,
+        due: "Jul 20",
+        status: "Paid",
+      },
+      {
+        id: 2,
+        title: "Dashboard implementation",
+        amount: 3000,
+        due: "Aug 25",
+        status: "In progress",
+      },
+      {
+        id: 3,
+        title: "QA and handoff",
+        amount: 1000,
+        due: "Sep 2",
+        status: "Upcoming",
+      },
     ],
   },
 ];

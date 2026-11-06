@@ -105,9 +105,8 @@ export function TeamDashboard() {
           ],
           [
             "Pending invites",
-            members.filter(
-              (member) => member.status === "Invitation pending",
-            ).length,
+            members.filter((member) => member.status === "Invitation pending")
+              .length,
             "message",
             "bg-[#eeeaf5] text-[#6b5d82]",
           ],
@@ -195,11 +194,7 @@ export function TeamDashboard() {
 
       {!visibleMembers.length && (
         <div className="mt-4 rounded-2xl border border-dashed border-black/12 bg-white px-6 py-16 text-center">
-          <Icon
-            name="team"
-            size={35}
-            className="mx-auto text-[#858a82]"
-          />
+          <Icon name="team" size={35} className="mx-auto text-[#858a82]" />
           <h2 className="mt-4 font-semibold">No team members found</h2>
           <p className="mt-2 text-sm text-[#7c8179]">
             Try another role, status, or search term.

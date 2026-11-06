@@ -10,10 +10,7 @@ export function ReviewsList() {
   const [page, setPage] = useState(1);
   const totalPages = Math.ceil(agencyReviews.length / REVIEWS_PER_PAGE);
   const start = (page - 1) * REVIEWS_PER_PAGE;
-  const visibleReviews = agencyReviews.slice(
-    start,
-    start + REVIEWS_PER_PAGE,
-  );
+  const visibleReviews = agencyReviews.slice(start, start + REVIEWS_PER_PAGE);
 
   const openPage = (nextPage: number) => {
     setPage(Math.min(Math.max(nextPage, 1), totalPages));

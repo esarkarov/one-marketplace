@@ -97,7 +97,12 @@ export function JobFilterPopover({
                 Refine opportunities in your feed
               </p>
             </div>
-            <button type="button" onClick={() => setOpen(false)} aria-label="Close filters" className="cursor-pointer">
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              aria-label="Close filters"
+              className="cursor-pointer"
+            >
               <Icon icon="solar:close-circle-linear" width="23" />
             </button>
           </header>
@@ -105,39 +110,142 @@ export function JobFilterPopover({
           <div className="grid gap-6 p-5">
             <FilterGroup title="Experience level">
               {["Entry", "Intermediate", "Expert"].map((value) => (
-                <CheckOption key={value} label={value} checked={draft.experienceLevels.includes(value)} onChange={() => setDraft((current) => ({ ...current, experienceLevels: toggleValue(current.experienceLevels, value) }))} />
+                <CheckOption
+                  key={value}
+                  label={value}
+                  checked={draft.experienceLevels.includes(value)}
+                  onChange={() =>
+                    setDraft((current) => ({
+                      ...current,
+                      experienceLevels: toggleValue(
+                        current.experienceLevels,
+                        value,
+                      ),
+                    }))
+                  }
+                />
               ))}
             </FilterGroup>
 
             <FilterGroup title="Budget">
               <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-                <label><span className="sr-only">Minimum budget</span><input type="number" min="0" value={draft.minBudget} onChange={(event) => setDraft((current) => ({ ...current, minBudget: event.target.value }))} placeholder="Min $" className="h-10 w-full rounded-xl border border-black/10 px-3 text-sm outline-none focus:border-[#6e916a]" /></label>
+                <label>
+                  <span className="sr-only">Minimum budget</span>
+                  <input
+                    type="number"
+                    min="0"
+                    value={draft.minBudget}
+                    onChange={(event) =>
+                      setDraft((current) => ({
+                        ...current,
+                        minBudget: event.target.value,
+                      }))
+                    }
+                    placeholder="Min $"
+                    className="h-10 w-full rounded-xl border border-black/10 px-3 text-sm outline-none focus:border-[#6e916a]"
+                  />
+                </label>
                 <span className="text-xs text-[#92978f]">to</span>
-                <label><span className="sr-only">Maximum budget</span><input type="number" min="0" value={draft.maxBudget} onChange={(event) => setDraft((current) => ({ ...current, maxBudget: event.target.value }))} placeholder="Max $" className="h-10 w-full rounded-xl border border-black/10 px-3 text-sm outline-none focus:border-[#6e916a]" /></label>
+                <label>
+                  <span className="sr-only">Maximum budget</span>
+                  <input
+                    type="number"
+                    min="0"
+                    value={draft.maxBudget}
+                    onChange={(event) =>
+                      setDraft((current) => ({
+                        ...current,
+                        maxBudget: event.target.value,
+                      }))
+                    }
+                    placeholder="Max $"
+                    className="h-10 w-full rounded-xl border border-black/10 px-3 text-sm outline-none focus:border-[#6e916a]"
+                  />
+                </label>
               </div>
             </FilterGroup>
 
             <FilterGroup title="Project duration">
-              {["Less than 1 month", "1–2 months", "3–6 months", "6+ months"].map((value) => (
-                <CheckOption key={value} label={value} checked={draft.durations.includes(value)} onChange={() => setDraft((current) => ({ ...current, durations: toggleValue(current.durations, value) }))} />
+              {[
+                "Less than 1 month",
+                "1–2 months",
+                "3–6 months",
+                "6+ months",
+              ].map((value) => (
+                <CheckOption
+                  key={value}
+                  label={value}
+                  checked={draft.durations.includes(value)}
+                  onChange={() =>
+                    setDraft((current) => ({
+                      ...current,
+                      durations: toggleValue(current.durations, value),
+                    }))
+                  }
+                />
               ))}
             </FilterGroup>
 
             <FilterGroup title="Number of proposals">
-              <select value={draft.proposalRange} onChange={(event) => setDraft((current) => ({ ...current, proposalRange: event.target.value }))} className="h-10 w-full rounded-xl border border-black/10 bg-white px-3 text-sm outline-none">
-                <option>Any number</option><option>Less than 5</option><option>5 to 10</option><option>10 to 15</option>
+              <select
+                value={draft.proposalRange}
+                onChange={(event) =>
+                  setDraft((current) => ({
+                    ...current,
+                    proposalRange: event.target.value,
+                  }))
+                }
+                className="h-10 w-full rounded-xl border border-black/10 bg-white px-3 text-sm outline-none"
+              >
+                <option>Any number</option>
+                <option>Less than 5</option>
+                <option>5 to 10</option>
+                <option>10 to 15</option>
               </select>
             </FilterGroup>
 
             <label className="flex cursor-pointer items-center justify-between gap-4 rounded-xl bg-[#f3f6f1] p-4">
-              <span><strong className="block text-xs">Payment verified only</strong><span className="mt-1 block text-[10px] text-[#7b8078]">Show clients with a verified payment method</span></span>
-              <input type="checkbox" checked={draft.verifiedOnly} onChange={(event) => setDraft((current) => ({ ...current, verifiedOnly: event.target.checked }))} className="h-4 w-4 accent-[#5f875c]" />
+              <span>
+                <strong className="block text-xs">Payment verified only</strong>
+                <span className="mt-1 block text-[10px] text-[#7b8078]">
+                  Show clients with a verified payment method
+                </span>
+              </span>
+              <input
+                type="checkbox"
+                checked={draft.verifiedOnly}
+                onChange={(event) =>
+                  setDraft((current) => ({
+                    ...current,
+                    verifiedOnly: event.target.checked,
+                  }))
+                }
+                className="h-4 w-4 accent-[#5f875c]"
+              />
             </label>
           </div>
 
           <footer className="sticky bottom-0 flex items-center justify-between border-t border-black/7 bg-white p-4">
-            <button type="button" onClick={() => { setDraft(emptyJobFilters); onClear(); }} className="cursor-pointer text-xs font-semibold text-[#777c74] hover:underline">Clear all</button>
-            <button type="button" onClick={() => { onApply(draft); setOpen(false); }} className="h-10 cursor-pointer rounded-xl bg-[#252724] px-5 text-xs font-semibold text-white">Apply filters</button>
+            <button
+              type="button"
+              onClick={() => {
+                setDraft(emptyJobFilters);
+                onClear();
+              }}
+              className="cursor-pointer text-xs font-semibold text-[#777c74] hover:underline"
+            >
+              Clear all
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                onApply(draft);
+                setOpen(false);
+              }}
+              className="h-10 cursor-pointer rounded-xl bg-[#252724] px-5 text-xs font-semibold text-white"
+            >
+              Apply filters
+            </button>
           </footer>
         </section>
       )}
@@ -145,10 +253,39 @@ export function JobFilterPopover({
   );
 }
 
-function FilterGroup({ title, children }: { title: string; children: React.ReactNode }) {
-  return <fieldset><legend className="mb-3 text-xs font-semibold">{title}</legend><div className="grid gap-2.5">{children}</div></fieldset>;
+function FilterGroup({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <fieldset>
+      <legend className="mb-3 text-xs font-semibold">{title}</legend>
+      <div className="grid gap-2.5">{children}</div>
+    </fieldset>
+  );
 }
 
-function CheckOption({ label, checked, onChange }: { label: string; checked: boolean; onChange: () => void }) {
-  return <label className="flex cursor-pointer items-center gap-2.5 text-sm text-[#656b63]"><input type="checkbox" checked={checked} onChange={onChange} className="h-4 w-4 accent-[#5f875c]" />{label}</label>;
+function CheckOption({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: () => void;
+}) {
+  return (
+    <label className="flex cursor-pointer items-center gap-2.5 text-sm text-[#656b63]">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={onChange}
+        className="h-4 w-4 accent-[#5f875c]"
+      />
+      {label}
+    </label>
+  );
 }

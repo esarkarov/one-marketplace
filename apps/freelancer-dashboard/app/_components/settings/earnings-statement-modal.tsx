@@ -134,13 +134,19 @@ export function EarningsStatementModal({
             </div>
             <div className="text-right">
               <p className="text-[10px] text-[#7b8078]">Gross earnings</p>
-              <p className="mt-1 text-lg font-semibold">{periodTotals[period]}</p>
+              <p className="mt-1 text-lg font-semibold">
+                {periodTotals[period]}
+              </p>
             </div>
           </div>
         </div>
 
         <p className="mt-4 flex gap-2 text-[11px] leading-5 text-[#858a82]">
-          <Icon icon="solar:info-circle-linear" width="16" className="mt-0.5 shrink-0" />
+          <Icon
+            icon="solar:info-circle-linear"
+            width="16"
+            className="mt-0.5 shrink-0"
+          />
           The statement includes your verified name, account reference, issue
           date, selected period, and gross earnings.
         </p>

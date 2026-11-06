@@ -112,8 +112,8 @@ export function MessagesDashboard() {
                   Select a conversation
                 </h2>
                 <p className="mx-auto mt-2 max-w-xs text-sm leading-6 text-[#7b8078]">
-                  Choose a client conversation to view messages, share files,
-                  or create a project meeting.
+                  Choose a client conversation to view messages, share files, or
+                  create a project meeting.
                 </p>
               </div>
             </section>

@@ -24,7 +24,9 @@ export function MessagesHeaderLink() {
       }`}
     >
       <Icon
-        icon={active ? "solar:chat-round-dots-bold" : "solar:chat-round-dots-linear"}
+        icon={
+          active ? "solar:chat-round-dots-bold" : "solar:chat-round-dots-linear"
+        }
         width="22"
       />
       {unreadCount > 0 && (

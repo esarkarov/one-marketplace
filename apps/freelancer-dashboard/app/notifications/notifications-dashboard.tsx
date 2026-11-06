@@ -8,7 +8,14 @@ import { WorkspaceSidebar } from "../_components/dashboard/workspace-sidebar";
 import { dashboardNotifications } from "../_components/notifications/notifications-data";
 import type { DashboardNotification } from "../_components/notifications/types";
 
-const filters = ["All", "Contracts", "Proposals", "Messages", "Payments", "Account"];
+const filters = [
+  "All",
+  "Contracts",
+  "Proposals",
+  "Messages",
+  "Payments",
+  "Account",
+];
 
 export function NotificationsDashboard() {
   const [notifications, setNotifications] = useState(dashboardNotifications);
@@ -40,7 +47,9 @@ export function NotificationsDashboard() {
 
   const markRead = (id: number) => {
     setNotifications((current) =>
-      current.map((item) => (item.id === id ? { ...item, unread: false } : item)),
+      current.map((item) =>
+        item.id === id ? { ...item, unread: false } : item,
+      ),
     );
   };
 
@@ -53,10 +62,15 @@ export function NotificationsDashboard() {
           <div className="min-w-0">
             <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
               <div>
-                <p className="text-xs font-semibold tracking-[0.14em] text-[#62805f] uppercase">Activity center</p>
-                <h1 className="mt-2 text-3xl font-semibold tracking-[-0.045em] sm:text-4xl">Notifications</h1>
+                <p className="text-xs font-semibold tracking-[0.14em] text-[#62805f] uppercase">
+                  Activity center
+                </p>
+                <h1 className="mt-2 text-3xl font-semibold tracking-[-0.045em] sm:text-4xl">
+                  Notifications
+                </h1>
                 <p className="mt-2 text-sm text-[#72776f]">
-                  Stay on top of contracts, proposals, payments, and client messages.
+                  Stay on top of contracts, proposals, payments, and client
+                  messages.
                 </p>
               </div>
               {unreadCount > 0 && (
@@ -99,13 +113,19 @@ export function NotificationsDashboard() {
                     aria-pressed={unreadOnly}
                     onClick={() => setUnreadOnly((current) => !current)}
                     className={`h-10 cursor-pointer rounded-xl px-3 text-xs font-semibold ${
-                      unreadOnly ? "bg-[#252724] text-white" : "border border-black/9 text-[#6e736c]"
+                      unreadOnly
+                        ? "bg-[#252724] text-white"
+                        : "border border-black/9 text-[#6e736c]"
                     }`}
                   >
                     Unread only {unreadCount > 0 && `(${unreadCount})`}
                   </button>
                   <label className="flex h-10 items-center gap-2 rounded-xl border border-black/9 px-3 sm:w-64">
-                    <Icon icon="solar:magnifer-linear" width="18" className="text-[#7b8078]" />
+                    <Icon
+                      icon="solar:magnifer-linear"
+                      width="18"
+                      className="text-[#7b8078]"
+                    />
                     <input
                       value={search}
                       onChange={(event) => setSearch(event.target.value)}
@@ -133,10 +153,16 @@ export function NotificationsDashboard() {
                       </span>
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="text-sm font-semibold">{notification.title}</h3>
-                          {notification.unread && <span className="h-2 w-2 rounded-full bg-[#5f8d5c]" />}
+                          <h3 className="text-sm font-semibold">
+                            {notification.title}
+                          </h3>
+                          {notification.unread && (
+                            <span className="h-2 w-2 rounded-full bg-[#5f8d5c]" />
+                          )}
                         </div>
-                        <p className="mt-1 text-sm leading-6 text-[#71766e]">{notification.description}</p>
+                        <p className="mt-1 text-sm leading-6 text-[#71766e]">
+                          {notification.description}
+                        </p>
                         <div className="mt-3 flex flex-wrap items-center gap-3">
                           <Link
                             href={notification.href}
@@ -144,9 +170,14 @@ export function NotificationsDashboard() {
                             className="inline-flex items-center gap-1 text-xs font-semibold text-[#4e774b] hover:underline"
                           >
                             View {notification.category.toLowerCase()}
-                            <Icon icon="solar:arrow-right-up-linear" width="14" />
+                            <Icon
+                              icon="solar:arrow-right-up-linear"
+                              width="14"
+                            />
                           </Link>
-                          <span className="text-[11px] text-[#949990]">{notification.time}</span>
+                          <span className="text-[11px] text-[#949990]">
+                            {notification.time}
+                          </span>
                         </div>
                       </div>
                       {notification.unread && (
@@ -170,7 +201,9 @@ export function NotificationsDashboard() {
                     <Icon icon="solar:bell-off-linear" width="27" />
                   </span>
                   <h2 className="mt-4 font-semibold">No notifications found</h2>
-                  <p className="mt-2 text-sm text-[#7c8179]">Try another filter or search term.</p>
+                  <p className="mt-2 text-sm text-[#7c8179]">
+                    Try another filter or search term.
+                  </p>
                 </div>
               )}
             </section>

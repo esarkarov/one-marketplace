@@ -1,9 +1,5 @@
 export type AgencyProposalStatus =
-  | "Interview"
-  | "Viewed"
-  | "Submitted"
-  | "Archived"
-  | "Withdrawn";
+  "Interview" | "Viewed" | "Submitted" | "Archived" | "Withdrawn";
 
 export type AgencyProposal = {
   id: number;

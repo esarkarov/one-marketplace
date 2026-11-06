@@ -16,7 +16,8 @@ export function MessagesDashboard() {
   const [search, setSearch] = useState("");
 
   const selected =
-    conversations.find((conversation) => conversation.id === selectedId) ?? null;
+    conversations.find((conversation) => conversation.id === selectedId) ??
+    null;
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -112,12 +113,15 @@ export function MessagesDashboard() {
                 </h1>
               </div>
               <p className="text-xs text-[#7b8078]">
-                {conversations.reduce((count, item) => count + item.unread, 0)} unread messages
+                {conversations.reduce((count, item) => count + item.unread, 0)}{" "}
+                unread messages
               </p>
             </div>
 
             <div className="grid h-[calc(100svh-7.5rem)] min-h-160 items-stretch gap-4 lg:h-[calc(100svh-15.5rem)] lg:grid-cols-[330px_minmax(0,1fr)]">
-              <div className={`min-h-0 ${selected ? "hidden lg:block" : "block"}`}>
+              <div
+                className={`min-h-0 ${selected ? "hidden lg:block" : "block"}`}
+              >
                 <InboxList
                   conversations={filtered}
                   activeId={selectedId}
@@ -127,7 +131,9 @@ export function MessagesDashboard() {
                 />
               </div>
 
-              <div className={`min-h-0 ${selected ? "block" : "hidden lg:block"}`}>
+              <div
+                className={`min-h-0 ${selected ? "block" : "hidden lg:block"}`}
+              >
                 {selected ? (
                   <ConversationPanel
                     conversation={selected}
@@ -141,9 +147,12 @@ export function MessagesDashboard() {
                       <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-[#edf4ea] text-[#52784f]">
                         <Icon icon="solar:chat-round-dots-linear" width="31" />
                       </span>
-                      <h2 className="mt-5 text-lg font-semibold">Select a conversation</h2>
+                      <h2 className="mt-5 text-lg font-semibold">
+                        Select a conversation
+                      </h2>
                       <p className="mx-auto mt-2 max-w-xs text-sm leading-6 text-[#7b8078]">
-                        Choose a client from your inbox to view messages, share files, or create a project meeting.
+                        Choose a client from your inbox to view messages, share
+                        files, or create a project meeting.
                       </p>
                     </div>
                   </section>

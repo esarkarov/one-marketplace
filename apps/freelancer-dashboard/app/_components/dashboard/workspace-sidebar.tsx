@@ -62,9 +62,7 @@ export function WorkspaceSidebar({
             >
               <Icon
                 icon={
-                  active
-                    ? item.icon.replace("-linear", "-bold")
-                    : item.icon
+                  active ? item.icon.replace("-linear", "-bold") : item.icon
                 }
                 width="19"
               />

@@ -6,9 +6,7 @@ import { FormEvent, useRef, useState } from "react";
 export function HeroSearch() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
-  const [placeholder, setPlaceholder] = useState(
-    "What do you need help with?",
-  );
+  const [placeholder, setPlaceholder] = useState("What do you need help with?");
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();

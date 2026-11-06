@@ -49,7 +49,10 @@ export function NotificationsPopover() {
           open ? "bg-[#edf4ea] text-[#4e774b]" : "hover:bg-black/5"
         }`}
       >
-        <Icon icon={open ? "solar:bell-bold" : "solar:bell-linear"} width="22" />
+        <Icon
+          icon={open ? "solar:bell-bold" : "solar:bell-linear"}
+          width="22"
+        />
         {unreadCount > 0 && (
           <span className="absolute top-1.5 right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full border-2 border-white bg-[#5f8d5c] px-1 text-[8px] font-bold text-white">
             {unreadCount}
@@ -75,7 +78,9 @@ export function NotificationsPopover() {
               <div>
                 <h2 className="font-semibold">Notifications</h2>
                 <p className="mt-0.5 text-[11px] text-[#81867e]">
-                  {unreadCount ? `${unreadCount} unread updates` : "You’re all caught up"}
+                  {unreadCount
+                    ? `${unreadCount} unread updates`
+                    : "You’re all caught up"}
                 </p>
               </div>
               {unreadCount > 0 && (

@@ -56,11 +56,7 @@ export function ConversationPanel({
         >
           <Icon name="video" size={18} />
           <span className="hidden sm:inline">Create meeting</span>
-          <Icon
-            name="arrow"
-            size={14}
-            className="hidden sm:block"
-          />
+          <Icon name="arrow" size={14} className="hidden sm:block" />
         </a>
       </header>
 

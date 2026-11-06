@@ -49,7 +49,8 @@ export const dashboardNotifications: DashboardNotification[] = [
     id: 4,
     icon: "solar:wallet-money-linear",
     title: "Payment released",
-    description: "A $3,000 milestone payment from Northstar Labs is now available.",
+    description:
+      "A $3,000 milestone payment from Northstar Labs is now available.",
     time: "Yesterday",
     date: "Yesterday",
     href: "/contracts",
@@ -71,7 +72,8 @@ export const dashboardNotifications: DashboardNotification[] = [
     id: 6,
     icon: "solar:chat-round-check-linear",
     title: "Interview invitation",
-    description: "Northstar Labs invited you to discuss their collaborative workspace.",
+    description:
+      "Northstar Labs invited you to discuss their collaborative workspace.",
     time: "July 23",
     date: "Earlier",
     href: "/my-proposals",
