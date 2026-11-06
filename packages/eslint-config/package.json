@@ -1,0 +1,23 @@
+{
+  "name": "@onemarketplace/eslint-config",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./next": "./next.mjs",
+    "./node": "./node.mjs"
+  },
+  "dependencies": {
+    "eslint-config-next": "catalog:",
+    "eslint-config-prettier": "^10.1.8",
+    "typescript-eslint": "8.72.1"
+  },
+  "devDependencies": {
+    "eslint": "catalog:",
+    "typescript": "catalog:"
+  },
+  "peerDependencies": {
+    "eslint": "^10.0.0",
+    "typescript": "*"
+  }
+}

@@ -16,13 +16,13 @@
     "react-dom": "catalog:"
   },
   "devDependencies": {
+    "@onemarketplace/eslint-config": "workspace:*",
     "@onemarketplace/tsconfig": "workspace:*",
     "@tailwindcss/postcss": "catalog:",
     "@types/node": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "eslint": "catalog:",
-    "eslint-config-next": "catalog:",
     "tailwindcss": "catalog:",
     "typescript": "catalog:",
     "@typescript/native": "catalog:"
