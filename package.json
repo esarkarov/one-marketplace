@@ -8,8 +8,11 @@
   "scripts": {
     "dev": "pnpm -r --parallel dev",
     "build": "pnpm -r build",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "lint": "pnpm -r lint",
-    "typecheck": "pnpm -r typecheck"
+    "typecheck": "pnpm -r typecheck",
+    "check": "pnpm format:check && pnpm -r --no-bail lint && pnpm -r --no-bail typecheck"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.4",
