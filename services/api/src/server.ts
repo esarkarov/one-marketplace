@@ -3,7 +3,7 @@ import { SERVICE_NAME } from "./config/constants.js";
 import { env } from "./config/env.js";
 import { app } from "./app.js";
 import { connectRedis, disconnectRedis } from "./config/redis.js";
-import { disconnectNats } from "./config/nats.js";
+import { disconnectNats, isNatsEnabled } from "./config/nats.js";
 import {
   startNotificationConsumer,
   stopNotificationConsumer,
@@ -16,7 +16,9 @@ let isShuttingDown = false;
 
 const start = async (): Promise<void> => {
   await connectRedis();
-  await startNotificationConsumer();
+  if (isNatsEnabled()) {
+    await startNotificationConsumer();
+  }
 
   server = createServer(app);
   initializeMessagingSocket(server);

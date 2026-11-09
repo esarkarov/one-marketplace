@@ -1,4 +1,3 @@
-import "dotenv/config";
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "../src/database/client.js";
 import {

@@ -1,7 +1,9 @@
-import "dotenv/config";
 import express from "express";
 import cors from "cors";
+import type { RequestHandler } from "express";
 import { withOneMinuteLogs } from "@oneminutelogs/express";
+import { env } from "./config/env.js";
+import { logger } from "./config/logger.js";
 import { ApiResponse } from "./types/common.types.js";
 import { API_PREFIX } from "./config/constants.js";
 import { apiRouter } from "./routes/index.js";
@@ -10,11 +12,19 @@ import { errorHandler } from "./middleware/error.middleware.js";
 
 export const app = express();
 
-const apiKey = process.env.ONE_MINUTE_LOGS_API_KEY;
-
-if (!apiKey) {
-  throw new Error("ONE_MINUTE_LOGS_API_KEY is missing from the environment.");
-}
+const requestLogger: RequestHandler = env.oneMinuteLogsApiKey
+  ? withOneMinuteLogs(
+      {
+        apiKey: env.oneMinuteLogsApiKey,
+        projectName: "OneMarketPlace",
+        environment: env.nodeEnv,
+      },
+      { autoLogRequests: false },
+    )
+  : (request, _response, next) => {
+      request.logger = logger;
+      next();
+    };
 
 app.disable("x-powered-by");
 app.use(
@@ -33,16 +43,7 @@ app.use(
   `${API_PREFIX}/meetings/webhook`,
   express.raw({ type: "application/json" }),
 );
-app.use(
-  withOneMinuteLogs(
-    {
-      apiKey,
-      projectName: "OneMarketPlace",
-      environment: process.env.NODE_ENV ?? "development",
-    },
-    { autoLogRequests: false },
-  ),
-);
+app.use(requestLogger);
 
 app.use(express.json({ limit: "20mb" }));
 app.use(cors());

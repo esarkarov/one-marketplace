@@ -2,11 +2,8 @@ import { createClient } from "redis";
 import { env } from "./env.js";
 
 export const redis = createClient({
-  password: env.redis.password,
-  database: env.redis.database,
+  url: env.redisUrl,
   socket: {
-    host: env.redis.host,
-    port: env.redis.port,
     reconnectStrategy: (retries) => {
       if (retries >= 10) {
         return new Error("Redis reconnect attempts exhausted.");
@@ -27,9 +24,7 @@ export const connectRedis = async (): Promise<void> => {
   }
 
   await redis.ping();
-  console.log(
-    `Redis connected at ${env.redis.host}:${env.redis.port}/${env.redis.database}.`,
-  );
+  console.log(`Redis connected at ${new URL(env.redisUrl).host}.`);
 };
 
 export const disconnectRedis = async (): Promise<void> => {

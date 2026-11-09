@@ -1,13 +1,11 @@
-import "dotenv/config";
+const required = (name: string): string => {
+  const value = process.env[name];
 
-const parseRedisDatabase = (value: string | undefined): number => {
-  const database = Number(value ?? 0);
-
-  if (!Number.isInteger(database) || database < 0) {
-    throw new Error("REDIS_DB must be a non-negative integer.");
+  if (!value) {
+    throw new Error(`${name} is required. Set it in the root .env file.`);
   }
 
-  return database;
+  return value;
 };
 
 const parsePort = (value: string | undefined): number => {
@@ -22,14 +20,11 @@ const parsePort = (value: string | undefined): number => {
 
 export const env = {
   port: parsePort(process.env.PORT),
-  clerkSecretKey: process.env.CLERK_SECRET_KEY,
   nodeEnv: process.env.NODE_ENV || "development",
-  redis: {
-    host: process.env.REDIS_HOST ?? "localhost",
-    port: parsePort(process.env.REDIS_PORT ?? "6379"),
-    password: process.env.REDIS_PASSWORD || undefined,
-    database: parseRedisDatabase(process.env.REDIS_DB),
-  },
+  databaseUrl: required("DATABASE_URL"),
+  redisUrl: required("REDIS_URL"),
+  natsUrl: process.env.NATS_URL || undefined,
+  clerkSecretKey: process.env.CLERK_SECRET_KEY,
   imageKitPrivateKey: process.env.IMAGEKIT_PRIVATE_KEY,
   stripeSecretKey: process.env.STRIPE_SECRET_KEY,
   stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
@@ -43,5 +38,4 @@ export const env = {
   freelancerDashboard: process.env.FREELANCER_DASHBOARD,
   clientDashboard: process.env.CLIENT_DASHBOARD,
   agencyDashboard: process.env.AGENCY_DASHBOARD,
-  natsUrl: process.env.NATS_URL ?? "nats://localhost:4222",
 } as const;
