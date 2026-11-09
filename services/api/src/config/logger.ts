@@ -1,54 +1,85 @@
-import { createLogger } from "@oneminutelogs/express";
+import pino from "pino";
+import type { DestinationStream } from "pino";
 import { env } from "./env.js";
+import { sanitizeForLog } from "../utils/sanitize-log.js";
 
-type Logger = ReturnType<typeof createLogger>;
-type Payload = Parameters<Logger["send"]>[0];
-type LevelPayload = Omit<Payload, "level">;
+type AttributeValue = string | number | boolean | null;
 
-const consoleMethod = {
-  trace: "debug",
-  debug: "debug",
-  info: "info",
-  warn: "warn",
-  error: "error",
-  fatal: "error",
-} as const;
-
-const unavailable = () =>
-  new Error("OneMinuteLogs is not configured (ONE_MINUTE_LOGS_API_KEY).");
-
-const send = async ({
-  level = "info",
-  message,
-  eventName,
-  attributes,
-}: Payload) => {
-  console[consoleMethod[level]](`[${level}] ${message}`, {
-    eventName,
-    ...attributes,
-  });
+export type LogPayload = {
+  message: string;
+  eventName?: string;
+  attributes?: Record<string, AttributeValue | AttributeValue[]>;
 };
 
-const consoleLogger: Logger = {
-  send,
-  trace: (payload: LevelPayload) => send({ ...payload, level: "trace" }),
-  debug: (payload: LevelPayload) => send({ ...payload, level: "debug" }),
-  info: (payload: LevelPayload) => send({ ...payload, level: "info" }),
-  warn: (payload: LevelPayload) => send({ ...payload, level: "warn" }),
-  warning: (payload: LevelPayload) => send({ ...payload, level: "warn" }),
-  error: (payload: LevelPayload) => send({ ...payload, level: "error" }),
-  fatal: (payload: LevelPayload) => send({ ...payload, level: "fatal" }),
-  verifyWebhook: () => Promise.reject(unavailable()),
-  get: () => Promise.reject(unavailable()),
-  stream: () => {
-    throw unavailable();
-  },
+type LogMethod = (payload: LogPayload) => Promise<void>;
+
+export type AppLogger = {
+  trace: LogMethod;
+  debug: LogMethod;
+  info: LogMethod;
+  warn: LogMethod;
+  warning: LogMethod;
+  error: LogMethod;
+  fatal: LogMethod;
 };
 
-export const logger: Logger = env.oneMinuteLogsApiKey
-  ? createLogger({
-      apiKey: env.oneMinuteLogsApiKey,
-      projectName: "OneMarketPlace",
-      environment: env.nodeEnv,
-    })
-  : consoleLogger;
+const sanitizeValue = (value: unknown): unknown => {
+  if (typeof value === "string") return sanitizeForLog(value);
+  if (Array.isArray(value)) return value.map(sanitizeValue);
+  return value;
+};
+
+export const createRootLogger = (
+  destination?: DestinationStream,
+  level: string = env.nodeEnv === "test" ? "silent" : "info",
+) => {
+  const options: pino.LoggerOptions = {
+    level,
+    redact: {
+      paths: [
+        "req.headers.authorization",
+        "req.headers.cookie",
+        'res.headers["set-cookie"]',
+      ],
+      censor: "[Redacted]",
+    },
+  };
+
+  return destination ? pino(options, destination) : pino(options);
+};
+
+export const createAppLogger = (base: pino.Logger): AppLogger => {
+  const write =
+    (
+      level: "trace" | "debug" | "info" | "warn" | "error" | "fatal",
+    ): LogMethod =>
+    ({ message, eventName, attributes }) => {
+      const safeAttributes = attributes
+        ? Object.fromEntries(
+            Object.entries(attributes).map(([key, value]) => [
+              key,
+              sanitizeValue(value),
+            ]),
+          )
+        : undefined;
+      base[level](
+        { eventName, attributes: safeAttributes },
+        sanitizeForLog(message),
+      );
+      return Promise.resolve();
+    };
+
+  return {
+    trace: write("trace"),
+    debug: write("debug"),
+    info: write("info"),
+    warn: write("warn"),
+    warning: write("warn"),
+    error: write("error"),
+    fatal: write("fatal"),
+  };
+};
+
+export const rootLogger = createRootLogger();
+
+export const logger: AppLogger = createAppLogger(rootLogger);

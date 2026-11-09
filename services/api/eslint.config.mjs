@@ -16,4 +16,9 @@ export default defineConfig([
       ],
     },
   },
+  {
+    files: ["src/**/*.ts"],
+    ignores: ["src/**/*.test.ts", "src/test/**"],
+    rules: { "no-console": "error" },
+  },
 ]);

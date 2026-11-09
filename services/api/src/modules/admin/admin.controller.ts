@@ -16,7 +16,6 @@ import {
   Pagination,
   scanRedisKeys,
 } from "./admin.service.js";
-import { getStream } from "@oneminutelogs/express";
 
 const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 100;
@@ -181,43 +180,6 @@ export const getRedisKeyHandler: RequestHandler = asyncHandler(
   },
 );
 
-export const streamLogsHandler: RequestHandler = asyncHandler(
-  async (request, response) => {
-    if (!env.oneMinuteLogsApiKey) {
-      throw new ApiError(503, "Logging is not configured.");
-    }
-
-    response.writeHead(200, {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache",
-      Connection: "keep-alive",
-      "X-Accel-Buffering": "no",
-    });
-    response.flushHeaders?.();
-
-    const stream = getStream(
-      {
-        apiKey: env.oneMinuteLogsApiKey,
-        projectName: "OneMarketPlace",
-        environment: env.nodeEnv,
-      },
-      { limit: 50 },
-    );
-
-    let closed = false;
-    request.on("close", () => {
-      closed = true;
-      stream.close();
-    });
-
-    try {
-      for await (const event of stream.events) {
-        if (closed) break;
-        response.write(`data: ${JSON.stringify(event)}\n\n`);
-      }
-    } catch {
-    } finally {
-      if (!closed) response.end();
-    }
-  },
-);
+export const streamLogsHandler: RequestHandler = asyncHandler(async () => {
+  throw new ApiError(503, "Logging is not configured.");
+});

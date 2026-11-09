@@ -1,5 +1,6 @@
 import { createClient } from "redis";
 import { env } from "./env.js";
+import { logger } from "./logger.js";
 
 export const redis = createClient({
   url: env.redisUrl,
@@ -15,7 +16,14 @@ export const redis = createClient({
 });
 
 redis.on("error", (error) => {
-  console.error("Redis client error.", error);
+  void logger.error({
+    message: "Redis client error",
+    eventName: "redis.error",
+    attributes: {
+      "error.name": error instanceof Error ? error.name : "UnknownError",
+      "error.message": error instanceof Error ? error.message : String(error),
+    },
+  });
 });
 
 export const connectRedis = async (): Promise<void> => {
@@ -24,7 +32,11 @@ export const connectRedis = async (): Promise<void> => {
   }
 
   await redis.ping();
-  console.log(`Redis connected at ${new URL(env.redisUrl).host}.`);
+  await logger.info({
+    message: "Redis connected",
+    eventName: "redis.connected",
+    attributes: { "redis.host": new URL(env.redisUrl).host },
+  });
 };
 
 export const disconnectRedis = async (): Promise<void> => {

@@ -1,6 +1,7 @@
 import { createServer, type Server } from "node:http";
 import { SERVICE_NAME } from "./config/constants.js";
 import { env } from "./config/env.js";
+import { logger, rootLogger } from "./config/logger.js";
 import { app } from "./app.js";
 import { pool } from "./database/client.js";
 import { connectRedis, disconnectRedis } from "./config/redis.js";
@@ -31,9 +32,14 @@ const start = async (): Promise<void> => {
   initializeMessagingSocket(server);
   startPayoutCron();
   server.listen(env.port, () => {
-    console.log(
-      `${SERVICE_NAME} listening on http://localhost:${env.port} in ${env.nodeEnv} mode`,
-    );
+    void logger.info({
+      message: `${SERVICE_NAME} listening`,
+      eventName: "system.startup",
+      attributes: {
+        "server.port": env.port,
+        "service.environment": env.nodeEnv,
+      },
+    });
   });
 };
 
@@ -74,17 +80,39 @@ const closeHttpServer = async (): Promise<void> => {
   }
 };
 
+const flushLogs = (): Promise<void> =>
+  new Promise((resolve) => {
+    try {
+      rootLogger.flush(() => resolve());
+    } catch {
+      resolve();
+    }
+  });
+
+const exitWithFlush = async (code: number): Promise<never> => {
+  await flushLogs();
+  process.exit(code);
+};
+
 const shutdown = async (signal: NodeJS.Signals): Promise<void> => {
   if (isShuttingDown) {
     return;
   }
 
   isShuttingDown = true;
-  console.log(`${signal} received. Closing services.`);
+  await logger.info({
+    message: "Shutdown signal received. Closing services.",
+    eventName: "system.shutdown",
+    attributes: { "process.signal": signal },
+  });
 
   const forceExitTimer = setTimeout(() => {
-    console.error("Shutdown timed out. Forcing exit.");
-    process.exit(1);
+    void logger
+      .fatal({
+        message: "Shutdown timed out. Forcing exit.",
+        eventName: "system.shutdown.timeout",
+      })
+      .then(() => exitWithFlush(1));
   }, SHUTDOWN_TIMEOUT_MS);
 
   let failed = false;
@@ -96,7 +124,16 @@ const shutdown = async (signal: NodeJS.Signals): Promise<void> => {
       await step();
     } catch (error) {
       failed = true;
-      console.error(`Shutdown step failed: ${name}.`, error);
+      await logger.error({
+        message: `Shutdown step failed: ${name}`,
+        eventName: "system.shutdown.step_failed",
+        attributes: {
+          "shutdown.step": name,
+          "error.name": error instanceof Error ? error.name : "UnknownError",
+          "error.message":
+            error instanceof Error ? error.message : String(error),
+        },
+      });
     }
   };
 
@@ -108,15 +145,22 @@ const shutdown = async (signal: NodeJS.Signals): Promise<void> => {
   await runStep("database pool", () => pool.end());
 
   clearTimeout(forceExitTimer);
-  process.exit(failed ? 1 : 0);
+  await exitWithFlush(failed ? 1 : 0);
 };
 
 process.on("SIGINT", () => void shutdown("SIGINT"));
 process.on("SIGTERM", () => void shutdown("SIGTERM"));
 
 void start().catch(async (error) => {
-  console.error(`Failed to start ${SERVICE_NAME}.`, error);
+  await logger.fatal({
+    message: `Failed to start ${SERVICE_NAME}`,
+    eventName: "system.startup.failed",
+    attributes: {
+      "error.name": error instanceof Error ? error.name : "UnknownError",
+      "error.message": error instanceof Error ? error.message : String(error),
+    },
+  });
   await disconnectRedis().catch(() => undefined);
   await disconnectNats().catch(() => undefined);
-  process.exit(1);
+  await exitWithFlush(1);
 });

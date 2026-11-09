@@ -138,10 +138,16 @@ export const processDuePayouts = async (): Promise<PayoutRunSummary> => {
         destinationAccount.configuration?.recipient?.capabilities
           ?.stripe_balance?.stripe_transfers?.status === "active";
     } catch (error) {
-      console.error(
-        `[payouts] Could not check destination account status for earning ${row.earningHistoryId}:`,
-        error,
-      );
+      await logger.error({
+        message: "Could not check destination account status",
+        eventName: "payment.payout.account_check_failed",
+        attributes: {
+          "earning.id": row.earningHistoryId,
+          "error.name": error instanceof Error ? error.name : "UnknownError",
+          "error.message":
+            error instanceof Error ? error.message : String(error),
+        },
+      });
     }
 
     if (!transfersActive) {
@@ -229,10 +235,21 @@ export const processDuePayouts = async (): Promise<PayoutRunSummary> => {
               },
         );
       } catch (notificationError) {
-        console.error(
-          `[payouts] Notification failed for earning ${row.earningHistoryId}:`,
-          notificationError,
-        );
+        await logger.error({
+          message: "Payout notification failed",
+          eventName: "payment.payout.notification_failed",
+          attributes: {
+            "earning.id": row.earningHistoryId,
+            "error.name":
+              notificationError instanceof Error
+                ? notificationError.name
+                : "UnknownError",
+            "error.message":
+              notificationError instanceof Error
+                ? notificationError.message
+                : String(notificationError),
+          },
+        });
       }
     } catch (error) {
       if (isUniqueConstraintError(error)) {
@@ -248,15 +265,14 @@ export const processDuePayouts = async (): Promise<PayoutRunSummary> => {
           "payment.amount": netAmount,
           "payment.currency": "USD",
           "error.type": error instanceof Error ? error.name : "UnknownError",
+          "error.message":
+            error instanceof Error ? error.message : String(error),
+          "earning.id": row.earningHistoryId,
           ...(row.recipient.kind === "freelancer"
             ? { "user.id": row.recipient.freelancerId }
             : { "team.id": row.recipient.agencyId }),
         },
       });
-      console.error(
-        `[payouts] Transfer failed for earning ${row.earningHistoryId}:`,
-        error,
-      );
     }
   }
 
@@ -266,9 +282,16 @@ export const processDuePayouts = async (): Promise<PayoutRunSummary> => {
     skipped,
     failed,
   };
-  console.log(
-    `[payouts] Run complete — checked: ${summary.checked}, paid: ${summary.paid}, skipped: ${summary.skipped}, failed: ${summary.failed}`,
-  );
+  await logger.info({
+    message: "Payout run complete",
+    eventName: "payment.payout.run_completed",
+    attributes: {
+      "payout.checked": summary.checked,
+      "payout.paid": summary.paid,
+      "payout.skipped": summary.skipped,
+      "payout.failed": summary.failed,
+    },
+  });
 
   return summary;
 };

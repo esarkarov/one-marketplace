@@ -1,4 +1,5 @@
 import { and, eq, inArray } from "drizzle-orm";
+import { logger } from "../src/config/logger.js";
 import { db } from "../src/database/client.js";
 import {
   agency_metadata,
@@ -49,9 +50,11 @@ const run = async () => {
       )
       .limit(1);
     if (!proposal) {
-      console.warn(
-        `Conversation ${conversationId}: no AGENCY proposal found, skipping.`,
-      );
+      await logger.warn({
+        message: "No AGENCY proposal found, skipping conversation",
+        eventName: "script.collapse.skipped",
+        attributes: { "conversation.id": String(conversationId) },
+      });
       continue;
     }
 
@@ -80,17 +83,35 @@ const run = async () => {
         .where(eq(conversation_participants.id, keeper.id));
     });
 
-    console.log(
-      `${agency?.name ?? proposal.agencyId}: collapsed ${rows.length} row(s) into 1 for conversation ${conversationId}`,
-    );
+    await logger.info({
+      message: "Collapsed agency participant rows",
+      eventName: "script.collapse.done",
+      attributes: {
+        "agency.id": String(proposal.agencyId),
+        "agency.name": agency?.name ?? null,
+        "conversation.id": String(conversationId),
+        "rows.collapsed": rows.length,
+      },
+    });
     collapsed += 1;
   }
 
-  console.log(`Done. Collapsed ${collapsed} conversation(s).`);
+  await logger.info({
+    message: "Collapse finished",
+    eventName: "script.collapse.finished",
+    attributes: { "conversations.collapsed": collapsed },
+  });
   process.exit(0);
 };
 
-run().catch((error) => {
-  console.error(error);
+run().catch(async (error) => {
+  await logger.error({
+    message: "Collapse script failed",
+    eventName: "script.collapse.failed",
+    attributes: {
+      "error.name": error instanceof Error ? error.name : "UnknownError",
+      "error.message": error instanceof Error ? error.message : String(error),
+    },
+  });
   process.exit(1);
 });

@@ -21,6 +21,7 @@ import {
 } from "./@types.js";
 import { getAgencyIdentityForMember } from "../agency/agency.service.js";
 import { env } from "../../config/env.js";
+import { logger } from "../../config/logger.js";
 import { stripe } from "../../config/stripe.js";
 import { ApiError } from "../../utils/api-error.js";
 import { imageKit } from "../../config/imageKit.js";
@@ -736,7 +737,15 @@ export const saveFreelancerProfile = async (
       await addConnects(input.userId);
     }
   } catch (error) {
-    console.log(error, "onboarding freelancer connects adding error.");
+    await logger.error({
+      message: "Onboarding connects could not be added",
+      eventName: "connects.onboarding.failed",
+      attributes: {
+        "account.type": "freelancer",
+        "error.name": error instanceof Error ? error.name : "UnknownError",
+        "error.message": error instanceof Error ? error.message : String(error),
+      },
+    });
   }
 
   await redis.setEx(

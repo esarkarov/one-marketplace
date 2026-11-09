@@ -19,9 +19,10 @@ export const startPayoutCron = () => {
           attributes: {
             "task.name": "freelancer-payouts",
             "error.type": error instanceof Error ? error.name : "UnknownError",
+            "error.message":
+              error instanceof Error ? error.message : String(error),
           },
         });
-        console.error("[payouts] Cron run threw unexpectedly:", error);
       }
     },
     {
@@ -30,9 +31,11 @@ export const startPayoutCron = () => {
     },
   );
 
-  console.log(
-    `[payouts] Hourly payout cron scheduled (${PAYOUT_CRON_EXPRESSION}).`,
-  );
+  void logger.info({
+    message: "Hourly payout cron scheduled",
+    eventName: "payout.cron.scheduled",
+    attributes: { "cron.expression": PAYOUT_CRON_EXPRESSION },
+  });
 };
 
 export const stopPayoutCron = async (): Promise<void> => {

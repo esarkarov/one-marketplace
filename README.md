@@ -89,7 +89,7 @@ pnpm --filter @onemarketplace/api db:migrate
 pnpm --filter @onemarketplace/api dev
 ```
 
-Postgres and Redis are the only services needed to start. Clerk, Stripe, ImageKit, Daily, NATS and the log service are optional; the matching features fail only when called. Without `NATS_URL`, notifications are not stored or pushed.
+Postgres and Redis are the only services needed to start. Clerk, Stripe, ImageKit, Daily and NATS are optional; the matching features fail only when called. Without `NATS_URL`, notifications are not stored or pushed.
 
 - `GET /api/v1/health` is liveness. `GET /api/v1/ready` checks Postgres and Redis and returns 503 if either is down.
 - `pnpm infra:down` stops the containers. `pnpm infra:reset` deletes the database and Redis data.

@@ -2,7 +2,9 @@ import express from "express";
 import type { Request, Response } from "express";
 import request from "supertest";
 import { describe, expect, it, vi } from "vitest";
-import { logger } from "../config/logger.js";
+import { createAppLogger, createRootLogger, logger } from "../config/logger.js";
+import { captureLogs } from "../test/capture-logs.js";
+import { fakeStripeKey } from "../test/fake-secrets.js";
 import { ApiError } from "../utils/api-error.js";
 import { errorHandler } from "./error.middleware.js";
 import { requestIdMiddleware } from "./request-id.middleware.js";
@@ -20,9 +22,10 @@ app.get("/bad", () => {
   throw new ApiError(400, "visible message");
 });
 app.get("/stripe", () => {
-  throw Object.assign(new Error("No such customer: cus_123 sk_test_abc"), {
-    statusCode: 402,
-  });
+  throw Object.assign(
+    new Error(`No such customer: cus_123 ${fakeStripeKey("test", "abc")}`),
+    { statusCode: 402 },
+  );
 });
 app.get("/exposed", () => {
   throw Object.assign(new Error("invalid json"), {
@@ -46,7 +49,7 @@ describe("error handler", () => {
     expect(response.status).toBe(500);
     expect(response.body.message).toBe("Internal server error.");
     expect(response.text).not.toContain("cus_123");
-    expect(response.text).not.toContain("sk_test_abc");
+    expect(response.text).not.toContain(fakeStripeKey("test", "abc"));
   });
 
   it("keeps the message and status when expose is true", async () => {
@@ -111,4 +114,31 @@ describe("request id", () => {
       expect(response.headers["x-request-id"]).toMatch(/^[0-9a-f-]{36}$/);
     },
   );
+});
+
+describe("error handler logging", () => {
+  it("logs without secrets or raw third-party objects", async () => {
+    const { stream, output } = captureLogs();
+    const base = createRootLogger(stream, "info");
+    const logApp = express();
+    logApp.use(requestIdMiddleware);
+    logApp.use((req, _res, next) => {
+      req.logger = createAppLogger(base);
+      next();
+    });
+    logApp.get("/third-party", () => {
+      throw Object.assign(
+        new Error(`failed with key ${fakeStripeKey("live", "topsecret99")}`),
+        { raw: { nested: "raw-payload-marker", card: "4242" } },
+      );
+    });
+    logApp.use(errorHandler);
+
+    const response = await request(logApp).get("/third-party");
+
+    expect(response.status).toBe(500);
+    expect(output()).toContain("system.request.failed");
+    expect(output()).not.toContain("topsecret99");
+    expect(output()).not.toContain("raw-payload-marker");
+  });
 });

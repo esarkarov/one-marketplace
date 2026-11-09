@@ -21,10 +21,8 @@
   "dependencies": {
     "@clerk/backend": "^3.15.0",
     "@imagekit/nodejs": "^7.10.0",
-    "@oneminutelogs/express": "^1.2.0",
     "@react-pdf/renderer": "^4.9.0",
     "cors": "^2.8.6",
-    "drizzle-kit": "^0.31.10",
     "drizzle-orm": "^0.45.2",
     "express": "^5.2.1",
     "express-rate-limit": "^8.7.3",
@@ -32,10 +30,13 @@
     "nats": "^2.29.3",
     "node-cron": "^4.6.0",
     "pg": "^8.23.1",
+    "pino": "^10.4.0",
+    "pino-http": "^11.0.0",
     "react": "catalog:",
     "redis": "^6.2.0",
     "socket.io": "^4.8.3",
-    "stripe": "^22.4.0"
+    "stripe": "^22.4.0",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@onemarketplace/eslint-config": "workspace:*",
@@ -47,6 +48,8 @@
     "@types/react": "catalog:",
     "@types/supertest": "^7.2.1",
     "@typescript/native": "catalog:",
+    "@vitest/coverage-v8": "^5.1.0",
+    "drizzle-kit": "^0.31.11",
     "eslint": "catalog:",
     "supertest": "^7.3.2",
     "tsx": "^4.23.1",

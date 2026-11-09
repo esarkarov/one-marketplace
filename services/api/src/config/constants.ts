@@ -60,13 +60,6 @@ export const EARNINGS_HOLD_PERIOD_DAYS = 5;
 export const EARNINGS_HOLD_PERIOD_MS =
   EARNINGS_HOLD_PERIOD_DAYS * 24 * 60 * 60 * 1000;
 
-// Stripe Connect's self-serve cross-border payouts only support transfers
-// between these regions (platform side and connected-account side both
-// have to be in this list) — see
-// https://docs.stripe.com/connect/cross-border-payouts#availability.
-// The payout cron only pays freelancers whose declared country is in this
-// set; everyone else's earnings stay "Pending" until broader support
-// (e.g. Stripe Global Payouts) is built.
 export const STRIPE_PAYOUT_ELIGIBLE_COUNTRIES = new Set([
   "US",
   "GB",

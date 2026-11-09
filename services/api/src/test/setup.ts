@@ -10,7 +10,6 @@ try {
 
 for (const name of [
   "NATS_URL",
-  "ONE_MINUTE_LOGS_API_KEY",
   "CLERK_SECRET_KEY",
   "STRIPE_SECRET_KEY",
   "STRIPE_WEBHOOK_SECRET",

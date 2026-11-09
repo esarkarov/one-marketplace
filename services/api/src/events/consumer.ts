@@ -58,9 +58,9 @@ const flush = async () => {
         "messaging.destination.name": NOTIFICATIONS_SUBJECT,
         "queue.batch_size": batch.length,
         "error.type": error instanceof Error ? error.name : "UnknownError",
+        "error.message": error instanceof Error ? error.message : String(error),
       },
     });
-    console.error("Notification batch could not be stored", error);
     batch.forEach(({ message }) => message.nak(2_000));
   } finally {
     flushing = false;

@@ -1,3 +1,5 @@
+import type { AppLogger } from "../config/logger.js";
+
 declare global {
   namespace Express {
     interface Request {
@@ -9,6 +11,7 @@ declare global {
         isOnboarded: boolean;
       };
       requestId: string;
+      logger: AppLogger;
       availableConnects?: number;
     }
   }
