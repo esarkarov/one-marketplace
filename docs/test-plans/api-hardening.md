@@ -4,17 +4,17 @@
 
 Uncommitted hardening in `services/api`: CORS allowlist (`config/cors.ts`), helmet, per-route JSON body limits (`json-body.middleware.ts`), rate limiting (`rate-limit.middleware.ts`), request ids, error handler, `/health` and `/ready` (`utils/readiness.ts`), `TRUST_PROXY` parsing (`config/env.ts`), graceful shutdown (`server.ts`), socket.io and SSE changes. Tools: vitest and supertest (existing).
 
-## Covered by the 29 existing automated tests
+## Covered by the 225 automated tests (16 files, all passing)
 
-- Health and readiness (`app.test.ts`, 3): `/health` ok; `/ready` ok with Postgres and Redis up; not-ready response does not leak error details.
-- Authentication (1): request without token rejected.
-- CORS (7): ports 3001 to 3004 allowed, no credentials header, simple and preflight; localhost:3000 and an evil origin not allowed; request without Origin served.
-- Helmet (1): security headers present.
-- Body limits (2): large body rejected on a default route; large body accepted on an exception route (unauthenticated or stubbed auth, see gap below).
-- Large-body route matcher (`json-body.middleware.test.ts`, 8): 5 allowed method/path pairs and 3 that keep the default limit.
-- Error handler (`error.middleware.test.ts`, 2): 500 hides internals; 4xx keeps message.
-- Request id (4): valid client id echoed; 3 invalid ids (spaces, 65 chars, markup) replaced.
-- Admin SSE log stream (`admin-stream.test.ts`, 1): events stream with security and CORS headers.
+Stage 3a areas (hardening). Stage 3b areas are in `api-validation-and-attachments.md`.
+
+- Health, readiness, authentication, CORS, helmet, body limits (`app.test.ts`, 14): `/health`, `/ready` ok and not-ready without leaking details; no token rejected; CORS ports 3001 to 3004 allowed, 3000 and an evil origin not; no Origin served; security headers; 413 on a default route; large body on an exception route.
+- Large-body matcher and parser (`json-body.middleware.test.ts`, 11): 5 allowed and 3 default-limit method/path pairs; `jsonBody` skips large routes, parses others, rejects invalid JSON.
+- Body size and auth ordering (`large-body-auth.test.ts`, 34, subset): 1 MB accepted on a large route, 200 KB gives 413 on a default route.
+- Error handler and request id (`error.middleware.test.ts`, 11): 500 hides internals, 4xx keeps message, `expose` honoured, third-party 4xx treated as 500, headers already sent, missing `request.logger`, log without secrets; valid request id echoed, 3 invalid ids replaced.
+- Rate-limit exemptions (`rate-limit.middleware.test.ts`, 12): matcher only (4 webhooks, `/health`, `/ready` exempt; 6 near-misses not exempt). The limiters themselves are not exercised.
+- `TRUST_PROXY` parsing (`env.test.ts`): undefined, empty, `false`, `0` give false; positive integer gives number; other strings pass through; `true` and `TRUE` rejected.
+- Admin log stream (`admin-stream.test.ts`, 2): the route now returns 503 for an authenticated admin (with security and CORS headers) and rejects unauthenticated requests. It no longer streams events.
 
 ## Not yet covered
 
@@ -46,6 +46,15 @@ Legend: U unit, I integration (supertest), E e2e (running process, real services
 | 22  | Other body-parser 4xx                      | Any JSON route                                             | Oversized body (413), wrong charset (415), aborted request, invalid encoding                                                                   | Correct status, standard shape, no internals                                                                                                                                                               | I                                                          |
 | 23  | Authenticated 500 path                     | Valid token, forced service error                          | Trigger error                                                                                                                                  | 500 with generic message; detail only in logs, with request id                                                                                                                                             | I                                                          |
 
+## Scenario status after Stage 3b
+
+- 2 partly covered: the exemption matcher is tested; 429 behaviour with real limiters is not.
+- 7 covered for empty, `false`, `0`, `true`, `TRUE`, digits and passthrough strings (`env.test.ts`); whitespace and `loopback` not confirmed. Rejecting `true` is now intended.
+- 8 partly covered: 1 MB accepted and 401/400 ordering tested with stubs; real 15 MB and 21 MB requests are not (see the Stage 3b plan).
+- 17 stays open. The admin stream is now a 503 route; its replacement is tracked in the Stage 3b plan.
+- 21 and 22 partly covered: invalid JSON on a default route and 413 on the default limit are tested; 415, aborted and bad-encoding cases are not.
+- 23 partly covered: handler-level 500 hiding is tested; an authenticated real-handler 500 is not.
+
 ## Blocked on "to confirm" business rules
 
 - Scenario 9 depends on the product decision about attachment size and count (not in `docs/product.md`).
@@ -54,6 +63,6 @@ Legend: U unit, I integration (supertest), E e2e (running process, real services
 
 ## Gaps and notes
 
-- Body-limit test for the exception route (existing) does not prove an authenticated, real-handler request passes; see 8.
+- Body-limit test for the exception route (existing) does not prove an authenticated, real-handler request passes; see 8 and the Stage 3b plan (still no real authenticated handler at 15 MB).
 - Rate-limit tests need a design for bypassing the `NODE_ENV=test` skip; this needs a source change by the backend agent, not by QA.
 - No NATS in local Docker, so 13 and 17 need NATS provisioned first (infra decision).
