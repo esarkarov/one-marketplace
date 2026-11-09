@@ -15,6 +15,11 @@ import {
   updateJobPost,
 } from "./jobs.service.js";
 import { requireFreelancer } from "../freelancer/freelancer.controller.js";
+import type { JobBody } from "./jobs.schemas.js";
+import {
+  assertAttachmentFileName,
+  validateAttachmentBatch,
+} from "../../utils/attachments.js";
 
 const requireClient = (request: Parameters<RequestHandler>[0]) => {
   const auth = request.auth!;
@@ -33,7 +38,7 @@ const requireText = (value: string | string[] | undefined, name: string) => {
   return value.trim();
 };
 
-const buildJobData = (body: Record<string, any>) => {
+const buildJobData = (body: JobBody, allowStoredAttachments: boolean) => {
   const skills = Array.isArray(body.skills)
     ? body.skills
         .map(String)
@@ -42,8 +47,7 @@ const buildJobData = (body: Record<string, any>) => {
     : [];
 
   const milestones = Array.isArray(body.milestones)
-    ? body.milestones.map((item) => {
-        const milestone = item as Record<string, any>;
+    ? body.milestones.map((milestone) => {
         return {
           id: String(milestone.id || randomUUID()),
           title: requireText(milestone.title, "Milestone title"),
@@ -88,35 +92,37 @@ const buildJobData = (body: Record<string, any>) => {
     throw new ApiError(400, "Total budget must be between $5 and $1,000,000.");
   }
 
-  const attachments = Array.isArray(body.attachments)
-    ? body.attachments.map((item) => {
-        const attachment = item as Record<string, string>;
-        const fileType = requireText(attachment.fileType, "Attachment type");
-        const fileUrl = requireText(attachment.fileUrl, "Attachment file");
-
-        if (fileType !== "application/pdf" && !fileType.startsWith("text/")) {
-          throw new ApiError(400, "Only PDF and text documents are allowed.");
-        }
-        if (
-          fileUrl.startsWith("data:") &&
-          !fileUrl.startsWith(`data:${fileType}`)
-        ) {
-          throw new ApiError(
-            400,
-            "Attachment content does not match its file type.",
-          );
-        }
-
-        return {
-          fileId:
-            typeof attachment.fileId === "string" ? attachment.fileId : "",
-          fileName: requireText(attachment.fileName, "Attachment name"),
-          fileUrl,
-          fileType,
-          fileSize: Number(attachment.fileSize) || 0,
-        };
-      })
+  const rawAttachments = Array.isArray(body.attachments)
+    ? body.attachments.map((attachment) => ({
+        fileId: typeof attachment.fileId === "string" ? attachment.fileId : "",
+        fileName: requireText(attachment.fileName, "Attachment name"),
+        fileUrl: requireText(attachment.fileUrl, "Attachment file"),
+        fileType: requireText(attachment.fileType, "Attachment type"),
+        fileSize: Number(attachment.fileSize) || 0,
+      }))
     : [];
+
+  rawAttachments.forEach(({ fileName }) => assertAttachmentFileName(fileName));
+
+  const validated = validateAttachmentBatch(
+    rawAttachments.map(({ fileUrl, fileType }) => ({
+      fileUrl,
+      mimeType: fileType,
+    })),
+    {
+      tooManyMessage: "A job post can have up to 5 attachments.",
+      nonDataMessage: allowStoredAttachments
+        ? null
+        : "Attachment URL is not allowed.",
+    },
+  );
+
+  const attachments = rawAttachments.map((attachment, index) => {
+    const result = validated[index];
+    return result
+      ? { ...attachment, fileType: result.mimeType, fileSize: result.size }
+      : attachment;
+  });
 
   return {
     title: requireText(body.title, "Job title"),
@@ -140,7 +146,7 @@ const buildJobData = (body: Record<string, any>) => {
 export const createClientJobPost: RequestHandler = asyncHandler(
   async (request, response) => {
     const auth = requireClient(request);
-    const data = buildJobData(request.body as Record<string, any>);
+    const data = buildJobData(request.body as JobBody, false);
     const job = await createJobPost(auth.userId, {
       ...data,
       published_at: data.status === "PUBLISHED" ? new Date() : null,
@@ -183,7 +189,7 @@ export const getClientJobPosts: RequestHandler = asyncHandler(
 export const editClientJobPost: RequestHandler = asyncHandler(
   async (request, response) => {
     const auth = requireClient(request);
-    const data = buildJobData(request.body as Record<string, unknown>);
+    const data = buildJobData(request.body as JobBody, true);
     const job = await updateJobPost(
       auth.userId,
       requireText(request.params.jobId, "Job post id"),

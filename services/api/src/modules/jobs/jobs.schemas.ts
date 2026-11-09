@@ -55,6 +55,8 @@ export const jobBodySchema = z.object(
   { error: "Request body must be an object." },
 );
 
+export type JobBody = z.infer<typeof jobBodySchema>;
+
 export const publicJobFeedQuerySchema = z.object({
   query: optionalText,
   sort: optionalText,

@@ -10,6 +10,10 @@ declare global {
         accountExists: boolean;
         isOnboarded: boolean;
       };
+      authClaims?: {
+        userId: string;
+        sessionId?: string | undefined;
+      };
       requestId: string;
       logger: AppLogger;
       availableConnects?: number;

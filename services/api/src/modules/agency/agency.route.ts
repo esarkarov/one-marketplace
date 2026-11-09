@@ -1,5 +1,10 @@
 import { Router } from "express";
-import { isAuthenticated } from "../../middleware/auth.middleware.js";
+import {
+  isAuthenticated,
+  resolveAccountRole,
+  verifyBearerToken,
+} from "../../middleware/auth.middleware.js";
+import { largeJsonBody } from "../../middleware/json-body.middleware.js";
 import {
   buyAgencyConnects,
   cancelAgencyInvitationHandler,
@@ -41,7 +46,13 @@ agencyRouter.get(
   getAgencyVerificationHandler,
 );
 agencyRouter.post("/", isAuthenticated, createAgencyHandler);
-agencyRouter.put("/", isAuthenticated, updateAgencyHandler);
+agencyRouter.put(
+  "/",
+  verifyBearerToken,
+  largeJsonBody,
+  resolveAccountRole,
+  updateAgencyHandler,
+);
 agencyRouter.get("/jobs", isAuthenticated, getAgencyJobFeed);
 agencyRouter.get("/connects", isAuthenticated, getAgencyConnects);
 agencyRouter.get(

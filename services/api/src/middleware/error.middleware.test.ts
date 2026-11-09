@@ -141,4 +141,36 @@ describe("error handler logging", () => {
     expect(output()).not.toContain("topsecret99");
     expect(output()).not.toContain("raw-payload-marker");
   });
+
+  it("logs database errors without SQL, params or message text", async () => {
+    const { stream, output, lines } = captureLogs();
+    const base = createRootLogger(stream, "info");
+    const logApp = express();
+    logApp.use(requestIdMiddleware);
+    logApp.use((req, _res, next) => {
+      req.logger = createAppLogger(base);
+      next();
+    });
+    logApp.get("/db", () => {
+      throw Object.assign(
+        new Error(
+          "Failed query: select * from accounts where email = $1\nparams: alice@example.test,42",
+        ),
+        { cause: { code: "23505" } },
+      );
+    });
+    logApp.use(errorHandler);
+
+    const response = await request(logApp).get("/db");
+
+    expect(response.status).toBe(500);
+    expect(response.body.message).toBe("Internal server error.");
+    expect(output()).toContain("system.request.failed");
+    expect(output()).not.toContain("select * from");
+    expect(output()).not.toContain("params:");
+    expect(output()).not.toContain("alice@example.test");
+    const entry = JSON.parse(lines()[0]!);
+    expect(entry.attributes["error.message"]).toBe("Database query failed");
+    expect(entry.attributes["error.code"]).toBe("23505");
+  });
 });

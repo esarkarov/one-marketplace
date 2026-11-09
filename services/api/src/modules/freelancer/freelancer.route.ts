@@ -1,5 +1,10 @@
 import { Router } from "express";
-import { isAuthenticated } from "../../middleware/auth.middleware.js";
+import {
+  isAuthenticated,
+  resolveAccountRole,
+  verifyBearerToken,
+} from "../../middleware/auth.middleware.js";
+import { largeJsonBody } from "../../middleware/json-body.middleware.js";
 import {
   getFreelancerEarningsCertificate,
   getFreelancerEarningsOverviewHandler,
@@ -18,7 +23,13 @@ export const freelancerRouter = Router();
 freelancerRouter.get("/profile", isAuthenticated, getLoggedInFreelancerProfile);
 freelancerRouter.get("/search", searchPublicFreelancersHandler);
 freelancerRouter.get("/profile/:id", getPublicFreelancer);
-freelancerRouter.put("/profile", isAuthenticated, upsertFreelanceProfile);
+freelancerRouter.put(
+  "/profile",
+  verifyBearerToken,
+  largeJsonBody,
+  resolveAccountRole,
+  upsertFreelanceProfile,
+);
 freelancerRouter.get(
   "/earnings/summary",
   isAuthenticated,

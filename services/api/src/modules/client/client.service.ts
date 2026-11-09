@@ -18,13 +18,9 @@ import {
   reviews,
 } from "../../database/schema.js";
 import { ApiError } from "../../utils/api-error.js";
-import { redis } from "../../config/redis.js";
 import { env } from "../../config/env.js";
 import { stripe } from "../../config/stripe.js";
-import {
-  ACCOUNT_AUTH_CACHE_TTL_SECONDS,
-  getAccountAuthCacheKey,
-} from "../../config/constants.js";
+import { invalidateAccountAuthCache } from "../../middleware/auth.middleware.js";
 
 export interface SaveClientProfileInput {
   userId: string;
@@ -158,16 +154,7 @@ export const saveClientProfile = async (
     };
   });
 
-  await redis.setEx(
-    getAccountAuthCacheKey(input.userId, "client"),
-    ACCOUNT_AUTH_CACHE_TTL_SECONDS,
-    JSON.stringify({
-      userId: input.userId,
-      role: "client",
-      accountExists: true,
-      isOnboarded: true,
-    }),
-  );
+  await invalidateAccountAuthCache(input.userId);
 
   return {
     ...profile,

@@ -3,11 +3,7 @@ import { env } from "../../config/env.js";
 import { ApiError } from "../../utils/api-error.js";
 import { db } from "../../database/client.js";
 import { accounts } from "../../database/schema.js";
-import { redis } from "../../config/redis.js";
-import {
-  ACCOUNT_AUTH_CACHE_TTL_SECONDS,
-  getAccountAuthCacheKey,
-} from "../../config/constants.js";
+import { invalidateAccountAuthCache } from "../../middleware/auth.middleware.js";
 
 export interface SignupInput {
   userId: string;
@@ -69,14 +65,5 @@ export const receiveSignup = async (input: SignupInput): Promise<void> => {
       target: accounts.auth_id,
     });
 
-  await redis.setEx(
-    getAccountAuthCacheKey(input.userId, input.role),
-    ACCOUNT_AUTH_CACHE_TTL_SECONDS,
-    JSON.stringify({
-      userId: input.userId,
-      role: input.role,
-      accountExists: true,
-      isOnboarded: false,
-    }),
-  );
+  await invalidateAccountAuthCache(input.userId);
 };

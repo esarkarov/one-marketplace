@@ -28,7 +28,7 @@ describe("sanitizeForLog", () => {
   });
 
   it("truncates long text", () => {
-    expect(sanitizeForLog("a".repeat(5000)).length).toBe(2000);
+    expect(sanitizeForLog("x".repeat(5000)).length).toBe(2000);
   });
 });
 

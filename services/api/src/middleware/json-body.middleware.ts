@@ -33,12 +33,15 @@ export const isLargeBodyRoute = (method: string, path: string): boolean =>
   );
 
 const defaultParser = express.json({ limit: DEFAULT_JSON_LIMIT });
-const largeParser = express.json({ limit: LARGE_JSON_LIMIT });
+export const largeJsonBody: RequestHandler = express.json({
+  limit: LARGE_JSON_LIMIT,
+});
 
 export const jsonBody: RequestHandler = (request, response, next) => {
-  const parser = isLargeBodyRoute(request.method, request.path)
-    ? largeParser
-    : defaultParser;
+  if (isLargeBodyRoute(request.method, request.path)) {
+    next();
+    return;
+  }
 
-  parser(request, response, next);
+  defaultParser(request, response, next);
 };

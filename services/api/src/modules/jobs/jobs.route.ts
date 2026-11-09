@@ -1,5 +1,10 @@
 import { Router } from "express";
-import { isAuthenticated } from "../../middleware/auth.middleware.js";
+import {
+  isAuthenticated,
+  resolveAccountRole,
+  verifyBearerToken,
+} from "../../middleware/auth.middleware.js";
+import { largeJsonBody } from "../../middleware/json-body.middleware.js";
 import { validate } from "../../middleware/validate.middleware.js";
 import {
   createClientJobPost,
@@ -22,7 +27,9 @@ export const jobRouter = Router();
 
 jobRouter.post(
   "/",
-  isAuthenticated,
+  verifyBearerToken,
+  largeJsonBody,
+  resolveAccountRole,
   validate({ body: jobBodySchema, query: emptyQuerySchema }),
   createClientJobPost,
 );
@@ -63,7 +70,9 @@ jobRouter.get(
 );
 jobRouter.put(
   "/:jobId",
-  isAuthenticated,
+  verifyBearerToken,
+  largeJsonBody,
+  resolveAccountRole,
   validate({
     params: jobIdParamsSchema,
     body: jobBodySchema,

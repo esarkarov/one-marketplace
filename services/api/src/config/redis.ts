@@ -1,6 +1,7 @@
 import { createClient } from "redis";
 import { env } from "./env.js";
 import { logger } from "./logger.js";
+import { errorLogAttributes } from "../utils/sanitize-log.js";
 
 export const redis = createClient({
   url: env.redisUrl,
@@ -21,7 +22,7 @@ redis.on("error", (error) => {
     eventName: "redis.error",
     attributes: {
       "error.name": error instanceof Error ? error.name : "UnknownError",
-      "error.message": error instanceof Error ? error.message : String(error),
+      ...errorLogAttributes(error),
     },
   });
 });

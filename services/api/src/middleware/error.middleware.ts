@@ -2,8 +2,14 @@ import { ErrorRequestHandler } from "express";
 import { logger } from "../config/logger.js";
 import { ApiError } from "../utils/api-error.js";
 import { ApiResponse } from "../types/common.types.js";
+import { errorLogAttributes, sanitizeForLog } from "../utils/sanitize-log.js";
 
 const STACK_LIMIT = 2000;
+
+const stackWithoutMessage = (error: Error): string => {
+  const stack = error.stack ?? "";
+  return error.message ? stack.replace(error.message, "") : stack;
+};
 
 const resolveStatusCode = (error: unknown): number => {
   if (error instanceof ApiError) {
@@ -57,11 +63,10 @@ export const errorHandler: ErrorRequestHandler = (
           "request.id": request.requestId,
           "error.type": error instanceof Error ? error.name : "unknown",
           "error.name": error instanceof Error ? error.name : "unknown",
-          "error.message":
-            error instanceof Error ? error.message : String(error),
+          ...errorLogAttributes(error),
           "error.stack":
             error instanceof Error
-              ? (error.stack ?? "").slice(0, STACK_LIMIT)
+              ? sanitizeForLog(stackWithoutMessage(error)).slice(0, STACK_LIMIT)
               : "",
         },
       })

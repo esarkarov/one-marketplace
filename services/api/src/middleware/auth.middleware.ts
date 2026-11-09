@@ -1,12 +1,15 @@
 import { verifyToken } from "@clerk/backend";
-import { RequestHandler } from "express";
+import type { Request, RequestHandler } from "express";
 import { asyncHandler } from "../utils/async-handler.js";
 import { ApiError } from "../utils/api-error.js";
+import { errorLogAttributes } from "../utils/sanitize-log.js";
 import { env } from "../config/env.js";
 import {
   ACCOUNT_AUTH_CACHE_TTL_SECONDS,
   getAccountAuthCacheKey,
+  getAccountAuthCacheKeys,
 } from "../config/constants.js";
+import { logger } from "../config/logger.js";
 import { redis } from "../config/redis.js";
 import { db } from "../database/client.js";
 import { accounts } from "../database/schema.js";
@@ -14,6 +17,11 @@ import { and, eq } from "drizzle-orm";
 
 const accountRoles = ["client", "freelancer"] as const;
 type AccountRole = (typeof accountRoles)[number];
+
+interface AuthClaims {
+  userId: string;
+  sessionId?: string | undefined;
+}
 
 interface CachedAccountAuth {
   userId: string;
@@ -35,6 +43,22 @@ export const getBearerToken = (authorizationHeader: string | undefined) => {
   return token || null;
 };
 
+export const invalidateAccountAuthCache = async (
+  userId: string,
+): Promise<void> => {
+  try {
+    await redis.del(getAccountAuthCacheKeys(userId));
+  } catch (error) {
+    await logger.warn({
+      message: "Account auth cache could not be invalidated",
+      eventName: "auth.cache.invalidate_failed",
+      attributes: {
+        ...errorLogAttributes(error),
+      },
+    });
+  }
+};
+
 const isAccountAvailable = async (
   requestedRole: "client" | "freelancer",
   userId: string,
@@ -43,7 +67,6 @@ const isAccountAvailable = async (
   const cachedValue = await redis.get(cacheKey);
 
   if (cachedValue) {
-    await redis.expire(cacheKey, ACCOUNT_AUTH_CACHE_TTL_SECONDS);
     return JSON.parse(cachedValue) as CachedAccountAuth;
   }
 
@@ -97,6 +120,56 @@ export const authenticateAccount = async (
   }
 };
 
+const requireBearerToken = (request: Request) => {
+  const token = getBearerToken(request?.headers.authorization);
+
+  if (!token) {
+    throw new ApiError(401, "Please do login to access this API!");
+  }
+
+  return token;
+};
+
+const readRequestedRole = (request: Request): AccountRole => {
+  const requestedRole = request.body?.role ?? request?.query.role;
+
+  if (!isAccountRole(requestedRole)) {
+    throw new ApiError(400, "A valid account role is required.");
+  }
+
+  return requestedRole;
+};
+
+const verifyClaims = async (token: string): Promise<AuthClaims> => {
+  try {
+    const claims = await verifyToken(token, {
+      secretKey: env.clerkSecretKey,
+    });
+
+    return {
+      userId: claims.sub,
+      sessionId: typeof claims.sid === "string" ? claims.sid : undefined,
+    };
+  } catch {
+    throw new ApiError(401, "Authentication token is invalid or expired.");
+  }
+};
+
+const loadRequestAuth = async (
+  claims: AuthClaims,
+  requestedRole: AccountRole,
+) => {
+  const accountAuth = await isAccountAvailable(requestedRole, claims.userId);
+
+  return {
+    userId: claims.userId,
+    sessionId: claims.sessionId,
+    role: requestedRole,
+    accountExists: accountAuth.accountExists,
+    isOnboarded: accountAuth.isOnboarded,
+  };
+};
+
 export const isAuthenticated: RequestHandler = asyncHandler(
   async (request, _response, next) => {
     const token = getBearerToken(request?.headers.authorization);
@@ -110,26 +183,36 @@ export const isAuthenticated: RequestHandler = asyncHandler(
       throw new ApiError(400, "A valid account role is required.");
     }
 
-    let claims: Awaited<ReturnType<typeof verifyToken>>;
+    const claims = await verifyClaims(token);
+    request.auth = await loadRequestAuth(claims, requestedRole);
 
-    try {
-      claims = await verifyToken(token, {
-        secretKey: env.clerkSecretKey,
-      });
-    } catch {
-      throw new ApiError(401, "Authentication token is invalid or expired.");
+    next();
+  },
+);
+
+export const verifyBearerToken: RequestHandler = asyncHandler(
+  async (request, _response, next) => {
+    request.authClaims = await verifyClaims(requireBearerToken(request));
+    next();
+  },
+);
+
+export const resolveAccountRole: RequestHandler = asyncHandler(
+  async (request, _response, next) => {
+    if (!request.authClaims) {
+      throw new ApiError(401, "Please do login to access this API!");
     }
 
-    const accountAuth = await isAccountAvailable(requestedRole, claims.sub);
+    const auth = await loadRequestAuth(
+      request.authClaims,
+      readRequestedRole(request),
+    );
 
-    request.auth = {
-      userId: claims.sub,
-      sessionId: typeof claims.sid === "string" ? claims.sid : undefined,
-      role: requestedRole,
-      accountExists: accountAuth.accountExists,
-      isOnboarded: accountAuth.isOnboarded,
-    };
+    if (!auth.accountExists) {
+      throw new ApiError(403, "An account for this role is required.");
+    }
 
+    request.auth = auth;
     next();
   },
 );

@@ -13,6 +13,7 @@ import {
 } from "../modules/notifications/notification.sse.js";
 import { getNats } from "../config/nats.js";
 import { logger } from "../config/logger.js";
+import { errorLogAttributes } from "../utils/sanitize-log.js";
 
 const codec = JSONCodec<NotificationEvent>();
 const buffer: Array<{ event: NotificationEvent; message: JsMsg }> = [];
@@ -58,7 +59,7 @@ const flush = async () => {
         "messaging.destination.name": NOTIFICATIONS_SUBJECT,
         "queue.batch_size": batch.length,
         "error.type": error instanceof Error ? error.name : "UnknownError",
-        "error.message": error instanceof Error ? error.message : String(error),
+        ...errorLogAttributes(error),
       },
     });
     batch.forEach(({ message }) => message.nak(2_000));

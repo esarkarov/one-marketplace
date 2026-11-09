@@ -1,6 +1,7 @@
 import cron from "node-cron";
 import { processDuePayouts } from "./payouts.service.js";
 import { logger } from "../../config/logger.js";
+import { errorLogAttributes } from "../../utils/sanitize-log.js";
 
 const PAYOUT_CRON_EXPRESSION = "0 * * * *";
 
@@ -19,8 +20,7 @@ export const startPayoutCron = () => {
           attributes: {
             "task.name": "freelancer-payouts",
             "error.type": error instanceof Error ? error.name : "UnknownError",
-            "error.message":
-              error instanceof Error ? error.message : String(error),
+            ...errorLogAttributes(error),
           },
         });
       }

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { SERVICE_NAME } from "../config/constants.js";
 import { ApiResponse } from "../types/common.types.js";
+import { errorLogAttributes } from "../utils/sanitize-log.js";
 import { agencyRouter } from "../modules/agency/agency.route.js";
 import { authRouter } from "../modules/auth/auth.route.js";
 import { clientRouter } from "../modules/client/client.route.js";
@@ -51,9 +52,12 @@ apiRouter.get("/health", (_request, response) => {
 });
 
 apiRouter.get("/ready", async (request, response) => {
-  const failures: { check: string; message: string }[] = [];
+  const failures: {
+    check: string;
+    attributes: ReturnType<typeof errorLogAttributes>;
+  }[] = [];
   const checks = await checkReadiness((check, error) => {
-    failures.push({ check, message: error.message });
+    failures.push({ check, attributes: errorLogAttributes(error) });
   });
   const ready = checks.postgres === "ok" && checks.redis === "ok";
 
@@ -64,7 +68,7 @@ apiRouter.get("/ready", async (request, response) => {
         eventName: "system.readiness.failed",
         attributes: {
           "readiness.check": failure.check,
-          "error.message": failure.message,
+          ...failure.attributes,
         },
       });
     } catch {}

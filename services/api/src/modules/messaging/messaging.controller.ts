@@ -12,6 +12,11 @@ import {
 import { requireClient } from "../proposals/proposals.controller.js";
 import { requireText } from "../../config/constants.js";
 import { ApiError } from "../../utils/api-error.js";
+import {
+  assertAttachmentFileName,
+  MAX_ATTACHMENTS,
+  validateAttachmentBatch,
+} from "../../utils/attachments.js";
 
 export interface AttachmentInput {
   fileId: string;
@@ -90,11 +95,11 @@ export const createMessage: RequestHandler = asyncHandler(
     if (body.length > 10_000) {
       throw new ApiError(400, "Message cannot exceed 10,000 characters.");
     }
-    if (rawAttachments.length > 5) {
+    if (rawAttachments.length > MAX_ATTACHMENTS) {
       throw new ApiError(400, "A message can contain up to 5 attachments.");
     }
 
-    const attachments: AttachmentInput[] = rawAttachments.map((value) => {
+    const candidates = rawAttachments.map((value) => {
       const attachment = value as Record<string, unknown>;
       if (
         !attachment ||
@@ -108,30 +113,34 @@ export const createMessage: RequestHandler = asyncHandler(
         throw new ApiError(400, "Attachment metadata is invalid.");
       }
 
-      const match = /^data:([^;,]+);base64,([a-zA-Z0-9+/=]+)$/.exec(
-        attachment.fileUrl,
-      );
-
-      if (!match || match[1] !== attachment.mimeType) {
-        throw new ApiError(400, "Attachment file is invalid.");
-      }
-
-      const fileSize = Buffer.from(match[2]!, "base64").byteLength;
-      if (!fileSize || fileSize > 5 * 1024 * 1024) {
-        throw new ApiError(400, "Each attachment must be 5 MB or smaller.");
-      }
+      const fileName = attachment.fileName.trim();
+      assertAttachmentFileName(fileName);
 
       return {
-        fileId: "",
         fileUrl: attachment.fileUrl,
-        fileName: attachment.fileName.trim(),
+        fileName,
         mimeType: attachment.mimeType,
-        fileSize,
-        attachmentType: attachment.mimeType.startsWith("image/")
-          ? "IMAGE"
-          : "FILE",
       };
     });
+
+    const validated = validateAttachmentBatch(candidates, {
+      tooManyMessage: "A message can contain up to 5 attachments.",
+      nonDataMessage: "Attachment file is invalid.",
+    });
+
+    const attachments: AttachmentInput[] = candidates.map(
+      (candidate, index) => {
+        const { mimeType, size } = validated[index]!;
+        return {
+          fileId: "",
+          fileUrl: candidate.fileUrl,
+          fileName: candidate.fileName,
+          mimeType,
+          fileSize: size,
+          attachmentType: mimeType.startsWith("image/") ? "IMAGE" : "FILE",
+        };
+      },
+    );
 
     const data = await sendMessage(
       getId(request.params.conversationId, "Conversation"),

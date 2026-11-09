@@ -21,6 +21,7 @@ import { ApiError } from "../../utils/api-error.js";
 import { imageKit } from "../../config/imageKit.js";
 import { env } from "../../config/env.js";
 import { logger } from "../../config/logger.js";
+import { errorLogAttributes } from "../../utils/sanitize-log.js";
 import { stripe } from "../../config/stripe.js";
 import { addAgencyConnects } from "../connects/connects.service.js";
 import { sendNotification } from "../../events/publisher.js";
@@ -897,8 +898,7 @@ export const updateAgencyProfile = async (
         attributes: {
           "account.type": "agency",
           "error.name": error instanceof Error ? error.name : "UnknownError",
-          "error.message":
-            error instanceof Error ? error.message : String(error),
+          ...errorLogAttributes(error),
         },
       });
     }

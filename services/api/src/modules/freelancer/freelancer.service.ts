@@ -22,18 +22,17 @@ import {
 import { getAgencyIdentityForMember } from "../agency/agency.service.js";
 import { env } from "../../config/env.js";
 import { logger } from "../../config/logger.js";
+import { errorLogAttributes } from "../../utils/sanitize-log.js";
 import { stripe } from "../../config/stripe.js";
 import { ApiError } from "../../utils/api-error.js";
 import { imageKit } from "../../config/imageKit.js";
 import { randomUUID } from "crypto";
-import { redis } from "../../config/redis.js";
 import {
-  ACCOUNT_AUTH_CACHE_TTL_SECONDS,
   EARNINGS_HOLD_PERIOD_MS,
-  getAccountAuthCacheKey,
   PLATFORM_FEE_RATE,
   STRIPE_PAYOUT_ELIGIBLE_COUNTRIES,
 } from "../../config/constants.js";
+import { invalidateAccountAuthCache } from "../../middleware/auth.middleware.js";
 import { addConnects } from "../connects/connects.service.js";
 import { createClerkClient } from "@clerk/backend";
 
@@ -721,6 +720,8 @@ export const saveFreelancerProfile = async (
     throw error;
   }
 
+  await invalidateAccountAuthCache(input.userId);
+
   const retainedImageIds = new Set(
     uploadedPortfolios.map(({ cover_image }) => cover_image.imageId),
   );
@@ -743,21 +744,10 @@ export const saveFreelancerProfile = async (
       attributes: {
         "account.type": "freelancer",
         "error.name": error instanceof Error ? error.name : "UnknownError",
-        "error.message": error instanceof Error ? error.message : String(error),
+        ...errorLogAttributes(error),
       },
     });
   }
-
-  await redis.setEx(
-    getAccountAuthCacheKey(input.userId, "freelancer"),
-    ACCOUNT_AUTH_CACHE_TTL_SECONDS,
-    JSON.stringify({
-      userId: input.userId,
-      role: "freelancer",
-      accountExists: true,
-      isOnboarded: true,
-    }),
-  );
 
   return profile;
 };

@@ -3,6 +3,7 @@ import { SERVICE_NAME } from "./config/constants.js";
 import { env } from "./config/env.js";
 import { logger, rootLogger } from "./config/logger.js";
 import { app } from "./app.js";
+import { errorLogAttributes } from "./utils/sanitize-log.js";
 import { pool } from "./database/client.js";
 import { connectRedis, disconnectRedis } from "./config/redis.js";
 import { disconnectNats, isNatsEnabled } from "./config/nats.js";
@@ -130,8 +131,7 @@ const shutdown = async (signal: NodeJS.Signals): Promise<void> => {
         attributes: {
           "shutdown.step": name,
           "error.name": error instanceof Error ? error.name : "UnknownError",
-          "error.message":
-            error instanceof Error ? error.message : String(error),
+          ...errorLogAttributes(error),
         },
       });
     }
@@ -157,7 +157,7 @@ void start().catch(async (error) => {
     eventName: "system.startup.failed",
     attributes: {
       "error.name": error instanceof Error ? error.name : "UnknownError",
-      "error.message": error instanceof Error ? error.message : String(error),
+      ...errorLogAttributes(error),
     },
   });
   await disconnectRedis().catch(() => undefined);

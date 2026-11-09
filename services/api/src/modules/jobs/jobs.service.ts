@@ -28,6 +28,7 @@ import {
   deleteDocuments,
   uploadDocuments,
 } from "../../utils/upload-documents.js";
+import { reuseStoredAttachments } from "../../utils/attachments.js";
 import { createClerkClient } from "@clerk/backend";
 
 type JobData = Omit<typeof job_posts.$inferInsert, "client_id">;
@@ -104,7 +105,10 @@ export const updateJobPost = async (
 
   const { documents: attachments, uploadedIds } = await uploadDocuments(
     userId,
-    data.attachments ?? [],
+    reuseStoredAttachments(
+      existingJob.attachments ?? [],
+      data.attachments ?? [],
+    ),
   );
 
   let job;
@@ -112,7 +116,7 @@ export const updateJobPost = async (
   try {
     [job] = await db
       .update(job_posts)
-      .set({ ...data, updated_at: new Date() })
+      .set({ ...data, attachments, updated_at: new Date() })
       .where(
         and(
           eq(job_posts.id, jobId),

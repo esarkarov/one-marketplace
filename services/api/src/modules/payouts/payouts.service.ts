@@ -10,6 +10,7 @@ import {
 } from "../../database/schema.js";
 import { sendNotification } from "../../events/publisher.js";
 import { logger } from "../../config/logger.js";
+import { errorLogAttributes } from "../../utils/sanitize-log.js";
 
 const isUniqueConstraintError = (error: unknown): boolean =>
   typeof error === "object" &&
@@ -144,8 +145,7 @@ export const processDuePayouts = async (): Promise<PayoutRunSummary> => {
         attributes: {
           "earning.id": row.earningHistoryId,
           "error.name": error instanceof Error ? error.name : "UnknownError",
-          "error.message":
-            error instanceof Error ? error.message : String(error),
+          ...errorLogAttributes(error),
         },
       });
     }
@@ -244,10 +244,7 @@ export const processDuePayouts = async (): Promise<PayoutRunSummary> => {
               notificationError instanceof Error
                 ? notificationError.name
                 : "UnknownError",
-            "error.message":
-              notificationError instanceof Error
-                ? notificationError.message
-                : String(notificationError),
+            ...errorLogAttributes(notificationError),
           },
         });
       }
@@ -265,8 +262,7 @@ export const processDuePayouts = async (): Promise<PayoutRunSummary> => {
           "payment.amount": netAmount,
           "payment.currency": "USD",
           "error.type": error instanceof Error ? error.name : "UnknownError",
-          "error.message":
-            error instanceof Error ? error.message : String(error),
+          ...errorLogAttributes(error),
           "earning.id": row.earningHistoryId,
           ...(row.recipient.kind === "freelancer"
             ? { "user.id": row.recipient.freelancerId }
