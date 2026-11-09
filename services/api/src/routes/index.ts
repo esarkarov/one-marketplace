@@ -14,6 +14,7 @@ import { contractsRouter } from "../modules/contracts/contracts.route.js";
 import { identityRouter } from "../modules/identity/identity.route.js";
 import { meetingsRouter } from "../modules/meetings/meetings.route.js";
 import { adminRouter } from "../modules/admin/admin.route.js";
+import { checkReadiness, type ReadinessChecks } from "../utils/readiness.js";
 
 export const apiRouter = Router();
 
@@ -47,4 +48,36 @@ apiRouter.get("/health", (_request, response) => {
   };
 
   response.status(200).json(body);
+});
+
+apiRouter.get("/ready", async (request, response) => {
+  const failures: { check: string; message: string }[] = [];
+  const checks = await checkReadiness((check, error) => {
+    failures.push({ check, message: error.message });
+  });
+  const ready = checks.postgres === "ok" && checks.redis === "ok";
+
+  for (const failure of failures) {
+    try {
+      await request.logger.warn({
+        message: "Readiness check failed",
+        eventName: "system.readiness.failed",
+        attributes: {
+          "readiness.check": failure.check,
+          "error.message": failure.message,
+        },
+      });
+    } catch {}
+  }
+
+  const body: ApiResponse<{
+    status: "ready" | "not_ready";
+    checks: ReadinessChecks;
+  }> = {
+    success: ready,
+    message: ready ? "Service is ready" : "Service is not ready",
+    data: { status: ready ? "ready" : "not_ready", checks },
+  };
+
+  response.status(ready ? 200 : 503).json(body);
 });

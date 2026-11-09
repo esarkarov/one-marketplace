@@ -14,11 +14,16 @@ import {
   streamLogsHandler,
 } from "./admin.controller.js";
 import { requireAdminSession } from "./admin-session.middleware.js";
+import {
+  adminLimiter,
+  adminLoginLimiter,
+} from "../../middleware/rate-limit.middleware.js";
 
 export const adminRouter = Router();
 
-adminRouter.post("/auth/login", loginAdminHandler);
+adminRouter.post("/auth/login", adminLoginLimiter, loginAdminHandler);
 
+adminRouter.use(adminLimiter);
 adminRouter.use(requireAdminSession);
 adminRouter.get("/overview", getOverviewHandler);
 adminRouter.get("/overview/activity", getOverviewActivityHandler);

@@ -4,8 +4,10 @@ import { logger } from "../../config/logger.js";
 
 const PAYOUT_CRON_EXPRESSION = "0 * * * *";
 
+let payoutTask: ReturnType<typeof cron.schedule> | undefined;
+
 export const startPayoutCron = () => {
-  cron.schedule(
+  payoutTask = cron.schedule(
     PAYOUT_CRON_EXPRESSION,
     async () => {
       try {
@@ -31,4 +33,10 @@ export const startPayoutCron = () => {
   console.log(
     `[payouts] Hourly payout cron scheduled (${PAYOUT_CRON_EXPRESSION}).`,
   );
+};
+
+export const stopPayoutCron = async (): Promise<void> => {
+  const task = payoutTask;
+  payoutTask = undefined;
+  await task?.destroy();
 };

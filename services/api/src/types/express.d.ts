@@ -8,6 +8,7 @@ declare global {
         accountExists: boolean;
         isOnboarded: boolean;
       };
+      requestId: string;
       availableConnects?: number;
     }
   }

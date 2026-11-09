@@ -9,11 +9,12 @@
   },
   "scripts": {
     "dev": "tsx watch --env-file=../../.env src/server.ts",
-    "build": "node node_modules/@typescript/native/bin/tsc --noEmit false",
+    "build": "node node_modules/@typescript/native/bin/tsc -p tsconfig.build.json --noEmit false",
     "start": "node --env-file-if-exists=../../.env dist/server.js",
     "lint": "eslint",
     "typecheck": "node node_modules/@typescript/native/bin/tsc --noEmit",
-    "test": "echo \"No tests yet\"",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "db:generate": "node --env-file=../../.env node_modules/drizzle-kit/bin.cjs generate",
     "db:migrate": "node --env-file=../../.env node_modules/drizzle-kit/bin.cjs migrate"
   },
@@ -26,6 +27,8 @@
     "drizzle-kit": "^0.31.10",
     "drizzle-orm": "^0.45.2",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.7.3",
+    "helmet": "^8.3.0",
     "nats": "^2.29.3",
     "node-cron": "^4.6.0",
     "pg": "^8.23.1",
@@ -42,9 +45,12 @@
     "@types/node": "catalog:",
     "@types/pg": "^8.23.1",
     "@types/react": "catalog:",
+    "@types/supertest": "^7.2.1",
     "@typescript/native": "catalog:",
     "eslint": "catalog:",
+    "supertest": "^7.3.2",
     "tsx": "^4.23.1",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "^5.1.0"
   }
 }

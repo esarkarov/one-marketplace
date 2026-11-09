@@ -18,8 +18,31 @@ const parsePort = (value: string | undefined): number => {
   return port;
 };
 
+const parseTrustProxy = (
+  value: string | undefined,
+): boolean | number | string => {
+  const trimmed = value?.trim() ?? "";
+
+  if (trimmed === "" || trimmed === "false" || trimmed === "0") {
+    return false;
+  }
+
+  if (/^true$/i.test(trimmed)) {
+    throw new Error(
+      "TRUST_PROXY=true trusts any client-supplied X-Forwarded-For; use a hop count or subnet list",
+    );
+  }
+
+  if (/^\d+$/.test(trimmed)) {
+    return Number(trimmed);
+  }
+
+  return trimmed;
+};
+
 export const env = {
   port: parsePort(process.env.PORT),
+  trustProxy: parseTrustProxy(process.env.TRUST_PROXY),
   nodeEnv: process.env.NODE_ENV || "development",
   databaseUrl: required("DATABASE_URL"),
   redisUrl: required("REDIS_URL"),
@@ -38,4 +61,5 @@ export const env = {
   freelancerDashboard: process.env.FREELANCER_DASHBOARD,
   clientDashboard: process.env.CLIENT_DASHBOARD,
   agencyDashboard: process.env.AGENCY_DASHBOARD,
+  adminDashboard: process.env.ADMIN_DASHBOARD,
 } as const;

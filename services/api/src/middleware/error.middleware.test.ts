@@ -1,0 +1,114 @@
+import express from "express";
+import type { Request, Response } from "express";
+import request from "supertest";
+import { describe, expect, it, vi } from "vitest";
+import { logger } from "../config/logger.js";
+import { ApiError } from "../utils/api-error.js";
+import { errorHandler } from "./error.middleware.js";
+import { requestIdMiddleware } from "./request-id.middleware.js";
+
+const app = express();
+app.use(requestIdMiddleware);
+app.use((req, _res, next) => {
+  req.logger = logger;
+  next();
+});
+app.get("/boom", () => {
+  throw new Error("secret internal detail");
+});
+app.get("/bad", () => {
+  throw new ApiError(400, "visible message");
+});
+app.get("/stripe", () => {
+  throw Object.assign(new Error("No such customer: cus_123 sk_test_abc"), {
+    statusCode: 402,
+  });
+});
+app.get("/exposed", () => {
+  throw Object.assign(new Error("invalid json"), {
+    status: 400,
+    expose: true,
+  });
+});
+app.use(errorHandler);
+
+const noLoggerApp = express();
+noLoggerApp.use(requestIdMiddleware);
+noLoggerApp.get("/boom", () => {
+  throw new Error("secret internal detail");
+});
+noLoggerApp.use(errorHandler);
+
+describe("error handler", () => {
+  it("treats third-party errors with a 4xx status as 500", async () => {
+    const response = await request(app).get("/stripe");
+
+    expect(response.status).toBe(500);
+    expect(response.body.message).toBe("Internal server error.");
+    expect(response.text).not.toContain("cus_123");
+    expect(response.text).not.toContain("sk_test_abc");
+  });
+
+  it("keeps the message and status when expose is true", async () => {
+    const response = await request(app).get("/exposed");
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe("invalid json");
+  });
+
+  it("does not throw when request.logger is undefined", async () => {
+    const response = await request(noLoggerApp).get("/boom");
+
+    expect(response.status).toBe(500);
+    expect(response.body.message).toBe("Internal server error.");
+  });
+
+  it("delegates to next when headers were already sent", () => {
+    const failure = new Error("late failure");
+    const next = vi.fn();
+    const response = { headersSent: true, status: vi.fn() };
+
+    errorHandler(failure, {} as Request, response as unknown as Response, next);
+
+    expect(next).toHaveBeenCalledWith(failure);
+    expect(response.status).not.toHaveBeenCalled();
+  });
+
+  it("hides internal details on 500", async () => {
+    const response = await request(app).get("/boom");
+
+    expect(response.status).toBe(500);
+    expect(response.body.message).toBe("Internal server error.");
+    expect(response.body.requestId).toEqual(expect.any(String));
+    expect(response.text).not.toContain("secret internal detail");
+  });
+
+  it("keeps the message on 4xx", async () => {
+    const response = await request(app).get("/bad");
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe("visible message");
+  });
+});
+
+describe("request id", () => {
+  it("echoes a valid client id", async () => {
+    const response = await request(app)
+      .get("/bad")
+      .set("x-request-id", "abc-123_X.y");
+
+    expect(response.headers["x-request-id"]).toBe("abc-123_X.y");
+  });
+
+  it.each(["has spaces", "a".repeat(65), "<script>"])(
+    "replaces the invalid id %s",
+    async (value) => {
+      const response = await request(app)
+        .get("/bad")
+        .set("x-request-id", value);
+
+      expect(response.headers["x-request-id"]).not.toBe(value);
+      expect(response.headers["x-request-id"]).toMatch(/^[0-9a-f-]{36}$/);
+    },
+  );
+});

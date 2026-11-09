@@ -1,6 +1,7 @@
 import type { Server as HttpServer } from "node:http";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { Server } from "socket.io";
+import { socketCorsOptions } from "../../config/cors.js";
 import { db } from "../../database/client.js";
 import { conversation_participants, messages } from "../../database/schema.js";
 import { authenticateAccount } from "../../middleware/auth.middleware.js";
@@ -68,7 +69,7 @@ const getConversationUsers = async (
 };
 
 export const initializeMessagingSocket = (server: HttpServer) => {
-  io = new Server(server, { cors: { origin: true, credentials: true } });
+  io = new Server(server, { cors: socketCorsOptions });
   io.use(async (socket, next) => {
     try {
       socket.data.auth = await authenticateAccount(
@@ -182,6 +183,12 @@ export const initializeMessagingSocket = (server: HttpServer) => {
       );
     });
   });
+};
+
+export const closeMessagingSocket = async (): Promise<void> => {
+  const server = io;
+  io = undefined;
+  await server?.close();
 };
 
 export const emitConversationUpdate = async (
