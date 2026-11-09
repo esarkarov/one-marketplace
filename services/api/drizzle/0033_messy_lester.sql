@@ -1,0 +1,1 @@
+ALTER TABLE "agency_invitations" DROP COLUMN "name";

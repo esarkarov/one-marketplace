@@ -1,0 +1,2 @@
+ALTER TABLE "earning_history" ADD COLUMN "platform_fee_amount" numeric(12, 2) DEFAULT '0' NOT NULL;--> statement-breakpoint
+ALTER TABLE "earning_history" ADD CONSTRAINT "earning_history_fee_check" CHECK ("earning_history"."platform_fee_amount" >= 0);

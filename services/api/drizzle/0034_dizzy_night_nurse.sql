@@ -1,0 +1,6 @@
+ALTER TABLE "conversation_participants" ALTER COLUMN "account_id" DROP NOT NULL;--> statement-breakpoint
+ALTER TABLE "conversation_participants" ADD COLUMN "agency_id" uuid;--> statement-breakpoint
+ALTER TABLE "conversation_participants" ADD CONSTRAINT "conversation_participants_agency_id_agency_metadata_id_fk" FOREIGN KEY ("agency_id") REFERENCES "public"."agency_metadata"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+CREATE UNIQUE INDEX "conversation_participants_conversation_agency_unique" ON "conversation_participants" USING btree ("conversation_id","agency_id");--> statement-breakpoint
+CREATE INDEX "conversation_participants_agency_conversation_idx" ON "conversation_participants" USING btree ("agency_id","conversation_id");--> statement-breakpoint
+ALTER TABLE "conversation_participants" ADD CONSTRAINT "conversation_participants_owner_check" CHECK (("conversation_participants"."account_id" IS NOT NULL) <> ("conversation_participants"."agency_id" IS NOT NULL));

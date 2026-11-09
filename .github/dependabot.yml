@@ -6,6 +6,7 @@ updates:
       - "/"
       - "/apps/*"
       - "/packages/*"
+      - "/services/*"
     schedule:
       interval: "weekly"
       day: "monday"

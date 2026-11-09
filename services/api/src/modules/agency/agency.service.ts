@@ -1,0 +1,1614 @@
+import { randomUUID } from "crypto";
+import { createClerkClient } from "@clerk/backend";
+import { and, asc, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import { db } from "../../database/client.js";
+import {
+  accounts,
+  agency_earning,
+  agency_invitations,
+  agency_members,
+  agency_metadata,
+  agency_portfolios,
+  client_metadata,
+  contracts,
+  earning_history,
+  freelancer_earning,
+  freelancer_metadata,
+  payout_history,
+  reviews,
+} from "../../database/schema.js";
+import { ApiError } from "../../utils/api-error.js";
+import { imageKit } from "../../config/imageKit.js";
+import { env } from "../../config/env.js";
+import { stripe } from "../../config/stripe.js";
+import { addAgencyConnects } from "../connects/connects.service.js";
+import { sendNotification } from "../../events/publisher.js";
+import {
+  EARNINGS_HOLD_PERIOD_MS,
+  INITIAL_CONNECTS,
+  STRIPE_PAYOUT_ELIGIBLE_COUNTRIES,
+} from "../../config/constants.js";
+import { getJSSContribution } from "../freelancer/freelancer.service.js";
+
+const regionNames = new Intl.DisplayNames(["en"], { type: "region" });
+
+type StoredImage = { imageId: string; url: string };
+
+export interface AgencyPortfolioItem {
+  id: string;
+  title: string;
+  category: string;
+  description: string;
+  liveUrl: string | null;
+  coverImage: StoredImage;
+}
+
+export interface AgencyMember {
+  id: string;
+  freelancerId: string;
+  profileId: string | null;
+  name: string;
+  avatarUrl: string | null;
+  role: string;
+  skills: string[];
+  isOwner: boolean;
+  rating: number;
+  jobSuccessScore: number;
+  completedProjects: number;
+}
+
+export interface AgencyWorkHistoryItem {
+  id: string;
+  title: string;
+  client: string;
+  status: "ACTIVE" | "COMPLETED";
+  completed: Date | null;
+  amount: number;
+  rating: number | null;
+  review: string | null;
+  clientHasReviewed: boolean;
+  freelancerHasReviewed: boolean;
+}
+
+export interface AgencyStats {
+  totalEarning: number;
+  completedJobs: number;
+  ongoingJobs: number;
+  reviewCount: number;
+  jobSuccessScore: number;
+  rating: number | null;
+}
+
+export interface AgencyData {
+  id: string;
+  name: string;
+  professionalTitle: string | null;
+  size: string;
+  specialty: string;
+  website: string | null;
+  overview: string;
+  tags: string[];
+  avatarImage: StoredImage | null;
+  isOnboarded: boolean;
+  portfolio: AgencyPortfolioItem[];
+  ownerLocation: string | null;
+  ownerLanguages: string[];
+  ownerLanguageDetails: Array<{ language: string; proficiency: string }>;
+  members: AgencyMember[];
+  createdAt: Date | null;
+  stats: AgencyStats;
+  workHistory: AgencyWorkHistoryItem[];
+}
+
+export interface CreateAgencyInput {
+  ownerId: string;
+  name: string;
+  size: string;
+  specialty: string;
+  website?: string;
+  overview: string;
+}
+
+export interface ImageInput {
+  imageId?: string;
+  url: string;
+}
+
+export interface UpdateAgencyPortfolioInput {
+  title: string;
+  category: string;
+  description: string;
+  liveUrl?: string;
+  coverImage: ImageInput;
+}
+
+export interface UpdateAgencyInput {
+  ownerId: string;
+  name: string;
+  professionalTitle: string;
+  size: string;
+  specialty: string;
+  website?: string;
+  overview: string;
+  tags: string[];
+  avatarImage?: ImageInput;
+  portfolio: UpdateAgencyPortfolioInput[];
+}
+
+const agencyColumns = {
+  id: agency_metadata.id,
+  name: agency_metadata.name,
+  professionalTitle: agency_metadata.professional_title,
+  size: agency_metadata.size,
+  specialty: agency_metadata.specialty,
+  website: agency_metadata.website,
+  overview: agency_metadata.overview,
+  tags: agency_metadata.tags,
+  avatarImage: agency_metadata.avatar_image,
+  isOnboarded: agency_metadata.is_onboarded,
+  createdAt: agency_metadata.created_at,
+};
+
+const getAgencyPortfolio = async (
+  agencyId: string,
+): Promise<AgencyPortfolioItem[]> =>
+  db
+    .select({
+      id: agency_portfolios.id,
+      title: agency_portfolios.title,
+      category: agency_portfolios.category,
+      description: agency_portfolios.description,
+      liveUrl: agency_portfolios.live_url,
+      coverImage: agency_portfolios.cover_image,
+    })
+    .from(agency_portfolios)
+    .where(eq(agency_portfolios.agency_id, agencyId));
+
+const getAgencyWorkHistoryAndStats = async (
+  agencyId: string,
+): Promise<{ stats: AgencyStats; workHistory: AgencyWorkHistoryItem[] }> => {
+  const [earningStats] = await db
+    .select({
+      totalEarning: agency_earning.total_earning,
+      completedJobs: agency_earning.completed_jobs,
+      ongoingJobs: agency_earning.ongoing_jobs,
+    })
+    .from(agency_earning)
+    .where(eq(agency_earning.agency_id, agencyId))
+    .limit(1);
+
+  const agencyContracts = await db
+    .select({
+      contract: contracts,
+      companyName: client_metadata.company_name,
+    })
+    .from(contracts)
+    .innerJoin(
+      client_metadata,
+      eq(contracts.client_id, client_metadata.auth_id),
+    )
+    .where(
+      and(
+        eq(contracts.agency_id, agencyId),
+        inArray(contracts.status, ["ACTIVE", "COMPLETED"]),
+      ),
+    )
+    .orderBy(desc(contracts.updated_at));
+
+  const workHistory: AgencyWorkHistoryItem[] = await Promise.all(
+    agencyContracts.map(async ({ contract, companyName }) => {
+      const contractReviews = await db
+        .select({
+          reviewerId: reviews.reviewer_id,
+          rating: reviews.rating,
+          comment: reviews.comment,
+        })
+        .from(reviews)
+        .where(eq(reviews.contract_id, contract.id));
+
+      const clientReview = contractReviews.find(
+        (review) => review.reviewerId === contract.client_id,
+      );
+      const agencyReview = contractReviews.find(
+        (review) => review.reviewerId !== contract.client_id,
+      );
+
+      return {
+        id: contract.id,
+        title: contract.title,
+        client: companyName || "Client",
+        status: contract.status as "ACTIVE" | "COMPLETED",
+        completed: contract.status === "COMPLETED" ? contract.updated_at : null,
+        amount: Number(contract.total_amount),
+        rating: clientReview ? Number(clientReview.rating) : null,
+        review: clientReview ? clientReview.comment : null,
+        clientHasReviewed: Boolean(clientReview),
+        freelancerHasReviewed: Boolean(agencyReview),
+      };
+    }),
+  );
+
+  const revealedReviews = workHistory.filter(
+    (item) =>
+      item.status === "COMPLETED" &&
+      item.clientHasReviewed &&
+      item.freelancerHasReviewed &&
+      item.rating !== null,
+  );
+
+  const revealedRatingAverage =
+    revealedReviews.length > 0
+      ? Number(
+          (
+            revealedReviews.reduce((sum, item) => sum + (item.rating ?? 0), 0) /
+            revealedReviews.length
+          ).toFixed(1),
+        )
+      : null;
+
+  const totalJssPoints = revealedReviews.reduce(
+    (sum, item) => sum + getJSSContribution(item.rating ?? 0),
+    0,
+  );
+  const calculatedJssScore =
+    revealedReviews.length > 0
+      ? Number((totalJssPoints / revealedReviews.length).toFixed(2))
+      : 0;
+
+  return {
+    stats: {
+      totalEarning: Number(earningStats?.totalEarning ?? 0),
+      completedJobs: Number(
+        earningStats?.completedJobs ??
+          workHistory.filter((item) => item.status === "COMPLETED").length,
+      ),
+      ongoingJobs: Number(
+        earningStats?.ongoingJobs ??
+          workHistory.filter((item) => item.status === "ACTIVE").length,
+      ),
+      reviewCount: revealedReviews.length,
+      jobSuccessScore: calculatedJssScore,
+      rating: revealedRatingAverage,
+    },
+    workHistory,
+  };
+};
+
+const MONTHLY_EARNINGS_SPAN = 7;
+
+export const getAgencyMonthlyEarnings = async (agencyId: string) => {
+  const [earningsCheck] = await db
+    .select({ hasEarnings: sql<boolean>`count(*) > 0` })
+    .from(earning_history)
+    .where(eq(earning_history.agency_id, agencyId));
+  const hasEarnings = earningsCheck?.hasEarnings ?? false;
+
+  if (!hasEarnings) {
+    return {
+      hasEarnings: false,
+      currentMonthTotal: 0,
+      previousMonthTotal: 0,
+      series: [] as Array<{ month: string; total: number }>,
+    };
+  }
+
+  const spanStart = new Date();
+  spanStart.setUTCDate(1);
+  spanStart.setUTCHours(0, 0, 0, 0);
+  spanStart.setUTCMonth(spanStart.getUTCMonth() - (MONTHLY_EARNINGS_SPAN - 1));
+
+  const rows = await db
+    .select({
+      month: sql<string>`to_char(date_trunc('month', ${earning_history.created_at}), 'YYYY-MM')`,
+      total: sql<string>`sum(${earning_history.amount} - ${earning_history.platform_fee_amount})`,
+    })
+    .from(earning_history)
+    .where(
+      and(
+        eq(earning_history.agency_id, agencyId),
+        gte(earning_history.created_at, spanStart),
+      ),
+    )
+    .groupBy(sql`date_trunc('month', ${earning_history.created_at})`)
+    .orderBy(sql`date_trunc('month', ${earning_history.created_at})`);
+
+  const totalsByMonth = new Map(
+    rows.map((row) => [row.month, Number(row.total)]),
+  );
+
+  const series = Array.from({ length: MONTHLY_EARNINGS_SPAN }, (_, index) => {
+    const date = new Date(spanStart);
+    date.setUTCMonth(date.getUTCMonth() + index);
+    const key = `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
+    return { month: key, total: totalsByMonth.get(key) ?? 0 };
+  });
+
+  return {
+    hasEarnings: true,
+    currentMonthTotal: series.at(-1)?.total ?? 0,
+    previousMonthTotal: series.at(-2)?.total ?? 0,
+    series,
+  };
+};
+
+const RECENT_AGENCY_EARNINGS_LIMIT = 20;
+
+export const getAgencyEarningsOverview = async (agencyId: string) => {
+  const rows = await db
+    .select({
+      id: earning_history.id,
+      amount: earning_history.amount,
+      platformFeeAmount: earning_history.platform_fee_amount,
+      createdAt: earning_history.created_at,
+      contractTitle: contracts.title,
+      clientCompany: client_metadata.company_name,
+      paidOut: sql<boolean>`${payout_history.id} is not null`,
+    })
+    .from(earning_history)
+    .innerJoin(contracts, eq(earning_history.contract_id, contracts.id))
+    .leftJoin(client_metadata, eq(contracts.client_id, client_metadata.auth_id))
+    .leftJoin(
+      payout_history,
+      eq(payout_history.earning_history_id, earning_history.id),
+    )
+    .where(eq(earning_history.agency_id, agencyId))
+    .orderBy(desc(earning_history.created_at));
+
+  const now = Date.now();
+  let available = 0;
+  let pending = 0;
+  let withdrawn = 0;
+  let totalFees = 0;
+
+  const earnings = rows.map((row) => {
+    const grossAmount = Number(row.amount);
+    const platformFeeAmount = Number(row.platformFeeAmount);
+    const amount = Math.round((grossAmount - platformFeeAmount) * 100) / 100;
+    const availableAt = new Date(
+      row.createdAt.getTime() + EARNINGS_HOLD_PERIOD_MS,
+    );
+    const isAvailable = now >= availableAt.getTime();
+    totalFees += platformFeeAmount;
+
+    // A row already transferred to Stripe (payout_history) is neither
+    // available nor pending anymore — the money has already left the
+    // platform, so it must not be double-counted as still withdrawable.
+    let status: "AVAILABLE" | "PENDING" | "WITHDRAWN";
+    if (row.paidOut) {
+      withdrawn += amount;
+      status = "WITHDRAWN";
+    } else if (isAvailable) {
+      available += amount;
+      status = "AVAILABLE";
+    } else {
+      pending += amount;
+      status = "PENDING";
+    }
+
+    return {
+      id: row.id,
+      title: row.contractTitle,
+      client: row.clientCompany ?? "Client",
+      grossAmount,
+      platformFeeAmount,
+      amount,
+      date: row.createdAt,
+      availableAt,
+      status,
+    };
+  });
+
+  return {
+    available,
+    pending,
+    withdrawn,
+    lifetime: available + pending + withdrawn,
+    totalFees,
+    recentEarnings: earnings.slice(0, RECENT_AGENCY_EARNINGS_LIMIT),
+  };
+};
+
+type StripeRequirementsLike =
+  | {
+      entries?: Array<{
+        awaiting_action_from: string;
+        minimum_deadline: { status: string };
+      }>;
+    }
+  | undefined;
+
+const hasBlockingAgencyRequirements = (requirements: StripeRequirementsLike) =>
+  (requirements?.entries ?? []).some(
+    (entry) =>
+      entry.awaiting_action_from === "user" &&
+      entry.minimum_deadline.status !== "eventually_due",
+  );
+
+export const getAgencyPayoutManagementUrl = async (agencyId: string) => {
+  if (!env.stripeSecretKey || !env.agencyDashboard) {
+    throw new ApiError(503, "Payouts are not configured.");
+  }
+
+  const [agency] = await db
+    .select({
+      name: agency_metadata.name,
+      ownerId: agency_metadata.owner_id,
+      stripeConnectAccountId: agency_metadata.stripe_connect_account_id,
+      ownerEmail: accounts.email,
+      ownerCountry: freelancer_metadata.country,
+    })
+    .from(agency_metadata)
+    .innerJoin(accounts, eq(accounts.auth_id, agency_metadata.owner_id))
+    .leftJoin(
+      freelancer_metadata,
+      eq(freelancer_metadata.auth_id, agency_metadata.owner_id),
+    )
+    .where(eq(agency_metadata.id, agencyId))
+    .limit(1);
+
+  if (!agency) throw new ApiError(404, "Agency workspace not found.");
+
+  let connectAccountId = agency.stripeConnectAccountId;
+  let hasPendingRequirements: boolean;
+
+  if (!connectAccountId) {
+    // The agency has no country of its own on file — bootstrap the Connect
+    // account with the owner's real country as the best available signal,
+    // same fallback-to-"us" rule as freelancer accounts. The payout
+    // destination is still the agency's own account, not the owner's.
+    const realCountry = agency.ownerCountry?.toUpperCase();
+    const connectCountry =
+      realCountry && STRIPE_PAYOUT_ELIGIBLE_COUNTRIES.has(realCountry)
+        ? realCountry.toLowerCase()
+        : "us";
+
+    const connectAccount = await stripe.v2.core.accounts.create({
+      contact_email: agency.ownerEmail,
+      dashboard: "express",
+      identity: { country: connectCountry },
+      configuration: {
+        recipient: {
+          capabilities: {
+            stripe_balance: {
+              stripe_transfers: { requested: true },
+            },
+          },
+        },
+        merchant: {
+          capabilities: {
+            card_payments: { requested: true },
+          },
+        },
+      },
+      defaults: {
+        responsibilities: {
+          fees_collector: "application_express",
+          losses_collector: "application",
+        },
+      },
+      include: ["requirements"],
+    });
+
+    connectAccountId = connectAccount.id;
+    hasPendingRequirements = hasBlockingAgencyRequirements(
+      connectAccount.requirements,
+    );
+
+    await db
+      .update(agency_metadata)
+      .set({
+        stripe_connect_account_id: connectAccountId,
+        updated_at: new Date(),
+      })
+      .where(eq(agency_metadata.id, agencyId));
+  } else {
+    const existingAccount = await stripe.v2.core.accounts.retrieve(
+      connectAccountId,
+      { include: ["requirements"] },
+    );
+    hasPendingRequirements = hasBlockingAgencyRequirements(
+      existingAccount.requirements,
+    );
+  }
+
+  const returnUrl = `${env.agencyDashboard}/finances?section=withdrawals`;
+
+  if (hasPendingRequirements) {
+    const accountLink = await stripe.v2.core.accountLinks.create({
+      account: connectAccountId,
+      use_case: {
+        type: "account_onboarding",
+        account_onboarding: {
+          configurations: ["recipient", "merchant"],
+          refresh_url: returnUrl,
+          return_url: returnUrl,
+        },
+      },
+    });
+    return accountLink.url;
+  }
+
+  const loginLink = await stripe.accounts.createLoginLink(connectAccountId);
+  return loginLink.url;
+};
+
+const attachOwnerProfile = async (
+  ownerId: string,
+  agency: Omit<
+    AgencyData,
+    | "ownerLocation"
+    | "ownerLanguages"
+    | "ownerLanguageDetails"
+    | "members"
+    | "stats"
+    | "workHistory"
+  >,
+): Promise<AgencyData> => {
+  const memberRows = await db
+    .select({
+      id: agency_members.id,
+      freelancerId: agency_members.freelancer_id,
+      profileId: freelancer_metadata.id,
+      role: agency_members.role,
+      professionalTitle: freelancer_metadata.professional_title,
+      country: freelancer_metadata.country,
+      city: freelancer_metadata.city,
+      languages: freelancer_metadata.languages,
+      skills: freelancer_metadata.skills,
+      rating: freelancer_earning.rating,
+      jobSuccessScore: freelancer_earning.job_success_score,
+      completedProjects: freelancer_earning.completed_jobs,
+    })
+    .from(agency_members)
+    .leftJoin(
+      freelancer_metadata,
+      eq(freelancer_metadata.auth_id, agency_members.freelancer_id),
+    )
+    .leftJoin(
+      freelancer_earning,
+      eq(freelancer_earning.freelancer_id, agency_members.freelancer_id),
+    )
+    .where(eq(agency_members.agency_id, agency.id))
+    .orderBy(agency_members.created_at);
+
+  const ownerRow = memberRows.find((row) => row.freelancerId === ownerId);
+
+  const ownerLocation = ownerRow?.country
+    ? [ownerRow.city, regionNames.of(ownerRow.country) ?? ownerRow.country]
+        .filter(Boolean)
+        .join(", ") || null
+    : null;
+  const ownerLanguages =
+    ownerRow?.languages?.map((entry) => entry.language) ?? [];
+  const ownerLanguageDetails = ownerRow?.languages ?? [];
+
+  const freelancerIds = memberRows.map((row) => row.freelancerId);
+  const names = new Map<string, string>();
+  const avatars = new Map<string, string | null>();
+
+  if (env.clerkSecretKey) {
+    const clerk = createClerkClient({ secretKey: env.clerkSecretKey });
+    await Promise.all(
+      freelancerIds.map(async (freelancerId) => {
+        try {
+          const user = await clerk.users.getUser(freelancerId);
+          names.set(
+            freelancerId,
+            [user.firstName, user.lastName].filter(Boolean).join(" ") ||
+              "Marketplace user",
+          );
+          avatars.set(freelancerId, user.imageUrl || null);
+        } catch {
+          names.set(freelancerId, "Marketplace user");
+          avatars.set(freelancerId, null);
+        }
+      }),
+    );
+  }
+
+  const members: AgencyMember[] = memberRows.map((row) => {
+    const isOwner = row.freelancerId === ownerId;
+    return {
+      id: row.id,
+      freelancerId: row.freelancerId,
+      profileId: row.profileId,
+      name: names.get(row.freelancerId) ?? "Marketplace user",
+      avatarUrl: avatars.get(row.freelancerId) ?? null,
+      role: isOwner
+        ? ["Founder", row.professionalTitle].filter(Boolean).join(" · ")
+        : row.role,
+      skills: row.skills ?? [],
+      isOwner,
+      rating: Number(row.rating ?? 0),
+      jobSuccessScore: Number(row.jobSuccessScore ?? 0),
+      completedProjects: row.completedProjects ?? 0,
+    };
+  });
+
+  const { stats, workHistory } = await getAgencyWorkHistoryAndStats(agency.id);
+
+  return {
+    ...agency,
+    ownerLocation,
+    ownerLanguages,
+    ownerLanguageDetails,
+    members,
+    stats,
+    workHistory,
+  };
+};
+
+export const getAgencyByOwner = async (
+  ownerId: string,
+): Promise<AgencyData | null> => {
+  const [agency] = await db
+    .select(agencyColumns)
+    .from(agency_metadata)
+    .where(eq(agency_metadata.owner_id, ownerId))
+    .limit(1);
+
+  if (!agency) return null;
+
+  const portfolio = await getAgencyPortfolio(agency.id);
+
+  return attachOwnerProfile(ownerId, {
+    ...agency,
+    avatarImage: agency.avatarImage ?? null,
+    portfolio,
+  });
+};
+
+export const getPublicAgencyProfile = async (
+  agencyId: string,
+): Promise<AgencyData | null> => {
+  const [agency] = await db
+    .select({ ...agencyColumns, ownerId: agency_metadata.owner_id })
+    .from(agency_metadata)
+    .where(eq(agency_metadata.id, agencyId))
+    .limit(1);
+
+  if (!agency) return null;
+
+  const { ownerId, ...agencyData } = agency;
+  const portfolio = await getAgencyPortfolio(agency.id);
+
+  return attachOwnerProfile(ownerId, {
+    ...agencyData,
+    avatarImage: agencyData.avatarImage ?? null,
+    portfolio,
+  });
+};
+
+export const getAgencyForMember = async (
+  freelancerId: string,
+): Promise<AgencyData | null> => {
+  const agencyId = await getAgencyIdForMember(freelancerId);
+  if (!agencyId) return null;
+  return getPublicAgencyProfile(agencyId);
+};
+
+export const createAgency = async (
+  input: CreateAgencyInput,
+): Promise<AgencyData> => {
+  const existing = await getAgencyByOwner(input.ownerId);
+  if (existing) {
+    throw new ApiError(409, "You already have an agency workspace.");
+  }
+
+  const now = new Date();
+
+  const created = await db.transaction(async (transaction) => {
+    const [created] = await transaction
+      .insert(agency_metadata)
+      .values({
+        owner_id: input.ownerId,
+        name: input.name,
+        size: input.size,
+        specialty: input.specialty,
+        website: input.website || null,
+        overview: input.overview,
+        created_at: now,
+        updated_at: now,
+      })
+      .returning(agencyColumns);
+
+    if (!created) {
+      throw new ApiError(500, "The agency could not be created.");
+    }
+
+    await transaction.insert(agency_members).values({
+      agency_id: created.id,
+      freelancer_id: input.ownerId,
+      role: "Founder",
+    });
+
+    return created;
+  });
+
+  return attachOwnerProfile(input.ownerId, {
+    ...created,
+    avatarImage: created.avatarImage ?? null,
+    portfolio: [],
+  });
+};
+
+const isDataUrl = (value: string): boolean => value.startsWith("data:image/");
+
+const resolveAgencyImages = async (
+  ownerId: string,
+  input: UpdateAgencyInput,
+) => {
+  const uploadedFileIds: string[] = [];
+
+  const resolveOne = async (
+    image: ImageInput,
+    prefix: string,
+  ): Promise<StoredImage> => {
+    if (!isDataUrl(image.url)) {
+      if (!image.imageId) {
+        throw new ApiError(400, "An image could not be resolved.");
+      }
+      return { imageId: image.imageId, url: image.url };
+    }
+
+    if (!env.imageKitPrivateKey) {
+      throw new ApiError(503, "Image uploads are not configured.");
+    }
+
+    const result = await imageKit.files.upload({
+      file: image.url,
+      fileName: `${prefix}-${randomUUID()}`,
+      folder: `/onemarketplace/agency-portfolios/${ownerId}`,
+    });
+
+    if (!result.fileId || !result.url) {
+      throw new ApiError(502, "Image upload failed.");
+    }
+
+    uploadedFileIds.push(result.fileId);
+    return { imageId: result.fileId, url: result.url };
+  };
+
+  try {
+    const avatarImage = input.avatarImage
+      ? await resolveOne(input.avatarImage, "avatar")
+      : undefined;
+
+    const portfolio = await Promise.all(
+      input.portfolio.map(async (item) => ({
+        ...item,
+        coverImage: await resolveOne(item.coverImage, "portfolio"),
+      })),
+    );
+
+    return { avatarImage, portfolio, uploadedFileIds };
+  } catch (error) {
+    await Promise.allSettled(
+      uploadedFileIds.map((fileId) => imageKit.files.delete(fileId)),
+    );
+    throw error;
+  }
+};
+
+export const updateAgencyProfile = async (
+  input: UpdateAgencyInput,
+): Promise<AgencyData> => {
+  const existing = await getAgencyByOwner(input.ownerId);
+  if (!existing) {
+    throw new ApiError(404, "No agency workspace was found for this account.");
+  }
+
+  const { avatarImage, portfolio, uploadedFileIds } = await resolveAgencyImages(
+    input.ownerId,
+    input,
+  );
+
+  let result: Omit<
+    AgencyData,
+    | "ownerLocation"
+    | "ownerLanguages"
+    | "ownerLanguageDetails"
+    | "members"
+    | "stats"
+    | "workHistory"
+  >;
+
+  try {
+    result = await db.transaction(async (transaction) => {
+      const [updated] = await transaction
+        .update(agency_metadata)
+        .set({
+          name: input.name,
+          professional_title: input.professionalTitle,
+          size: input.size,
+          specialty: input.specialty,
+          website: input.website || null,
+          overview: input.overview,
+          tags: input.tags,
+          avatar_image: avatarImage ?? existing.avatarImage,
+          is_onboarded: true,
+          updated_at: new Date(),
+        })
+        .where(eq(agency_metadata.owner_id, input.ownerId))
+        .returning(agencyColumns);
+
+      if (!updated) {
+        throw new ApiError(500, "The agency profile could not be saved.");
+      }
+
+      await transaction
+        .delete(agency_portfolios)
+        .where(eq(agency_portfolios.agency_id, updated.id));
+
+      const portfolioRows = portfolio.length
+        ? await transaction
+            .insert(agency_portfolios)
+            .values(
+              portfolio.map((item) => ({
+                agency_id: updated.id,
+                title: item.title,
+                category: item.category,
+                description: item.description,
+                live_url: item.liveUrl || null,
+                cover_image: item.coverImage,
+              })),
+            )
+            .returning({
+              id: agency_portfolios.id,
+              title: agency_portfolios.title,
+              category: agency_portfolios.category,
+              description: agency_portfolios.description,
+              liveUrl: agency_portfolios.live_url,
+              coverImage: agency_portfolios.cover_image,
+            })
+        : [];
+
+      return {
+        ...updated,
+        avatarImage: updated.avatarImage ?? null,
+        portfolio: portfolioRows,
+      };
+    });
+  } catch (error) {
+    await Promise.allSettled(
+      uploadedFileIds.map((fileId) => imageKit.files.delete(fileId)),
+    );
+    throw error;
+  }
+
+  if (!existing.isOnboarded) {
+    try {
+      const balance = await addAgencyConnects(result.id);
+      if (balance) {
+        await sendNotification({
+          agencyId: result.id,
+          type: "AGENCY_WELCOME_BONUS",
+          title: "Welcome Connects added",
+          message: `Your agency received ${INITIAL_CONNECTS} welcome Connects.`,
+          link: "/finances?section=connects",
+          metadata: { connects: INITIAL_CONNECTS },
+        });
+      }
+    } catch (error) {
+      console.log(error, "onboarding agency connects adding error.");
+    }
+  }
+
+  const retainedImageIds = new Set(
+    [
+      result.avatarImage?.imageId,
+      ...result.portfolio.map((item) => item.coverImage.imageId),
+    ].filter((id): id is string => Boolean(id)),
+  );
+
+  const staleImageIds = [
+    existing.avatarImage?.imageId,
+    ...existing.portfolio.map((item) => item.coverImage.imageId),
+  ].filter(
+    (id): id is string => Boolean(id) && !retainedImageIds.has(id as string),
+  );
+
+  await Promise.allSettled(
+    staleImageIds.map((fileId) => imageKit.files.delete(fileId)),
+  );
+
+  return attachOwnerProfile(input.ownerId, result);
+};
+
+export const getAgencyTags = async (
+  freelancerId: string,
+): Promise<string[] | null> => {
+  const agencyId = await getAgencyIdForMember(freelancerId);
+  if (!agencyId) return null;
+
+  const [agency] = await db
+    .select({ tags: agency_metadata.tags })
+    .from(agency_metadata)
+    .where(eq(agency_metadata.id, agencyId))
+    .limit(1);
+
+  return agency?.tags ?? null;
+};
+
+export const getAgencyIdentityForOwner = async (
+  ownerId: string,
+): Promise<{ id: string; name: string } | null> => {
+  const [agency] = await db
+    .select({ id: agency_metadata.id, name: agency_metadata.name })
+    .from(agency_metadata)
+    .where(eq(agency_metadata.owner_id, ownerId))
+    .limit(1);
+
+  return agency ?? null;
+};
+
+export const getAgencyIdForMember = async (
+  freelancerId: string,
+): Promise<string | null> => {
+  const [membership] = await db
+    .select({ agencyId: agency_members.agency_id })
+    .from(agency_members)
+    .where(eq(agency_members.freelancer_id, freelancerId))
+    .limit(1);
+
+  return membership?.agencyId ?? null;
+};
+
+export const getAgencyOwnerVerification = async (
+  agencyId: string,
+): Promise<{ ownerId: string; identityVerified: boolean } | null> => {
+  const [owner] = await db
+    .select({
+      ownerId: agency_metadata.owner_id,
+      identityVerified: accounts.identityVerified,
+    })
+    .from(agency_metadata)
+    .innerJoin(accounts, eq(accounts.auth_id, agency_metadata.owner_id))
+    .where(eq(agency_metadata.id, agencyId))
+    .limit(1);
+
+  return owner
+    ? { ...owner, identityVerified: owner.identityVerified === true }
+    : null;
+};
+
+export const getAgencyIdentityForMember = async (
+  freelancerId: string,
+): Promise<{
+  id: string;
+  name: string;
+  avatarUrl: string | null;
+} | null> => {
+  const [agency] = await db
+    .select({
+      id: agency_metadata.id,
+      name: agency_metadata.name,
+      avatarImage: agency_metadata.avatar_image,
+    })
+    .from(agency_members)
+    .innerJoin(
+      agency_metadata,
+      eq(agency_metadata.id, agency_members.agency_id),
+    )
+    .where(eq(agency_members.freelancer_id, freelancerId))
+    .limit(1);
+
+  if (!agency) return null;
+  return {
+    id: agency.id,
+    name: agency.name,
+    avatarUrl: agency.avatarImage?.url ?? null,
+  };
+};
+
+export const getAgencyOwnerId = async (
+  agencyId: string,
+): Promise<string | null> => {
+  const [agency] = await db
+    .select({ ownerId: agency_metadata.owner_id })
+    .from(agency_metadata)
+    .where(eq(agency_metadata.id, agencyId))
+    .limit(1);
+
+  return agency?.ownerId ?? null;
+};
+
+export const getAgencyTeamMemberIds = async (
+  agencyId: string,
+): Promise<string[]> => {
+  const [ownerId, members] = await Promise.all([
+    getAgencyOwnerId(agencyId),
+    db
+      .select({ freelancerId: agency_members.freelancer_id })
+      .from(agency_members)
+      .where(eq(agency_members.agency_id, agencyId)),
+  ]);
+
+  return [
+    ...new Set(
+      [ownerId, ...members.map((member) => member.freelancerId)].filter(
+        (id): id is string => Boolean(id),
+      ),
+    ),
+  ];
+};
+
+export interface AgencyInvitationData {
+  id: string;
+  email: string;
+  role: string;
+  status: string;
+  createdAt: Date;
+  avatarUrl: string | null;
+}
+
+export const getAgencyInvitations = async (
+  agencyId: string,
+): Promise<AgencyInvitationData[]> => {
+  const rows = await db
+    .select({
+      id: agency_invitations.id,
+      email: agency_invitations.email,
+      role: agency_invitations.role,
+      status: agency_invitations.status,
+      createdAt: agency_invitations.created_at,
+    })
+    .from(agency_invitations)
+    .where(
+      and(
+        eq(agency_invitations.agency_id, agencyId),
+        eq(agency_invitations.status, "PENDING"),
+      ),
+    )
+    .orderBy(desc(agency_invitations.created_at));
+
+  if (!rows.length) return rows.map((row) => ({ ...row, avatarUrl: null }));
+
+  const emails = [...new Set(rows.map((row) => row.email))];
+  const matchedAccounts = await db
+    .select({ email: accounts.email, authId: accounts.auth_id })
+    .from(accounts)
+    .where(inArray(accounts.email, emails));
+
+  const avatarByEmail = new Map<string, string | null>();
+  if (env.clerkSecretKey && matchedAccounts.length) {
+    const clerk = createClerkClient({ secretKey: env.clerkSecretKey });
+    await Promise.all(
+      matchedAccounts.map(async ({ email, authId }) => {
+        try {
+          const user = await clerk.users.getUser(authId);
+          avatarByEmail.set(email, user.imageUrl || null);
+        } catch {
+          avatarByEmail.set(email, null);
+        }
+      }),
+    );
+  }
+
+  return rows.map((row) => ({
+    ...row,
+    avatarUrl: avatarByEmail.get(row.email) ?? null,
+  }));
+};
+
+const notifyInvitee = async (
+  email: string,
+  agencyId: string,
+  agencyName: string,
+) => {
+  const [account] = await db
+    .select({ authId: accounts.auth_id, role: accounts.role })
+    .from(accounts)
+    .where(eq(accounts.email, email))
+    .limit(1);
+
+  if (!account || account.role !== "FREELANCER") return false;
+
+  await sendNotification({
+    recipientId: account.authId,
+    type: "AGENCY_INVITATION",
+    title: "You've been invited to join an agency",
+    message: `${agencyName} invited you to join their agency team.`,
+    link: "/agency-invitations",
+    metadata: { agencyId },
+  });
+  return true;
+};
+
+export const inviteAgencyMember = async (
+  agencyId: string,
+  agencyName: string,
+  invitedBy: string,
+  input: { email: string; role: string },
+): Promise<AgencyInvitationData & { notifiedInApp: boolean }> => {
+  const email = input.email.trim().toLowerCase();
+
+  const [existingMember] = await db
+    .select({ id: agency_members.id })
+    .from(agency_members)
+    .innerJoin(accounts, eq(accounts.auth_id, agency_members.freelancer_id))
+    .where(eq(accounts.email, email))
+    .limit(1);
+  if (existingMember) {
+    throw new ApiError(
+      409,
+      "This person is already part of an agency team and cannot be invited.",
+    );
+  }
+
+  const [existingInvite] = await db
+    .select({ id: agency_invitations.id })
+    .from(agency_invitations)
+    .where(
+      and(
+        eq(agency_invitations.agency_id, agencyId),
+        eq(agency_invitations.email, email),
+        eq(agency_invitations.status, "PENDING"),
+      ),
+    )
+    .limit(1);
+  if (existingInvite) {
+    throw new ApiError(409, "An invitation is already pending for this email.");
+  }
+
+  const [invitation] = await db
+    .insert(agency_invitations)
+    .values({
+      agency_id: agencyId,
+      email,
+      role: input.role,
+      invited_by: invitedBy,
+    })
+    .returning({
+      id: agency_invitations.id,
+      email: agency_invitations.email,
+      role: agency_invitations.role,
+      status: agency_invitations.status,
+      createdAt: agency_invitations.created_at,
+    });
+
+  if (!invitation) throw new ApiError(500, "The invitation could not be sent.");
+
+  const notifiedInApp = await notifyInvitee(email, agencyId, agencyName);
+
+  return { ...invitation, avatarUrl: null, notifiedInApp };
+};
+
+export const cancelAgencyInvitation = async (
+  agencyId: string,
+  invitationId: string,
+) => {
+  const [cancelled] = await db
+    .update(agency_invitations)
+    .set({
+      status: "CANCELLED",
+      responded_at: new Date(),
+      updated_at: new Date(),
+    })
+    .where(
+      and(
+        eq(agency_invitations.id, invitationId),
+        eq(agency_invitations.agency_id, agencyId),
+        eq(agency_invitations.status, "PENDING"),
+      ),
+    )
+    .returning({ id: agency_invitations.id });
+
+  if (!cancelled) throw new ApiError(404, "Invitation not found.");
+};
+
+export const resendAgencyInvitation = async (
+  agencyId: string,
+  invitationId: string,
+  agencyName: string,
+) => {
+  const [invitation] = await db
+    .update(agency_invitations)
+    .set({ updated_at: new Date() })
+    .where(
+      and(
+        eq(agency_invitations.id, invitationId),
+        eq(agency_invitations.agency_id, agencyId),
+        eq(agency_invitations.status, "PENDING"),
+      ),
+    )
+    .returning({ email: agency_invitations.email });
+
+  if (!invitation) throw new ApiError(404, "Invitation not found.");
+
+  const notifiedInApp = await notifyInvitee(
+    invitation.email,
+    agencyId,
+    agencyName,
+  );
+  return { notifiedInApp };
+};
+
+export const updateAgencyInvitationRole = async (
+  agencyId: string,
+  invitationId: string,
+  role: string,
+) => {
+  const [updated] = await db
+    .update(agency_invitations)
+    .set({ role, updated_at: new Date() })
+    .where(
+      and(
+        eq(agency_invitations.id, invitationId),
+        eq(agency_invitations.agency_id, agencyId),
+        eq(agency_invitations.status, "PENDING"),
+      ),
+    )
+    .returning({ id: agency_invitations.id });
+
+  if (!updated) throw new ApiError(404, "Invitation not found.");
+};
+
+export const updateAgencyMemberRole = async (
+  agencyId: string,
+  memberId: string,
+  role: string,
+) => {
+  const [member] = await db
+    .select({
+      freelancerId: agency_members.freelancer_id,
+      ownerId: agency_metadata.owner_id,
+    })
+    .from(agency_members)
+    .innerJoin(
+      agency_metadata,
+      eq(agency_metadata.id, agency_members.agency_id),
+    )
+    .where(
+      and(
+        eq(agency_members.id, memberId),
+        eq(agency_members.agency_id, agencyId),
+      ),
+    )
+    .limit(1);
+
+  if (!member) throw new ApiError(404, "Agency member not found.");
+  if (member.freelancerId === member.ownerId) {
+    throw new ApiError(400, "The agency owner's role cannot be changed.");
+  }
+
+  await db
+    .update(agency_members)
+    .set({ role })
+    .where(eq(agency_members.id, memberId));
+};
+
+export const removeAgencyMember = async (
+  agencyId: string,
+  memberId: string,
+) => {
+  const [member] = await db
+    .select({
+      freelancerId: agency_members.freelancer_id,
+      ownerId: agency_metadata.owner_id,
+    })
+    .from(agency_members)
+    .innerJoin(
+      agency_metadata,
+      eq(agency_metadata.id, agency_members.agency_id),
+    )
+    .where(
+      and(
+        eq(agency_members.id, memberId),
+        eq(agency_members.agency_id, agencyId),
+      ),
+    )
+    .limit(1);
+
+  if (!member) throw new ApiError(404, "Agency member not found.");
+  if (member.freelancerId === member.ownerId) {
+    throw new ApiError(400, "The agency owner cannot be removed.");
+  }
+
+  await db.delete(agency_members).where(eq(agency_members.id, memberId));
+};
+
+export interface MyAgencyInvitation {
+  id: string;
+  agencyId: string;
+  agencyName: string;
+  agencyAvatar: { imageId: string; url: string } | null;
+  role: string;
+  createdAt: Date;
+}
+
+export const getMyAgencyInvitations = async (
+  userId: string,
+): Promise<MyAgencyInvitation[]> => {
+  const [account] = await db
+    .select({ email: accounts.email })
+    .from(accounts)
+    .where(eq(accounts.auth_id, userId))
+    .limit(1);
+  if (!account) return [];
+
+  return db
+    .select({
+      id: agency_invitations.id,
+      agencyId: agency_invitations.agency_id,
+      agencyName: agency_metadata.name,
+      agencyAvatar: agency_metadata.avatar_image,
+      role: agency_invitations.role,
+      createdAt: agency_invitations.created_at,
+    })
+    .from(agency_invitations)
+    .innerJoin(
+      agency_metadata,
+      eq(agency_metadata.id, agency_invitations.agency_id),
+    )
+    .where(
+      and(
+        eq(agency_invitations.email, account.email),
+        eq(agency_invitations.status, "PENDING"),
+      ),
+    )
+    .orderBy(desc(agency_invitations.created_at));
+};
+
+export const respondToAgencyInvitation = async (
+  invitationId: string,
+  userId: string,
+  accept: boolean,
+) => {
+  const [account] = await db
+    .select({ email: accounts.email })
+    .from(accounts)
+    .where(eq(accounts.auth_id, userId))
+    .limit(1);
+  if (!account) throw new ApiError(404, "Account not found.");
+
+  const [invitation] = await db
+    .select({
+      id: agency_invitations.id,
+      agencyId: agency_invitations.agency_id,
+      agencyName: agency_metadata.name,
+      role: agency_invitations.role,
+      email: agency_invitations.email,
+      status: agency_invitations.status,
+    })
+    .from(agency_invitations)
+    .innerJoin(
+      agency_metadata,
+      eq(agency_metadata.id, agency_invitations.agency_id),
+    )
+    .where(eq(agency_invitations.id, invitationId))
+    .limit(1);
+
+  if (!invitation || invitation.email !== account.email) {
+    throw new ApiError(404, "Invitation not found.");
+  }
+  if (invitation.status !== "PENDING") {
+    throw new ApiError(409, "This invitation has already been handled.");
+  }
+
+  const now = new Date();
+
+  if (accept) {
+    const [existingMembership] = await db
+      .select({ id: agency_members.id })
+      .from(agency_members)
+      .where(eq(agency_members.freelancer_id, userId))
+      .limit(1);
+    if (existingMembership) {
+      throw new ApiError(
+        409,
+        "You're already part of an agency. Leave your current agency before joining a new one.",
+      );
+    }
+
+    await db.transaction(async (transaction) => {
+      await transaction.insert(agency_members).values({
+        agency_id: invitation.agencyId,
+        freelancer_id: userId,
+        role: invitation.role,
+      });
+      await transaction
+        .update(agency_invitations)
+        .set({ status: "ACCEPTED", responded_at: now, updated_at: now })
+        .where(eq(agency_invitations.id, invitationId));
+    });
+  } else {
+    await db
+      .update(agency_invitations)
+      .set({ status: "DECLINED", responded_at: now, updated_at: now })
+      .where(eq(agency_invitations.id, invitationId));
+  }
+
+  const ownerId = await getAgencyOwnerId(invitation.agencyId);
+  if (ownerId) {
+    let responderName = account.email;
+    if (env.clerkSecretKey) {
+      try {
+        const clerk = createClerkClient({ secretKey: env.clerkSecretKey });
+        const user = await clerk.users.getUser(userId);
+        responderName =
+          [user.firstName, user.lastName].filter(Boolean).join(" ") ||
+          account.email;
+      } catch {
+        // Clerk lookup is best-effort — fall back to the email already on hand.
+      }
+    }
+
+    await sendNotification({
+      agencyId: invitation.agencyId,
+      type: accept
+        ? "AGENCY_INVITATION_ACCEPTED"
+        : "AGENCY_INVITATION_DECLINED",
+      title: accept ? "Invitation accepted" : "Invitation declined",
+      message: accept
+        ? `${responderName} accepted your invitation to join ${invitation.agencyName}.`
+        : `${responderName} declined your invitation to join ${invitation.agencyName}.`,
+      link: "/team",
+      metadata: { invitationId },
+    });
+  }
+
+  return { accepted: accept };
+};
+
+export interface PublicAgencySummary {
+  id: string;
+  name: string;
+  avatarUrl: string | null;
+  verified: boolean;
+  tagline: string | null;
+  description: string;
+  specialty: string;
+  location: string | null;
+  teamSize: string;
+  memberCount: number;
+  minHourlyRate: number | null;
+  rating: number;
+  reviews: number;
+  projects: number;
+  success: number;
+  skills: string[];
+}
+
+export interface PublicAgencyFilters {
+  query?: string;
+  specialty?: string;
+  sizes?: string[];
+  verifiedOnly?: boolean;
+  maxRate?: number;
+  sort?: "recommended" | "rating" | "projects" | "rate-low";
+}
+
+export interface PublicAgencyFeedPage {
+  results: PublicAgencySummary[];
+  hasMore: boolean;
+}
+
+const PUBLIC_AGENCY_PAGE_SIZE = 20;
+const publicAgencyRegionNames = new Intl.DisplayNames(["en"], {
+  type: "region",
+});
+
+export const searchPublicAgencies = async (
+  filters: PublicAgencyFilters,
+  pagination: { limit?: number; offset?: number } = {},
+): Promise<PublicAgencyFeedPage> => {
+  const limit = pagination.limit ?? PUBLIC_AGENCY_PAGE_SIZE;
+  const offset = pagination.offset ?? 0;
+  const normalizedQuery = (filters.query ?? "").trim().toLowerCase();
+
+  const memberCountExpr = sql<number>`(
+    SELECT count(*) FROM ${agency_members}
+    WHERE ${agency_members.agency_id} = ${agency_metadata.id}
+  )`;
+  const minHourlyRateExpr = sql<string | null>`(
+    SELECT min(${freelancer_metadata.hourly_rate}) FROM ${agency_members}
+    INNER JOIN ${freelancer_metadata}
+      ON ${freelancer_metadata.auth_id} = ${agency_members.freelancer_id}
+    WHERE ${agency_members.agency_id} = ${agency_metadata.id}
+  )`;
+
+  const conditions = [eq(agency_metadata.is_onboarded, true)];
+  if (filters.specialty) {
+    conditions.push(eq(agency_metadata.specialty, filters.specialty));
+  }
+  if (filters.sizes?.length) {
+    conditions.push(inArray(agency_metadata.size, filters.sizes));
+  }
+  if (filters.verifiedOnly) {
+    conditions.push(eq(accounts.identityVerified, true));
+  }
+  if (filters.maxRate) {
+    conditions.push(lte(minHourlyRateExpr, String(filters.maxRate)));
+  }
+
+  const orderBy = (() => {
+    switch (filters.sort) {
+      case "rating":
+        return desc(agency_earning.rating);
+      case "projects":
+        return desc(agency_earning.completed_jobs);
+      case "rate-low":
+        return asc(minHourlyRateExpr);
+      default:
+        return desc(
+          sql`${agency_earning.rating} * ${agency_earning.job_success_score}`,
+        );
+    }
+  })();
+
+  const rows = await db
+    .select({
+      id: agency_metadata.id,
+      name: agency_metadata.name,
+      professionalTitle: agency_metadata.professional_title,
+      specialty: agency_metadata.specialty,
+      overview: agency_metadata.overview,
+      size: agency_metadata.size,
+      tags: agency_metadata.tags,
+      avatarImage: agency_metadata.avatar_image,
+      identityVerified: accounts.identityVerified,
+      ownerCity: freelancer_metadata.city,
+      ownerCountry: freelancer_metadata.country,
+      rating: agency_earning.rating,
+      jobSuccessScore: agency_earning.job_success_score,
+      completedJobs: agency_earning.completed_jobs,
+      reviewCount: agency_earning.review_count,
+      memberCount: memberCountExpr,
+      minHourlyRate: minHourlyRateExpr,
+    })
+    .from(agency_metadata)
+    .innerJoin(accounts, eq(accounts.auth_id, agency_metadata.owner_id))
+    .leftJoin(
+      freelancer_metadata,
+      eq(freelancer_metadata.auth_id, agency_metadata.owner_id),
+    )
+    .leftJoin(agency_earning, eq(agency_earning.agency_id, agency_metadata.id))
+    .where(and(...conditions))
+    .orderBy(orderBy)
+    .limit(limit)
+    .offset(offset);
+
+  const hasMore = rows.length === limit;
+  if (!rows.length) return { results: [], hasMore: false };
+
+  const results: PublicAgencySummary[] = [];
+  for (const row of rows) {
+    const countryName = row.ownerCountry
+      ? (publicAgencyRegionNames.of(row.ownerCountry) ?? row.ownerCountry)
+      : null;
+    const location = [row.ownerCity, countryName].filter(Boolean).join(", ");
+    const searchable = [
+      row.name,
+      row.professionalTitle,
+      row.specialty,
+      location,
+      ...row.tags,
+    ]
+      .join(" ")
+      .toLowerCase();
+    if (normalizedQuery && !searchable.includes(normalizedQuery)) continue;
+
+    results.push({
+      id: row.id,
+      name: row.name,
+      avatarUrl: row.avatarImage?.url ?? null,
+      verified: row.identityVerified === true,
+      tagline: row.professionalTitle,
+      description: row.overview,
+      specialty: row.specialty,
+      location: location || null,
+      teamSize: row.size,
+      memberCount: Number(row.memberCount),
+      minHourlyRate:
+        row.minHourlyRate !== null ? Number(row.minHourlyRate) : null,
+      rating: Number(row.rating ?? 0),
+      reviews: Number(row.reviewCount ?? 0),
+      projects: Number(row.completedJobs ?? 0),
+      success: Math.round(Number(row.jobSuccessScore ?? 0)),
+      skills: row.tags,
+    });
+  }
+
+  return { results, hasMore };
+};

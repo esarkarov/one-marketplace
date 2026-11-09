@@ -1,0 +1,2 @@
+ALTER TABLE "accounts" ADD COLUMN "stripe_connect_account_id" text;--> statement-breakpoint
+ALTER TABLE "accounts" ADD CONSTRAINT "accounts_stripe_connect_account_id_unique" UNIQUE("stripe_connect_account_id");
