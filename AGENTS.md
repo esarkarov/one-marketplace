@@ -5,7 +5,7 @@ pnpm monorepo for a freelancing marketplace.
 ## Layout
 
 - apps/\*: Next.js dashboards (landing-page, client-dashboard, freelancer-dashboard, agency-dashboard, admin-dashboard)
-- services/api: Express modular monolith with one module per domain (planned)
+- services/api: Express 5 modular monolith with one module per domain, including the Drizzle schema and migrations. Tutorial code under `services/` is being migrated into it (`docs/decisions/0003-api-migration.md`).
 - packages/\*: shared code, scoped as `@onemarketplace/<folder-name>`
 - infra/docker: local Postgres and Redis
 
@@ -14,7 +14,7 @@ pnpm monorepo for a freelancing marketplace.
 - `docs/product.md`: roles and flows as the apps show them. Read it for product work.
 - `docs/design-system.md`: tokens and component conventions. Read it for UI work.
 - `docs/decisions/`: architecture decision records.
-- Nested `AGENTS.md` files in `services/api`, `packages/db` and `infra` add folder-specific rules.
+- Nested `AGENTS.md` files in `services/api` and `infra` add folder-specific rules.
 
 @docs/architecture.md
 
@@ -48,8 +48,8 @@ Agents (`.claude/agents/`), each owning one area:
 - `architect`: plans, read-only.
 - `frontend`: `apps/*`, `packages/ui`.
 - `design-ux`: UX and accessibility review, read-only.
-- `backend`: `services/api`.
-- `database`: `packages/db`.
+- `backend`: `services/api`, except the database files.
+- `database`: `services/api/src/database/`, `services/api/drizzle/`, `services/api/drizzle.config.ts`.
 - `infra`: `infra/`, `.github/`, `.husky/`, `.claude/`, root config, shared tsconfig and eslint-config.
 - `qa`: runs checks, writes test plans under `docs/test-plans/`.
 - `reviewer`: reviews diffs against this file and a security checklist, read-only.
@@ -59,7 +59,7 @@ Implementer agents edit only files named in an approved plan or request, and ret
 Commands (`.claude/commands/`):
 
 - `/feature`: architect plans, you approve, then database, backend, frontend, qa and reviewer.
-- `/db-change`: schema change in `packages/db` with a reviewed migration.
+- `/db-change`: schema change in `services/api` with a reviewed migration, local Docker only.
 - `/ui-review`: design-ux plus the two UI skills, read-only.
 - `/security-audit`: reviewer security pass plus gitleaks, read-only.
 - `/check`: format check, lint, typecheck and builds.

@@ -8,7 +8,7 @@ The marketplace needs a backend for jobs, proposals, contracts, payments and mes
 
 ## Decision
 
-Build one Express service, `services/api`, as a modular monolith. Domains are modules inside it with explicit boundaries. Shared database and event code lives in `packages/db` and `packages/events`.
+Build one Express service, `services/api`, as a modular monolith. Domains are modules inside it with explicit boundaries. The database schema, migrations and event code live inside `services/api` (amended by ADR 0003; there is no `packages/db` or `packages/events`).
 
 ## Consequences
 

@@ -12,6 +12,7 @@ Run Postgres 18 and Redis 8 with Docker Compose from `infra/docker/docker-compos
 
 ## Consequences
 
+- The API connects to this database with `pg` and `drizzle-orm/node-postgres` through `DATABASE_URL`. Neon is not used (ADR 0003).
 - Docker is a prerequisite for backend and database work.
 - `pnpm infra:reset` deletes the volumes and all local data.
 - Compose refuses to start if credentials are unset, so no default passwords are used.
