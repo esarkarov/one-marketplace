@@ -1,1 +1,0 @@
-CREATE UNIQUE INDEX "proposal_sender_job_unique" ON "proposals" USING btree ("sender_id","job_id");

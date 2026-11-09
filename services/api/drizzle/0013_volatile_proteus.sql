@@ -1,1 +1,0 @@
-ALTER TABLE "proposals" ADD COLUMN "is_shortlisted" boolean DEFAULT false NOT NULL;

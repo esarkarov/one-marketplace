@@ -1,1 +1,0 @@
-ALTER TABLE "agency_metadata" ADD COLUMN "avatar_image" jsonb;
