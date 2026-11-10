@@ -42,6 +42,8 @@ Workspace packages are scoped `@onemarketplace/<folder-name>`.
 - PostgreSQL 18 through Drizzle ORM with `drizzle-orm/node-postgres`. Neon is not used.
 - Schema in `services/api/src/database/`, generated migrations in `services/api/drizzle/`. Migrations are committed and never edited after merge.
 - Connection settings come from `DATABASE_URL`. Migrations run only against local Docker, through `/db-change`.
+- Tests use a separate database ending in `_test` (default `<dev database>_test`, or `TEST_DATABASE_URL`). With Docker running, `pnpm --filter @onemarketplace/api db:test:setup` creates it through `docker exec` on the Compose Postgres container and applies the migrations; it works the same in cmd, PowerShell and bash. `db:test:create` and `db:test:migrate` run the two steps alone. The script is `infra/scripts/test-db.mjs`; it refuses names that do not match `^[a-z][a-z0-9_]*_test$`, the dev database name and non-localhost hosts.
+- In CI the Postgres service container is created with the test database already, so the workflow only runs `db:test:migrate` with `TEST_DATABASE_URL` set. Set `CREATE_TEST_DB_ADMIN_URL` to create the database through `pg` instead of Docker.
 
 ## Local infrastructure
 
