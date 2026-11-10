@@ -101,3 +101,32 @@ describe("errorLogAttributes", () => {
     });
   });
 });
+
+describe("broker url masking", () => {
+  it("masks credentials in amqp and amqps urls", () => {
+    const result = sanitizeForLog(
+      "connect amqp://guest:hunter2@broker:5672/vhost and amqps://u:p4ss@b.example.test",
+    );
+
+    expect(result).not.toContain("hunter2");
+    expect(result).not.toContain("p4ss");
+    expect(result).toBe(
+      "connect amqp://[Redacted]@broker:5672/vhost and amqps://[Redacted]@b.example.test",
+    );
+  });
+
+  it("masks broker credentials inside error messages", () => {
+    const error = new Error("ECONNREFUSED amqp://user:secretpw@host:5672");
+
+    const attributes = errorLogAttributes(error);
+
+    expect(attributes["error.message"]).not.toContain("secretpw");
+    expect(attributes["error.message"]).toContain("amqp://[Redacted]@host");
+  });
+
+  it("masks broker credentials in stacks", () => {
+    const error = new Error("boom amqps://admin:topsecret@broker");
+
+    expect(sanitizeForLog(error.stack ?? "")).not.toContain("topsecret");
+  });
+});

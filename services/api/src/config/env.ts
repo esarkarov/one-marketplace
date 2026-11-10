@@ -83,7 +83,13 @@ const optionalFeatures = z.object({
     z.string({ error: "must be a string" }).default("development"),
   ),
   TRUST_PROXY: trustProxy,
-  NATS_URL: optionalString,
+  RABBITMQ_URL: z.preprocess(
+    emptyToUndefined,
+    z
+      .string({ error: "must be a string" })
+      .regex(/^amqps?:\/\//, "must be an amqp:// or amqps:// URL")
+      .optional(),
+  ),
   CLERK_SECRET_KEY: optionalString,
   IMAGEKIT_PRIVATE_KEY: optionalString,
   STRIPE_SECRET_KEY: optionalString,
@@ -143,7 +149,7 @@ export const parseEnv = (source: Source) => {
     nodeEnv: o.NODE_ENV,
     databaseUrl: r.DATABASE_URL,
     redisUrl: r.REDIS_URL,
-    natsUrl: o.NATS_URL,
+    rabbitmqUrl: o.RABBITMQ_URL,
     clerkSecretKey: o.CLERK_SECRET_KEY,
     imageKitPrivateKey: o.IMAGEKIT_PRIVATE_KEY,
     stripeSecretKey: o.STRIPE_SECRET_KEY,

@@ -9,8 +9,12 @@ try {
   );
 } catch {}
 
+if (process.env.RABBITMQ_URL) {
+  process.env.INTEGRATION_RABBITMQ_URL = process.env.RABBITMQ_URL;
+}
+
 for (const name of [
-  "NATS_URL",
+  "RABBITMQ_URL",
   "CLERK_SECRET_KEY",
   "STRIPE_SECRET_KEY",
   "STRIPE_WEBHOOK_SECRET",

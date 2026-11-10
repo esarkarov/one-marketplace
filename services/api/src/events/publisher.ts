@@ -1,24 +1,99 @@
-import { JSONCodec } from "nats";
-import { NotificationEvent, NOTIFICATIONS_SUBJECT } from "./subjects.js";
-import { getNats, isNatsEnabled } from "../config/nats.js";
-import { randomUUID } from "crypto";
+import type { ChannelWrapper } from "amqp-connection-manager";
+import {
+  getRabbitPublishChannel,
+  isRabbitConnected,
+  isRabbitEnabled,
+} from "../config/rabbitmq.js";
+import { logger } from "../config/logger.js";
+import { errorLogAttributes } from "../utils/sanitize-log.js";
+import {
+  createNotificationEnvelope,
+  NOTIFICATION_CREATED_TYPE,
+  type NotificationEnvelope,
+  type NotificationPayload,
+} from "./envelope.js";
+import {
+  NOTIFICATIONS_CREATED_ROUTING_KEY,
+  topologyNames,
+} from "./topology.js";
 
-const codec = JSONCodec<NotificationEvent>();
+export const PUBLISH_TIMEOUT_MS = 2_000;
+
+export const publishNotificationEnvelope = async (
+  channel: ChannelWrapper,
+  envelope: NotificationEnvelope,
+  prefix = "",
+): Promise<void> => {
+  const body = Buffer.from(JSON.stringify(envelope));
+  const options = {
+    persistent: true,
+    deliveryMode: 2,
+    contentType: "application/json",
+    messageId: envelope.id,
+    type: envelope.type,
+    timestamp: Math.floor(Date.parse(envelope.occurredAt) / 1000),
+    timeout: PUBLISH_TIMEOUT_MS,
+  };
+  const exchange = topologyNames(prefix).exchange;
+
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await channel.publish(
+        exchange,
+        NOTIFICATIONS_CREATED_ROUTING_KEY,
+        body,
+        options,
+      );
+      return;
+    } catch (error) {
+      if (attempt >= 2) throw error;
+    }
+  }
+};
+
+const logSafely = async (write: () => unknown): Promise<void> => {
+  try {
+    await write();
+  } catch {
+    return;
+  }
+};
 
 export const sendNotification = async (
-  input: Omit<NotificationEvent, "eventId" | "createdAt">,
-) => {
-  const event = {
-    ...input,
-    eventId: randomUUID(),
-    createdAt: new Date().toISOString(),
-  } as NotificationEvent;
+  input: NotificationPayload,
+): Promise<void> => {
+  if (!isRabbitEnabled()) return;
 
-  if (!isNatsEnabled()) {
-    return event;
+  if (!isRabbitConnected()) {
+    await logSafely(() =>
+      logger.warn({
+        message: "Notification event skipped",
+        eventName: "queue.publish.skipped",
+        attributes: {
+          "messaging.system": "rabbitmq",
+          "messaging.destination.name": NOTIFICATION_CREATED_TYPE,
+          reason: "disconnected",
+        },
+      }),
+    );
+    return;
   }
 
-  const nats = await getNats();
-  await nats.jetstream().publish(NOTIFICATIONS_SUBJECT, codec.encode(event));
-  return event;
+  try {
+    const envelope = createNotificationEnvelope(input);
+    await publishNotificationEnvelope(getRabbitPublishChannel(), envelope);
+  } catch (error) {
+    await logSafely(() =>
+      logger.error({
+        message: "Notification event could not be published",
+        eventName: "queue.publish.failed",
+        attributes: {
+          "messaging.system": "rabbitmq",
+          "messaging.destination.name": NOTIFICATION_CREATED_TYPE,
+          "error.type": error instanceof Error ? error.name : "UnknownError",
+          ...errorLogAttributes(error),
+        },
+      }),
+    );
+  }
 };

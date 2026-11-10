@@ -18,7 +18,9 @@ vi.mock("../../config/redis.js", () => ({
   },
 }));
 
-vi.mock("../../config/nats.js", () => ({ getNats: () => null }));
+vi.mock("../../config/rabbitmq.js", () => ({
+  getRabbitStatus: async () => ({ ok: false }),
+}));
 
 vi.mock("../../database/client.js", () => ({
   db: {},

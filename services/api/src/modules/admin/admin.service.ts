@@ -2,8 +2,10 @@ import { createClerkClient } from "@clerk/backend";
 import { and, count, desc, eq, inArray, sql, sum } from "drizzle-orm";
 import { db } from "../../database/client.js";
 import { redis } from "../../config/redis.js";
-import { getNats } from "../../config/nats.js";
+import { getRabbitStatus } from "../../config/rabbitmq.js";
 import { env } from "../../config/env.js";
+import { logger } from "../../config/logger.js";
+import { errorLogAttributes } from "../../utils/sanitize-log.js";
 import { ApiError } from "../../utils/api-error.js";
 import {
   isAllowedRedisKey,
@@ -666,7 +668,7 @@ export const getAdminTransactions = async (pagination: Pagination) => {
 export const getSystemHealth = async () => {
   const startedAt = Date.now();
 
-  const [redisResult, dbResult, natsResult] = await Promise.allSettled([
+  const [redisResult, dbResult, rabbitResult] = await Promise.allSettled([
     (async () => {
       const start = Date.now();
       await redis.ping();
@@ -677,27 +679,40 @@ export const getSystemHealth = async () => {
       await db.execute(sql`SELECT 1`);
       return { ok: true, latencyMs: Date.now() - start };
     })(),
-    (async () => {
-      const start = Date.now();
-      const nc = await getNats();
-      const latencyMs = await nc.rtt();
-      return {
-        ok: !nc.isClosed(),
-        latencyMs: latencyMs ?? Date.now() - start,
-        server: nc.getServer(),
-      };
-    })(),
+    getRabbitStatus(),
   ]);
 
-  const settle = <T>(result: PromiseSettledResult<T>) =>
-    result.status === "fulfilled"
-      ? { ok: true as const, ...result.value }
-      : { ok: false as const, error: String(result.reason) };
+  const settle = async (
+    result: PromiseSettledResult<{ ok: boolean; latencyMs: number }>,
+    eventName: string,
+    message: string,
+  ): Promise<{ ok: boolean; latencyMs?: number }> => {
+    if (result.status === "fulfilled") return result.value;
+    await Promise.resolve()
+      .then(() =>
+        logger.error({
+          message,
+          eventName,
+          attributes: errorLogAttributes(result.reason),
+        }),
+      )
+      .catch(() => undefined);
+    return { ok: false };
+  };
 
   return {
-    redis: settle(redisResult),
-    database: settle(dbResult),
-    nats: settle(natsResult),
+    redis: await settle(
+      redisResult,
+      "admin.health.redis_failed",
+      "Redis health check failed",
+    ),
+    database: await settle(
+      dbResult,
+      "admin.health.database_failed",
+      "Database health check failed",
+    ),
+    rabbitmq:
+      rabbitResult.status === "fulfilled" ? rabbitResult.value : { ok: false },
     process: {
       uptimeSeconds: Math.round(process.uptime()),
       memory: process.memoryUsage(),

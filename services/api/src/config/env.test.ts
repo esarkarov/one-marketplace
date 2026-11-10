@@ -25,7 +25,7 @@ describe("parseEnv", () => {
     expect(env.port).toBe(4000);
     expect(env.nodeEnv).toBe("development");
     expect(env.trustProxy).toBe(false);
-    expect(env.natsUrl).toBeUndefined();
+    expect(env.rabbitmqUrl).toBeUndefined();
     expect(env.clerkSecretKey).toBeUndefined();
     expect(env.stripeSecretKey).toBeUndefined();
     expect(env.clientDashboard).toBeUndefined();
@@ -71,10 +71,26 @@ describe("parseEnv", () => {
     expect(message).not.toContain("redissecret");
   });
 
+  it("rejects a non-amqp RABBITMQ_URL without echoing it", () => {
+    const value = "http://user:rabbitsecret@localhost:5672";
+    const message = errorOf({ ...base, RABBITMQ_URL: value });
+
+    expect(message).toContain("Invalid optional variables:");
+    expect(message).toContain("- RABBITMQ_URL:");
+    expect(message).not.toContain("rabbitsecret");
+  });
+
+  it("accepts amqps:// for RABBITMQ_URL", () => {
+    expect(
+      parseEnv({ ...base, RABBITMQ_URL: "amqps://broker.example.test" })
+        .rabbitmqUrl,
+    ).toBe("amqps://broker.example.test");
+  });
+
   it("treats empty optional strings as unset", () => {
     const env = parseEnv({
       ...base,
-      NATS_URL: "",
+      RABBITMQ_URL: "",
       CLERK_SECRET_KEY: "",
       STRIPE_SECRET_KEY: "",
       ADMIN_SESSION_SECRET: "",
@@ -83,7 +99,7 @@ describe("parseEnv", () => {
       PORT: "",
     });
 
-    expect(env.natsUrl).toBeUndefined();
+    expect(env.rabbitmqUrl).toBeUndefined();
     expect(env.clerkSecretKey).toBeUndefined();
     expect(env.stripeSecretKey).toBeUndefined();
     expect(env.adminSessionSecret).toBeUndefined();
@@ -96,12 +112,12 @@ describe("parseEnv", () => {
     const env = parseEnv({
       ...base,
       NODE_ENV: "production",
-      NATS_URL: "nats://localhost:4222",
+      RABBITMQ_URL: "amqp://localhost:5672",
       CLIENT_DASHBOARD: "https://client.example.com",
     });
 
     expect(env.nodeEnv).toBe("production");
-    expect(env.natsUrl).toBe("nats://localhost:4222");
+    expect(env.rabbitmqUrl).toBe("amqp://localhost:5672");
     expect(env.clientDashboard).toBe("https://client.example.com");
   });
 

@@ -6,7 +6,7 @@ import { app } from "./app.js";
 import { errorLogAttributes } from "./utils/sanitize-log.js";
 import { pool } from "./database/client.js";
 import { connectRedis, disconnectRedis } from "./config/redis.js";
-import { disconnectNats, isNatsEnabled } from "./config/nats.js";
+import { closeRabbit, isRabbitEnabled } from "./config/rabbitmq.js";
 import {
   startNotificationConsumer,
   stopNotificationConsumer,
@@ -25,7 +25,7 @@ let isShuttingDown = false;
 
 const start = async (): Promise<void> => {
   await connectRedis();
-  if (isNatsEnabled()) {
+  if (isRabbitEnabled()) {
     await startNotificationConsumer();
   }
 
@@ -139,8 +139,10 @@ const shutdown = async (signal: NodeJS.Signals): Promise<void> => {
 
   await runStep("payout cron", stopPayoutCron);
   await runStep("http server", closeHttpServer);
-  await runStep("notification consumer", stopNotificationConsumer);
-  await runStep("nats", disconnectNats);
+  await runStep("notification consumer", () =>
+    stopNotificationConsumer(CONNECTION_GRACE_MS),
+  );
+  await runStep("rabbitmq", () => closeRabbit(SHUTDOWN_TIMEOUT_MS));
   await runStep("redis", disconnectRedis);
   await runStep("database pool", () => pool.end());
 
@@ -161,6 +163,6 @@ void start().catch(async (error) => {
     },
   });
   await disconnectRedis().catch(() => undefined);
-  await disconnectNats().catch(() => undefined);
+  await closeRabbit(SHUTDOWN_TIMEOUT_MS).catch(() => undefined);
   await exitWithFlush(1);
 });
