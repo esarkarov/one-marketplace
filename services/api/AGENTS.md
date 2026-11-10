@@ -20,6 +20,7 @@ Express 5 modular monolith. Package name: `@onemarketplace/api`. ESM; import loc
 - No `console.*`; use the pino logger.
 - Webhook routes need the raw body, registered before `express.json`.
 - RabbitMQ is optional; the API must start and work with only Postgres and Redis. It is enabled by `RABBITMQ_URL`.
+- The RabbitMQ connection is created by `server.ts` at startup; new entry points that publish must start it first.
 - Redis is configured with `REDIS_URL`.
 - Extend `@onemarketplace/tsconfig/node.json` and `@onemarketplace/eslint-config/node`.
 - Schema changes and migrations go only through `/db-change`, against the local Docker database. Never run migrations against Neon or any remote database.

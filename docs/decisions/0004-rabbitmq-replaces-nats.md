@@ -26,7 +26,9 @@ Every message is `{ id, type, version, occurredAt, payload }`: `id` is a UUID, `
 
 ### Publishing
 
-Messages are persistent and published on a confirm channel, so `sendNotification` resolves only after the broker confirms. A publish times out after 2 s and is retried once. `sendNotification` never fails the request: a publish failure is logged (`queue.publish.failed`) and swallowed.
+Messages are persistent and published on a confirm channel, so `sendNotification` resolves only after the broker confirms. A publish times out after 2 s and is retried once with the same envelope id. While the connection manager reports disconnected, `sendNotification` returns immediately and logs `queue.publish.skipped` (notifications are skipped, not queued). `sendNotification` never fails the request: a publish failure is logged (`queue.publish.failed`) and swallowed.
+
+The RabbitMQ connection is created by `server.ts` at startup (when the consumer starts); new entry points that publish must start it first, otherwise every publish is skipped as disconnected.
 
 ### Consuming
 
@@ -43,7 +45,7 @@ Messages are persistent and published on a confirm channel, so `sendNotification
 
 ### Optional at startup
 
-Without `RABBITMQ_URL` the publisher is a no-op, the consumer is not started, and the API runs with only Postgres and Redis. Notifications are then neither stored nor pushed. The admin system health reports `rabbitmq` status only (`{ ok, latencyMs? }`, from a 2 s exchange check), and shutdown stops the consumer before closing the connection.
+Without `RABBITMQ_URL` the publisher is a no-op, the consumer is not started, and the API runs with only Postgres and Redis. Notifications are then neither stored nor pushed. The admin system health reports `rabbitmq` status only (`{ ok }`, from the connection manager's `isConnected()`; no latency and no exchange check, and it does not distinguish a disabled broker from an outage), and shutdown stops the consumer before closing the connection.
 
 ## Consequences
 
@@ -59,7 +61,6 @@ Without `RABBITMQ_URL` the publisher is a no-op, the consumer is not started, an
   A transactional outbox is the fix if notifications must be reliable; it is not decided.
 
 - Delivery is at least once, and the insert is idempotent, so duplicates do not create rows.
-- The in-memory failure count is per process and resets on restart; a poison message can take up to five more attempts after a restart.
-- The failure count is in-memory and resets on restart; the broker delivery limit still covers consumer crashes.
+- The failure count is in-memory and resets on restart, so a poison message can take up to five more attempts after a restart; the broker delivery limit still covers consumer crashes.
 - Docker is not needed to run the API, but it is needed to run the RabbitMQ integration test and to inspect the dead-letter queue in the management UI (`http://127.0.0.1:15672`).
 - Compose pins RabbitMQ to the exact patch tag (see `infra/AGENTS.md`).
