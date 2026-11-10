@@ -20,13 +20,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
       - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
           cache: pnpm
@@ -37,11 +37,61 @@ jobs:
 
       - run: pnpm -r build
 
+  api-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: ci_user
+          POSTGRES_PASSWORD: ci-throwaway-postgres
+          POSTGRES_DB: onemarketplace_test
+        ports:
+          - 127.0.0.1:5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci_user -d onemarketplace_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql://ci_user:ci-throwaway-postgres@127.0.0.1:5432/onemarketplace_test
+      DATABASE_URL: postgresql://ci_user:ci-throwaway-postgres@127.0.0.1:5432/onemarketplace_test
+      REDIS_URL: redis://:ci-throwaway-redis@127.0.0.1:6379
+      REDISCLI_AUTH: ci-throwaway-redis
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Start Redis
+        run: |
+          docker run -d --name redis -p 127.0.0.1:6379:6379 -e REDISCLI_AUTH redis:8-alpine redis-server --requirepass "$REDISCLI_AUTH"
+          for i in $(seq 1 30); do
+            if docker exec -e REDISCLI_AUTH redis redis-cli ping | grep -q PONG; then exit 0; fi
+            sleep 1
+          done
+          docker logs redis
+          exit 1
+
+      - run: pnpm --filter @onemarketplace/api db:test:migrate
+
+      - run: pnpm --filter @onemarketplace/api test
+
   gitleaks:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false

@@ -2,11 +2,7 @@ version: 2
 
 updates:
   - package-ecosystem: "npm"
-    directories:
-      - "/"
-      - "/apps/*"
-      - "/packages/*"
-      - "/services/*"
+    directory: "/"
     schedule:
       interval: "weekly"
       day: "monday"
