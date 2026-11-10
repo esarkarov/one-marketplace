@@ -31,6 +31,21 @@ describe("notification envelope", () => {
     );
   });
 
+  it("uses a provided eventId as the envelope id and keeps it out of the payload", () => {
+    const eventId = "0b5f6a52-3c1e-5d7a-8a41-9c2d3e4f5a6b";
+    const envelope = createNotificationEnvelope({
+      recipientId: "u",
+      type: "T",
+      title: "a",
+      message: "b",
+      eventId,
+    });
+
+    expect(envelope.id).toBe(eventId);
+    expect(envelope.payload).not.toHaveProperty("eventId");
+    expect(notificationEnvelopeSchema.safeParse(envelope).success).toBe(true);
+  });
+
   it("accepts an agency target with link and metadata", () => {
     const envelope = createNotificationEnvelope({
       agencyId,

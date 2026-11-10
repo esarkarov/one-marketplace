@@ -283,7 +283,10 @@ export const getFreelancerEarningsOverview = async (userId: string) => {
     .leftJoin(client_metadata, eq(contracts.client_id, client_metadata.auth_id))
     .leftJoin(
       payout_history,
-      eq(payout_history.earning_history_id, earning_history.id),
+      and(
+        eq(payout_history.earning_history_id, earning_history.id),
+        eq(payout_history.status, "PAID"),
+      ),
     )
     .where(eq(earning_history.freelancer_id, userId))
     .orderBy(desc(earning_history.created_at));

@@ -41,14 +41,14 @@ describe("sendNotification", () => {
   it("is a no-op without RabbitMQ", async () => {
     mocks.enabled.mockReturnValue(false);
 
-    await expect(sendNotification(input)).resolves.toBeUndefined();
+    await expect(sendNotification(input)).resolves.toBe("disabled");
     expect(mocks.publish).not.toHaveBeenCalled();
   });
 
-  it("returns immediately without publishing while disconnected", async () => {
+  it("returns failed without publishing while disconnected", async () => {
     mocks.connected.mockReturnValue(false);
 
-    await expect(sendNotification(input)).resolves.toBeUndefined();
+    await expect(sendNotification(input)).resolves.toBe("failed");
 
     expect(mocks.publish).not.toHaveBeenCalled();
     expect(mocks.warn).toHaveBeenCalledTimes(1);
@@ -65,18 +65,18 @@ describe("sendNotification", () => {
     mocks.connected.mockReturnValue(false);
     mocks.warn.mockRejectedValue(new Error("log sink down"));
 
-    await expect(sendNotification(input)).resolves.toBeUndefined();
+    await expect(sendNotification(input)).resolves.toBe("failed");
   });
 
   it("does not throw when the logger rejects after a publish failure", async () => {
     mocks.publish.mockRejectedValue(new Error("nack"));
     mocks.error.mockRejectedValue(new Error("log sink down"));
 
-    await expect(sendNotification(input)).resolves.toBeUndefined();
+    await expect(sendNotification(input)).resolves.toBe("failed");
   });
 
   it("publishes a persistent json envelope with the envelope id as message id", async () => {
-    await sendNotification(input);
+    await expect(sendNotification(input)).resolves.toBe("published");
 
     expect(mocks.publish).toHaveBeenCalledTimes(1);
     const [exchange, routingKey, , options] = mocks.publish.mock.calls[0]!;
@@ -98,10 +98,21 @@ describe("sendNotification", () => {
     });
   });
 
+  it("publishes with a provided eventId as the message id", async () => {
+    const eventId = "0b5f6a52-3c1e-5d7a-8a41-9c2d3e4f5a6b";
+
+    await sendNotification({ ...input, eventId });
+
+    const body = publishedBody(0);
+    expect(body.id).toBe(eventId);
+    expect(body.payload).toEqual(input);
+    expect(mocks.publish.mock.calls[0]![3].messageId).toBe(eventId);
+  });
+
   it("retries once with the same envelope", async () => {
     mocks.publish.mockRejectedValueOnce(new Error("nack"));
 
-    await sendNotification(input);
+    await expect(sendNotification(input)).resolves.toBe("published");
 
     expect(mocks.publish).toHaveBeenCalledTimes(2);
     expect(publishedBody(1).id).toBe(publishedBody(0).id);
@@ -113,7 +124,7 @@ describe("sendNotification", () => {
       new Error("connect amqp://user:secret@host:5672 refused"),
     );
 
-    await expect(sendNotification(input)).resolves.toBeUndefined();
+    await expect(sendNotification(input)).resolves.toBe("failed");
     expect(mocks.publish).toHaveBeenCalledTimes(2);
   });
 });

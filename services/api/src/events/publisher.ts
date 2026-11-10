@@ -10,7 +10,7 @@ import {
   createNotificationEnvelope,
   NOTIFICATION_CREATED_TYPE,
   type NotificationEnvelope,
-  type NotificationPayload,
+  type NotificationInput,
 } from "./envelope.js";
 import {
   NOTIFICATIONS_CREATED_ROUTING_KEY,
@@ -59,10 +59,12 @@ const logSafely = async (write: () => unknown): Promise<void> => {
   }
 };
 
+export type SendNotificationResult = "published" | "disabled" | "failed";
+
 export const sendNotification = async (
-  input: NotificationPayload,
-): Promise<void> => {
-  if (!isRabbitEnabled()) return;
+  input: NotificationInput,
+): Promise<SendNotificationResult> => {
+  if (!isRabbitEnabled()) return "disabled";
 
   if (!isRabbitConnected()) {
     await logSafely(() =>
@@ -76,12 +78,13 @@ export const sendNotification = async (
         },
       }),
     );
-    return;
+    return "failed";
   }
 
   try {
     const envelope = createNotificationEnvelope(input);
     await publishNotificationEnvelope(getRabbitPublishChannel(), envelope);
+    return "published";
   } catch (error) {
     await logSafely(() =>
       logger.error({
@@ -95,5 +98,6 @@ export const sendNotification = async (
         },
       }),
     );
+    return "failed";
   }
 };

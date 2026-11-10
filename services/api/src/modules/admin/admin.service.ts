@@ -109,7 +109,10 @@ export const getAdminOverviewTotals = async () => {
       .from(contracts)
       .where(eq(contracts.status, "ACTIVE")),
     db.select({ value: sum(contracts.total_amount) }).from(contracts),
-    db.select({ value: sum(payout_history.amount) }).from(payout_history),
+    db
+      .select({ value: sum(payout_history.amount) })
+      .from(payout_history)
+      .where(eq(payout_history.status, "PAID")),
     db
       .select({ value: sum(connects_purchase_history.amount_paid) })
       .from(connects_purchase_history)
@@ -573,10 +576,16 @@ export const getAdminTransactions = async (pagination: Pagination) => {
         amount: payout_history.amount,
         freelancerId: payout_history.freelancer_id,
         agencyId: payout_history.agency_id,
+        paidAt: payout_history.paid_at,
         createdAt: payout_history.created_at,
       })
       .from(payout_history)
-      .orderBy(desc(payout_history.created_at))
+      .where(eq(payout_history.status, "PAID"))
+      .orderBy(
+        desc(
+          sql`coalesce(${payout_history.paid_at}, ${payout_history.created_at})`,
+        ),
+      )
       .limit(fetchLimit),
     db
       .select({
@@ -650,7 +659,7 @@ export const getAdminTransactions = async (pagination: Pagination) => {
         description: "Stripe payout",
         party: partyName(row.freelancerId, row.agencyId),
         amount: Number(row.amount),
-        createdAt: row.createdAt,
+        createdAt: row.paidAt ?? row.createdAt,
       })),
       connectsPurchases.map((row) => ({
         id: row.id,

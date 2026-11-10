@@ -901,7 +901,16 @@ export const payout_history = pgTable(
       .unique()
       .references(() => earning_history.id, { onDelete: "cascade" }),
     amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
-    stripe_transfer_id: text("stripe_transfer_id").notNull().unique(),
+    stripe_transfer_id: text("stripe_transfer_id").unique(),
+    status: text("status").notNull().default("PENDING"),
+    attempts: integer("attempts").notNull().default(0),
+    claimed_at: timestamp("claimed_at", { withTimezone: true }),
+    next_retry_at: timestamp("next_retry_at", { withTimezone: true }),
+    paid_at: timestamp("paid_at", { withTimezone: true }),
+    notified_at: timestamp("notified_at", { withTimezone: true }),
+    idempotency_key: text("idempotency_key"),
+    last_error: text("last_error"),
+    destination_account_id: text("destination_account_id"),
     created_at: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
@@ -915,6 +924,21 @@ export const payout_history = pgTable(
       table.agency_id,
       table.created_at,
     ),
+    index("payout_history_open_idx")
+      .on(
+        table.status,
+        sql`COALESCE(${table.next_retry_at}, ${table.claimed_at})`,
+      )
+      .where(sql`${table.status} IN ('PENDING', 'PROCESSING', 'FAILED')`),
+    check(
+      "payout_history_status_check",
+      sql`${table.status} IN ('PENDING', 'PROCESSING', 'PAID', 'FAILED')`,
+    ),
+    check(
+      "payout_history_paid_has_transfer_check",
+      sql`(${table.status} = 'PAID') = (${table.stripe_transfer_id} IS NOT NULL)`,
+    ),
+    check("payout_history_attempts_check", sql`${table.attempts} >= 0`),
     check("payout_history_amount_check", sql`${table.amount} > 0`),
     check(
       "payout_history_owner_check",
