@@ -4,21 +4,22 @@ on:
   pull_request:
   push:
     branches: [main]
+  schedule:
+    - cron: "17 4 * * 1"
 
-permissions:
-  contents: read
+permissions: {}
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
-env:
-  GITLEAKS_VERSION: 8.30.1
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   check:
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 15
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -35,11 +36,43 @@ jobs:
 
       - run: pnpm check
 
+  build:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Restore Next.js build cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: apps/*/.next/cache
+          key: nextjs-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ hashFiles('apps/**/*.ts', 'apps/**/*.tsx', 'apps/**/*.css', 'apps/**/*.mjs', 'apps/**/package.json', 'packages/**/*.ts', 'packages/**/*.tsx', '!**/node_modules/**', '!**/.next/**') }}
+          restore-keys: |
+            nextjs-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
+            nextjs-${{ runner.os }}-
+
       - run: pnpm -r build
 
   api-test:
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    permissions:
+      contents: read
     services:
       postgres:
         image: postgres:18-alpine
@@ -54,11 +87,25 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
+      rabbitmq:
+        image: rabbitmq:4.4.0-management-alpine
+        env:
+          RABBITMQ_DEFAULT_USER: ci_user
+          RABBITMQ_DEFAULT_PASS: ci-throwaway-rabbitmq
+        ports:
+          - 127.0.0.1:5672:5672
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 10s
+          --health-timeout 10s
+          --health-retries 10
+          --health-start-period 30s
     env:
       TEST_DATABASE_URL: postgresql://ci_user:ci-throwaway-postgres@127.0.0.1:5432/onemarketplace_test
       DATABASE_URL: postgresql://ci_user:ci-throwaway-postgres@127.0.0.1:5432/onemarketplace_test
       REDIS_URL: redis://:ci-throwaway-redis@127.0.0.1:6379
       REDISCLI_AUTH: ci-throwaway-redis
+      RABBITMQ_URL: amqp://ci_user:ci-throwaway-rabbitmq@127.0.0.1:5672
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -85,11 +132,41 @@ jobs:
 
       - run: pnpm --filter @onemarketplace/api db:test:migrate
 
-      - run: pnpm --filter @onemarketplace/api test
+      - name: Run tests with coverage
+        run: >-
+          pnpm --filter @onemarketplace/api exec vitest run
+          --coverage
+          --coverage.reporter=text-summary
+          --coverage.reporter=lcov
+          --coverage.reporter=json-summary
+          --reporter=verbose
+          --reporter=junit
+          --outputFile.junit=test-results/junit.xml
+
+      - name: Verify RabbitMQ integration tests ran
+        if: ${{ !cancelled() }}
+        run: node .github/scripts/verify-integration-junit.mjs services/api/test-results/junit.xml src/events/rabbitmq.integration.test.ts
+
+      - name: Upload test results and coverage
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: api-test-results
+          path: |
+            services/api/coverage
+            services/api/test-results/junit.xml
+          retention-days: 7
+          if-no-files-found: warn
 
   gitleaks:
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: read
+    env:
+      GITLEAKS_VERSION: 8.30.1
+      GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -98,12 +175,164 @@ jobs:
 
       - name: Install gitleaks
         run: |
-          base="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}"
           archive="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
-          curl -sSfL -o "$RUNNER_TEMP/$archive" "$base/$archive"
-          curl -sSfL -o "$RUNNER_TEMP/checksums.txt" "$base/gitleaks_${GITLEAKS_VERSION}_checksums.txt"
-          (cd "$RUNNER_TEMP" && grep " $archive\$" checksums.txt | sha256sum --check --strict -)
+          curl -sSfL -o "$RUNNER_TEMP/$archive" "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/$archive"
+          echo "${GITLEAKS_SHA256}  $RUNNER_TEMP/$archive" | sha256sum --check --strict -
           tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP" gitleaks
           sudo install "$RUNNER_TEMP/gitleaks" /usr/local/bin/gitleaks
 
       - run: gitleaks git --config .gitleaks.toml --redact -v --no-banner .
+
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+
+      - name: Audit production dependencies
+        run: |
+          status=0
+          pnpm audit --prod --audit-level high > "$RUNNER_TEMP/audit.txt" 2>&1 || status=$?
+          cat "$RUNNER_TEMP/audit.txt"
+          {
+            echo "### pnpm audit --prod --audit-level high"
+            echo
+            echo '```text'
+            cat "$RUNNER_TEMP/audit.txt"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$status"
+
+  dependency-review:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: high
+          comment-summary-in-pr: never
+
+  codeql:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: github/codeql-action/init@1fc58d04a4d4374f921bdac573c3811c240f9c26 # v4.39.2
+        with:
+          languages: javascript-typescript
+          build-mode: none
+
+      - uses: github/codeql-action/analyze@1fc58d04a4d4374f921bdac573c3811c240f9c26 # v4.39.2
+        with:
+          category: /language:javascript-typescript
+
+  workflow-lint:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    env:
+      ACTIONLINT_VERSION: 1.7.12
+      ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install actionlint
+        run: |
+          archive="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          curl -sSfL -o "$RUNNER_TEMP/$archive" "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/$archive"
+          echo "${ACTIONLINT_SHA256}  $RUNNER_TEMP/$archive" | sha256sum --check --strict -
+          tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP" actionlint
+
+      - name: Run actionlint
+        run: |
+          "$RUNNER_TEMP/actionlint" -color
+
+  compose-validate:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    env:
+      POSTGRES_USER: placeholder-user
+      POSTGRES_PASSWORD: placeholder-postgres
+      POSTGRES_DB: placeholder_db
+      REDIS_PASSWORD: placeholder-redis
+      RABBITMQ_USER: placeholder-user
+      RABBITMQ_PASSWORD: placeholder-rabbitmq
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Validate compose file
+        run: docker compose -f infra/docker/docker-compose.yml config -q
+
+      - name: Require every credential
+        run: |
+          for var in POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB REDIS_PASSWORD RABBITMQ_USER RABBITMQ_PASSWORD; do
+            if output=$(env -u "$var" docker compose -f infra/docker/docker-compose.yml config -q 2>&1); then
+              echo "::error::compose accepted an unset $var"
+              exit 1
+            fi
+            if ! grep -q "required variable $var " <<<"$output"; then
+              echo "::error::compose failed for another reason when $var was unset"
+              echo "$output"
+              exit 1
+            fi
+            echo "compose rejects unset $var"
+          done
+
+  ci-pass:
+    if: ${{ always() && github.event_name != 'schedule' }}
+    needs:
+      - check
+      - build
+      - api-test
+      - gitleaks
+      - workflow-lint
+      - compose-validate
+      - codeql
+      - dependency-review
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: Require every needed job to succeed (dependency-review may be skipped)
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          echo "$NEEDS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
+          bad=$(echo "$NEEDS" | jq -r 'to_entries[] | select(.value.result != "success" and (.key != "dependency-review" or .value.result != "skipped")) | .key')
+          if [ -n "$bad" ]; then
+            echo "::error::not successful: $bad"
+            exit 1
+          fi
