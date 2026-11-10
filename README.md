@@ -30,7 +30,7 @@ Workspace packages are scoped as `@onemarketplace/<folder-name>`.
 ## Tech stack
 
 - Next.js, React, TypeScript, Tailwind CSS
-- Express 5, PostgreSQL, Drizzle ORM, Redis, optional NATS JetStream, Docker
+- Express 5, PostgreSQL, Drizzle ORM, Redis, optional RabbitMQ, Docker
 - Server-sent events and Socket.IO
 - Clerk (authentication), Stripe (payments), Daily (meetings), ImageKit (file storage)
 - pnpm workspaces with a shared dependency catalog
@@ -42,7 +42,7 @@ Workspace packages are scoped as `@onemarketplace/<folder-name>`.
 
 - Node.js 26 (pinned in `.node-version`). A version manager such as fnm is recommended.
 - pnpm 12 (the exact version is set in the `packageManager` field of `package.json`)
-- Docker, for local Postgres and Redis
+- Docker, for local Postgres, Redis and RabbitMQ
 - gitleaks, required by the pre-commit hook. On Windows: `winget install --id Gitleaks.Gitleaks`
 
 ## Getting started
@@ -57,16 +57,18 @@ pnpm install
 
 ### Ports
 
-| Service              | Port | Package                                |
-| -------------------- | ---- | -------------------------------------- |
-| Landing page         | 3000 | `@onemarketplace/landing-page`         |
-| Client dashboard     | 3001 | `@onemarketplace/client-dashboard`     |
-| Freelancer dashboard | 3002 | `@onemarketplace/freelancer-dashboard` |
-| Agency dashboard     | 3003 | `@onemarketplace/agency-dashboard`     |
-| Admin dashboard      | 3004 | `@onemarketplace/admin-dashboard`      |
-| API                  | 4000 | `@onemarketplace/api`                  |
-| Postgres (Docker)    | 5432 |                                        |
-| Redis (Docker)       | 6379 |                                        |
+| Service                | Port  | Package                                |
+| ---------------------- | ----- | -------------------------------------- |
+| Landing page           | 3000  | `@onemarketplace/landing-page`         |
+| Client dashboard       | 3001  | `@onemarketplace/client-dashboard`     |
+| Freelancer dashboard   | 3002  | `@onemarketplace/freelancer-dashboard` |
+| Agency dashboard       | 3003  | `@onemarketplace/agency-dashboard`     |
+| Admin dashboard        | 3004  | `@onemarketplace/admin-dashboard`      |
+| API                    | 4000  | `@onemarketplace/api`                  |
+| Postgres (Docker)      | 5432  |                                        |
+| Redis (Docker)         | 6379  |                                        |
+| RabbitMQ AMQP (Docker) | 5672  |                                        |
+| RabbitMQ UI (Docker)   | 15672 |                                        |
 
 Each app has a fixed dev port, so they can run side by side. The API only accepts browser requests from the four dashboards (ports 3001 to 3004, or the `*_DASHBOARD` variables in `.env`); the landing page is not allowed.
 
@@ -84,12 +86,12 @@ One `.env` file at the repository root is the only source of configuration. The 
 
 ```bash
 cp .env.example .env        # then set the passwords; DATABASE_URL and REDIS_URL must match them
-pnpm infra:up               # start Postgres and Redis in Docker
+pnpm infra:up               # start Postgres, Redis and RabbitMQ in Docker
 pnpm --filter @onemarketplace/api db:migrate
 pnpm --filter @onemarketplace/api dev
 ```
 
-Postgres and Redis are the only services needed to start. Clerk, Stripe, ImageKit, Daily and NATS are optional; the matching features fail only when called. Without `NATS_URL`, notifications are not stored or pushed.
+Postgres and Redis are the only services needed to start. Clerk, Stripe, ImageKit and Daily are optional; the matching features fail only when called. RabbitMQ is optional too; without `RABBITMQ_URL` notifications are not stored or pushed. Set `RABBITMQ_URL` to enable them (management UI at `http://127.0.0.1:15672`).
 
 - `GET /api/v1/health` is liveness. `GET /api/v1/ready` checks Postgres and Redis and returns 503 if either is down.
 - `pnpm infra:down` stops the containers. `pnpm infra:reset` deletes the database and Redis data.
@@ -110,7 +112,7 @@ pnpm infra:up
 pnpm --filter @onemarketplace/api test
 ```
 
-The tests need the Docker Postgres and Redis running and refuse to start unless `DATABASE_URL` and `REDIS_URL` point to localhost.
+The tests need the Docker Postgres and Redis running and refuse to start unless `DATABASE_URL` and `REDIS_URL` point to localhost. The RabbitMQ integration test runs only when `INTEGRATION_RABBITMQ_URL` points to a local broker.
 
 ## Scripts
 
@@ -147,5 +149,5 @@ Dependabot opens weekly pull requests for npm packages and GitHub Actions, with 
 ## Roadmap
 
 1. API hardening: request validation with zod, structured logging with pino, tests for every module
-2. NATS JetStream in local Docker Compose
+2. Notification delivery: decide whether RabbitMQ events need a transactional outbox (ADR 0004)
 3. Connect the dashboards to the API, one vertical slice at a time: jobs, proposals, contracts and milestones, payments, real-time messaging and notifications

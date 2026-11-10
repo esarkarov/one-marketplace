@@ -19,7 +19,7 @@ Rules:
 - Third-party clients live only in `src/config/`. No `console.*`; use pino.
 - Validate every input with zod at the route boundary. Enforce authorization and object ownership in the service layer.
 - Webhooks take the raw body before `express.json`. Errors use `{ success: false, message }` with no internals on 5xx.
-- NATS is optional; the API must run with only Postgres and Redis.
+- RabbitMQ is optional (`RABBITMQ_URL`); the API must run with only Postgres and Redis.
 - Business rules marked "to confirm" in the docs are not decided. Read the code, and ask before changing fees, escrow release, disputes or state transitions.
 - Never read or print `.env`. Configuration comes from the config module.
 - No unnecessary comments. Use pnpm only; shared versions come from the catalog.

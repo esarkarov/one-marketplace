@@ -5,9 +5,9 @@ Express 5 modular monolith. Package name: `@onemarketplace/api`. ESM; import loc
 ## Layout
 
 - `src/modules/<name>/<name>.{route,controller,service}.ts`: one folder per domain.
-- `src/config/`: validated env, pino logger, and every third-party client (Stripe, Clerk, Daily, ImageKit, Redis, NATS).
+- `src/config/`: validated env, pino logger, and every third-party client (Stripe, Clerk, Daily, ImageKit, Redis, RabbitMQ).
 - `src/shared/`: errors, async handler, validation helpers, common types.
-- `src/events/`: event subjects, publisher and consumer.
+- `src/events/`: notification envelope, RabbitMQ topology, publisher and consumer (ADR 0004).
 - `src/database/`, `drizzle/`, `drizzle.config.ts`: Drizzle schema, generated migrations, config.
 
 ## Rules
@@ -19,7 +19,7 @@ Express 5 modular monolith. Package name: `@onemarketplace/api`. ESM; import loc
 - Error responses are `{ success: false, message }`. Never return stack traces, SQL errors or internal messages for 5xx.
 - No `console.*`; use the pino logger.
 - Webhook routes need the raw body, registered before `express.json`.
-- NATS is optional. The API must start and work with only Postgres and Redis.
+- RabbitMQ is optional; the API must start and work with only Postgres and Redis. It is enabled by `RABBITMQ_URL`.
 - Redis is configured with `REDIS_URL`.
 - Extend `@onemarketplace/tsconfig/node.json` and `@onemarketplace/eslint-config/node`.
 - Schema changes and migrations go only through `/db-change`, against the local Docker database. Never run migrations against Neon or any remote database.

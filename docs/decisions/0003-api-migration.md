@@ -12,7 +12,7 @@ A full tutorial API (Express, Drizzle, Clerk, Stripe, Daily, ImageKit, Redis, NA
 2. `packages/db` is not created. The Drizzle schema (`src/database/`), migrations (`drizzle/`) and `drizzle.config.ts` live in `services/api`. Events live in `services/api/src/events`; extract a package only when a second consumer needs them.
 3. The tutorial code is the product source of truth. `docs/product.md` is not rewritten yet; its "to confirm" items are resolved later from the code.
 4. Clerk (auth), Stripe (payments, Connect, Identity), Daily (meetings) and ImageKit (uploads) stay. OneMinuteLogs is replaced by pino.
-5. NATS is optional: the API must start and run with only Postgres and Redis. Redis is configured with `REDIS_URL`.
+5. NATS is optional: the API must start and run with only Postgres and Redis. Redis is configured with `REDIS_URL`. Superseded by ADR 0004: RabbitMQ replaces NATS and stays optional.
 6. Validation uses zod. Tests use vitest and supertest, added once the baseline compiles and runs.
 7. Express 5, ESM, imports with `.js` suffixes.
 
