@@ -134,9 +134,9 @@ Commit-time hooks (Husky):
 - `pre-commit`: gitleaks scans staged changes for secrets, then lint-staged runs ESLint and Prettier on staged files.
 - `commit-msg`: commitlint enforces conventional commit messages, for example `feat: add job feed` or `fix: handle empty proposal list`.
 
-Hooks can be bypassed locally, so CI repeats the checks. The GitHub Actions workflow runs `pnpm check`, builds all apps, and scans the full Git history with gitleaks on every pull request and push to `main`.
+Hooks can be bypassed locally, so CI repeats the checks. The GitHub Actions workflow runs `pnpm check`, builds all apps, runs the API tests (including the RabbitMQ integration test) with coverage, scans the full Git history with gitleaks, runs CodeQL, actionlint and a Compose validation on every pull request and push to `main`, and dependency review on pull requests only. A weekly scheduled run executes only the security jobs: CodeQL and `pnpm audit`, which is informational and not required. The single required status check is `ci-pass`. See [`docs/ci.md`](docs/ci.md).
 
-Dependabot opens weekly pull requests for npm packages and GitHub Actions, with a short cooldown before newly published versions are proposed.
+Dependabot opens weekly pull requests for npm packages, GitHub Actions and the Docker Compose images, with a short cooldown before newly published versions are proposed.
 
 ## Conventions
 

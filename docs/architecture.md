@@ -62,3 +62,4 @@ Clerk (authentication), Stripe (payments, Connect, Identity), Daily (meetings), 
 - TypeScript everywhere. `typescript` is an alias of `@typescript/typescript6` for typescript-eslint; `tsc` comes from `@typescript/native`. Keep both.
 - Shared dependency versions live in the `pnpm-workspace.yaml` catalog.
 - Run `pnpm check` and `pnpm -r build` before finishing a change.
+- CI jobs, the required `ci-pass` check and how to run each check locally are in `docs/ci.md`.
