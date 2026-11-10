@@ -4,7 +4,7 @@ One workflow, `.github/workflows/ci.yml`, runs on pull requests, pushes to `main
 
 ## Required status check
 
-Require one check in the branch ruleset: `ci-pass`. It depends on every blocking job and fails if any of them failed or was cancelled. A skipped job counts as passed, which is how `dependency-review` (pull requests only) and the weekly run behave. `audit` is informational and is not part of `ci-pass`. `codeql` and `dependency-review` roll up into `ci-pass`, so they do not need their own required checks.
+Require one check in the branch ruleset: `ci-pass`. It depends on every blocking job and fails unless each one succeeded. The only job allowed to be skipped is `dependency-review`, which runs on pull requests only. `ci-pass` does not run on the weekly schedule, where `audit` and `codeql` report on their own. `audit` is informational and is not part of `ci-pass`. `codeql` and `dependency-review` roll up into `ci-pass`, so they do not need their own required checks.
 
 ## Jobs
 
