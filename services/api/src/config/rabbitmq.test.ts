@@ -6,6 +6,13 @@ const mocks = vi.hoisted(() => ({
   close: vi.fn(),
   connectionClose: vi.fn(),
   connect: vi.fn(),
+  handlers: {} as Record<string, (payload?: unknown) => void>,
+  info: vi.fn(),
+  warn: vi.fn(),
+}));
+
+vi.mock("./logger.js", () => ({
+  logger: { info: mocks.info, warn: mocks.warn },
 }));
 
 vi.mock("./env.js", () => ({
@@ -21,7 +28,9 @@ vi.mock("amqp-connection-manager", () => ({
 }));
 
 const makeConnection = () => ({
-  on: vi.fn(),
+  on: (event: string, handler: (payload?: unknown) => void) => {
+    mocks.handlers[event] = handler;
+  },
   close: mocks.connectionClose,
   isConnected: () => mocks.connected,
   createChannel: vi.fn(() => ({
@@ -44,6 +53,7 @@ beforeEach(async () => {
   mocks.url = "amqp://user:secret@localhost:5672";
   mocks.connected = true;
   mocks.connect.mockImplementation(makeConnection);
+  mocks.handlers = {};
 });
 
 describe("rabbitmq config", () => {
@@ -90,5 +100,39 @@ describe("rabbitmq config", () => {
     getRabbitConsumerChannel();
 
     await expect(closeRabbit(20)).resolves.toBeUndefined();
+  });
+
+  it("logs connect and reconnect as queue.connected at info level", () => {
+    getRabbitConsumerChannel();
+
+    mocks.handlers.connect!({ connection: {}, url: "amqp://user:secret@h" });
+    mocks.handlers.connect!({ connection: {}, url: "amqp://user:secret@h" });
+
+    expect(mocks.info).toHaveBeenCalledTimes(2);
+    expect(mocks.info).toHaveBeenCalledWith({
+      message: "RabbitMQ connected",
+      eventName: "queue.connected",
+      attributes: { "messaging.system": "rabbitmq" },
+    });
+    expect(JSON.stringify(mocks.info.mock.calls)).not.toContain("secret");
+  });
+
+  it("logs queue.disconnected at info level with no error text", () => {
+    getRabbitConsumerChannel();
+
+    mocks.handlers.disconnect!({
+      err: new Error("amqp://user:secret@h reset"),
+    });
+
+    expect(mocks.info).toHaveBeenCalledWith({
+      message: "RabbitMQ disconnected",
+      eventName: "queue.disconnected",
+      attributes: { "messaging.system": "rabbitmq" },
+    });
+    expect(JSON.stringify(mocks.info.mock.calls)).not.toContain("secret");
+    expect(mocks.warn).toHaveBeenCalledTimes(1);
+    expect(mocks.warn.mock.calls[0]![0].eventName).toBe(
+      "queue.connection.lost",
+    );
   });
 });

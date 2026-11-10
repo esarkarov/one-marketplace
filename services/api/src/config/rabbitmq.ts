@@ -16,7 +16,20 @@ export const isRabbitEnabled = (): boolean => Boolean(env.rabbitmqUrl);
 export const createRabbitConnection = (url: string): AmqpConnectionManager => {
   const manager = amqp.connect([url], { heartbeatIntervalInSeconds: 10 });
 
+  manager.on("connect", () => {
+    void logger.info({
+      message: "RabbitMQ connected",
+      eventName: "queue.connected",
+      attributes: { "messaging.system": "rabbitmq" },
+    });
+  });
+
   manager.on("disconnect", ({ err }) => {
+    void logger.info({
+      message: "RabbitMQ disconnected",
+      eventName: "queue.disconnected",
+      attributes: { "messaging.system": "rabbitmq" },
+    });
     void logger.warn({
       message: "RabbitMQ connection lost",
       eventName: "queue.connection.lost",

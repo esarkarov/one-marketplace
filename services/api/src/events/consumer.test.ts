@@ -9,10 +9,11 @@ const mocks = vi.hoisted(() => ({
   emit: vi.fn(),
   emitAgency: vi.fn(),
   logError: vi.fn(),
+  logInfo: vi.fn(),
 }));
 
 vi.mock("../config/logger.js", () => ({
-  logger: { error: mocks.logError },
+  logger: { error: mocks.logError, info: mocks.logInfo },
 }));
 
 vi.mock("../config/rabbitmq.js", () => ({
@@ -214,6 +215,71 @@ describe("notification consumer", () => {
     expect(channel.consume).toHaveBeenCalledTimes(2);
 
     await consumer.stop();
+  });
+
+  it("logs started, paused and resumed at info level without urls or error text", async () => {
+    vi.useFakeTimers();
+    const { consumer, deliver } = setup();
+    mocks.returning.mockRejectedValue(new Error("secret db failure"));
+    mocks.execute.mockResolvedValue([]);
+
+    await consumer.start();
+    expect(mocks.logInfo).toHaveBeenLastCalledWith({
+      message: "Notification consumer started",
+      eventName: "queue.consumer.started",
+      attributes: {
+        "messaging.system": "rabbitmq",
+        "messaging.destination.name": "notifications.storage",
+      },
+    });
+
+    deliver(message(envelope()));
+    await flush();
+    expect(mocks.logInfo.mock.calls.map(([entry]) => entry.eventName)).toEqual([
+      "queue.consumer.started",
+      "queue.consumer.paused",
+    ]);
+
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(mocks.logInfo.mock.calls.map(([entry]) => entry.eventName)).toEqual([
+      "queue.consumer.started",
+      "queue.consumer.paused",
+      "queue.consumer.resumed",
+    ]);
+    expect(JSON.stringify(mocks.logInfo.mock.calls)).not.toContain("secret");
+
+    await consumer.stop();
+  });
+
+  it("does not log resumed when the ping keeps failing", async () => {
+    vi.useFakeTimers();
+    const { consumer, deliver } = setup();
+    mocks.returning.mockRejectedValue(new Error("db down"));
+    mocks.execute.mockRejectedValue(new Error("still down"));
+    await consumer.start();
+
+    deliver(message(envelope()));
+    await flush();
+    await vi.advanceTimersByTimeAsync(10_000);
+
+    expect(
+      mocks.logInfo.mock.calls.map(([entry]) => entry.eventName),
+    ).not.toContain("queue.consumer.resumed");
+    await consumer.stop();
+  });
+
+  it("does not fail message handling when the info logger rejects", async () => {
+    const { channel, consumer, deliver } = setup();
+    mocks.logInfo.mockRejectedValue(new Error("log down"));
+    mocks.returning.mockResolvedValue([
+      { id: "n1", agency_id: null, recipient_id: "user_1" },
+    ]);
+
+    await consumer.start();
+    deliver(message(envelope()));
+    await consumer.stop();
+
+    expect(channel.ack).toHaveBeenCalledTimes(1);
   });
 
   it("dead-letters a message once it has failed deliveryLimit times", async () => {

@@ -61,6 +61,19 @@ export const createNotificationConsumer = (options: {
     } catch {}
   };
 
+  const logInfo = async (message: string, eventName: string) => {
+    try {
+      await logger.info({
+        message,
+        eventName,
+        attributes: {
+          "messaging.system": "rabbitmq",
+          "messaging.destination.name": queue,
+        },
+      });
+    } catch {}
+  };
+
   const settle = async (action: () => void) => {
     try {
       action();
@@ -95,6 +108,10 @@ export const createNotificationConsumer = (options: {
           return;
         }
         paused = false;
+        await logInfo(
+          "Notification consumer resumed",
+          "queue.consumer.resumed",
+        );
       } catch {
         scheduleResume();
       }
@@ -105,6 +122,7 @@ export const createNotificationConsumer = (options: {
   const pause = async () => {
     if (paused || stopped) return;
     paused = true;
+    await logInfo("Notification consumer paused", "queue.consumer.paused");
     const tag = consumerTag;
     consumerTag = undefined;
     if (tag) await channel.cancel(tag).catch(() => undefined);
@@ -200,7 +218,10 @@ export const createNotificationConsumer = (options: {
   };
 
   return {
-    start: subscribe,
+    start: async () => {
+      await subscribe();
+      await logInfo("Notification consumer started", "queue.consumer.started");
+    },
     stop: async (timeoutMs = 5_000) => {
       stopped = true;
       clearTimeout(resumeTimer);
