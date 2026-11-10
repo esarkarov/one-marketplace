@@ -29,7 +29,7 @@ vi.mock("../connects/connects.service.js", () => ({
   addConnects: vi.fn(),
 }));
 
-vi.mock("../../middleware/auth.middleware.js", () => ({
+vi.mock("../../utils/account-auth-cache.js", () => ({
   invalidateAccountAuthCache: async (userId: string) => {
     mocks.events.push("invalidate");
     mocks.invalidate(userId);

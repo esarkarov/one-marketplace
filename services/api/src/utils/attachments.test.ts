@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   ALLOWED_ATTACHMENT_TYPES,
   assertAttachmentFileName,
+  assertExtensionMatchesType,
   MAX_ATTACHMENT_BYTES,
   parseDataUrl,
   reuseStoredAttachments,
@@ -96,11 +97,20 @@ const options = {
   nonDataMessage: "Attachment file is invalid.",
 };
 
+const EXTENSIONS: Record<string, string> = {
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "application/pdf": "pdf",
+  "text/plain": "txt",
+  [DOCX]: "docx",
+};
+
 const validate = (items: Array<[string, Buffer]>) =>
   validateAttachmentBatch(
     items.map(([type, bytes]) => ({
       fileUrl: toUrl(type, bytes),
       mimeType: type,
+      fileName: `file.${EXTENSIONS[type] ?? "bin"}`,
     })),
     options,
   );
@@ -129,7 +139,13 @@ describe("validateAttachmentBatch accepts valid files", () => {
 
   it("compares types case-insensitively after trimming", () => {
     const [result] = validateAttachmentBatch(
-      [{ fileUrl: toUrl("image/png", png()), mimeType: " IMAGE/PNG " }],
+      [
+        {
+          fileUrl: toUrl("image/png", png()),
+          mimeType: " IMAGE/PNG ",
+          fileName: "a.png",
+        },
+      ],
       options,
     );
 
@@ -308,7 +324,13 @@ describe("validateAttachmentBatch rejects bad content and types", () => {
   it("rejects when the data URL header type differs from the declared type", () => {
     const message = rejection(() =>
       validateAttachmentBatch(
-        [{ fileUrl: toUrl("image/png", png()), mimeType: "application/pdf" }],
+        [
+          {
+            fileUrl: toUrl("image/png", png()),
+            mimeType: "application/pdf",
+            fileName: "a.pdf",
+          },
+        ],
         options,
       ),
     );
@@ -319,7 +341,13 @@ describe("validateAttachmentBatch rejects bad content and types", () => {
   it("rejects non-data URLs with the configured message", () => {
     const message = rejection(() =>
       validateAttachmentBatch(
-        [{ fileUrl: "https://example.com/a.pdf", mimeType: "application/pdf" }],
+        [
+          {
+            fileUrl: "https://example.com/a.pdf",
+            mimeType: "application/pdf",
+            fileName: "a.pdf",
+          },
+        ],
         options,
       ),
     );
@@ -329,7 +357,13 @@ describe("validateAttachmentBatch rejects bad content and types", () => {
 
   it("skips non-data URLs when stored attachments are allowed", () => {
     const result = validateAttachmentBatch(
-      [{ fileUrl: "https://ik.example/a.pdf", mimeType: "text/csv" }],
+      [
+        {
+          fileUrl: "https://ik.example/a.pdf",
+          mimeType: "text/csv",
+          fileName: "a.pdf",
+        },
+      ],
       { ...options, nonDataMessage: null },
     );
 
@@ -444,6 +478,56 @@ describe("assertAttachmentFileName", () => {
     expect(
       rejection(() => assertAttachmentFileName("a".repeat(255))),
     ).toBeNull();
+  });
+});
+
+describe("assertExtensionMatchesType", () => {
+  it.each([
+    ["a.pdf", "application/pdf"],
+    ["a.PNG", "image/png"],
+    ["a.jpg", "image/jpeg"],
+    ["a.jpeg", "image/jpeg"],
+    ["a.b.txt", "text/plain"],
+    ["a.docx", DOCX],
+  ])("accepts %s as %s", (name, type) => {
+    expect(rejection(() => assertExtensionMatchesType(name, type))).toBeNull();
+  });
+
+  it.each([
+    ["a.png", "application/pdf"],
+    ["a.exe", "text/plain"],
+    ["a.jpg", "image/png"],
+  ])("rejects %s as %s", (name, type) => {
+    expect(rejection(() => assertExtensionMatchesType(name, type))).toBe(
+      "Attachment file extension does not match its content.",
+    );
+  });
+
+  it.each(["a", "a.", ".pdf"])("rejects %j with no extension", (name) => {
+    expect(
+      rejection(() => assertExtensionMatchesType(name, "application/pdf")),
+    ).toBe("Attachment name must have a file extension.");
+  });
+});
+
+describe("assertAttachmentFileName invisible characters", () => {
+  it.each([
+    "a‮b.pdf",
+    "a‪b.pdf",
+    "a⁦b.pdf",
+    "a⁩b.pdf",
+    "a‎b.pdf",
+    "a‏b.pdf",
+    "a؜b.pdf",
+    "a​b.pdf",
+    "a‍b.pdf",
+    "a⁠b.pdf",
+    "a﻿b.pdf",
+    "a­b.pdf",
+  ])("rejects %j", (name) => {
+    expect(rejection(() => assertAttachmentFileName(name))).toBe(
+      "Attachment name is invalid.",
+    );
   });
 });
 

@@ -1,4 +1,5 @@
 import { fileURLToPath } from "node:url";
+import { assertTestDatabase } from "./assert-test-database.js";
 
 process.env.NODE_ENV = "test";
 
@@ -45,5 +46,10 @@ const assertLocal = (name: string) => {
   }
 };
 
+if (process.env.TEST_DATABASE_URL) {
+  process.env.DATABASE_URL = process.env.TEST_DATABASE_URL;
+}
+
 assertLocal("DATABASE_URL");
 assertLocal("REDIS_URL");
+assertTestDatabase(process.env.DATABASE_URL, process.env.POSTGRES_DB);

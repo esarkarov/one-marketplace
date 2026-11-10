@@ -13,6 +13,9 @@ export const ALLOWED_ATTACHMENT_TYPES = [
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 ] as const;
 
+const DOCX_TYPE =
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
 export type AllowedAttachmentType = (typeof ALLOWED_ATTACHMENT_TYPES)[number];
 
 const MAX_ENCODED_LENGTH = Math.ceil(MAX_ATTACHMENT_BYTES / 3) * 4;
@@ -29,7 +32,16 @@ const EXECUTABLE_SIGNATURES = [
   [0xca, 0xfe, 0xba, 0xbe],
 ];
 const MARKUP_PATTERN = /<\s*(!doctype|html|head|body|script|svg|iframe)/i;
-const CONTROL_OR_SEPARATOR_PATTERN = /[\u0000-\u001f\u007f/\\]/;
+const CONTROL_OR_SEPARATOR_PATTERN = /[\u0000-\u001f\u007f/\\\p{Cf}]/u;
+
+const EXTENSION_TYPES: Record<string, AllowedAttachmentType> = {
+  pdf: "application/pdf",
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  txt: "text/plain",
+  docx: DOCX_TYPE,
+};
 
 const reject = (message: string): never => {
   throw new ApiError(400, message);
@@ -89,8 +101,6 @@ const detectText = (bytes: Buffer): Detected => {
   return "text/plain";
 };
 
-const DOCX_TYPE =
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 const ZIP_LOCAL_SIGNATURE = [0x50, 0x4b, 0x03, 0x04];
 const EOCD_SIGNATURE = 0x06054b50;
 const EOCD64_LOCATOR_SIGNATURE = 0x07064b50;
@@ -240,9 +250,25 @@ export const assertAttachmentFileName = (fileName: string) => {
   }
 };
 
+export const assertExtensionMatchesType = (
+  fileName: string,
+  detectedType: string,
+) => {
+  const dot = fileName.lastIndexOf(".");
+  if (dot <= 0 || dot === fileName.length - 1) {
+    reject("Attachment name must have a file extension.");
+  }
+
+  const extension = fileName.slice(dot + 1).toLowerCase();
+  if (EXTENSION_TYPES[extension] !== detectedType) {
+    reject("Attachment file extension does not match its content.");
+  }
+};
+
 export interface AttachmentBatchItem {
   fileUrl: string;
   mimeType: string;
+  fileName: string;
 }
 
 export interface AttachmentBatchOptions {
@@ -288,9 +314,10 @@ export const validateAttachmentBatch = (
     reject("Attachments are too large in total (14 MB maximum).");
   }
 
-  return parsed.map((data) => {
+  return parsed.map((data, index) => {
     if (!data) return null;
     assertContentMatchesType(Buffer.from(data.base64, "base64"), data.mimeType);
+    assertExtensionMatchesType(items[index]!.fileName, data.mimeType);
     return { mimeType: data.mimeType, size: data.size };
   });
 };

@@ -32,7 +32,7 @@ import {
   PLATFORM_FEE_RATE,
   STRIPE_PAYOUT_ELIGIBLE_COUNTRIES,
 } from "../../config/constants.js";
-import { invalidateAccountAuthCache } from "../../middleware/auth.middleware.js";
+import { invalidateAccountAuthCache } from "../../utils/account-auth-cache.js";
 import { addConnects } from "../connects/connects.service.js";
 import { createClerkClient } from "@clerk/backend";
 

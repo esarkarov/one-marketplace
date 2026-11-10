@@ -20,7 +20,7 @@ import {
 import { ApiError } from "../../utils/api-error.js";
 import { env } from "../../config/env.js";
 import { stripe } from "../../config/stripe.js";
-import { invalidateAccountAuthCache } from "../../middleware/auth.middleware.js";
+import { invalidateAccountAuthCache } from "../../utils/account-auth-cache.js";
 
 export interface SaveClientProfileInput {
   userId: string;

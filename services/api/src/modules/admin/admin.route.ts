@@ -13,6 +13,8 @@ import {
   scanRedisKeysHandler,
   streamLogsHandler,
 } from "./admin.controller.js";
+import { validate } from "../../middleware/validate.middleware.js";
+import { redisKeyParamsSchema, redisScanQuerySchema } from "./admin-redis.js";
 import { requireAdminSession } from "./admin-session.middleware.js";
 import {
   adminLimiter,
@@ -34,5 +36,13 @@ adminRouter.get("/contracts", getContractsHandler);
 adminRouter.get("/transactions", getTransactionsHandler);
 adminRouter.get("/logs/stream", streamLogsHandler);
 adminRouter.get("/system/health", getSystemHealthHandler);
-adminRouter.get("/system/redis/keys", scanRedisKeysHandler);
-adminRouter.get("/system/redis/keys/:key", getRedisKeyHandler);
+adminRouter.get(
+  "/system/redis/keys",
+  validate({ query: redisScanQuerySchema }),
+  scanRedisKeysHandler,
+);
+adminRouter.get(
+  "/system/redis/keys/:key",
+  validate({ params: redisKeyParamsSchema }),
+  getRedisKeyHandler,
+);

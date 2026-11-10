@@ -5,6 +5,7 @@ import {
   verifyBearerToken,
 } from "../../middleware/auth.middleware.js";
 import { largeJsonBody } from "../../middleware/json-body.middleware.js";
+import { contentWriteLimiter } from "../../middleware/user-rate-limit.middleware.js";
 import {
   getFreelancerEarningsCertificate,
   getFreelancerEarningsOverviewHandler,
@@ -20,12 +21,15 @@ import {
 
 export const freelancerRouter = Router();
 
+const profileWriteLimiter = contentWriteLimiter();
+
 freelancerRouter.get("/profile", isAuthenticated, getLoggedInFreelancerProfile);
 freelancerRouter.get("/search", searchPublicFreelancersHandler);
 freelancerRouter.get("/profile/:id", getPublicFreelancer);
 freelancerRouter.put(
   "/profile",
   verifyBearerToken,
+  profileWriteLimiter,
   largeJsonBody,
   resolveAccountRole,
   upsertFreelanceProfile,

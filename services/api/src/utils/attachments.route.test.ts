@@ -146,6 +146,75 @@ describe("POST /api/v1/jobs attachment validation", () => {
   });
 });
 
+describe("attachment file name validation", () => {
+  const pdf = dataUrl("application/pdf", "%PDF-1.4");
+
+  it.each([
+    [
+      "an extension that does not match the content",
+      "photo.png",
+      "Attachment file extension does not match its content.",
+    ],
+    ["no extension", "report", "Attachment name must have a file extension."],
+    [
+      "a trailing dot",
+      "report.",
+      "Attachment name must have a file extension.",
+    ],
+    [
+      "a right-to-left override",
+      "report‮fdp.pdf",
+      "Attachment name is invalid.",
+    ],
+    ["a left-to-right isolate", "report⁦.pdf", "Attachment name is invalid."],
+    ["a zero-width space", "re​port.pdf", "Attachment name is invalid."],
+    ["a byte order mark", "re﻿port.pdf", "Attachment name is invalid."],
+    ["an arabic letter mark", "report؜.pdf", "Attachment name is invalid."],
+  ])("returns 400 on jobs for %s", async (_n, fileName, message) => {
+    const response = await send(
+      "post",
+      "/api/v1/jobs",
+      jobBody({ fileName, fileUrl: pdf, fileType: "application/pdf" }),
+    );
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe(message);
+    expect(mocks.upload).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 on messages for a mismatched extension", async () => {
+    const response = await send(
+      "post",
+      `/api/v1/conversations/${id}/messages`,
+      messageBody({
+        fileName: "notes.pdf",
+        fileUrl: dataUrl("text/plain", "hello"),
+        mimeType: "text/plain",
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe(
+      "Attachment file extension does not match its content.",
+    );
+  });
+
+  it("returns 400 on messages for bidi controls in the name", async () => {
+    const response = await send(
+      "post",
+      `/api/v1/conversations/${id}/messages`,
+      messageBody({
+        fileName: "notes‮txt.txt",
+        fileUrl: dataUrl("text/plain", "hello"),
+        mimeType: "text/plain",
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe("Attachment name is invalid.");
+  });
+});
+
 describe("POST /api/v1/conversations/:id/messages attachment validation", () => {
   const path = `/api/v1/conversations/${id}/messages`;
 

@@ -111,6 +111,11 @@ export const updateJobPost = async (
     ),
   );
 
+  const cleanupUploads = () =>
+    Promise.allSettled(
+      uploadedIds.map((fileId) => imageKit.files.delete(fileId)),
+    );
+
   let job;
 
   try {
@@ -125,12 +130,13 @@ export const updateJobPost = async (
         ),
       )
       .returning();
-  } catch {}
+  } catch (error) {
+    await cleanupUploads();
+    throw error;
+  }
 
   if (!job) {
-    await Promise.allSettled(
-      uploadedIds.map((fileId) => imageKit.files.delete(fileId)),
-    );
+    await cleanupUploads();
     throw new ApiError(404, "Editable job post not found.");
   }
 

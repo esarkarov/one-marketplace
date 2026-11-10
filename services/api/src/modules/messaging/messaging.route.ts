@@ -13,14 +13,18 @@ import {
   verifyBearerToken,
 } from "../../middleware/auth.middleware.js";
 import { largeJsonBody } from "../../middleware/json-body.middleware.js";
+import { messageWriteLimiter } from "../../middleware/user-rate-limit.middleware.js";
 
 export const messagingRouter = Router();
+
+const sendMessageLimiter = messageWriteLimiter();
 
 messagingRouter.get("/", isAuthenticated, listConversations);
 messagingRouter.post("/", isAuthenticated, openConversation);
 messagingRouter.post(
   "/:conversationId/messages",
   verifyBearerToken,
+  sendMessageLimiter,
   largeJsonBody,
   resolveAccountRole,
   createMessage,

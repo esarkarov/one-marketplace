@@ -4,6 +4,12 @@ import { db } from "../../database/client.js";
 import { redis } from "../../config/redis.js";
 import { getNats } from "../../config/nats.js";
 import { env } from "../../config/env.js";
+import { ApiError } from "../../utils/api-error.js";
+import {
+  isAllowedRedisKey,
+  REDIS_REDACTED_PREFIX,
+  REDIS_REDACTED_VALUE,
+} from "./admin-redis.js";
 import {
   accounts,
   agency_metadata,
@@ -708,13 +714,15 @@ export const getSystemHealth = async () => {
 const MAX_SCAN_KEYS = 200;
 
 export const scanRedisKeys = async (pattern: string) => {
-  const safePattern = pattern.trim() || "*";
+  if (!isAllowedRedisKey(pattern)) {
+    throw new ApiError(400, "Invalid request.");
+  }
   const keys: string[] = [];
   let cursor = "0";
   do {
-    const result = await redis.scan(cursor, { MATCH: safePattern, COUNT: 100 });
+    const result = await redis.scan(cursor, { MATCH: pattern, COUNT: 100 });
     cursor = result.cursor;
-    keys.push(...result.keys);
+    keys.push(...result.keys.filter(isAllowedRedisKey));
   } while (cursor !== "0" && keys.length < MAX_SCAN_KEYS);
 
   const preview = keys.slice(0, MAX_SCAN_KEYS);
@@ -731,6 +739,9 @@ export const scanRedisKeys = async (pattern: string) => {
 const MAX_VALUE_PREVIEW = 5_000;
 
 export const getRedisKeyValue = async (key: string) => {
+  if (!isAllowedRedisKey(key)) {
+    throw new ApiError(403, "Access to this Redis key is not allowed.");
+  }
   const type = await redis.type(key);
   let value: unknown;
 
@@ -754,6 +765,10 @@ export const getRedisKeyValue = async (key: string) => {
       return { type, ttl: -2, value: null };
     default:
       value = `<unsupported type: ${type}>`;
+  }
+
+  if (key.startsWith(REDIS_REDACTED_PREFIX)) {
+    value = REDIS_REDACTED_VALUE;
   }
 
   const serialized = JSON.stringify(value);

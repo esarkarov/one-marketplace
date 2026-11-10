@@ -158,9 +158,7 @@ export const getSystemHealthHandler: RequestHandler = asyncHandler(
 
 export const scanRedisKeysHandler: RequestHandler = asyncHandler(
   async (request, response) => {
-    const pattern =
-      typeof request.query.pattern === "string" ? request.query.pattern : "*";
-    const data = await scanRedisKeys(pattern);
+    const data = await scanRedisKeys(String(request.query.pattern));
     response
       .status(200)
       .json({ success: true, message: "Redis keys scanned.", data });
@@ -169,11 +167,7 @@ export const scanRedisKeysHandler: RequestHandler = asyncHandler(
 
 export const getRedisKeyHandler: RequestHandler = asyncHandler(
   async (request, response) => {
-    const key = request.params.key;
-    if (typeof key !== "string" || !key) {
-      throw new ApiError(400, "Redis key is required.");
-    }
-    const data = await getRedisKeyValue(decodeURIComponent(key));
+    const data = await getRedisKeyValue(String(request.params.key));
     response
       .status(200)
       .json({ success: true, message: "Redis key retrieved.", data });

@@ -60,8 +60,9 @@ vi.mock("../database/client.js", () => {
   return { db: { select: () => chain } };
 });
 
-const { authenticateAccount, invalidateAccountAuthCache } =
-  await import("./auth.middleware.js");
+const { authenticateAccount } = await import("./auth.middleware.js");
+const { invalidateAccountAuthCache } =
+  await import("../utils/account-auth-cache.js");
 
 beforeEach(() => {
   mocks.entries.clear();

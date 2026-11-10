@@ -2,14 +2,11 @@ import { verifyToken } from "@clerk/backend";
 import type { Request, RequestHandler } from "express";
 import { asyncHandler } from "../utils/async-handler.js";
 import { ApiError } from "../utils/api-error.js";
-import { errorLogAttributes } from "../utils/sanitize-log.js";
 import { env } from "../config/env.js";
 import {
   ACCOUNT_AUTH_CACHE_TTL_SECONDS,
   getAccountAuthCacheKey,
-  getAccountAuthCacheKeys,
 } from "../config/constants.js";
-import { logger } from "../config/logger.js";
 import { redis } from "../config/redis.js";
 import { db } from "../database/client.js";
 import { accounts } from "../database/schema.js";
@@ -41,22 +38,6 @@ export const getBearerToken = (authorizationHeader: string | undefined) => {
 
   const token = authorizationHeader?.slice("Bearer ".length).trim();
   return token || null;
-};
-
-export const invalidateAccountAuthCache = async (
-  userId: string,
-): Promise<void> => {
-  try {
-    await redis.del(getAccountAuthCacheKeys(userId));
-  } catch (error) {
-    await logger.warn({
-      message: "Account auth cache could not be invalidated",
-      eventName: "auth.cache.invalidate_failed",
-      attributes: {
-        ...errorLogAttributes(error),
-      },
-    });
-  }
 };
 
 const isAccountAvailable = async (

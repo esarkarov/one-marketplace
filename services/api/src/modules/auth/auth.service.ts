@@ -3,7 +3,7 @@ import { env } from "../../config/env.js";
 import { ApiError } from "../../utils/api-error.js";
 import { db } from "../../database/client.js";
 import { accounts } from "../../database/schema.js";
-import { invalidateAccountAuthCache } from "../../middleware/auth.middleware.js";
+import { invalidateAccountAuthCache } from "../../utils/account-auth-cache.js";
 
 export interface SignupInput {
   userId: string;

@@ -5,6 +5,7 @@ import {
   verifyBearerToken,
 } from "../../middleware/auth.middleware.js";
 import { largeJsonBody } from "../../middleware/json-body.middleware.js";
+import { contentWriteLimiter } from "../../middleware/user-rate-limit.middleware.js";
 import { validate } from "../../middleware/validate.middleware.js";
 import {
   createClientJobPost,
@@ -25,9 +26,13 @@ import {
 
 export const jobRouter = Router();
 
+const createJobLimiter = contentWriteLimiter();
+const updateJobLimiter = contentWriteLimiter();
+
 jobRouter.post(
   "/",
   verifyBearerToken,
+  createJobLimiter,
   largeJsonBody,
   resolveAccountRole,
   validate({ body: jobBodySchema, query: emptyQuerySchema }),
@@ -71,6 +76,7 @@ jobRouter.get(
 jobRouter.put(
   "/:jobId",
   verifyBearerToken,
+  updateJobLimiter,
   largeJsonBody,
   resolveAccountRole,
   validate({

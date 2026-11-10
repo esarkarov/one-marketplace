@@ -5,6 +5,7 @@ import {
   verifyBearerToken,
 } from "../../middleware/auth.middleware.js";
 import { largeJsonBody } from "../../middleware/json-body.middleware.js";
+import { contentWriteLimiter } from "../../middleware/user-rate-limit.middleware.js";
 import {
   buyAgencyConnects,
   cancelAgencyInvitationHandler,
@@ -36,6 +37,8 @@ import {
 
 export const agencyRouter = Router();
 
+const agencyWriteLimiter = contentWriteLimiter();
+
 agencyRouter.get("/search", searchPublicAgenciesHandler);
 agencyRouter.get("/profile/:id", getPublicAgencyHandler);
 agencyRouter.get("/mine", isAuthenticated, getLoggedInAgency);
@@ -49,6 +52,7 @@ agencyRouter.post("/", isAuthenticated, createAgencyHandler);
 agencyRouter.put(
   "/",
   verifyBearerToken,
+  agencyWriteLimiter,
   largeJsonBody,
   resolveAccountRole,
   updateAgencyHandler,

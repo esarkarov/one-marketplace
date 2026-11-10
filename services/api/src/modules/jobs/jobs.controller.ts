@@ -105,7 +105,8 @@ const buildJobData = (body: JobBody, allowStoredAttachments: boolean) => {
   rawAttachments.forEach(({ fileName }) => assertAttachmentFileName(fileName));
 
   const validated = validateAttachmentBatch(
-    rawAttachments.map(({ fileUrl, fileType }) => ({
+    rawAttachments.map(({ fileName, fileUrl, fileType }) => ({
+      fileName,
       fileUrl,
       mimeType: fileType,
     })),
