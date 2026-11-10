@@ -123,7 +123,7 @@ jobs:
       - name: Start Redis
         run: |
           docker run -d --name redis -p 127.0.0.1:6379:6379 -e REDISCLI_AUTH redis:8-alpine redis-server --requirepass "$REDISCLI_AUTH"
-          for i in $(seq 1 30); do
+          for _ in $(seq 1 30); do
             if docker exec -e REDISCLI_AUTH redis redis-cli ping | grep -q PONG; then exit 0; fi
             sleep 1
           done
