@@ -18,6 +18,7 @@ import {
   reviews,
 } from "../../database/schema.js";
 import { ApiError } from "../../utils/api-error.js";
+import type { DbExecutor } from "../../utils/db-executor.js";
 import { imageKit } from "../../config/imageKit.js";
 import { env } from "../../config/env.js";
 import { logger } from "../../config/logger.js";
@@ -957,8 +958,9 @@ export const getAgencyIdentityForOwner = async (
 
 export const getAgencyIdForMember = async (
   freelancerId: string,
+  executor: DbExecutor = db,
 ): Promise<string | null> => {
-  const [membership] = await db
+  const [membership] = await executor
     .select({ agencyId: agency_members.agency_id })
     .from(agency_members)
     .where(eq(agency_members.freelancer_id, freelancerId))

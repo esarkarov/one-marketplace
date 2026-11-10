@@ -3,6 +3,8 @@ import { and, eq } from "drizzle-orm";
 import { db } from "../../database/client.js";
 import { meetings } from "../../database/schema.js";
 import { ApiError } from "../../utils/api-error.js";
+import { errorLogAttributes } from "../../utils/sanitize-log.js";
+import { logger } from "../../config/logger.js";
 import { createDailyRoom } from "../../config/daily.js";
 import {
   postSystemEventMessage,
@@ -71,41 +73,61 @@ export const startMeeting = async (conversationId: string, actorId: string) => {
 };
 
 export const endMeetingByRoomName = async (roomName: string) => {
-  const [active] = await db
-    .select()
-    .from(meetings)
-    .where(
-      and(
-        eq(meetings.provider_room_name, roomName),
-        eq(meetings.status, "ACTIVE"),
-      ),
-    )
-    .limit(1);
+  const result = await db.transaction(async (transaction) => {
+    const endedAt = new Date();
+    const [ended] = await transaction
+      .update(meetings)
+      .set({ status: "ENDED", ended_at: endedAt, updated_at: endedAt })
+      .where(
+        and(
+          eq(meetings.provider_room_name, roomName),
+          eq(meetings.status, "ACTIVE"),
+        ),
+      )
+      .returning();
 
-  if (!active) return null;
+    if (!ended) return null;
 
-  const endedAt = new Date();
-  await db
-    .update(meetings)
-    .set({ status: "ENDED", ended_at: endedAt, updated_at: endedAt })
-    .where(eq(meetings.id, active.id));
+    const durationMinutes = Math.max(
+      1,
+      Math.round((endedAt.getTime() - ended.started_at.getTime()) / 60000),
+    );
 
-  const durationMinutes = Math.max(
-    1,
-    Math.round((endedAt.getTime() - active.started_at.getTime()) / 60000),
-  );
+    const { emit } = await postSystemEventMessage(
+      ended.conversation_id,
+      {
+        eventType: "MEETING_ENDED",
+        eventPayload: { meetingId: ended.id, durationMinutes },
+      },
+      { executor: transaction },
+    );
 
-  await postSystemEventMessage(active.conversation_id, {
-    eventType: "MEETING_ENDED",
-    eventPayload: {
-      meetingId: active.id,
-      durationMinutes,
-    },
+    return {
+      summary: {
+        id: ended.id,
+        conversationId: ended.conversation_id,
+        durationMinutes,
+      },
+      emit,
+    };
   });
 
-  return {
-    id: active.id,
-    conversationId: active.conversation_id,
-    durationMinutes,
-  };
+  if (!result) return null;
+
+  try {
+    await result.emit();
+  } catch (error) {
+    try {
+      await logger.warn({
+        message: "Meeting end notification could not be emitted",
+        eventName: "task.meeting.emit_failed",
+        attributes: {
+          "task.meeting.id": result.summary.id,
+          ...errorLogAttributes(error),
+        },
+      });
+    } catch {}
+  }
+
+  return result.summary;
 };

@@ -28,6 +28,7 @@ import {
   proposals,
 } from "../../database/schema.js";
 import { ApiError } from "../../utils/api-error.js";
+import type { DbExecutor } from "../../utils/db-executor.js";
 import {
   deleteDocuments,
   uploadDocuments,
@@ -47,8 +48,12 @@ export interface AttachmentInput {
   attachmentType: string;
 }
 
-export const requireMember = async (conversationId: string, userId: string) => {
-  const [direct] = await db
+export const requireMember = async (
+  conversationId: string,
+  userId: string,
+  executor: DbExecutor = db,
+) => {
+  const [direct] = await executor
     .select()
     .from(conversation_participants)
     .where(
@@ -60,9 +65,9 @@ export const requireMember = async (conversationId: string, userId: string) => {
     .limit(1);
   if (direct) return direct;
 
-  const agencyId = await getAgencyIdForMember(userId);
+  const agencyId = await getAgencyIdForMember(userId, executor);
   if (agencyId) {
-    const [viaAgency] = await db
+    const [viaAgency] = await executor
       .select()
       .from(conversation_participants)
       .where(
@@ -590,58 +595,62 @@ export const sendMessage = async (
   return hydrated;
 };
 
-export const postSystemEventMessage = async (
+interface SystemEventInput {
+  eventType: string;
+  eventPayload: Record<string, unknown>;
+}
+
+const writeSystemEventMessage = async (
+  executor: DbExecutor,
   conversationId: string,
-  event: { eventType: string; eventPayload: Record<string, unknown> },
-  options: { actorId?: string } = {},
+  event: SystemEventInput,
+  actorId: string | undefined,
+  excludeParticipantId: string | undefined,
 ) => {
-  let excludeParticipantId: string | undefined;
-  if (options.actorId) {
-    const participant = await requireMember(conversationId, options.actorId);
-    excludeParticipantId = participant.id;
+  const [created] = await executor
+    .insert(messages)
+    .values({
+      conversation_id: conversationId,
+      sender_id: actorId,
+      message_type: "SYSTEM_EVENT",
+      event_type: event.eventType,
+      event_payload: event.eventPayload,
+    })
+    .returning();
+  if (!created) {
+    throw new ApiError(500, "Event message could not be created.");
   }
 
-  const message = await db.transaction(async (transaction) => {
-    const [created] = await transaction
-      .insert(messages)
-      .values({
-        conversation_id: conversationId,
-        sender_id: options.actorId,
-        message_type: "SYSTEM_EVENT",
-        event_type: event.eventType,
-        event_payload: event.eventPayload,
-      })
-      .returning();
-    if (!created) {
-      throw new ApiError(500, "Event message could not be created.");
-    }
+  await executor
+    .update(conversations)
+    .set({
+      last_message_id: created.id,
+      last_message_at: created.created_at,
+      updated_at: new Date(),
+    })
+    .where(eq(conversations.id, conversationId));
 
-    await transaction
-      .update(conversations)
-      .set({
-        last_message_id: created.id,
-        last_message_at: created.created_at,
-        updated_at: new Date(),
-      })
-      .where(eq(conversations.id, conversationId));
+  await executor
+    .update(conversation_participants)
+    .set({
+      unread_count: sql`${conversation_participants.unread_count} + 1`,
+    })
+    .where(
+      excludeParticipantId
+        ? and(
+            eq(conversation_participants.conversation_id, conversationId),
+            ne(conversation_participants.id, excludeParticipantId),
+          )
+        : eq(conversation_participants.conversation_id, conversationId),
+    );
 
-    await transaction
-      .update(conversation_participants)
-      .set({
-        unread_count: sql`${conversation_participants.unread_count} + 1`,
-      })
-      .where(
-        excludeParticipantId
-          ? and(
-              eq(conversation_participants.conversation_id, conversationId),
-              ne(conversation_participants.id, excludeParticipantId),
-            )
-          : eq(conversation_participants.conversation_id, conversationId),
-      );
+  return created;
+};
 
-    return created;
-  });
-
+const publishSystemEventMessage = async (
+  message: typeof messages.$inferSelect,
+  actorId: string | undefined,
+) => {
   const hydrated = (
     await hydrateMessages([
       {
@@ -657,9 +666,56 @@ export const postSystemEventMessage = async (
       },
     ])
   )[0]!;
-  await emitConversationUpdate(conversationId, options.actorId);
+  await emitConversationUpdate(message.conversation_id, actorId);
   return hydrated;
 };
+
+export function postSystemEventMessage(
+  conversationId: string,
+  event: SystemEventInput,
+  options: { actorId?: string; executor: DbExecutor },
+): Promise<{
+  message: typeof messages.$inferSelect;
+  emit: () => Promise<Awaited<ReturnType<typeof publishSystemEventMessage>>>;
+}>;
+export function postSystemEventMessage(
+  conversationId: string,
+  event: SystemEventInput,
+  options?: { actorId?: string },
+): Promise<Awaited<ReturnType<typeof publishSystemEventMessage>>>;
+export async function postSystemEventMessage(
+  conversationId: string,
+  event: SystemEventInput,
+  options: { actorId?: string; executor?: DbExecutor } = {},
+) {
+  const { actorId, executor } = options;
+
+  const participant = actorId
+    ? await requireMember(conversationId, actorId, executor)
+    : undefined;
+
+  if (executor) {
+    const message = await writeSystemEventMessage(
+      executor,
+      conversationId,
+      event,
+      actorId,
+      participant?.id,
+    );
+    return { message, emit: () => publishSystemEventMessage(message, actorId) };
+  }
+
+  const message = await db.transaction((transaction) =>
+    writeSystemEventMessage(
+      transaction,
+      conversationId,
+      event,
+      actorId,
+      participant?.id,
+    ),
+  );
+  return publishSystemEventMessage(message, actorId);
+}
 
 export const markConversationRead = async (
   conversationId: string,
