@@ -80,6 +80,7 @@ Structured pino events, no secrets, no raw Stripe messages: `payout.claimed`, `p
 - `sendNotification` never throws and returns `"published" | "disabled" | "failed"`. `failed` covers a disconnected broker, publish errors and nacks.
 - `notified_at` is set only for `published` or `disabled` (RabbitMQ not configured: nothing can ever be delivered, so the sweep must not retry forever). On `failed` it stays NULL, so the next hourly sweep of `PAID` rows with `notified_at IS NULL` retries with the same deterministic event id. The sweep also covers a crash after `PAID`.
 - A retry can publish the same event id twice (for example after a publish that succeeded but was reported as failed); the consumer's unique `notifications.event_id` dedupes it.
+- The event id is a UUID v5, and the standard mandates SHA-1 for it. It is used only for deduplication, never for security. CodeQL's `js/weak-cryptographic-algorithm` alert on `utils/uuid-v5.ts` is a known false positive and was dismissed as such.
 
 ### Readers
 
