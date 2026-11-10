@@ -34,13 +34,17 @@ export const notificationEnvelopeSchema = z.object({
 
 export type NotificationPayload = z.infer<typeof notificationPayload>;
 export type NotificationEnvelope = z.infer<typeof notificationEnvelopeSchema>;
+export type NotificationInput = NotificationPayload & { eventId?: string };
 
 export const createNotificationEnvelope = (
-  payload: NotificationPayload,
-): NotificationEnvelope => ({
-  id: randomUUID(),
-  type: NOTIFICATION_CREATED_TYPE,
-  version: 1,
-  occurredAt: new Date().toISOString(),
-  payload,
-});
+  input: NotificationInput,
+): NotificationEnvelope => {
+  const { eventId, ...payload } = input;
+  return {
+    id: eventId ?? randomUUID(),
+    type: NOTIFICATION_CREATED_TYPE,
+    version: 1,
+    occurredAt: new Date().toISOString(),
+    payload,
+  };
+};

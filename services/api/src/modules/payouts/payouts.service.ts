@@ -1,22 +1,33 @@
-import { and, eq, isNotNull, isNull, lte } from "drizzle-orm";
+import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { EARNINGS_HOLD_PERIOD_MS } from "../../config/constants.js";
 import { stripe } from "../../config/stripe.js";
 import { db } from "../../database/client.js";
 import {
   accounts,
   agency_metadata,
-  earning_history,
   payout_history,
 } from "../../database/schema.js";
 import { sendNotification } from "../../events/publisher.js";
 import { logger } from "../../config/logger.js";
-import { errorLogAttributes } from "../../utils/sanitize-log.js";
+import { isValidPayoutAmount, toMinorUnits } from "../../utils/money.js";
+import { uuidV5 } from "../../utils/uuid-v5.js";
+import {
+  bumpIdempotencyKey,
+  classifyPayoutFailure,
+  initialIdempotencyKey,
+  PAYOUT_MAX_ATTEMPTS,
+  retryDelaySeconds,
+  type PayoutFailure,
+} from "./payout-failure.js";
+import {
+  claimableCondition,
+  claimPayout,
+  transitionPayout,
+  type PayoutRecord,
+} from "./payout-state.js";
 
-const isUniqueConstraintError = (error: unknown): boolean =>
-  typeof error === "object" &&
-  error !== null &&
-  "code" in error &&
-  (error as { code?: unknown }).code === "23505";
+const NOTIFICATION_SWEEP_LIMIT = 300;
+const TRANSFER_LIST_LIMIT = 10;
 
 export type PayoutRunSummary = {
   checked: number;
@@ -25,255 +36,567 @@ export type PayoutRunSummary = {
   failed: number;
 };
 
-type DuePayoutRow = {
+type Outcome = "paid" | "skipped" | "failed";
+
+type Candidate = {
+  id: string;
   earningHistoryId: string;
   amount: string;
-  platformFeeAmount: string;
+  status: string;
+  freelancerId: string | null;
+  agencyId: string | null;
   stripeConnectAccountId: string | null;
-  recipient:
-    | { kind: "freelancer"; freelancerId: string }
-    | { kind: "agency"; agencyId: string };
+};
+
+const payoutAttributes = (row: {
+  id: string;
+  earning_history_id: string;
+  freelancer_id: string | null;
+  agency_id: string | null;
+}) => ({
+  "payout.id": row.id,
+  "earning.id": row.earning_history_id,
+  ...(row.freelancer_id
+    ? { "user.id": row.freelancer_id }
+    : { "team.id": row.agency_id }),
+});
+
+const errorIdentity = (error: unknown) => {
+  const source =
+    typeof error === "object" && error !== null
+      ? (error as { type?: unknown; code?: unknown; name?: unknown })
+      : {};
+  const name = [source.type, source.name].find(
+    (value): value is string => typeof value === "string",
+  );
+  return {
+    "error.type": name ?? "UnknownError",
+    ...(typeof source.code === "string" ? { "error.code": source.code } : {}),
+  };
+};
+
+const notifyPaid = async (row: PayoutRecord): Promise<void> => {
+  const netAmount = Number(row.amount);
+  const base = {
+    type: "PAYOUT_COMPLETED",
+    title: "Payment sent",
+    message: `The payment of $${netAmount.toFixed(2)} is ready for withdrawal now.`,
+    metadata: {
+      earningHistoryId: row.earning_history_id,
+      amount: netAmount,
+      stripeTransferId: row.stripe_transfer_id,
+    },
+    eventId: uuidV5(row.id),
+  };
+
+  const result = await sendNotification(
+    row.freelancer_id
+      ? {
+          ...base,
+          recipientId: row.freelancer_id,
+          link: "/settings?section=earnings",
+        }
+      : {
+          ...base,
+          agencyId: row.agency_id!,
+          link: "/finances?section=withdrawals",
+        },
+  );
+
+  if (result !== "published" && result !== "disabled") {
+    await logger.warn({
+      message: "Payout notification not published, will retry",
+      eventName: "payment.payout.notification_failed",
+      attributes: payoutAttributes(row),
+    });
+    return;
+  }
+
+  await db
+    .update(payout_history)
+    .set({ notified_at: sql`now()` })
+    .where(
+      and(eq(payout_history.id, row.id), isNull(payout_history.notified_at)),
+    );
+};
+
+const notifySafely = async (row: PayoutRecord): Promise<void> => {
+  try {
+    await notifyPaid(row);
+  } catch (error) {
+    await logger.error({
+      message: "Payout notification failed",
+      eventName: "payment.payout.notification_failed",
+      attributes: { ...payoutAttributes(row), ...errorIdentity(error) },
+    });
+  }
+};
+
+const sweepUnnotified = async (): Promise<void> => {
+  const rows = await db
+    .select()
+    .from(payout_history)
+    .where(
+      and(
+        eq(payout_history.status, "PAID"),
+        isNull(payout_history.notified_at),
+      ),
+    )
+    .orderBy(asc(payout_history.paid_at))
+    .limit(NOTIFICATION_SWEEP_LIMIT);
+
+  for (const row of rows) {
+    await notifySafely(row);
+  }
+};
+
+const createDueRows = async (): Promise<void> => {
+  const cutoff = new Date(Date.now() - EARNINGS_HOLD_PERIOD_MS);
+
+  await db.execute(sql`
+    INSERT INTO payout_history
+      (freelancer_id, agency_id, earning_history_id, amount, status)
+    SELECT e.freelancer_id, e.agency_id, e.id,
+      (e.amount - e.platform_fee_amount), 'PENDING'
+    FROM earning_history e
+    WHERE e.created_at <= ${cutoff.toISOString()}::timestamptz
+      AND (e.amount - e.platform_fee_amount) > 0
+      AND NOT EXISTS (
+        SELECT 1 FROM payout_history p WHERE p.earning_history_id = e.id
+      )
+    ON CONFLICT (earning_history_id) DO NOTHING
+  `);
+};
+
+const reportNonPositiveNet = async (): Promise<number> => {
+  const cutoff = new Date(Date.now() - EARNINGS_HOLD_PERIOD_MS);
+
+  const result = await db.execute<{
+    id: string;
+    freelancer_id: string | null;
+    agency_id: string | null;
+  }>(sql`
+    SELECT e.id, e.freelancer_id, e.agency_id
+    FROM earning_history e
+    WHERE e.created_at <= ${cutoff.toISOString()}::timestamptz
+      AND (e.amount - e.platform_fee_amount) <= 0
+      AND NOT EXISTS (
+        SELECT 1 FROM payout_history p WHERE p.earning_history_id = e.id
+      )
+  `);
+
+  for (const row of result.rows) {
+    await logger.warn({
+      message: "Payout skipped",
+      eventName: "payout.failed",
+      attributes: {
+        "earning.id": row.id,
+        ...(row.freelancer_id
+          ? { "user.id": row.freelancer_id }
+          : { "team.id": row.agency_id }),
+        "error.code": "non_positive_net_amount",
+      },
+    });
+  }
+
+  return result.rows.length;
+};
+
+const selectCandidates = async (): Promise<Candidate[]> =>
+  db
+    .select({
+      id: payout_history.id,
+      earningHistoryId: payout_history.earning_history_id,
+      amount: payout_history.amount,
+      status: payout_history.status,
+      freelancerId: payout_history.freelancer_id,
+      agencyId: payout_history.agency_id,
+      freelancerAccountId: accounts.stripe_connect_account_id,
+      agencyAccountId: agency_metadata.stripe_connect_account_id,
+    })
+    .from(payout_history)
+    .leftJoin(accounts, eq(accounts.auth_id, payout_history.freelancer_id))
+    .leftJoin(agency_metadata, eq(agency_metadata.id, payout_history.agency_id))
+    .where(claimableCondition())
+    .orderBy(asc(payout_history.created_at))
+    .then((rows) =>
+      rows.map((row) => ({
+        id: row.id,
+        earningHistoryId: row.earningHistoryId,
+        amount: row.amount,
+        status: row.status,
+        freelancerId: row.freelancerId,
+        agencyId: row.agencyId,
+        stripeConnectAccountId: row.freelancerId
+          ? row.freelancerAccountId
+          : row.agencyAccountId,
+      })),
+    );
+
+const isTransfersActive = async (
+  candidate: Candidate,
+  accountId: string,
+): Promise<boolean> => {
+  try {
+    const destinationAccount = await stripe.v2.core.accounts.retrieve(
+      accountId,
+      { include: ["configuration.recipient"] },
+    );
+    return (
+      destinationAccount.configuration?.recipient?.capabilities?.stripe_balance
+        ?.stripe_transfers?.status === "active"
+    );
+  } catch (error) {
+    await logger.error({
+      message: "Could not check destination account status",
+      eventName: "payment.payout.account_check_failed",
+      attributes: {
+        "payout.id": candidate.id,
+        "earning.id": candidate.earningHistoryId,
+        ...errorIdentity(error),
+      },
+    });
+    return false;
+  }
+};
+
+const failClaimed = async (
+  claimed: PayoutRecord,
+  failure: PayoutFailure,
+): Promise<Outcome> => {
+  const delay = retryDelaySeconds(claimed.attempts);
+  const exhausted = claimed.attempts >= PAYOUT_MAX_ATTEMPTS;
+
+  const failed = await transitionPayout({
+    id: claimed.id,
+    from: "PROCESSING",
+    to: "FAILED",
+    expectedAttempts: claimed.attempts,
+    set: {
+      last_error: failure.code,
+      next_retry_at:
+        delay === null
+          ? null
+          : sql`now() + (${delay}::int * interval '1 second')`,
+      ...(failure.kind === "definitive"
+        ? {
+            idempotency_key: bumpIdempotencyKey(
+              claimed.id,
+              claimed.idempotency_key,
+            ),
+          }
+        : {}),
+    },
+  });
+
+  if (!failed) {
+    await logger.warn({
+      message: "Payout failure not recorded",
+      eventName: "payout.transition_lost",
+      attributes: { ...payoutAttributes(claimed), "payout.to": "FAILED" },
+    });
+    return "skipped";
+  }
+
+  await logger.warn({
+    message: "Payout failed",
+    eventName: "payout.failed",
+    attributes: {
+      ...payoutAttributes(failed),
+      "payout.attempts": failed.attempts,
+      "payout.failure_kind": failure.kind,
+      "error.code": failure.code,
+    },
+  });
+
+  if (exhausted) {
+    await logger.error({
+      message: "Payout retries exhausted",
+      eventName: "payout.exhausted",
+      attributes: {
+        ...payoutAttributes(failed),
+        "payout.attempts": failed.attempts,
+        "error.code": failure.code,
+      },
+    });
+  }
+
+  return "failed";
+};
+
+type FoundTransfer = { id: string; reversed: boolean };
+
+const parkForReview = async (
+  claimed: PayoutRecord,
+  code: string,
+): Promise<Outcome> => {
+  const parked = await transitionPayout({
+    id: claimed.id,
+    from: "PROCESSING",
+    to: "FAILED",
+    expectedAttempts: claimed.attempts,
+    set: { last_error: code, next_retry_at: null },
+  });
+
+  if (!parked) {
+    await logger.warn({
+      message: "Payout failure not recorded",
+      eventName: "payout.transition_lost",
+      attributes: { ...payoutAttributes(claimed), "payout.to": "FAILED" },
+    });
+    return "skipped";
+  }
+
+  await logger.error({
+    message: "Payout needs manual review",
+    eventName: "payout.exhausted",
+    attributes: {
+      ...payoutAttributes(parked),
+      "payout.attempts": parked.attempts,
+      reason: code,
+    },
+  });
+  return "failed";
+};
+
+const findExistingTransfer = async (
+  claimed: PayoutRecord,
+  amountMinor: number,
+  destination: string | undefined,
+): Promise<FoundTransfer | undefined> => {
+  const transfers = await stripe.transfers.list({
+    transfer_group: `payout:${claimed.id}`,
+    ...(destination ? { destination } : {}),
+    limit: TRANSFER_LIST_LIMIT,
+  });
+
+  const matches = transfers.data.filter(
+    (transfer) =>
+      transfer.amount === amountMinor &&
+      transfer.currency === "usd" &&
+      (destination === undefined ||
+        (typeof transfer.destination === "string"
+          ? transfer.destination
+          : transfer.destination?.id) === destination),
+  );
+  const toFound = (transfer: (typeof matches)[number]): FoundTransfer => ({
+    id: transfer.id,
+    reversed: transfer.reversed === true || (transfer.amount_reversed ?? 0) > 0,
+  });
+  const live = matches.find((transfer) => !toFound(transfer).reversed);
+  const chosen = live ?? matches[0];
+  return chosen ? toFound(chosen) : undefined;
+};
+
+const createTransfer = async (
+  claimed: PayoutRecord,
+  destination: string,
+  amountMinor: number,
+): Promise<string> => {
+  const idempotencyKey =
+    claimed.idempotency_key ?? initialIdempotencyKey(claimed.id);
+
+  const transfer = await stripe.transfers.create(
+    {
+      amount: amountMinor,
+      currency: "usd",
+      destination,
+      transfer_group: `payout:${claimed.id}`,
+      description: `OneMarketplace.io payout for earning ${claimed.earning_history_id}`,
+      metadata: {
+        payoutId: claimed.id,
+        earningHistoryId: claimed.earning_history_id,
+        ...(claimed.freelancer_id
+          ? { freelancerId: claimed.freelancer_id }
+          : { agencyId: claimed.agency_id! }),
+      },
+    },
+    { idempotencyKey },
+  );
+  return transfer.id;
+};
+
+const processCandidate = async (candidate: Candidate): Promise<Outcome> => {
+  const amount = Number(candidate.amount);
+
+  if (!isValidPayoutAmount(amount)) {
+    const rejected = await transitionPayout({
+      id: candidate.id,
+      from: "PENDING",
+      to: "FAILED",
+      set: { last_error: "invalid_amount", next_retry_at: null },
+    });
+    if (!rejected) return "skipped";
+    await logger.warn({
+      message: "Payout rejected",
+      eventName: "payout.failed",
+      attributes: {
+        ...payoutAttributes(rejected),
+        "payout.failure_kind": "definitive",
+        "error.code": "invalid_amount",
+      },
+    });
+    return "failed";
+  }
+
+  if (!candidate.stripeConnectAccountId) return "skipped";
+  const destination = candidate.stripeConnectAccountId;
+
+  if (!(await isTransfersActive(candidate, destination))) return "skipped";
+
+  const claimed = await claimPayout({ id: candidate.id, destination });
+  if (!claimed) return "skipped";
+  const priorClaim =
+    claimed.prev_claimed_at !== null || claimed.prev_idempotency_key !== null;
+  const destinationChanged =
+    claimed.destination_account_id !== null &&
+    claimed.destination_account_id !== destination;
+
+  await logger.info({
+    message: "Payout claimed",
+    eventName: "payout.claimed",
+    attributes: {
+      ...payoutAttributes(claimed),
+      "payout.attempts": claimed.attempts,
+    },
+  });
+
+  if (candidate.status === "PROCESSING") {
+    await logger.warn({
+      message: "Payout recovered from a stuck claim",
+      eventName: "payout.recovered",
+      attributes: {
+        ...payoutAttributes(claimed),
+        "payout.attempts": claimed.attempts,
+        reason: "stuck_takeover",
+      },
+    });
+  }
+
+  const amountMinor = toMinorUnits(amount);
+  let transferId: string | undefined;
+  let adoptedReason: string | undefined;
+
+  if (priorClaim) {
+    let found: FoundTransfer | undefined;
+    try {
+      found = await findExistingTransfer(
+        claimed,
+        amountMinor,
+        destinationChanged ? undefined : destination,
+      );
+    } catch (error) {
+      return failClaimed(claimed, {
+        kind: "unknown",
+        code: classifyPayoutFailure(error).code,
+      });
+    }
+    if (found?.reversed) return parkForReview(claimed, "transfer_reversed");
+    if (found) {
+      transferId = found.id;
+      adoptedReason = destinationChanged
+        ? "adopted_transfer_other_destination"
+        : "adopted_transfer";
+    } else if (destinationChanged) {
+      return parkForReview(claimed, "destination_changed");
+    }
+  }
+
+  if (transferId === undefined) {
+    try {
+      transferId = await createTransfer(claimed, destination, amountMinor);
+    } catch (error) {
+      return failClaimed(claimed, classifyPayoutFailure(error));
+    }
+  }
+
+  const paid = await transitionPayout({
+    id: claimed.id,
+    from: "PROCESSING",
+    to: "PAID",
+    expectedAttempts: claimed.attempts,
+    set: {
+      stripe_transfer_id: transferId,
+      paid_at: sql`now()`,
+      last_error: null,
+      next_retry_at: null,
+    },
+  });
+
+  if (!paid) {
+    await logger.warn({
+      message: "Payout paid state not recorded",
+      eventName: "payout.transition_lost",
+      attributes: {
+        ...payoutAttributes(claimed),
+        "payout.to": "PAID",
+        "payment.transaction_id": transferId,
+      },
+    });
+    return "skipped";
+  }
+
+  await logger.info({
+    message: adoptedReason
+      ? "Payout recovered from existing transfer"
+      : "Payout sent",
+    eventName: adoptedReason ? "payout.recovered" : "payout.paid",
+    attributes: {
+      ...payoutAttributes(paid),
+      "payout.attempts": paid.attempts,
+      "payment.provider": "stripe",
+      "payment.amount": amount,
+      "payment.currency": "USD",
+      "payment.transaction_id": transferId,
+      ...(adoptedReason ? { reason: adoptedReason } : {}),
+    },
+  });
+
+  await notifySafely(paid);
+  return "paid";
 };
 
 export const processDuePayouts = async (): Promise<PayoutRunSummary> => {
-  const runId = Date.now();
-  const cutoff = new Date(Date.now() - EARNINGS_HOLD_PERIOD_MS);
-
-  const freelancerRows = await db
-    .select({
-      earningHistoryId: earning_history.id,
-      amount: earning_history.amount,
-      platformFeeAmount: earning_history.platform_fee_amount,
-      stripeConnectAccountId: accounts.stripe_connect_account_id,
-      freelancerId: earning_history.freelancer_id,
-    })
-    .from(earning_history)
-    .innerJoin(accounts, eq(accounts.auth_id, earning_history.freelancer_id))
-    .leftJoin(
-      payout_history,
-      eq(payout_history.earning_history_id, earning_history.id),
-    )
-    .where(
-      and(
-        lte(earning_history.created_at, cutoff),
-        isNull(payout_history.id),
-        isNotNull(earning_history.freelancer_id),
-      ),
-    );
-
-  const agencyRows = await db
-    .select({
-      earningHistoryId: earning_history.id,
-      amount: earning_history.amount,
-      platformFeeAmount: earning_history.platform_fee_amount,
-      stripeConnectAccountId: agency_metadata.stripe_connect_account_id,
-      agencyId: earning_history.agency_id,
-    })
-    .from(earning_history)
-    .innerJoin(
-      agency_metadata,
-      eq(agency_metadata.id, earning_history.agency_id),
-    )
-    .leftJoin(
-      payout_history,
-      eq(payout_history.earning_history_id, earning_history.id),
-    )
-    .where(
-      and(
-        lte(earning_history.created_at, cutoff),
-        isNull(payout_history.id),
-        isNotNull(earning_history.agency_id),
-      ),
-    );
-
-  const dueRows: DuePayoutRow[] = [
-    ...freelancerRows.map((row) => ({
-      earningHistoryId: row.earningHistoryId,
-      amount: row.amount,
-      platformFeeAmount: row.platformFeeAmount,
-      stripeConnectAccountId: row.stripeConnectAccountId,
-      recipient: {
-        kind: "freelancer" as const,
-        freelancerId: row.freelancerId!,
-      },
-    })),
-    ...agencyRows.map((row) => ({
-      earningHistoryId: row.earningHistoryId,
-      amount: row.amount,
-      platformFeeAmount: row.platformFeeAmount,
-      stripeConnectAccountId: row.stripeConnectAccountId,
-      recipient: { kind: "agency" as const, agencyId: row.agencyId! },
-    })),
-  ];
+  try {
+    await sweepUnnotified();
+  } catch (error) {
+    await logger.error({
+      message: "Payout notification sweep failed",
+      eventName: "payment.payout.notification_failed",
+      attributes: { ...errorIdentity(error) },
+    });
+  }
+  await createDueRows();
+  const nonPositive = await reportNonPositiveNet();
+  const candidates = await selectCandidates();
 
   let paid = 0;
-  let skipped = 0;
+  let skipped = nonPositive;
   let failed = 0;
 
-  for (const row of dueRows) {
-    const netAmount =
-      Math.round((Number(row.amount) - Number(row.platformFeeAmount)) * 100) /
-      100;
-
-    if (netAmount <= 0) {
-      skipped += 1;
-      continue;
-    }
-
-    if (!row.stripeConnectAccountId) {
-      skipped += 1;
-      continue;
-    }
-
-    // A freshly-created (or not-yet-fully-onboarded) Connect account can
-    // have stripe_transfers "requested" without it being "active" yet —
-    // Stripe rejects the transfer outright in that state. Check first so
-    // that case is a normal skip-and-retry-later, not a logged failure.
-    let transfersActive = false;
+  for (const candidate of candidates) {
     try {
-      const destinationAccount = await stripe.v2.core.accounts.retrieve(
-        row.stripeConnectAccountId,
-        { include: ["configuration.recipient"] },
-      );
-      transfersActive =
-        destinationAccount.configuration?.recipient?.capabilities
-          ?.stripe_balance?.stripe_transfers?.status === "active";
+      const outcome = await processCandidate(candidate);
+      if (outcome === "paid") paid += 1;
+      else if (outcome === "failed") failed += 1;
+      else skipped += 1;
     } catch (error) {
-      await logger.error({
-        message: "Could not check destination account status",
-        eventName: "payment.payout.account_check_failed",
-        attributes: {
-          "earning.id": row.earningHistoryId,
-          "error.name": error instanceof Error ? error.name : "UnknownError",
-          ...errorLogAttributes(error),
-        },
-      });
-    }
-
-    if (!transfersActive) {
-      skipped += 1;
-      continue;
-    }
-
-    try {
-      const transfer = await stripe.transfers.create(
-        {
-          amount: Math.round(netAmount * 100),
-          currency: "usd",
-          destination: row.stripeConnectAccountId,
-          description: `OneMarketplace.io payout for earning ${row.earningHistoryId}`,
-          metadata:
-            row.recipient.kind === "freelancer"
-              ? {
-                  earningHistoryId: row.earningHistoryId,
-                  freelancerId: row.recipient.freelancerId,
-                }
-              : {
-                  earningHistoryId: row.earningHistoryId,
-                  agencyId: row.recipient.agencyId,
-                },
-        },
-        {
-          idempotencyKey: `payout:${row.earningHistoryId}:${row.stripeConnectAccountId}:${runId}`,
-        },
-      );
-
-      await db.insert(payout_history).values({
-        freelancer_id:
-          row.recipient.kind === "freelancer"
-            ? row.recipient.freelancerId
-            : null,
-        agency_id:
-          row.recipient.kind === "agency" ? row.recipient.agencyId : null,
-        earning_history_id: row.earningHistoryId,
-        amount: netAmount.toFixed(2),
-        stripe_transfer_id: transfer.id,
-      });
-
-      paid += 1;
-
-      await logger.info({
-        message: "Payout sent",
-        eventName: "payment.payout.succeeded",
-        attributes: {
-          "payment.provider": "stripe",
-          "payment.amount": netAmount,
-          "payment.currency": "USD",
-          "payment.transaction_id": transfer.id,
-          ...(row.recipient.kind === "freelancer"
-            ? { "user.id": row.recipient.freelancerId }
-            : { "team.id": row.recipient.agencyId }),
-        },
-      });
-
-      try {
-        await sendNotification(
-          row.recipient.kind === "freelancer"
-            ? {
-                recipientId: row.recipient.freelancerId,
-                type: "PAYOUT_COMPLETED",
-                title: "Payment sent",
-                message: `The payment of $${netAmount.toFixed(2)} is ready for withdrawal now.`,
-                link: "/settings?section=earnings",
-                metadata: {
-                  earningHistoryId: row.earningHistoryId,
-                  amount: netAmount,
-                  stripeTransferId: transfer.id,
-                },
-              }
-            : {
-                agencyId: row.recipient.agencyId,
-                type: "PAYOUT_COMPLETED",
-                title: "Payment sent",
-                message: `The payment of $${netAmount.toFixed(2)} is ready for withdrawal now.`,
-                link: "/finances?section=withdrawals",
-                metadata: {
-                  earningHistoryId: row.earningHistoryId,
-                  amount: netAmount,
-                  stripeTransferId: transfer.id,
-                },
-              },
-        );
-      } catch (notificationError) {
-        await logger.error({
-          message: "Payout notification failed",
-          eventName: "payment.payout.notification_failed",
-          attributes: {
-            "earning.id": row.earningHistoryId,
-            "error.name":
-              notificationError instanceof Error
-                ? notificationError.name
-                : "UnknownError",
-            ...errorLogAttributes(notificationError),
-          },
-        });
-      }
-    } catch (error) {
-      if (isUniqueConstraintError(error)) {
-        skipped += 1;
-        continue;
-      }
       failed += 1;
       await logger.error({
-        message: "Payout failed",
-        eventName: "payment.payout.failed",
+        message: "Payout processing error",
+        eventName: "payout.failed",
         attributes: {
-          "payment.provider": "stripe",
-          "payment.amount": netAmount,
-          "payment.currency": "USD",
-          "error.type": error instanceof Error ? error.name : "UnknownError",
-          ...errorLogAttributes(error),
-          "earning.id": row.earningHistoryId,
-          ...(row.recipient.kind === "freelancer"
-            ? { "user.id": row.recipient.freelancerId }
-            : { "team.id": row.recipient.agencyId }),
+          "payout.id": candidate.id,
+          "earning.id": candidate.earningHistoryId,
+          "payout.failure_kind": "internal",
+          ...errorIdentity(error),
         },
       });
     }
   }
 
   const summary: PayoutRunSummary = {
-    checked: dueRows.length,
+    checked: candidates.length + nonPositive,
     paid,
     skipped,
     failed,

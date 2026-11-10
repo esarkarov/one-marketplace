@@ -8,6 +8,13 @@
       "when": 1794253137286,
       "tag": "0000_init",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1794301521954,
+      "tag": "0001_thin_iron_fist",
+      "breakpoints": true
     }
   ]
 }
