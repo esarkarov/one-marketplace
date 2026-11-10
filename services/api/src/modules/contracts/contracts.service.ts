@@ -3,6 +3,7 @@ import { createClerkClient } from "@clerk/backend";
 import { and, asc, desc, eq, inArray, isNotNull, ne, sql } from "drizzle-orm";
 import { env } from "../../config/env.js";
 import { PLATFORM_FEE_RATE } from "../../config/constants.js";
+import { logger } from "../../config/logger.js";
 import { stripe } from "../../config/stripe.js";
 import { db } from "../../database/client.js";
 import {
@@ -1038,6 +1039,28 @@ export const submitContractMilestone = async (
   return milestone;
 };
 
+const notAwaitingReview = () =>
+  new ApiError(409, "This milestone is not awaiting review.");
+
+const EARNING_MILESTONE_UNIQUE = "earning_history_milestone_id_unique";
+
+const isEarningMilestoneConflict = (error: unknown): boolean => {
+  for (
+    let current: unknown = error, depth = 0;
+    typeof current === "object" && current !== null && depth < 3;
+    current = (current as { cause?: unknown }).cause, depth += 1
+  ) {
+    const { code, constraint } = current as {
+      code?: unknown;
+      constraint?: unknown;
+    };
+    if (code === "23505" && constraint === EARNING_MILESTONE_UNIQUE) {
+      return true;
+    }
+  }
+  return false;
+};
+
 export const reviewContractMilestone = async (
   contractId: string,
   milestoneId: string,
@@ -1079,7 +1102,7 @@ export const reviewContractMilestone = async (
 
   if (!milestone) throw new ApiError(404, "Contract milestone not found.");
   if (milestone.milestoneStatus !== "ACTIVE" || !milestone.paymentRequestedAt) {
-    throw new ApiError(409, "This milestone is not awaiting review.");
+    throw notAwaitingReview();
   }
 
   const freelancerAccountId =
@@ -1096,145 +1119,168 @@ export const reviewContractMilestone = async (
     Math.round(grossAmount * PLATFORM_FEE_RATE * 100) / 100;
   const netAmount = Math.round((grossAmount - platformFeeAmount) * 100) / 100;
 
-  await db.transaction(async (transaction) => {
-    await transaction
-      .update(contract_milestones)
-      .set(
-        approved
-          ? { status: "COMPLETED", completed_at: now, updated_at: now }
-          : { payment_requested_at: null, updated_at: now },
-      )
-      .where(eq(contract_milestones.id, milestone.milestoneId));
+  await db
+    .transaction(async (transaction) => {
+      const [transitioned] = await transaction
+        .update(contract_milestones)
+        .set(
+          approved
+            ? { status: "COMPLETED", completed_at: now, updated_at: now }
+            : { payment_requested_at: null, updated_at: now },
+        )
+        .where(
+          and(
+            eq(contract_milestones.id, milestone.milestoneId),
+            eq(contract_milestones.status, "ACTIVE"),
+            isNotNull(contract_milestones.payment_requested_at),
+          ),
+        )
+        .returning({ id: contract_milestones.id });
+      if (!transitioned) throw notAwaitingReview();
 
-    if (approved) {
-      if (milestone.agencyId) {
+      if (approved) {
+        if (milestone.agencyId) {
+          await transaction
+            .insert(agency_earning)
+            .values({
+              agency_id: milestone.agencyId,
+              total_earning: netAmount.toFixed(2),
+            })
+            .onConflictDoUpdate({
+              target: agency_earning.agency_id,
+              set: {
+                total_earning: sql`${agency_earning.total_earning} + ${netAmount}`,
+                updated_at: now,
+              },
+            });
+        } else {
+          await transaction
+            .insert(freelancer_earning)
+            .values({
+              freelancer_id: freelancerAccountId,
+              total_earning: netAmount.toFixed(2),
+            })
+            .onConflictDoUpdate({
+              target: freelancer_earning.freelancer_id,
+              set: {
+                total_earning: sql`${freelancer_earning.total_earning} + ${netAmount}`,
+                updated_at: now,
+              },
+            });
+        }
         await transaction
-          .insert(agency_earning)
+          .insert(client_spents)
           .values({
-            agency_id: milestone.agencyId,
-            total_earning: netAmount.toFixed(2),
+            client_id: clientId,
+            total_spent: milestone.milestoneAmount,
           })
           .onConflictDoUpdate({
-            target: agency_earning.agency_id,
+            target: client_spents.client_id,
             set: {
-              total_earning: sql`${agency_earning.total_earning} + ${netAmount}`,
+              total_spent: sql`${client_spents.total_spent} + ${milestone.milestoneAmount}`,
               updated_at: now,
             },
           });
-      } else {
-        await transaction
-          .insert(freelancer_earning)
-          .values({
-            freelancer_id: freelancerAccountId,
-            total_earning: netAmount.toFixed(2),
-          })
-          .onConflictDoUpdate({
-            target: freelancer_earning.freelancer_id,
-            set: {
-              total_earning: sql`${freelancer_earning.total_earning} + ${netAmount}`,
-              updated_at: now,
-            },
-          });
+        await transaction.insert(earning_history).values({
+          freelancer_id: milestone.agencyId ? null : freelancerAccountId,
+          agency_id: milestone.agencyId ?? null,
+          contract_id: milestone.contractId,
+          milestone_id: milestone.milestoneId,
+          amount: grossAmount.toFixed(2),
+          platform_fee_amount: platformFeeAmount.toFixed(2),
+          description: `Milestone payment for "${milestone.milestoneTitle}"`,
+        });
       }
+
+      const reviewMessages = approved
+        ? [
+            {
+              conversation_id: milestone.conversationId,
+              sender_id: clientId,
+              message_type: "SYSTEM_EVENT" as const,
+              body: `The client accepted the work for “${milestone.milestoneTitle}”.`,
+              event_type: "MILESTONE_APPROVED",
+              event_payload: {
+                contractId: milestone.contractId,
+                milestoneId: milestone.milestoneId,
+                contractTitle: milestone.contractTitle,
+                milestoneTitle: milestone.milestoneTitle,
+                amount: Number(milestone.milestoneAmount),
+              },
+              created_at: now,
+            },
+          ]
+        : [
+            {
+              conversation_id: milestone.conversationId,
+              sender_id: clientId,
+              message_type: "SYSTEM_EVENT" as const,
+              body: `The client requested modifications for “${milestone.milestoneTitle}”.`,
+              event_type: "MILESTONE_CHANGES_REQUESTED",
+              event_payload: {
+                contractId: milestone.contractId,
+                milestoneId: milestone.milestoneId,
+                contractTitle: milestone.contractTitle,
+                milestoneTitle: milestone.milestoneTitle,
+                amount: Number(milestone.milestoneAmount),
+              },
+              created_at: now,
+            },
+            {
+              conversation_id: milestone.conversationId,
+              sender_id: clientId,
+              message_type: "USER" as const,
+              body: feedback!,
+              event_type: null,
+              event_payload: null,
+              created_at: new Date(now.getTime() + 1),
+            },
+          ];
+      const insertedMessages = await transaction
+        .insert(messages)
+        .values(reviewMessages)
+        .returning({ id: messages.id, createdAt: messages.created_at });
+      const message = insertedMessages.at(-1);
+      if (!message)
+        throw new ApiError(500, "Milestone review could not be sent.");
+
       await transaction
-        .insert(client_spents)
-        .values({
-          client_id: clientId,
-          total_spent: milestone.milestoneAmount,
+        .update(conversations)
+        .set({
+          last_message_id: message.id,
+          last_message_at: message.createdAt,
+          updated_at: now,
         })
-        .onConflictDoUpdate({
-          target: client_spents.client_id,
-          set: {
-            total_spent: sql`${client_spents.total_spent} + ${milestone.milestoneAmount}`,
-            updated_at: now,
+        .where(eq(conversations.id, milestone.conversationId));
+      await transaction
+        .update(conversation_participants)
+        .set({
+          unread_count: sql`${conversation_participants.unread_count} + ${insertedMessages.length}`,
+        })
+        .where(
+          and(
+            eq(
+              conversation_participants.conversation_id,
+              milestone.conversationId,
+            ),
+            participantMatch(freelancerAccountId, milestone.agencyId),
+          ),
+        );
+    })
+    .catch(async (error: unknown) => {
+      if (!isEarningMilestoneConflict(error)) throw error;
+      try {
+        await logger.warn({
+          message: "Milestone review conflicted with an existing earning",
+          eventName: "contracts.milestone.review_conflict",
+          attributes: {
+            "contract.id": milestone.contractId,
+            "milestone.id": milestone.milestoneId,
           },
         });
-      await transaction.insert(earning_history).values({
-        freelancer_id: milestone.agencyId ? null : freelancerAccountId,
-        agency_id: milestone.agencyId ?? null,
-        contract_id: milestone.contractId,
-        milestone_id: milestone.milestoneId,
-        amount: grossAmount.toFixed(2),
-        platform_fee_amount: platformFeeAmount.toFixed(2),
-        description: `Milestone payment for "${milestone.milestoneTitle}"`,
-      });
-    }
-
-    const reviewMessages = approved
-      ? [
-          {
-            conversation_id: milestone.conversationId,
-            sender_id: clientId,
-            message_type: "SYSTEM_EVENT" as const,
-            body: `The client accepted the work for “${milestone.milestoneTitle}”.`,
-            event_type: "MILESTONE_APPROVED",
-            event_payload: {
-              contractId: milestone.contractId,
-              milestoneId: milestone.milestoneId,
-              contractTitle: milestone.contractTitle,
-              milestoneTitle: milestone.milestoneTitle,
-              amount: Number(milestone.milestoneAmount),
-            },
-            created_at: now,
-          },
-        ]
-      : [
-          {
-            conversation_id: milestone.conversationId,
-            sender_id: clientId,
-            message_type: "SYSTEM_EVENT" as const,
-            body: `The client requested modifications for “${milestone.milestoneTitle}”.`,
-            event_type: "MILESTONE_CHANGES_REQUESTED",
-            event_payload: {
-              contractId: milestone.contractId,
-              milestoneId: milestone.milestoneId,
-              contractTitle: milestone.contractTitle,
-              milestoneTitle: milestone.milestoneTitle,
-              amount: Number(milestone.milestoneAmount),
-            },
-            created_at: now,
-          },
-          {
-            conversation_id: milestone.conversationId,
-            sender_id: clientId,
-            message_type: "USER" as const,
-            body: feedback!,
-            event_type: null,
-            event_payload: null,
-            created_at: new Date(now.getTime() + 1),
-          },
-        ];
-    const insertedMessages = await transaction
-      .insert(messages)
-      .values(reviewMessages)
-      .returning({ id: messages.id, createdAt: messages.created_at });
-    const message = insertedMessages.at(-1);
-    if (!message)
-      throw new ApiError(500, "Milestone review could not be sent.");
-
-    await transaction
-      .update(conversations)
-      .set({
-        last_message_id: message.id,
-        last_message_at: message.createdAt,
-        updated_at: now,
-      })
-      .where(eq(conversations.id, milestone.conversationId));
-    await transaction
-      .update(conversation_participants)
-      .set({
-        unread_count: sql`${conversation_participants.unread_count} + ${insertedMessages.length}`,
-      })
-      .where(
-        and(
-          eq(
-            conversation_participants.conversation_id,
-            milestone.conversationId,
-          ),
-          participantMatch(freelancerAccountId, milestone.agencyId),
-        ),
-      );
-  });
+      } catch {}
+      throw notAwaitingReview();
+    });
 
   return { ...milestone, approved, freelancerId: freelancerAccountId };
 };
