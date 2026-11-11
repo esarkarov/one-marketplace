@@ -1,6 +1,7 @@
 import { RequestHandler } from "express";
 import { asyncHandler } from "../../utils/async-handler.js";
 import { ApiError } from "../../utils/api-error.js";
+import { isValidEmail } from "../../utils/email.js";
 import { ApiResponse } from "../../types/common.types.js";
 import { requireText } from "../../config/constants.js";
 import {
@@ -652,7 +653,7 @@ export const inviteAgencyMemberHandler: RequestHandler = asyncHandler(
       request.body?.memberRole === "Business manager"
         ? "Business manager"
         : "Agency member";
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (!isValidEmail(email)) {
       throw new ApiError(400, "Enter a valid email address.");
     }
 
