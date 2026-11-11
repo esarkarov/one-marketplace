@@ -52,6 +52,7 @@ Workspace packages are scoped `@onemarketplace/<folder-name>`.
 - `pnpm infra:up` starts Postgres 18, Redis 8 and RabbitMQ 4.4.0 (management image) and waits for healthchecks. `infra:down` stops them, `infra:logs` follows logs, `infra:reset` also deletes volumes.
 - All services bind to `127.0.0.1` only. Ports default to 5432 (Postgres), 6379 (Redis), 5672 (RabbitMQ AMQP) and 15672 (RabbitMQ management UI).
 - Configuration is read from a root `.env` (gitignored). `.env.example` documents the variables; it still needs the API's variables. `RABBITMQ_URL` enables the broker and is optional.
+- With `NODE_ENV=production` the API refuses to start unless `CLERK_SECRET_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_CONNECTS_WEBHOOK_SECRET`, `STRIPE_IDENTITY_WEBHOOK_SECRET`, `ADMIN_DASHBOARD_PASSWORD` and `ADMIN_SESSION_SECRET` (at least 32 characters) are set and none contains `change-me`. CORS has no localhost fallback in production, so at least one of `CLIENT_DASHBOARD`, `FREELANCER_DASHBOARD`, `AGENCY_DASHBOARD` and `ADMIN_DASHBOARD` must be set, and every value set must be a valid http(s) URL; otherwise startup fails. Other environments keep these optional.
 - Compose requires the Postgres, Redis and RabbitMQ (`RABBITMQ_USER`, `RABBITMQ_PASSWORD`) credentials and fails if they are unset.
 - See `docs/decisions/0002-local-docker-postgres.md` and `docs/decisions/0004-rabbitmq-replaces-nats.md`.
 

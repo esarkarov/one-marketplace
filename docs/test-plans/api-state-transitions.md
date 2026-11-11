@@ -65,3 +65,39 @@ Not run: dropping the partial unique index (needs a DB change; the index is exer
 - Daily room cleanup after a lost `startMeeting` race (only logged as `task.meeting.room_orphaned`).
 - Real Daily and Stripe, several API processes, more than three parallel requests.
 - Frontend behavior on the new 409 codes (no app calls the API yet).
+
+## Stage 6b: invitation accept and createAgency (M9, ADR 0008)
+
+Test file: `modules/agency/agency.team.integration.test.ts` (real `_test` database, same race technique as above).
+
+| Scenario                                                                                           | Type               | Expected                                                          | Status                          |
+| -------------------------------------------------------------------------------------------------- | ------------------ | ----------------------------------------------------------------- | ------------------------------- |
+| Accept a PENDING invitation                                                                        | integration        | 200, member row inserted, status ACCEPTED                         | covered                         |
+| Accept or decline twice, or accept after cancel or decline                                         | integration        | second call 409 `INVITATION_ALREADY_HANDLED`, one member row      | covered                         |
+| Two parallel accepts of the same invitation                                                        | integration (race) | one 200, one 409, one member row                                  | covered                         |
+| Accept while the invitee already has a membership (23505 on `agency_members_freelancer_id_unique`) | integration        | 409 `ALREADY_IN_AGENCY`, invitation status rolled back to PENDING | covered                         |
+| `createAgency` when already a member or owner                                                      | integration        | 409 `ALREADY_IN_AGENCY`                                           | covered                         |
+| `createAgency` lost race on the owner constraint (23505 on `agency_metadata_owner_id_unique`)      | integration (race) | one 201, one 409 `ALREADY_IN_AGENCY`, never 500                   | covered                         |
+| `createAgency` lost race on the member constraint                                                  | integration (race) | same 409                                                          | covered                         |
+| Resend within 60 s (guarded `UPDATE` on `updated_at`)                                              | integration        | 429 `INVITATION_RESEND_COOLDOWN`                                  | covered                         |
+| Two simultaneous identical invites                                                                 | integration        | both can succeed (no unique pending index)                        | not covered, needs `/db-change` |
+
+### Mutation checks (Stage 6b)
+
+| Mutation                                                                                        | Result                                                           |
+| ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| H1 cover image and avatar accept `imageId` or arbitrary url, freelancer and agency (4 variants) | caught                                                           |
+| M1 `isAuthenticated` no longer 403 without an account                                           | caught                                                           |
+| M1 socket handshake accepts a missing account                                                   | caught                                                           |
+| M9 accept guard (`WHERE status = 'PENDING'`) removed                                            | caught                                                           |
+| M9 `createAgency` 23505 owner mapping removed                                                   | caught                                                           |
+| M9 `createAgency` 23505 member mapping removed                                                  | caught                                                           |
+| M9 accept 23505 mapping removed                                                                 | caught                                                           |
+| M10 `submitProposal` self-dealing check removed                                                 | caught                                                           |
+| M10 `submitAgencyProposal` team check removed                                                   | caught                                                           |
+| M10 `createConversation` direct self recipient check removed                                    | caught                                                           |
+| M10 `createConversation` proposal freelancer counterpart check removed                          | caught                                                           |
+| M10 `createConversation` proposal agency counterpart check removed                              | caught                                                           |
+| M9 `createAgency` sequential pre-check removed alone                                            | equivalent mutant: same 409 through the 23505 mapping, not a gap |
+
+`resolveAccountRole` 403 was already covered by an existing test in `large-body-auth.test.ts`, so it needed no new mutation.
