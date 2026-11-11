@@ -21,7 +21,9 @@ import {
 } from "./freelancer.controller.js";
 
 import { validate } from "../../middleware/validate.middleware.js";
+import { authRoleShape } from "../../utils/common-schemas.js";
 import {
+  idParamsSchema,
   jobFeedQuerySchema,
   talentSearchQuerySchema,
   upsertProfileBodySchema,
@@ -31,41 +33,54 @@ export const freelancerRouter = Router();
 
 const profileWriteLimiter = contentWriteLimiter();
 
-freelancerRouter.get("/profile", isAuthenticated, getLoggedInFreelancerProfile);
+freelancerRouter.get(
+  "/profile",
+  isAuthenticated,
+  validate({ query: authRoleShape }),
+  getLoggedInFreelancerProfile,
+);
 freelancerRouter.get(
   "/search",
   publicSearchLimiter,
   validate({ query: talentSearchQuerySchema }),
   searchPublicFreelancersHandler,
 );
-freelancerRouter.get("/profile/:id", getPublicFreelancer);
+freelancerRouter.get(
+  "/profile/:id",
+  validate({ params: idParamsSchema, query: {} }),
+  getPublicFreelancer,
+);
 freelancerRouter.put(
   "/profile",
   verifyBearerToken,
   profileWriteLimiter,
   largeJsonBody,
   resolveAccountRole,
-  validate({ body: upsertProfileBodySchema }),
+  validate({ body: upsertProfileBodySchema, query: authRoleShape }),
   upsertFreelanceProfile,
 );
 freelancerRouter.get(
   "/earnings/summary",
   isAuthenticated,
+  validate({ query: authRoleShape }),
   getFreelancerEarningsSummary,
 );
 freelancerRouter.get(
   "/earnings/overview",
   isAuthenticated,
+  validate({ query: authRoleShape }),
   getFreelancerEarningsOverviewHandler,
 );
 freelancerRouter.get(
   "/earnings/certificate",
   isAuthenticated,
+  validate({ query: authRoleShape }),
   getFreelancerEarningsCertificate,
 );
 freelancerRouter.get(
   "/payouts/connect-link",
   isAuthenticated,
+  validate({ query: authRoleShape }),
   getFreelancerPayoutManagementLink,
 );
 freelancerRouter.get(
@@ -74,4 +89,9 @@ freelancerRouter.get(
   validate({ query: jobFeedQuerySchema }),
   getFreelancerJobFeed,
 );
-freelancerRouter.get("/jobs/:id", isAuthenticated, getFreelancerJobDetails);
+freelancerRouter.get(
+  "/jobs/:id",
+  isAuthenticated,
+  validate({ params: idParamsSchema, query: authRoleShape }),
+  getFreelancerJobDetails,
+);

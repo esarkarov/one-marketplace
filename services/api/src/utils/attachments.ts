@@ -18,8 +18,8 @@ const DOCX_TYPE =
 
 export type AllowedAttachmentType = (typeof ALLOWED_ATTACHMENT_TYPES)[number];
 
-const MAX_ENCODED_LENGTH = Math.ceil(MAX_ATTACHMENT_BYTES / 3) * 4;
-const MAX_DATA_URL_HEADER_LENGTH = 512;
+export const MAX_ENCODED_LENGTH = Math.ceil(MAX_ATTACHMENT_BYTES / 3) * 4;
+export const MAX_DATA_URL_HEADER_LENGTH = 512;
 const DATA_URL_PATTERN = /^data:([^;,]+);base64,([A-Za-z0-9+/]+={0,2})$/;
 const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 const EXECUTABLE_SIGNATURES = [

@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { SERVICE_NAME } from "../config/constants.js";
+import { validate } from "../middleware/validate.middleware.js";
 import { ApiResponse } from "../types/common.types.js";
 import { errorLogAttributes } from "../utils/sanitize-log.js";
 import { agencyRouter } from "../modules/agency/agency.route.js";
@@ -33,7 +34,7 @@ apiRouter.use("/agency", agencyRouter);
 apiRouter.use("/meetings", meetingsRouter);
 apiRouter.use("/admin", adminRouter);
 
-apiRouter.get("/health", (_request, response) => {
+apiRouter.get("/health", validate({ query: {} }), (_request, response) => {
   const body: ApiResponse<{
     service: string;
     status: "healthy";
@@ -51,7 +52,7 @@ apiRouter.get("/health", (_request, response) => {
   response.status(200).json(body);
 });
 
-apiRouter.get("/ready", async (request, response) => {
+apiRouter.get("/ready", validate({ query: {} }), async (request, response) => {
   const failures: {
     check: string;
     attributes: ReturnType<typeof errorLogAttributes>;

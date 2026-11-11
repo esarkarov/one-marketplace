@@ -21,6 +21,11 @@ app.get("/boom", () => {
 app.get("/bad", () => {
   throw new ApiError(400, "visible message");
 });
+app.get("/coded", () => {
+  throw new ApiError(400, "bad field", "VALIDATION_ERROR", [
+    { path: "body.title", message: "bad field" },
+  ]);
+});
 app.get("/stripe", () => {
   throw Object.assign(
     new Error(`No such customer: cus_123 ${fakeStripeKey("test", "abc")}`),
@@ -84,6 +89,18 @@ describe("error handler", () => {
     expect(response.body.message).toBe("Internal server error.");
     expect(response.body.requestId).toEqual(expect.any(String));
     expect(response.text).not.toContain("secret internal detail");
+  });
+
+  it("emits code and errors from an ApiError on 4xx", async () => {
+    const response = await request(app).get("/coded");
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      success: false,
+      message: "bad field",
+      code: "VALIDATION_ERROR",
+      errors: [{ path: "body.title", message: "bad field" }],
+    });
   });
 
   it("keeps the message on 4xx", async () => {

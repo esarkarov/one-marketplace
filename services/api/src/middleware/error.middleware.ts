@@ -85,9 +85,12 @@ export const errorHandler: ErrorRequestHandler = (
 
   const code = error instanceof ApiError ? error.code : undefined;
 
+  const errors = error instanceof ApiError ? error.details : undefined;
+
   response.status(statusCode).json({
     success: false,
     message,
     ...(code ? { code } : {}),
-  } satisfies ApiResponse<never> & { code?: string });
+    ...(errors ? { errors } : {}),
+  } satisfies ApiResponse<never> & { code?: string; errors?: unknown });
 };

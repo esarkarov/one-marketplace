@@ -44,11 +44,7 @@ export const getLoggedInFreelancerConnectsHistory: RequestHandler =
 export const buyConnects: RequestHandler = asyncHandler(
   async (request, response) => {
     const auth = requireFreelancer(request);
-    const purchasedConnects = Number(request.body?.connects) as ConnectsPlan;
-
-    if (!(purchasedConnects in CONNECTS_PLANS)) {
-      throw new ApiError(400, "Select a valid Connects package.");
-    }
+    const purchasedConnects = request.body.connects as ConnectsPlan;
 
     const url = await createConnectsCheckout(auth.userId, purchasedConnects);
     response.status(200).json({

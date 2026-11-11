@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  emptyQuerySchema,
   jobBodySchema,
   jobIdParamsSchema,
   publicJobFeedQuerySchema,
@@ -12,16 +11,19 @@ const message = (result: {
 }) => result.error?.issues[0]?.message;
 
 describe("jobBodySchema", () => {
-  it("keeps allowlisted fields and strips unknown keys", () => {
+  it("keeps allowlisted fields and strips only the ignored keys", () => {
     const result = jobBodySchema.parse({
+      id: "x",
+      imageId: "y",
+      createdAt: "z",
+      updatedAt: "w",
       role: "client",
-      client_id: "x",
       title: "T",
       description: "D",
       expertise_level: "Expert",
       expected_duration: "1 month",
       status: "DRAFT",
-      skills: ["a", 2],
+      skills: ["a", "b"],
       screening_questions: ["q"],
       milestones: [
         {
@@ -29,7 +31,6 @@ describe("jobBodySchema", () => {
           title: "M",
           budgetCents: 1000,
           dueDate: "2030-01-01",
-          extra: 1,
         },
       ],
       attachments: [
@@ -39,14 +40,13 @@ describe("jobBodySchema", () => {
           fileUrl: "u",
           fileType: "text/plain",
           fileSize: 3,
-          extra: 1,
         },
       ],
-      isAdmin: true,
     });
 
     expect(Object.keys(result).sort()).toEqual(
       [
+        "role",
         "title",
         "description",
         "expertise_level",
@@ -58,20 +58,20 @@ describe("jobBodySchema", () => {
         "attachments",
       ].sort(),
     );
-    expect(result.milestones?.[0]).toEqual({
-      id: "m",
-      title: "M",
-      budgetCents: 1000,
-      dueDate: "2030-01-01",
-    });
-    expect(result.attachments?.[0]).not.toHaveProperty("extra");
+  });
+
+  it.each([
+    [{ client_id: "x" }],
+    [{ isAdmin: true }],
+    [{ milestones: [{ budgetCents: 1000, extra: 1 }] }],
+    [{ attachments: [{ fileName: "a", extra: 1 }] }],
+  ])("rejects unknown keys in %j", (body) => {
+    expect(jobBodySchema.safeParse(body).success).toBe(false);
   });
 
   it("rejects non-object bodies", () => {
     for (const value of [undefined, null, "x", 5, []]) {
-      const result = jobBodySchema.safeParse(value);
-      expect(result.success).toBe(false);
-      expect(message(result)).toBe("Request body must be an object.");
+      expect(jobBodySchema.safeParse(value).success).toBe(false);
     }
   });
 
@@ -88,23 +88,31 @@ describe("jobBodySchema", () => {
     expect(message(result)).toBe(expected);
   });
 
-  it("lets conditions the controller answers pass through", () => {
-    const result = jobBodySchema.safeParse({
-      title: 5,
-      description: null,
-      skills: null,
-      milestones: [{ title: 1, budgetCents: 1000, dueDate: {} }],
-      attachments: [{ fileType: 1 }],
-    });
+  it.each([
+    [{ title: 5 }],
+    [{ description: null }],
+    [{ skills: ["a", 2] }],
+    [{ milestones: [{ title: 1, budgetCents: 1000 }] }],
+    [{ attachments: [{ fileSize: "3" }] }],
+  ])("rejects wrong types in %j", (body) => {
+    expect(jobBodySchema.safeParse(body).success).toBe(false);
+  });
 
-    expect(result.success).toBe(true);
-    expect(result.data?.title).toBeUndefined();
-    expect(result.data?.milestones?.[0]).toEqual({
-      id: undefined,
-      title: undefined,
-      budgetCents: 1000,
-      dueDate: undefined,
+  it("accepts a long document mime type", () => {
+    const fileType =
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    expect(
+      jobBodySchema.safeParse({
+        attachments: [{ fileName: "a.docx", fileType }],
+      }).success,
+    ).toBe(true);
+  });
+
+  it("rejects too many attachments with the controller message", () => {
+    const result = jobBodySchema.safeParse({
+      attachments: Array.from({ length: 6 }, () => ({ fileName: "a.pdf" })),
     });
+    expect(message(result)).toBe("A job post can have up to 5 attachments.");
   });
 
   it.each([
@@ -138,21 +146,25 @@ describe("jobBodySchema", () => {
 });
 
 describe("jobIdParamsSchema", () => {
-  it("accepts a uuid and strips extra keys", () => {
+  it("accepts a uuid", () => {
     const id = "123e4567-e89b-42d3-a456-426614174000";
-    expect(jobIdParamsSchema.parse({ jobId: id, other: "x" })).toEqual({
-      jobId: id,
-    });
+    expect(jobIdParamsSchema.parse({ jobId: id })).toEqual({ jobId: id });
   });
 
-  it("rejects a malformed id", () => {
+  it("rejects a malformed id and unknown params", () => {
     const result = jobIdParamsSchema.safeParse({ jobId: "nope" });
     expect(message(result)).toBe("Job post id is invalid.");
+    expect(
+      jobIdParamsSchema.safeParse({
+        jobId: "123e4567-e89b-42d3-a456-426614174000",
+        other: "x",
+      }).success,
+    ).toBe(false);
   });
 });
 
 describe("publicJobFeedQuerySchema", () => {
-  it("keeps only the keys the controller reads", () => {
+  it("parses the keys the controller reads", () => {
     expect(
       publicJobFeedQuerySchema.parse({
         query: "a",
@@ -163,8 +175,6 @@ describe("publicJobFeedQuerySchema", () => {
         minBudgetCents: "100",
         maxBudgetCents: "900",
         maxProposals: "3",
-        role: "client",
-        other: "z",
       }),
     ).toEqual({
       query: "a",
@@ -190,18 +200,50 @@ describe("publicJobFeedQuerySchema", () => {
     },
   );
 
-  it("ignores non-string values like the controller does", () => {
-    const result = publicJobFeedQuerySchema.parse({
-      sort: ["x"],
-      query: { a: "b" },
-    });
-    expect(result.sort).toBeUndefined();
-    expect(result.query).toBeUndefined();
+  it.each([
+    [{ other: "z" }],
+    [{ role: "client" }],
+    [{ sort: ["x"] }],
+    [{ query: { a: "b" } }],
+    [{ offset: "abc" }],
+    [{ maxProposals: "-1" }],
+    [{ paymentVerified: "yes" }],
+  ])("rejects %j", (query) => {
+    expect(publicJobFeedQuerySchema.safeParse(query).success).toBe(false);
   });
 });
 
-describe("emptyQuerySchema", () => {
-  it("strips every key", () => {
-    expect(emptyQuerySchema.parse({ role: "client", a: "b" })).toEqual({});
+describe("jobBodySchema previously accepted nulls", () => {
+  it("accepts a numeric or null milestone id", () => {
+    for (const id of [7, null, "abc"]) {
+      const result = jobBodySchema.safeParse({
+        milestones: [{ id, budgetCents: 1000 }],
+      });
+      expect(result.success).toBe(true);
+    }
+  });
+
+  it("rejects a boolean milestone id", () => {
+    expect(
+      jobBodySchema.safeParse({
+        milestones: [{ id: true, budgetCents: 1000 }],
+      }).success,
+    ).toBe(false);
+  });
+
+  it("accepts null attachments, screening questions, status and attachment extras", () => {
+    expect(
+      jobBodySchema.safeParse({
+        attachments: null,
+        screening_questions: null,
+        skills: null,
+        status: null,
+      }).success,
+    ).toBe(true);
+    expect(
+      jobBodySchema.safeParse({
+        attachments: [{ fileId: null, fileSize: null }],
+      }).success,
+    ).toBe(true);
   });
 });

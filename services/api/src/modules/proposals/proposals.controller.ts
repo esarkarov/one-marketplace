@@ -1,8 +1,10 @@
 import { RequestHandler } from "express";
+import type { z } from "zod";
 import { asyncHandler } from "../../utils/async-handler.js";
 import { requireFreelancer } from "../freelancer/freelancer.controller.js";
 import { requireText } from "../../config/constants.js";
 import { ApiError } from "../../utils/api-error.js";
+import type { submitProposalBodySchema } from "../../utils/money-schemas.js";
 import {
   getFreelancerProposalMetadata,
   getFreelancerProposals,
@@ -25,22 +27,14 @@ export const requireClient = (request: Parameters<RequestHandler>[0]) => {
 export const createProposal: RequestHandler = asyncHandler(
   async (request, response) => {
     const auth = requireFreelancer(request);
-    const coverLetter = requireText(request.body?.coverLetter, "Cover letter");
-    const bidAmountCents = request.body.bidAmountCents as number;
-    const screeningAnswers = Array.isArray(request.body?.screeningAnswers)
-      ? request.body.screeningAnswers.map((answer: unknown) =>
-          typeof answer === "string" ? answer.trim() : "",
-        )
-      : [];
-    if (coverLetter.length < 80)
-      throw new ApiError(400, "Cover letter must be at least 80 characters.");
+    const body = request.body as z.infer<typeof submitProposalBodySchema>;
 
     const result = await submitProposal(auth.userId, {
-      jobId: requireText(request.body?.jobId, "Job post"),
-      coverLetter,
-      bidAmountCents,
-      duration: requireText(request.body?.duration, "Delivery duration"),
-      screeningAnswers,
+      jobId: body.jobId,
+      coverLetter: body.coverLetter,
+      bidAmountCents: body.bidAmountCents,
+      duration: body.duration,
+      screeningAnswers: body.screeningAnswers ?? [],
     });
 
     response.status(201).json({
@@ -138,13 +132,7 @@ export const interviewProposal: RequestHandler = asyncHandler(
       throw new ApiError(403, "A client account is required.");
     }
 
-    const message = requireText(request.body?.message, "Interview message");
-    if (message.length > 5_000) {
-      throw new ApiError(
-        400,
-        "Interview message cannot exceed 5,000 characters.",
-      );
-    }
+    const message = request.body.message as string;
 
     const result = await startProposalInterview(
       requireText(request.params.proposalId, "Proposal"),

@@ -21,18 +21,6 @@ const requestedScope = (value: unknown): Scope =>
 const resolveScopeAgencyId = async (userId: string, scope: Scope) =>
   scope === "agency" ? getAgencyIdForMember(userId) : null;
 
-const requireNotificationId = (value: unknown) => {
-  if (
-    typeof value !== "string" ||
-    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-      value,
-    )
-  ) {
-    throw new ApiError(400, "Notification is invalid.");
-  }
-  return value;
-};
-
 export const listNotifications: RequestHandler = asyncHandler(
   async (request, response) => {
     const scope = requestedScope(request.query.scope);
@@ -73,7 +61,7 @@ export const markNotificationRead: RequestHandler = asyncHandler(
     const agencyId = await getAgencyIdForMember(userId);
     const [notification] = await readNotification(
       userId,
-      requireNotificationId(request.params.notificationId),
+      request.params.notificationId as string,
       agencyId,
     );
     if (!notification) throw new ApiError(404, "Notification not found.");

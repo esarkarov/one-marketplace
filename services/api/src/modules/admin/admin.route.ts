@@ -14,6 +14,11 @@ import {
   streamLogsHandler,
 } from "./admin.controller.js";
 import { validate } from "../../middleware/validate.middleware.js";
+import {
+  adminListQuerySchema,
+  adminLogStreamQuerySchema,
+  adminLoginBodySchema,
+} from "./admin.schemas.js";
 import { redisKeyParamsSchema, redisScanQuerySchema } from "./admin-redis.js";
 import {
   requireAdminSession,
@@ -26,23 +31,57 @@ import {
 
 export const adminRouter = Router();
 
-adminRouter.post("/auth/login", adminLoginLimiter, loginAdminHandler);
+adminRouter.post(
+  "/auth/login",
+  adminLoginLimiter,
+  validate({ body: adminLoginBodySchema, query: {} }),
+  loginAdminHandler,
+);
 
 adminRouter.use(adminLimiter);
 adminRouter.get(
   "/logs/stream",
   requireAdminSessionAllowingQueryToken,
+  validate({ query: adminLogStreamQuerySchema }),
   streamLogsHandler,
 );
 adminRouter.use(requireAdminSession);
-adminRouter.get("/overview", getOverviewHandler);
-adminRouter.get("/overview/activity", getOverviewActivityHandler);
-adminRouter.get("/accounts", getAccountsHandler);
-adminRouter.get("/job-posts", getJobPostsHandler);
-adminRouter.get("/proposals", getProposalsHandler);
-adminRouter.get("/contracts", getContractsHandler);
-adminRouter.get("/transactions", getTransactionsHandler);
-adminRouter.get("/system/health", getSystemHealthHandler);
+adminRouter.get("/overview", validate({ query: {} }), getOverviewHandler);
+adminRouter.get(
+  "/overview/activity",
+  validate({ query: adminListQuerySchema }),
+  getOverviewActivityHandler,
+);
+adminRouter.get(
+  "/accounts",
+  validate({ query: adminListQuerySchema }),
+  getAccountsHandler,
+);
+adminRouter.get(
+  "/job-posts",
+  validate({ query: adminListQuerySchema }),
+  getJobPostsHandler,
+);
+adminRouter.get(
+  "/proposals",
+  validate({ query: adminListQuerySchema }),
+  getProposalsHandler,
+);
+adminRouter.get(
+  "/contracts",
+  validate({ query: adminListQuerySchema }),
+  getContractsHandler,
+);
+adminRouter.get(
+  "/transactions",
+  validate({ query: adminListQuerySchema }),
+  getTransactionsHandler,
+);
+adminRouter.get(
+  "/system/health",
+  validate({ query: {} }),
+  getSystemHealthHandler,
+);
 adminRouter.get(
   "/system/redis/keys",
   validate({ query: redisScanQuerySchema }),
@@ -50,6 +89,6 @@ adminRouter.get(
 );
 adminRouter.get(
   "/system/redis/keys/:key",
-  validate({ params: redisKeyParamsSchema }),
+  validate({ params: redisKeyParamsSchema, query: {} }),
   getRedisKeyHandler,
 );

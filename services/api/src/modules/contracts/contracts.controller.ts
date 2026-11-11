@@ -4,7 +4,6 @@ import { stripe } from "../../config/stripe.js";
 import { ApiResponse } from "../../types/common.types.js";
 import { ApiError } from "../../utils/api-error.js";
 import { asyncHandler } from "../../utils/async-handler.js";
-import { moneyCents } from "../../utils/money.js";
 import { requireClient } from "../proposals/proposals.controller.js";
 import { requireFreelancer } from "../freelancer/freelancer.controller.js";
 import {
@@ -26,28 +25,12 @@ import {
 import { sendNotification } from "../../events/publisher.js";
 import { emitConversationUpdate } from "../messaging/messaging.socket.js";
 
-const MIN_MILESTONE_CENTS = 1000;
-
-const milestoneAmountCents = moneyCents.min(MIN_MILESTONE_CENTS);
-
-const requireUuid = (value: unknown, label: string) => {
-  if (
-    typeof value !== "string" ||
-    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-      value,
-    )
-  ) {
-    throw new ApiError(400, `${label} is invalid.`);
-  }
-  return value;
-};
-
 export const startContractCheckout: RequestHandler = asyncHandler(
   async (request, response) => {
     const auth = requireClient(request);
     const url = await createContractCheckout(
       auth.userId,
-      requireUuid(request.body?.proposalId, "Proposal"),
+      request.body.proposalId as string,
     );
 
     response.status(200).json({
@@ -62,16 +45,11 @@ export const startMilestoneFundingCheckout: RequestHandler = asyncHandler(
   async (request, response) => {
     const auth = requireClient(request);
     const requirements =
-      typeof request.body?.requirements === "string"
-        ? request.body.requirements.trim()
-        : "";
-    if (requirements.length > 500) {
-      throw new ApiError(400, "Milestone requirements are too long.");
-    }
+      (request.body.requirements as string | undefined) ?? "";
     const url = await createMilestoneFundingCheckout(
       auth.userId,
-      requireUuid(request.params.contractId, "Contract"),
-      requireUuid(request.params.milestoneId, "Milestone"),
+      request.params.contractId as string,
+      request.params.milestoneId as string,
       requirements || undefined,
     );
     response.status(200).json({
@@ -127,7 +105,7 @@ export const acceptContractOffer: RequestHandler = asyncHandler(
       throw new ApiError(403, "No agency account found.");
     }
     const contract = await acceptContract(
-      requireUuid(request.params.contractId, "Contract"),
+      request.params.contractId as string,
       auth.userId,
       agencyId,
     );
@@ -182,21 +160,9 @@ export const submitMilestoneWork: RequestHandler = asyncHandler(
     if (scope === "agency" && !agencyId) {
       throw new ApiError(403, "No agency account found.");
     }
-    const submissionMessage =
-      typeof request.body?.submissionMessage === "string"
-        ? request.body.submissionMessage.trim()
-        : "";
-    if (submissionMessage.length < 10) {
-      throw new ApiError(
-        400,
-        "Submission message must be at least 10 characters.",
-      );
-    }
-
+    const submissionMessage = request.body.submissionMessage as string;
     const rawLink =
-      typeof request.body?.submissionDeliveryLink === "string"
-        ? request.body.submissionDeliveryLink.trim()
-        : "";
+      (request.body.submissionDeliveryLink as string | undefined) ?? "";
     if (rawLink) {
       try {
         const url = new URL(rawLink);
@@ -207,8 +173,8 @@ export const submitMilestoneWork: RequestHandler = asyncHandler(
     }
 
     const milestone = await submitContractMilestone(
-      requireUuid(request.params.contractId, "Contract"),
-      requireUuid(request.params.milestoneId, "Milestone"),
+      request.params.contractId as string,
+      request.params.milestoneId as string,
       auth.userId,
       submissionMessage,
       rawLink || undefined,
@@ -242,20 +208,14 @@ export const submitMilestoneWork: RequestHandler = asyncHandler(
 export const reviewMilestoneWork: RequestHandler = asyncHandler(
   async (request, response) => {
     const auth = requireClient(request);
-    const action = request.body?.action;
-    if (action !== "APPROVE" && action !== "REQUEST_CHANGES") {
-      throw new ApiError(400, "Milestone review action is invalid.");
-    }
-    const feedback =
-      typeof request.body?.feedback === "string"
-        ? request.body.feedback.trim()
-        : "";
+    const action = request.body.action as "APPROVE" | "REQUEST_CHANGES";
+    const feedback = (request.body.feedback as string | undefined) ?? "";
     if (action === "REQUEST_CHANGES" && !feedback) {
       throw new ApiError(400, "Modification message is required.");
     }
     const milestone = await reviewContractMilestone(
-      requireUuid(request.params.contractId, "Contract"),
-      requireUuid(request.params.milestoneId, "Milestone"),
+      request.params.contractId as string,
+      request.params.milestoneId as string,
       auth.userId,
       action,
       feedback || undefined,
@@ -313,26 +273,9 @@ export const reviewMilestoneWork: RequestHandler = asyncHandler(
 export const createAdditionalMilestone: RequestHandler = asyncHandler(
   async (request, response) => {
     const auth = requireClient(request);
-    const title =
-      typeof request.body?.title === "string" ? request.body.title.trim() : "";
-    const amount = milestoneAmountCents.safeParse(request.body?.amountCents);
-    const dueDate =
-      typeof request.body?.dueDate === "string" ? request.body.dueDate : "";
-    if (title.length < 3 || title.length > 120) {
-      throw new ApiError(400, "Milestone title must be 3–120 characters.");
-    }
-    if (!amount.success) {
-      throw new ApiError(
-        400,
-        "Milestone amount must be at least $10, in whole cents.",
-      );
-    }
-    if (
-      !/^\d{4}-\d{2}-\d{2}$/.test(dueDate) ||
-      Number.isNaN(Date.parse(dueDate))
-    ) {
-      throw new ApiError(400, "Milestone due date is invalid.");
-    }
+    const title = request.body.title as string;
+    const amountCents = request.body.amountCents as number;
+    const dueDate = request.body.dueDate as string;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     if (new Date(`${dueDate}T00:00:00`) < today) {
@@ -343,9 +286,9 @@ export const createAdditionalMilestone: RequestHandler = asyncHandler(
     }
 
     const milestone = await addContractMilestone(
-      requireUuid(request.params.contractId, "Contract"),
+      request.params.contractId as string,
       auth.userId,
-      { title, amountCents: amount.data, dueDate },
+      { title, amountCents, dueDate },
     );
     response.status(201).json({
       success: true,
@@ -362,17 +305,8 @@ export const finishContract: RequestHandler = asyncHandler(
     if (role !== "client" && role !== "freelancer") {
       throw new ApiError(403, "A marketplace account is required.");
     }
-    const rating = Number(request.body?.rating);
-    const comment =
-      typeof request.body?.comment === "string"
-        ? request.body.comment.trim()
-        : "";
-    if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
-      throw new ApiError(400, "Rating must be between 1 and 5.");
-    }
-    if (comment.length < 10 || comment.length > 1000) {
-      throw new ApiError(400, "Review must be 10–1000 characters.");
-    }
+    const rating = request.body.rating as number;
+    const comment = request.body.comment as string;
 
     const scope =
       role === "freelancer" && request.query.scope === "agency"
@@ -392,7 +326,7 @@ export const finishContract: RequestHandler = asyncHandler(
     }
 
     const contract = await finishContractWithReview(
-      requireUuid(request.params.contractId, "Contract"),
+      request.params.contractId as string,
       request.auth.userId,
       role,
       rating,

@@ -9,24 +9,51 @@ import {
   interviewProposal,
   updateProposalStatus,
 } from "./proposals.controller.js";
+import {
+  interviewProposalBodySchema,
+  listProposalsQuerySchema,
+  proposalIdParamsSchema,
+  roleOnlyQuerySchema,
+  updateProposalStatusBodySchema,
+} from "./proposals.schemas.js";
 
 export const proposalRouter = Router();
 
-proposalRouter.get("/", isAuthenticated, getProposals);
-proposalRouter.get("/metadata", isAuthenticated, getProposalMetadata);
+proposalRouter.get(
+  "/",
+  isAuthenticated,
+  validate({ query: listProposalsQuerySchema }),
+  getProposals,
+);
+proposalRouter.get(
+  "/metadata",
+  isAuthenticated,
+  validate({ query: roleOnlyQuerySchema }),
+  getProposalMetadata,
+);
 proposalRouter.post(
   "/",
   isAuthenticated,
-  validate({ body: submitProposalBodySchema }),
+  validate({ query: roleOnlyQuerySchema, body: submitProposalBodySchema }),
   createProposal,
 );
 proposalRouter.patch(
   "/:proposalId/status",
   isAuthenticated,
+  validate({
+    params: proposalIdParamsSchema,
+    query: roleOnlyQuerySchema,
+    body: updateProposalStatusBodySchema,
+  }),
   updateProposalStatus,
 );
 proposalRouter.post(
   "/:proposalId/interview",
   isAuthenticated,
+  validate({
+    params: proposalIdParamsSchema,
+    query: roleOnlyQuerySchema,
+    body: interviewProposalBodySchema,
+  }),
   interviewProposal,
 );

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ADMIN_LIMITS } from "../../utils/validation-limits.js";
 
 export const REDIS_ALLOWED_PREFIXES = [
   "account:auth:",
@@ -9,22 +10,20 @@ export const REDIS_ALLOWED_PREFIXES = [
 export const REDIS_REDACTED_PREFIX = "account:auth:";
 export const REDIS_REDACTED_VALUE = "[REDACTED]";
 
-const MAX_PATTERN_LENGTH = 64;
-const MAX_KEY_LENGTH = 128;
 const PATTERN_CHARS = /^[A-Za-z0-9:_*?-]+$/;
 const KEY_CHARS = /^[A-Za-z0-9:_-]+$/;
 
 export const isAllowedRedisKey = (key: string): boolean =>
   REDIS_ALLOWED_PREFIXES.some((prefix) => key.startsWith(prefix));
 
-export const redisScanQuerySchema = z.object({
+export const redisScanQuerySchema = z.strictObject({
   pattern: z
     .string()
-    .max(MAX_PATTERN_LENGTH)
+    .max(ADMIN_LIMITS.redisPattern)
     .regex(PATTERN_CHARS)
     .refine(isAllowedRedisKey),
 });
 
-export const redisKeyParamsSchema = z.object({
-  key: z.string().min(1).max(MAX_KEY_LENGTH).regex(KEY_CHARS),
+export const redisKeyParamsSchema = z.strictObject({
+  key: z.string().min(1).max(ADMIN_LIMITS.redisKey).regex(KEY_CHARS),
 });

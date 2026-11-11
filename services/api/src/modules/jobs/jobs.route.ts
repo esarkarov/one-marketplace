@@ -7,6 +7,7 @@ import {
 import { largeJsonBody } from "../../middleware/json-body.middleware.js";
 import { contentWriteLimiter } from "../../middleware/user-rate-limit.middleware.js";
 import { validate } from "../../middleware/validate.middleware.js";
+import { authRoleShape } from "../../utils/common-schemas.js";
 import {
   createClientJobPost,
   editClientJobPost,
@@ -18,7 +19,6 @@ import {
   unsaveFreelancerJobPost,
 } from "./jobs.controller.js";
 import {
-  emptyQuerySchema,
   jobBodySchema,
   jobIdParamsSchema,
   publicJobFeedQuerySchema,
@@ -35,13 +35,13 @@ jobRouter.post(
   createJobLimiter,
   largeJsonBody,
   resolveAccountRole,
-  validate({ body: jobBodySchema, query: emptyQuerySchema }),
+  validate({ body: jobBodySchema, query: authRoleShape }),
   createClientJobPost,
 );
 jobRouter.get(
   "/",
   isAuthenticated,
-  validate({ query: emptyQuerySchema }),
+  validate({ query: authRoleShape }),
   getClientJobPosts,
 );
 jobRouter.get(
@@ -52,25 +52,25 @@ jobRouter.get(
 jobRouter.get(
   "/saved",
   isAuthenticated,
-  validate({ query: emptyQuerySchema }),
+  validate({ query: authRoleShape }),
   getFreelancerSavedJobPosts,
 );
 jobRouter.post(
   "/saved/:jobId",
   isAuthenticated,
-  validate({ params: jobIdParamsSchema, query: emptyQuerySchema }),
+  validate({ params: jobIdParamsSchema, query: authRoleShape }),
   saveFreelancerJobPost,
 );
 jobRouter.delete(
   "/saved/:jobId",
   isAuthenticated,
-  validate({ params: jobIdParamsSchema, query: emptyQuerySchema }),
+  validate({ params: jobIdParamsSchema, query: authRoleShape }),
   unsaveFreelancerJobPost,
 );
 jobRouter.get(
   "/:jobId",
   isAuthenticated,
-  validate({ params: jobIdParamsSchema, query: emptyQuerySchema }),
+  validate({ params: jobIdParamsSchema, query: authRoleShape }),
   getClientJobPosts,
 );
 jobRouter.put(
@@ -82,13 +82,13 @@ jobRouter.put(
   validate({
     params: jobIdParamsSchema,
     body: jobBodySchema,
-    query: emptyQuerySchema,
+    query: authRoleShape,
   }),
   editClientJobPost,
 );
 jobRouter.delete(
   "/:jobId",
   isAuthenticated,
-  validate({ params: jobIdParamsSchema, query: emptyQuerySchema }),
+  validate({ params: jobIdParamsSchema, query: authRoleShape }),
   removeClientJobPost,
 );

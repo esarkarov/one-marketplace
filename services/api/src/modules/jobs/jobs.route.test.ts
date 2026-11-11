@@ -39,13 +39,13 @@ describe("jobs routes validation order", () => {
 });
 
 describe("GET /api/v1/jobs/public", () => {
-  it("ignores array and object query values", async () => {
+  it("rejects array and object query values", async () => {
     const response = await request(app).get(
       "/api/v1/jobs/public?sort[]=x&query[a]=b&levels[]=z",
     );
 
-    expect(response.status).toBe(200);
-    expect(response.body.success).toBe(true);
+    expect(response.status).toBe(400);
+    expect(response.body.code).toBe("VALIDATION_ERROR");
   });
 
   it("returns 200 for a valid query", async () => {
