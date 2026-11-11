@@ -11,6 +11,41 @@ import {
   requireMember,
 } from "../messaging/messaging.service.js";
 
+const ACTIVE_MEETING_UNIQUE = "meetings_one_active_per_conversation_unique";
+
+const isUniqueViolation = (error: unknown, constraintName: string): boolean => {
+  for (
+    let current: unknown = error, depth = 0;
+    typeof current === "object" && current !== null && depth < 3;
+    current = (current as { cause?: unknown }).cause, depth += 1
+  ) {
+    const { code, constraint } = current as {
+      code?: unknown;
+      constraint?: unknown;
+    };
+    if (code === "23505" && constraint === constraintName) return true;
+  }
+  return false;
+};
+
+const logOrphanedRoom = async (
+  roomName: string,
+  conversationId: string,
+  error: unknown,
+) => {
+  try {
+    await logger.warn({
+      message: "Daily room orphaned after meeting start failed",
+      eventName: "task.meeting.room_orphaned",
+      attributes: {
+        "task.meeting.room_name": roomName,
+        "task.conversation.id": conversationId,
+        ...errorLogAttributes(error),
+      },
+    });
+  } catch {}
+};
+
 export const startMeeting = async (conversationId: string, actorId: string) => {
   await requireMember(conversationId, actorId);
 
@@ -35,41 +70,86 @@ export const startMeeting = async (conversationId: string, actorId: string) => {
   const roomName = `conv-${conversationId}-${randomUUID().slice(0, 8)}`;
   const room = await createDailyRoom(roomName);
 
-  const [created] = await db
-    .insert(meetings)
-    .values({
-      conversation_id: conversationId,
-      provider: "daily",
-      provider_room_name: room.name,
-      join_url: room.url,
-      started_by_account_id: actorId,
-      status: "ACTIVE",
-    })
-    .returning();
-  if (!created) throw new ApiError(500, "Meeting could not be created.");
+  let result;
+  try {
+    result = await db.transaction(async (transaction) => {
+      const [created] = await transaction
+        .insert(meetings)
+        .values({
+          conversation_id: conversationId,
+          provider: "daily",
+          provider_room_name: room.name,
+          join_url: room.url,
+          started_by_account_id: actorId,
+          status: "ACTIVE",
+        })
+        .returning();
+      if (!created) throw new ApiError(500, "Meeting could not be created.");
 
-  const message = await postSystemEventMessage(
-    conversationId,
-    {
-      eventType: "MEETING_STARTED",
-      eventPayload: {
-        meetingId: created.id,
-        joinUrl: created.join_url,
-      },
-    },
-    { actorId },
-  );
+      const { message, emit } = await postSystemEventMessage(
+        conversationId,
+        {
+          eventType: "MEETING_STARTED",
+          eventPayload: {
+            meetingId: created.id,
+            joinUrl: created.join_url,
+          },
+        },
+        { actorId, executor: transaction },
+      );
 
-  await db
-    .update(meetings)
-    .set({ message_id: message.id })
-    .where(eq(meetings.id, created.id));
+      await transaction
+        .update(meetings)
+        .set({ message_id: message.id })
+        .where(eq(meetings.id, created.id));
 
-  return {
-    id: created.id,
-    joinUrl: created.join_url,
-    startedAt: created.started_at,
-  };
+      return {
+        summary: {
+          id: created.id,
+          joinUrl: created.join_url,
+          startedAt: created.started_at,
+        },
+        emit,
+      };
+    });
+  } catch (error) {
+    await logOrphanedRoom(room.name, conversationId, error);
+    if (!isUniqueViolation(error, ACTIVE_MEETING_UNIQUE)) throw error;
+
+    const [active] = await db
+      .select()
+      .from(meetings)
+      .where(
+        and(
+          eq(meetings.conversation_id, conversationId),
+          eq(meetings.status, "ACTIVE"),
+        ),
+      )
+      .limit(1);
+    if (!active) throw error;
+    return {
+      id: active.id,
+      joinUrl: active.join_url,
+      startedAt: active.started_at,
+    };
+  }
+
+  try {
+    await result.emit();
+  } catch (error) {
+    try {
+      await logger.warn({
+        message: "Meeting start notification could not be emitted",
+        eventName: "task.meeting.emit_failed",
+        attributes: {
+          "task.meeting.id": result.summary.id,
+          ...errorLogAttributes(error),
+        },
+      });
+    } catch {}
+  }
+
+  return result.summary;
 };
 
 export const endMeetingByRoomName = async (roomName: string) => {

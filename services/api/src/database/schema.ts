@@ -570,6 +570,9 @@ export const meetings = pgTable(
       table.conversation_id,
       table.status,
     ),
+    uniqueIndex("meetings_one_active_per_conversation_unique")
+      .on(table.conversation_id)
+      .where(sql`${table.status} = 'ACTIVE'`),
     check("meetings_status_check", sql`${table.status} IN ('ACTIVE', 'ENDED')`),
   ],
 );

@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "meetings_one_active_per_conversation_unique" ON "meetings" USING btree ("conversation_id") WHERE "meetings"."status" = 'ACTIVE';

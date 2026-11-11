@@ -83,8 +83,11 @@ export const errorHandler: ErrorRequestHandler = (
   const message =
     error instanceof Error ? error.message : "Request could not be processed.";
 
+  const code = error instanceof ApiError ? error.code : undefined;
+
   response.status(statusCode).json({
     success: false,
     message,
-  } satisfies ApiResponse<never>);
+    ...(code ? { code } : {}),
+  } satisfies ApiResponse<never> & { code?: string });
 };

@@ -61,6 +61,7 @@ import { errorHandler } from "../../middleware/error.middleware.js";
 import { assertTestDatabase } from "../../test/assert-test-database.js";
 import { ApiError } from "../../utils/api-error.js";
 import { splitFee } from "../../utils/money.js";
+import { holdRowLock, raceBlocked } from "../../test/lock-holder.js";
 import { reviewMilestoneWork } from "./contracts.controller.js";
 import {
   addContractMilestone,
@@ -617,77 +618,15 @@ describe("reviewContractMilestone double review", () => {
   });
 });
 
-const BLOCKED_UPDATES = `
-  select count(*)::int as blocked
-  from pg_stat_activity a
-  where a.datname = current_database()
-    and a.wait_event_type = 'Lock'
-    and a.query ilike 'update "contract_milestones"%'
-    and ($1::int = any(pg_blocking_pids(a.pid))
-      or exists (
-        select 1 from unnest(pg_blocking_pids(a.pid)) as b
-        where $1::int = any(pg_blocking_pids(b))
-      ))`;
-
-const waitForBlockedUpdates = async (holderPid: number, expected: number) => {
-  const deadline = Date.now() + 8000;
-  for (;;) {
-    const result = await pool.query<{ blocked: number }>(BLOCKED_UPDATES, [
-      holderPid,
-    ]);
-    const blocked = result.rows[0]?.blocked ?? 0;
-    if (blocked >= expected) return blocked;
-    if (Date.now() > deadline) {
-      throw new Error(
-        `Expected ${expected} reviews blocked on the guarded update, saw ${blocked}`,
-      );
-    }
-    await new Promise((resolve) => setTimeout(resolve, 25));
-  }
-};
-
-const raceBlockedOnGuardedUpdate = async (
+const raceBlockedOnGuardedUpdate = (
   fixture: Fixture,
   actions: Array<"APPROVE" | "REQUEST_CHANGES">,
-) => {
-  const holder = await pool.connect();
-  let released = false;
-  const releaseHolder = async () => {
-    if (released) return;
-    released = true;
-    try {
-      await holder.query("rollback");
-      holder.release();
-    } catch (error) {
-      holder.release(error as Error);
-    }
-  };
-  try {
-    await holder.query("begin");
-    await holder.query(
-      "select id from contract_milestones where id = $1 for update",
-      [fixture.milestoneId],
-    );
-    const pidResult = await holder.query<{ pid: number }>(
-      "select pg_backend_pid() as pid",
-    );
-    const holderPid = pidResult.rows[0]!.pid;
-
-    const pending = Promise.allSettled(
-      actions.map((action) => review(fixture, action)),
-    );
-    try {
-      expect(await waitForBlockedUpdates(holderPid, actions.length)).toBe(
-        actions.length,
-      );
-    } finally {
-      await releaseHolder();
-    }
-    return await pending;
-  } finally {
-    await releaseHolder();
-  }
-};
+) =>
+  raceBlocked({
+    hold: holdRowLock("contract_milestones", fixture.milestoneId),
+    queryPattern: 'update "contract_milestones"%',
+    starts: actions.map((action) => () => review(fixture, action)),
+  });
 
 describe("reviewContractMilestone races decided by the guarded update", () => {
   it("lets exactly one of three approvals that are all blocked on the guarded update win", async () => {
