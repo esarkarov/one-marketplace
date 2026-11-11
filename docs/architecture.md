@@ -37,6 +37,7 @@ Workspace packages are scoped `@onemarketplace/<folder-name>`.
 - Webhook routes (Stripe, Daily) receive the raw body, registered before `express.json`.
 - Tests: vitest and supertest, added after the baseline compiles and runs.
 - Money is always integer cents (`bigint` columns named `*_cents`, JS numbers within the safe-integer range, API and JSON fields named `*Cents`), never floats. Fees use `splitFee` in `src/utils/money.ts` (half-up on cents). See `docs/decisions/0006-money-in-integer-cents.md`, which also lists every renamed API field.
+- Status transitions are single guarded conditional `UPDATE`s; a lost race answers a coded 409 (`docs/decisions/0007-guarded-state-transitions.md`).
 
 ## Database
 
