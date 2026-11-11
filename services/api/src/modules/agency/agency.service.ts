@@ -26,6 +26,10 @@ import { logger } from "../../config/logger.js";
 import { errorLogAttributes } from "../../utils/sanitize-log.js";
 import { stripe } from "../../config/stripe.js";
 import { addAgencyConnects } from "../connects/connects.service.js";
+import {
+  isAgencyRoleAllowed,
+  type AgencyPermission,
+} from "./agency.permissions.js";
 import { sendNotification } from "../../events/publisher.js";
 import {
   EARNINGS_HOLD_PERIOD_MS,
@@ -1030,6 +1034,40 @@ export const getAgencyIdForMember = async (
     .limit(1);
 
   return membership?.agencyId ?? null;
+};
+
+export const requireAgencyPermission = async (
+  userId: string,
+  permission: AgencyPermission,
+  executor: DbExecutor = db,
+): Promise<{ agencyId: string | null; role: string | null }> => {
+  const [membership] = await executor
+    .select({
+      agencyId: agency_members.agency_id,
+      role: agency_members.role,
+    })
+    .from(agency_members)
+    .where(eq(agency_members.freelancer_id, userId))
+    .limit(1);
+  const [owned] = await executor
+    .select({ id: agency_metadata.id })
+    .from(agency_metadata)
+    .where(eq(agency_metadata.owner_id, userId))
+    .limit(1);
+
+  const agencyId = membership?.agencyId ?? owned?.id ?? null;
+  if (!agencyId) return { agencyId: null, role: null };
+
+  const isOwner = owned?.id === agencyId;
+  const role = membership?.agencyId === agencyId ? membership.role : "";
+  if (!isAgencyRoleAllowed(permission, { isOwner, role })) {
+    throw new ApiError(
+      403,
+      "Your agency role does not allow this action.",
+      "AGENCY_PERMISSION_DENIED",
+    );
+  }
+  return { agencyId, role };
 };
 
 export const getAgencyOwnerVerification = async (

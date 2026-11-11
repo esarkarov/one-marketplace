@@ -25,6 +25,7 @@ import {
   PublicAgencyFeedPage,
   PublicAgencyFilters,
   removeAgencyMember,
+  requireAgencyPermission,
   resendAgencyInvitation,
   respondToAgencyInvitation,
   searchPublicAgencies,
@@ -340,7 +341,10 @@ export const buyAgencyConnects: RequestHandler = asyncHandler(
       throw new ApiError(403, "A freelancer account is required.");
     }
 
-    const agencyId = await getAgencyIdForMember(request.auth.userId);
+    const { agencyId } = await requireAgencyPermission(
+      request.auth.userId,
+      "connects.checkout",
+    );
     if (!agencyId) {
       throw new ApiError(
         404,
@@ -379,7 +383,10 @@ export const submitAgencyProposalHandler: RequestHandler = asyncHandler(
       throw new ApiError(403, "A freelancer account is required.");
     }
 
-    const agencyId = await getAgencyIdForMember(request.auth.userId);
+    const { agencyId } = await requireAgencyPermission(
+      request.auth.userId,
+      "proposal.send",
+    );
     if (!agencyId) {
       throw new ApiError(
         404,
@@ -538,7 +545,10 @@ export const getAgencyEarningsSummaryHandler: RequestHandler = asyncHandler(
       throw new ApiError(403, "A freelancer account is required.");
     }
 
-    const agencyId = await getAgencyIdForMember(request.auth.userId);
+    const { agencyId } = await requireAgencyPermission(
+      request.auth.userId,
+      "earnings.view",
+    );
     const earnings = agencyId
       ? await getAgencyMonthlyEarnings(agencyId)
       : {
@@ -577,7 +587,10 @@ const requireAgencyOwner = async (userId: string) => {
 export const getAgencyEarningsOverviewHandler: RequestHandler = asyncHandler(
   async (request, response) => {
     const auth = requireAgencyAuth(request);
-    const agencyId = await getAgencyIdForMember(auth.userId);
+    const { agencyId } = await requireAgencyPermission(
+      auth.userId,
+      "earnings.view",
+    );
     const overview = agencyId
       ? await getAgencyEarningsOverview(agencyId)
       : {
@@ -622,7 +635,10 @@ export const getAgencyPayoutManagementLinkHandler: RequestHandler =
 export const getAgencyTeamInvitationsHandler: RequestHandler = asyncHandler(
   async (request, response) => {
     const auth = requireAgencyAuth(request);
-    const agencyId = await getAgencyIdForMember(auth.userId);
+    const { agencyId } = await requireAgencyPermission(
+      auth.userId,
+      "team.invitations.view",
+    );
     const invitations = agencyId ? await getAgencyInvitations(agencyId) : [];
 
     response.status(200).json({

@@ -7,7 +7,10 @@ import { asyncHandler } from "../../utils/async-handler.js";
 import { moneyCents } from "../../utils/money.js";
 import { requireClient } from "../proposals/proposals.controller.js";
 import { requireFreelancer } from "../freelancer/freelancer.controller.js";
-import { getAgencyIdForMember } from "../agency/agency.service.js";
+import {
+  getAgencyIdForMember,
+  requireAgencyPermission,
+} from "../agency/agency.service.js";
 import {
   acceptContract,
   createContractCheckout,
@@ -116,7 +119,10 @@ export const acceptContractOffer: RequestHandler = asyncHandler(
     const auth = requireFreelancer(request);
     const scope = request.query.scope === "agency" ? "agency" : "default";
     const agencyId =
-      scope === "agency" ? await getAgencyIdForMember(auth.userId) : null;
+      scope === "agency"
+        ? (await requireAgencyPermission(auth.userId, "contract.accept"))
+            .agencyId
+        : null;
     if (scope === "agency" && !agencyId) {
       throw new ApiError(403, "No agency account found.");
     }
@@ -374,7 +380,12 @@ export const finishContract: RequestHandler = asyncHandler(
         : "default";
     const agencyId =
       scope === "agency"
-        ? await getAgencyIdForMember(request.auth.userId)
+        ? (
+            await requireAgencyPermission(
+              request.auth.userId,
+              "contract.finish",
+            )
+          ).agencyId
         : null;
     if (scope === "agency" && !agencyId) {
       throw new ApiError(403, "No agency account found.");
