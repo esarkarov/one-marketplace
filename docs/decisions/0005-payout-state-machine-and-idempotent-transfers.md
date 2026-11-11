@@ -53,6 +53,8 @@ All writes go through one function in `payout-state.ts` that builds a guarded `U
 
 ### Amounts
 
+Superseded by ADR 0006 (integer cents). The text below describes the stage before that change.
+
 - The amount is validated before claiming: finite and at least 1 minor unit after rounding. Otherwise the payout goes to `FAILED`, non-retryable (`next_retry_at` NULL), with `last_error` set to a short code, never a raw message.
 - Conversion to minor units goes through one helper, `utils/money.ts` `toMinorUnits` (`Math.round`), so the later decimal or integer money work replaces it in one place. Amounts stay floats in this stage.
 
@@ -92,7 +94,7 @@ The payouts module reads `earning_history`, `accounts` and `agency_metadata` dir
 
 ### Out of scope
 
-Float-to-decimal/integer money (Stage 5b), refunds, disputes, transfer reversals, `transfer.*` webhooks, a withdrawal UI, and changes to the 5-day hold, the 10% fee or the `usd` currency.
+Float-to-decimal/integer money (done in ADR 0006), refunds, disputes, transfer reversals, `transfer.*` webhooks, a withdrawal UI, and changes to the 5-day hold, the 10% fee or the `usd` currency.
 
 Known unrelated follow-up, not fixed here: `reviewContractMilestone` (`contracts.service.ts:1048-1107`) reads the milestone status outside its transaction and updates without a status guard. A double approve fails with a 500 from the `earning_history.milestone_id` UNIQUE (the transaction rolls back, so there is no double earning) instead of a 409.
 
@@ -147,8 +149,8 @@ For exhausted or parked (`destination_changed`, `transfer_reversed`) `FAILED` pa
 - New structured logs (`payout.*`) and extra Stripe list calls, only on recovery after an unknown outcome.
 - Notifications become exactly-once at the consumer through the deterministic event id, plus the `notified_at` sweep (see the notified_at rule above).
 - Five consecutive unknown outcomes leave the payout `FAILED` with `next_retry_at` NULL and a `payout.exhausted` event; it needs manual review.
-- A non-positive net earning (`amount - platform_fee_amount <= 0`) cannot get a payout row because of the `amount > 0` CHECK. It is skipped and logged on every hourly run (`non_positive_net_amount`).
-- Open design point: the `invalid_amount` branch is unreachable with the current schema, because the `amount` CHECK already rejects values below one minor unit. The branch stays as defense in depth until the Stage 5b money work decides whether to keep it.
+- Superseded by ADR 0006: a non-positive net cannot exist (`platform_fee_cents < amount_cents` CHECK and `splitFee`), and the `non_positive_net_amount` skip is removed.
+- Superseded by ADR 0006: the non-retryable `invalid_amount` branch is removed. An `amount_cents >= 1` guard stays right before `transfers.create`. If it is ever violated the payout is parked, not retried: `PROCESSING -> FAILED`, `next_retry_at` NULL, `last_error` `invalid_amount`, an error-level `payout.exhausted` event, no Stripe call and no notification. The old `PENDING -> FAILED` row in the state table above no longer exists. The test is `payouts.integration.test.ts` "parks a payout below one cent for review without calling Stripe", which drops `payout_history_amount_cents_check` for the duration of the test (the CHECK makes the case unreachable otherwise) and restores it in a `finally`.
 - Sweep race: two overlapping runs (several instances) can both publish the same event id for one `PAID` row. The consumer's unique `event_id` dedupes it.
 - A destination change after a previous claim always parks the payout, including after a definitive failure, until an operator resets it (recovery step 3b clears the stored destination).
 - Risks: Stripe idempotency keys expire after 24 h, which is why recovery lists transfers by `transfer_group` first. Cron `noOverlap` is per process only, so correctness rests on the database claim.

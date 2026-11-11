@@ -7,7 +7,7 @@ Status key: **exists** is in the repository today, **migrating** is tutorial cod
 - Frontend (exists): five Next.js apps in `apps/*`, one per audience. Data is mock and hardcoded; no app calls the API yet.
 - Backend (migrating): one Express 5 service, `services/api`, built as a modular monolith. The tutorial code is currently flat under `services/` and is being moved into `services/api` (ADR 0003).
 - Database (migrating): PostgreSQL with Drizzle ORM through `pg`. Schema, migrations and `drizzle.config.ts` live in `services/api`.
-- Events (exists): RabbitMQ notifications in `services/api/src/events` (ADR 0004). RabbitMQ is optional; the API runs with only Postgres and Redis.
+- Events (exists): RabbitMQ notifications in `services/api/src/events` (ADR 0004). RabbitMQ is optional; the API runs with only Postgres and Redis. The envelope is version 2 (`metadata.amountCents`); version 1 is still accepted and upgraded (ADR 0006).
 - Local infrastructure (exists): Docker Compose in `infra/docker/docker-compose.yml` with Postgres, Redis and RabbitMQ.
 
 ## Repository layout
@@ -36,6 +36,7 @@ Workspace packages are scoped `@onemarketplace/<folder-name>`.
 - zod validates every request at the route boundary. Logging uses pino. Responses use one shape, `{ success, message, data? }`.
 - Webhook routes (Stripe, Daily) receive the raw body, registered before `express.json`.
 - Tests: vitest and supertest, added after the baseline compiles and runs.
+- Money is always integer cents (`bigint` columns named `*_cents`, JS numbers within the safe-integer range, API and JSON fields named `*Cents`), never floats. Fees use `splitFee` in `src/utils/money.ts` (half-up on cents). See `docs/decisions/0006-money-in-integer-cents.md`, which also lists every renamed API field.
 
 ## Database
 

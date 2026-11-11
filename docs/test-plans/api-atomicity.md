@@ -53,7 +53,7 @@ Preconditions: dev database migrated by the user, API running with Daily and Str
 
 ## Edge cases and negative cases
 
-- Money: approval must produce one earning with the same gross, fee and net as before the change (fee rate is "to confirm"); an agency milestone credits the agency, not the freelancer. Covered for both in CI; amounts for odd cents are not specifically tested here.
+- Money: approval must produce one earning in integer cents with the gross unchanged and the fee rounded half-up on cents, so exact half-cent ties now round up where the old float code rounded down (ADR 0006; fee rate is "to confirm"); an agency milestone credits the agency, not the freelancer. Covered for both in CI; the 35-cent tie (fee 4, net 31) is covered in CI.
 - Concurrency: only one of N parallel reviews wins; losers get 409 and must not send a notification (covered for 2 requests, not for N greater than 2).
 - Rollback: a failure after the milestone update (earnings, conversation, notification rows) must roll back the status change; only the unique-violation path is tested explicitly.
 
