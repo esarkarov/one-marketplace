@@ -33,6 +33,7 @@ Workspace packages are scoped `@onemarketplace/<folder-name>`.
 ## API conventions
 
 - ESM with `.js` import suffixes, `@onemarketplace/tsconfig/node.json`, `@onemarketplace/eslint-config/node`.
+- Every route is validated at the route layer by `validate` (`src/middleware/validate.middleware.ts`). Schemas live in `src/modules/<module>/<module>.schemas.ts`, limits in `src/utils/validation-limits.ts`. A registry test and `src/routes/validation-allowlist.ts` enforce it (ADR 0011).
 - zod validates every request at the route boundary. Logging uses pino. Responses use one shape, `{ success, message, data? }`.
 - Webhook routes (Stripe, Daily) receive the raw body, registered before `express.json`.
 - Tests: vitest and supertest, added after the baseline compiles and runs.
