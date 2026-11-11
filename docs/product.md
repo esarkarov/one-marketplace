@@ -90,7 +90,7 @@ All business rules below are **to confirm**. The UI shows these labels and numbe
 
 - Roles: Agency owner, Business manager, Agency member. Member status: Active, Invitation pending.
 - Permissions shown: manage agency profile, submit proposals, manage contracts, view finances, manage members.
-- The owner invites by name, email and role (Business manager or Agency member), and can resend or remove invitations. The exact permission each role gets is **to confirm**.
+- The owner invites by name, email and role (Business manager or Agency member), and can resend or remove invitations. The permission each role gets is defined in ADR 0010: the owner and Business manager send proposals, buy Connects, accept and finish contracts and see earnings and the invitations list; every other role is read-only plus messaging, notifications and milestone submission.
 
 ## Notifications
 
