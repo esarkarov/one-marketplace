@@ -1,6 +1,7 @@
 ---
 name: architect
 description: Use before building any non-trivial feature or cross-cutting change, to produce an implementation plan across apps, services/api (including its schema) and infra. Read-only; it never edits files.
+model: opus
 tools: Read, Grep, Glob
 ---
 

@@ -1,6 +1,7 @@
 ---
 name: frontend
 description: Use to implement or change UI in apps/* and packages/ui once a plan or request names the files. Owns Next.js pages, components and styles. Not for backend, database or infra work.
+model: sonnet
 tools: Read, Grep, Glob, Edit, Write, Bash
 ---
 

@@ -41,37 +41,15 @@ pnpm monorepo for a freelancing marketplace.
 
 ## Agent setup
 
-Configuration lives in `.claude/` and `.mcp.json`.
+Agents, commands and skills live in `.claude/` (each file's frontmatter says what it owns), MCP servers in `.mcp.json`. Implementer agents edit only files named in an approved plan or request and return questions to the main session otherwise. Slash commands: `/feature`, `/db-change`, `/ui-review`, `/security-audit`, `/check`. Skills are vendored and pinned in `skills-lock.json`; update one by re-reviewing it, not by editing it in place.
 
-Agents (`.claude/agents/`), each owning one area:
+Guards in `.claude/settings.json`: `.env*` (except `.env.example`) and `pnpm-lock.yaml` cannot be changed with the Edit, Write or NotebookEdit tools, and edits to `.claude/settings.json` and `.claude/hooks/` ask first. MCP servers are pinned to exact versions and approved on first use. `playwright` is disabled by default; enable it through `/mcp` before UI review.
 
-- `architect`: plans, read-only.
-- `frontend`: `apps/*`, `packages/ui`.
-- `design-ux`: UX and accessibility review, read-only.
-- `backend`: `services/api`, except the database files.
-- `database`: `services/api/src/database/`, `services/api/drizzle/`, `services/api/drizzle.config.ts`.
-- `infra`: `infra/`, `.github/`, `.husky/`, `.claude/`, root config, shared tsconfig and eslint-config.
-- `qa`: runs checks, writes test plans under `docs/test-plans/`.
-- `reviewer`: reviews diffs against this file and a security checklist, read-only.
+## Token and model policy
 
-Implementer agents edit only files named in an approved plan or request, and return questions to the main session otherwise.
-
-Commands (`.claude/commands/`):
-
-- `/feature`: architect plans, you approve, then database, backend, frontend, qa and reviewer.
-- `/db-change`: schema change in `services/api` with a reviewed migration, local Docker only.
-- `/ui-review`: design-ux plus the two UI skills, read-only.
-- `/security-audit`: reviewer security pass plus gitleaks, read-only.
-- `/check`: format check, lint, typecheck and builds.
-
-Skills (`.claude/skills/`, vendored and pinned in `skills-lock.json`):
-
-- `vercel-react-best-practices`
-- `web-design-guidelines`: guidelines are a pinned local copy, see its `UPSTREAM.md`.
-
-MCP servers (`.mcp.json`, exact versions, approve each on first use):
-
-- `context7`: library documentation.
-- `playwright`: browser automation, used by `design-ux` on a running app.
-
-Guards in `.claude/settings.json`: `.env*` (except `.env.example`) and `pnpm-lock.yaml` cannot be changed with the Edit, Write or NotebookEdit tools, and edits to `.claude/settings.json` and `.claude/hooks/` ask first. Update a vendored skill by re-reviewing it, not by editing it in place.
+- Models: architect and reviewer use opus; backend, database, frontend, qa, design-ux and infra use sonnet; `mechanical` uses haiku for renames, docs and lint fixes.
+- Start a fresh session for each stage of a feature.
+- Use Grep and ranged Read instead of reading whole files, and do not re-read a file already read.
+- After each step run only scoped checks (`pnpm --filter <pkg> ...`, `pnpm --filter @onemarketplace/api test:quiet <path>`); run the full suite once at the end of a step group.
+- Prefer quiet output: `pnpm test:quiet`, `pnpm --silent`.
+- At most one reviewer pass per change.

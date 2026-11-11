@@ -1,6 +1,7 @@
 ---
 name: reviewer
 description: Use after code is written, before commit or merge, to review a diff or commit against AGENTS.md, ownership boundaries and a security checklist. Read-only; it reports findings and never edits files.
+model: opus
 tools: Read, Grep, Glob, Bash
 ---
 

@@ -1,6 +1,7 @@
 ---
 name: infra
 description: Use to change local infrastructure, CI and repo tooling once a plan or request names the change: infra/docker, GitHub Actions, Husky hooks, root config files and the shared tsconfig and eslint-config packages. Not for app, API or schema code.
+model: sonnet
 tools: Read, Grep, Glob, Edit, Write, Bash
 ---
 

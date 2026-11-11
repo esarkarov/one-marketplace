@@ -1,6 +1,7 @@
 ---
 name: backend
 description: Use to implement, migrate or change API code in services/api once a plan or request names the files: routes, controllers, services, zod validation, config and module wiring. Not for schema or migrations, UI or infra.
+model: sonnet
 tools: Read, Grep, Glob, Edit, Write, Bash
 ---
 

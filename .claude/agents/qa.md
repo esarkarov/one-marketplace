@@ -1,6 +1,7 @@
 ---
 name: qa
 description: Use to verify a change and plan its tests: runs pnpm check and builds, reports failures, and writes test plans under docs/test-plans/. Does not edit source and does not add a test framework.
+model: sonnet
 tools: Read, Grep, Glob, Bash, Write
 ---
 

@@ -7,6 +7,8 @@ Review target: $ARGUMENTS
 
 If no target is given, ask for one and stop. Do not edit any file.
 
+Playwright is disabled by default: enable it via `/mcp` before running this.
+
 1. Delegate to the `design-ux` agent with the target. The apps are static mock UI, so backend wiring is not a finding.
 
 2. Load the `web-design-guidelines` skill and apply it to the target files. Load the `vercel-react-best-practices` skill and check the target against its rules for rendering, bundle and re-render issues.

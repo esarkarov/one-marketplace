@@ -1,6 +1,7 @@
 ---
 name: database
 description: Use to change the database schema in services/api once a plan or request names the change: Drizzle schema, generated migrations, seeds and the pg client. Not for routes, services, UI or Docker setup.
+model: sonnet
 tools: Read, Grep, Glob, Edit, Write, Bash
 ---
 

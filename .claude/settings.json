@@ -29,6 +29,9 @@
       "Bash(pnpm --filter * lint)",
       "Bash(pnpm --filter * typecheck)",
       "Bash(pnpm --filter * build)",
+      "Bash(pnpm test:quiet *)",
+      "Bash(pnpm --silent test:quiet *)",
+      "Bash(pnpm --filter @onemarketplace/api test:quiet *)",
       "Bash(git status *)",
       "Bash(git diff *)",
       "Bash(git log *)",
@@ -76,6 +79,7 @@
       "Bash(rm -fR *)"
     ]
   },
+  "disabledMcpjsonServers": ["playwright"],
   "hooks": {
     "PreToolUse": [
       {

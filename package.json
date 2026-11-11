@@ -13,6 +13,7 @@
     "format:check": "prettier --check .",
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",
+    "test:quiet": "pnpm --silent --filter @onemarketplace/api test:quiet",
     "check": "pnpm format:check && pnpm -r --no-bail lint && pnpm -r --no-bail typecheck",
     "infra:up": "docker compose --env-file .env -f infra/docker/docker-compose.yml up -d --wait",
     "infra:down": "docker compose --env-file .env -f infra/docker/docker-compose.yml down",
