@@ -23,6 +23,16 @@ describe("classifyPayoutFailure", () => {
       stripeError("StripeConnectionError"),
       "StripeConnectionError",
     ],
+    [
+      "connection error with a 200 status (incomplete response body)",
+      stripeError("StripeConnectionError", 200),
+      "StripeConnectionError",
+    ],
+    [
+      "connection error with a 400 status",
+      stripeError("StripeConnectionError", 400),
+      "StripeConnectionError",
+    ],
     ["api error 500", stripeError("StripeAPIError", 500), "StripeAPIError"],
     [
       "rate limit",

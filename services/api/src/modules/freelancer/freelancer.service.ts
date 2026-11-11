@@ -548,7 +548,6 @@ export const getFreelancerPayoutManagementUrl = async (userId: string) => {
       use_case: {
         type: "account_onboarding",
         account_onboarding: {
-          configurations: ["recipient", "merchant"],
           refresh_url: returnUrl,
           return_url: returnUrl,
         },
