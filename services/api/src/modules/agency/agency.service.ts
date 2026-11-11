@@ -1,7 +1,8 @@
 import { randomUUID } from "crypto";
 import { createClerkClient } from "@clerk/backend";
-import { and, asc, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { db } from "../../database/client.js";
+import { toSafeCents } from "../../utils/money.js";
 import {
   accounts,
   agency_earning,
@@ -66,7 +67,7 @@ export interface AgencyWorkHistoryItem {
   client: string;
   status: "ACTIVE" | "COMPLETED";
   completed: Date | null;
-  amount: number;
+  amountCents: number;
   rating: number | null;
   review: string | null;
   clientHasReviewed: boolean;
@@ -74,7 +75,7 @@ export interface AgencyWorkHistoryItem {
 }
 
 export interface AgencyStats {
-  totalEarning: number;
+  totalEarningCents: number;
   completedJobs: number;
   ongoingJobs: number;
   reviewCount: number;
@@ -172,7 +173,7 @@ const getAgencyWorkHistoryAndStats = async (
 ): Promise<{ stats: AgencyStats; workHistory: AgencyWorkHistoryItem[] }> => {
   const [earningStats] = await db
     .select({
-      totalEarning: agency_earning.total_earning,
+      totalEarningCents: agency_earning.total_earning_cents,
       completedJobs: agency_earning.completed_jobs,
       ongoingJobs: agency_earning.ongoing_jobs,
     })
@@ -222,7 +223,7 @@ const getAgencyWorkHistoryAndStats = async (
         client: companyName || "Client",
         status: contract.status as "ACTIVE" | "COMPLETED",
         completed: contract.status === "COMPLETED" ? contract.updated_at : null,
-        amount: Number(contract.total_amount),
+        amountCents: contract.total_amount_cents,
         rating: clientReview ? Number(clientReview.rating) : null,
         review: clientReview ? clientReview.comment : null,
         clientHasReviewed: Boolean(clientReview),
@@ -260,7 +261,7 @@ const getAgencyWorkHistoryAndStats = async (
 
   return {
     stats: {
-      totalEarning: Number(earningStats?.totalEarning ?? 0),
+      totalEarningCents: earningStats?.totalEarningCents ?? 0,
       completedJobs: Number(
         earningStats?.completedJobs ??
           workHistory.filter((item) => item.status === "COMPLETED").length,
@@ -289,9 +290,9 @@ export const getAgencyMonthlyEarnings = async (agencyId: string) => {
   if (!hasEarnings) {
     return {
       hasEarnings: false,
-      currentMonthTotal: 0,
-      previousMonthTotal: 0,
-      series: [] as Array<{ month: string; total: number }>,
+      currentMonthTotalCents: 0,
+      previousMonthTotalCents: 0,
+      series: [] as Array<{ month: string; totalCents: number }>,
     };
   }
 
@@ -303,7 +304,7 @@ export const getAgencyMonthlyEarnings = async (agencyId: string) => {
   const rows = await db
     .select({
       month: sql<string>`to_char(date_trunc('month', ${earning_history.created_at}), 'YYYY-MM')`,
-      total: sql<string>`sum(${earning_history.amount} - ${earning_history.platform_fee_amount})`,
+      totalCents: sql<string>`sum(${earning_history.amount_cents} - ${earning_history.platform_fee_cents})`,
     })
     .from(earning_history)
     .where(
@@ -316,20 +317,20 @@ export const getAgencyMonthlyEarnings = async (agencyId: string) => {
     .orderBy(sql`date_trunc('month', ${earning_history.created_at})`);
 
   const totalsByMonth = new Map(
-    rows.map((row) => [row.month, Number(row.total)]),
+    rows.map((row) => [row.month, toSafeCents(row.totalCents)]),
   );
 
   const series = Array.from({ length: MONTHLY_EARNINGS_SPAN }, (_, index) => {
     const date = new Date(spanStart);
     date.setUTCMonth(date.getUTCMonth() + index);
     const key = `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
-    return { month: key, total: totalsByMonth.get(key) ?? 0 };
+    return { month: key, totalCents: totalsByMonth.get(key) ?? 0 };
   });
 
   return {
     hasEarnings: true,
-    currentMonthTotal: series.at(-1)?.total ?? 0,
-    previousMonthTotal: series.at(-2)?.total ?? 0,
+    currentMonthTotalCents: series.at(-1)?.totalCents ?? 0,
+    previousMonthTotalCents: series.at(-2)?.totalCents ?? 0,
     series,
   };
 };
@@ -340,8 +341,8 @@ export const getAgencyEarningsOverview = async (agencyId: string) => {
   const rows = await db
     .select({
       id: earning_history.id,
-      amount: earning_history.amount,
-      platformFeeAmount: earning_history.platform_fee_amount,
+      amountCents: earning_history.amount_cents,
+      platformFeeCents: earning_history.platform_fee_cents,
       createdAt: earning_history.created_at,
       contractTitle: contracts.title,
       clientCompany: client_metadata.company_name,
@@ -361,33 +362,33 @@ export const getAgencyEarningsOverview = async (agencyId: string) => {
     .orderBy(desc(earning_history.created_at));
 
   const now = Date.now();
-  let available = 0;
-  let pending = 0;
-  let withdrawn = 0;
-  let totalFees = 0;
+  let availableCents = 0;
+  let pendingCents = 0;
+  let withdrawnCents = 0;
+  let totalFeesCents = 0;
 
   const earnings = rows.map((row) => {
-    const grossAmount = Number(row.amount);
-    const platformFeeAmount = Number(row.platformFeeAmount);
-    const amount = Math.round((grossAmount - platformFeeAmount) * 100) / 100;
+    const grossAmountCents = row.amountCents;
+    const platformFeeCents = row.platformFeeCents;
+    const amountCents = grossAmountCents - platformFeeCents;
     const availableAt = new Date(
       row.createdAt.getTime() + EARNINGS_HOLD_PERIOD_MS,
     );
     const isAvailable = now >= availableAt.getTime();
-    totalFees += platformFeeAmount;
+    totalFeesCents += platformFeeCents;
 
     // A row already transferred to Stripe (payout_history) is neither
     // available nor pending anymore — the money has already left the
     // platform, so it must not be double-counted as still withdrawable.
     let status: "AVAILABLE" | "PENDING" | "WITHDRAWN";
     if (row.paidOut) {
-      withdrawn += amount;
+      withdrawnCents += amountCents;
       status = "WITHDRAWN";
     } else if (isAvailable) {
-      available += amount;
+      availableCents += amountCents;
       status = "AVAILABLE";
     } else {
-      pending += amount;
+      pendingCents += amountCents;
       status = "PENDING";
     }
 
@@ -395,9 +396,9 @@ export const getAgencyEarningsOverview = async (agencyId: string) => {
       id: row.id,
       title: row.contractTitle,
       client: row.clientCompany ?? "Client",
-      grossAmount,
-      platformFeeAmount,
-      amount,
+      grossAmountCents,
+      platformFeeCents,
+      amountCents,
       date: row.createdAt,
       availableAt,
       status,
@@ -405,11 +406,11 @@ export const getAgencyEarningsOverview = async (agencyId: string) => {
   });
 
   return {
-    available,
-    pending,
-    withdrawn,
-    lifetime: available + pending + withdrawn,
-    totalFees,
+    availableCents,
+    pendingCents,
+    withdrawnCents,
+    lifetimeCents: availableCents + pendingCents + withdrawnCents,
+    totalFeesCents,
     recentEarnings: earnings.slice(0, RECENT_AGENCY_EARNINGS_LIMIT),
   };
 };
@@ -1477,7 +1478,7 @@ export interface PublicAgencySummary {
   location: string | null;
   teamSize: string;
   memberCount: number;
-  minHourlyRate: number | null;
+  minHourlyRateCents: number | null;
   rating: number;
   reviews: number;
   projects: number;
@@ -1490,7 +1491,7 @@ export interface PublicAgencyFilters {
   specialty?: string;
   sizes?: string[];
   verifiedOnly?: boolean;
-  maxRate?: number;
+  maxRateCents?: number;
   sort?: "recommended" | "rating" | "projects" | "rate-low";
 }
 
@@ -1517,7 +1518,7 @@ export const searchPublicAgencies = async (
     WHERE ${agency_members.agency_id} = ${agency_metadata.id}
   )`;
   const minHourlyRateExpr = sql<string | null>`(
-    SELECT min(${freelancer_metadata.hourly_rate}) FROM ${agency_members}
+    SELECT min(${freelancer_metadata.hourly_rate_cents}) FROM ${agency_members}
     INNER JOIN ${freelancer_metadata}
       ON ${freelancer_metadata.auth_id} = ${agency_members.freelancer_id}
     WHERE ${agency_members.agency_id} = ${agency_metadata.id}
@@ -1533,8 +1534,8 @@ export const searchPublicAgencies = async (
   if (filters.verifiedOnly) {
     conditions.push(eq(accounts.identityVerified, true));
   }
-  if (filters.maxRate) {
-    conditions.push(lte(minHourlyRateExpr, String(filters.maxRate)));
+  if (filters.maxRateCents) {
+    conditions.push(sql`${minHourlyRateExpr} <= ${filters.maxRateCents}`);
   }
 
   const orderBy = (() => {
@@ -1570,7 +1571,7 @@ export const searchPublicAgencies = async (
       completedJobs: agency_earning.completed_jobs,
       reviewCount: agency_earning.review_count,
       memberCount: memberCountExpr,
-      minHourlyRate: minHourlyRateExpr,
+      minHourlyRateCents: minHourlyRateExpr,
     })
     .from(agency_metadata)
     .innerJoin(accounts, eq(accounts.auth_id, agency_metadata.owner_id))
@@ -1615,8 +1616,10 @@ export const searchPublicAgencies = async (
       location: location || null,
       teamSize: row.size,
       memberCount: Number(row.memberCount),
-      minHourlyRate:
-        row.minHourlyRate !== null ? Number(row.minHourlyRate) : null,
+      minHourlyRateCents:
+        row.minHourlyRateCents !== null
+          ? toSafeCents(row.minHourlyRateCents)
+          : null,
       rating: Number(row.rating ?? 0),
       reviews: Number(row.reviewCount ?? 0),
       projects: Number(row.completedJobs ?? 0),

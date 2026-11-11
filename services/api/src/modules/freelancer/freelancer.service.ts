@@ -1,5 +1,6 @@
 import { and, asc, count, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { db } from "../../database/client.js";
+import { toSafeCents } from "../../utils/money.js";
 import {
   accounts,
   client_metadata,
@@ -29,7 +30,7 @@ import { imageKit } from "../../config/imageKit.js";
 import { randomUUID } from "crypto";
 import {
   EARNINGS_HOLD_PERIOD_MS,
-  PLATFORM_FEE_RATE,
+  PLATFORM_FEE_BPS,
   STRIPE_PAYOUT_ELIGIBLE_COUNTRIES,
 } from "../../config/constants.js";
 import { invalidateAccountAuthCache } from "../../utils/account-auth-cache.js";
@@ -86,7 +87,7 @@ export const getFreelancerProfile = async (
 
   const [earningStats] = await db
     .select({
-      totalEarning: freelancer_earning.total_earning,
+      totalEarningCents: freelancer_earning.total_earning_cents,
       completedJobs: freelancer_earning.completed_jobs,
       ongoingJobs: freelancer_earning.ongoing_jobs,
       reviewCount: freelancer_earning.review_count,
@@ -144,7 +145,7 @@ export const getFreelancerProfile = async (
         status: contract.status as "ACTIVE" | "COMPLETED",
         completed: contract.status === "COMPLETED" ? contract.updated_at : null,
         created_at: contract.created_at,
-        amount: Number(contract.total_amount),
+        amountCents: contract.total_amount_cents,
         rating: clientReview ? Number(clientReview.rating) : null,
         review: clientReview ? clientReview.comment : null,
         clientHasReviewed: Boolean(clientReview),
@@ -191,7 +192,7 @@ export const getFreelancerProfile = async (
     portfolios,
     agency,
     stats: {
-      totalEarning: Number(earningStats?.totalEarning ?? 0),
+      totalEarningCents: earningStats?.totalEarningCents ?? 0,
       completedJobs: Number(
         earningStats?.completedJobs ??
           workHistory.filter((j) => j.status === "COMPLETED").length,
@@ -220,9 +221,9 @@ export const getFreelancerMonthlyEarnings = async (userId: string) => {
   if (!hasEarnings) {
     return {
       hasEarnings: false,
-      currentMonthTotal: 0,
-      previousMonthTotal: 0,
-      series: [] as Array<{ month: string; total: number }>,
+      currentMonthTotalCents: 0,
+      previousMonthTotalCents: 0,
+      series: [] as Array<{ month: string; totalCents: number }>,
     };
   }
 
@@ -234,7 +235,7 @@ export const getFreelancerMonthlyEarnings = async (userId: string) => {
   const rows = await db
     .select({
       month: sql<string>`to_char(date_trunc('month', ${earning_history.created_at}), 'YYYY-MM')`,
-      total: sql<string>`sum(${earning_history.amount} - ${earning_history.platform_fee_amount})`,
+      totalCents: sql<string>`sum(${earning_history.amount_cents} - ${earning_history.platform_fee_cents})`,
     })
     .from(earning_history)
     .where(
@@ -247,20 +248,20 @@ export const getFreelancerMonthlyEarnings = async (userId: string) => {
     .orderBy(sql`date_trunc('month', ${earning_history.created_at})`);
 
   const totalsByMonth = new Map(
-    rows.map((row) => [row.month, Number(row.total)]),
+    rows.map((row) => [row.month, toSafeCents(row.totalCents)]),
   );
 
   const series = Array.from({ length: MONTHLY_EARNINGS_SPAN }, (_, index) => {
     const date = new Date(spanStart);
     date.setUTCMonth(date.getUTCMonth() + index);
     const key = `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
-    return { month: key, total: totalsByMonth.get(key) ?? 0 };
+    return { month: key, totalCents: totalsByMonth.get(key) ?? 0 };
   });
 
   return {
     hasEarnings: true,
-    currentMonthTotal: series.at(-1)?.total ?? 0,
-    previousMonthTotal: series.at(-2)?.total ?? 0,
+    currentMonthTotalCents: series.at(-1)?.totalCents ?? 0,
+    previousMonthTotalCents: series.at(-2)?.totalCents ?? 0,
     series,
   };
 };
@@ -271,8 +272,8 @@ export const getFreelancerEarningsOverview = async (userId: string) => {
   const rows = await db
     .select({
       id: earning_history.id,
-      amount: earning_history.amount,
-      platformFeeAmount: earning_history.platform_fee_amount,
+      amountCents: earning_history.amount_cents,
+      platformFeeCents: earning_history.platform_fee_cents,
       createdAt: earning_history.created_at,
       contractTitle: contracts.title,
       clientCompany: client_metadata.company_name,
@@ -292,33 +293,33 @@ export const getFreelancerEarningsOverview = async (userId: string) => {
     .orderBy(desc(earning_history.created_at));
 
   const now = Date.now();
-  let available = 0;
-  let pending = 0;
-  let withdrawn = 0;
-  let totalFees = 0;
+  let availableCents = 0;
+  let pendingCents = 0;
+  let withdrawnCents = 0;
+  let totalFeesCents = 0;
 
   const earnings = rows.map((row) => {
-    const grossAmount = Number(row.amount);
-    const platformFeeAmount = Number(row.platformFeeAmount);
-    const amount = Math.round((grossAmount - platformFeeAmount) * 100) / 100;
+    const grossAmountCents = row.amountCents;
+    const platformFeeCents = row.platformFeeCents;
+    const amountCents = grossAmountCents - platformFeeCents;
     const availableAt = new Date(
       row.createdAt.getTime() + EARNINGS_HOLD_PERIOD_MS,
     );
     const isAvailable = now >= availableAt.getTime();
-    totalFees += platformFeeAmount;
+    totalFeesCents += platformFeeCents;
 
     // A row already transferred to Stripe (payout_history) is neither
     // available nor pending anymore — the money has already left the
     // platform, so it must not be double-counted as still withdrawable.
     let status: "AVAILABLE" | "PENDING" | "WITHDRAWN";
     if (row.paidOut) {
-      withdrawn += amount;
+      withdrawnCents += amountCents;
       status = "WITHDRAWN";
     } else if (isAvailable) {
-      available += amount;
+      availableCents += amountCents;
       status = "AVAILABLE";
     } else {
-      pending += amount;
+      pendingCents += amountCents;
       status = "PENDING";
     }
 
@@ -326,9 +327,9 @@ export const getFreelancerEarningsOverview = async (userId: string) => {
       id: row.id,
       title: row.contractTitle,
       client: row.clientCompany ?? "Client",
-      grossAmount,
-      platformFeeAmount,
-      amount,
+      grossAmountCents,
+      platformFeeCents,
+      amountCents,
       date: row.createdAt,
       availableAt,
       status,
@@ -336,19 +337,19 @@ export const getFreelancerEarningsOverview = async (userId: string) => {
   });
 
   return {
-    available,
-    pending,
-    withdrawn,
-    lifetime: available + pending + withdrawn,
-    totalFees,
-    feeRatePercent: PLATFORM_FEE_RATE * 100,
+    availableCents,
+    pendingCents,
+    withdrawnCents,
+    lifetimeCents: availableCents + pendingCents + withdrawnCents,
+    totalFeesCents,
+    feeRatePercent: PLATFORM_FEE_BPS / 100,
     recentEarnings: earnings.slice(0, RECENT_EARNINGS_LIMIT),
   };
 };
 
 export type EarningsCertificateWindow = {
   label: string;
-  total: number;
+  totalCents: number;
 };
 
 export type EarningsCertificateData = {
@@ -396,8 +397,8 @@ export const getFreelancerEarningsCertificateData = async (
 
   const rows = await db
     .select({
-      amount: earning_history.amount,
-      platformFeeAmount: earning_history.platform_fee_amount,
+      amountCents: earning_history.amount_cents,
+      platformFeeCents: earning_history.platform_fee_cents,
       createdAt: earning_history.created_at,
     })
     .from(earning_history)
@@ -407,13 +408,13 @@ export const getFreelancerEarningsCertificateData = async (
 
   const windows = ROLLING_WINDOW_DAYS.map((days) => {
     const sinceDate = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
-    const total = rows.reduce((sum, row) => {
+    const totalCents = rows.reduce((sum, row) => {
       if (row.createdAt < sinceDate) return sum;
-      return sum + (Number(row.amount) - Number(row.platformFeeAmount));
+      return sum + (row.amountCents - row.platformFeeCents);
     }, 0);
     return {
       label: `Last ${days} days`,
-      total: Math.round(total * 100) / 100,
+      totalCents,
     };
   });
 
@@ -660,7 +661,7 @@ export const saveFreelancerProfile = async (
       const metadataValues = {
         professional_title: input.professional_title,
         professional_description: input.professional_description,
-        hourly_rate: input.hourly_rate,
+        hourly_rate_cents: input.hourly_rate_cents,
         country,
         city,
         availability_status: input.availability_status,
@@ -703,7 +704,7 @@ export const saveFreelancerProfile = async (
       return {
         professional_title: metadata.professional_title,
         professional_description: metadata.professional_description,
-        hourly_rate: metadata.hourly_rate,
+        hourly_rate_cents: metadata.hourly_rate_cents,
         country: metadata.country,
         city: metadata.city,
         availability_status: metadata.availability_status,
@@ -759,8 +760,8 @@ export interface JobFeedFilters {
   sort?: "best-match" | "recent";
   levels?: string[];
   durations?: string[];
-  minBudget?: number;
-  maxBudget?: number;
+  minBudgetCents?: number;
+  maxBudgetCents?: number;
   minProposals?: number;
   maxProposals?: number;
   paymentVerified?: boolean;
@@ -786,7 +787,7 @@ export const getMatchedJobPostsBySkills = async (
       job: job_posts,
       companyName: client_metadata.company_name,
       paymentVerified: accounts.paymentMethodVerified,
-      totalSpent: client_spents.total_spent,
+      totalSpentCents: client_spents.total_spent_cents,
       clientRating: client_spents.rating,
       clientReviewCount: client_spents.review_count,
     })
@@ -832,7 +833,7 @@ export const getMatchedJobPostsBySkills = async (
         job,
         companyName,
         paymentVerified,
-        totalSpent,
+        totalSpentCents,
         clientRating,
         clientReviewCount,
       }) => ({
@@ -842,20 +843,22 @@ export const getMatchedJobPostsBySkills = async (
         paymentVerified: paymentVerified === true,
         proposalCount: counts?.get(job.id) ?? 0,
         hireCount: hires.get(job.id) ?? 0,
-        clientTotalSpent: Number(totalSpent ?? 0),
+        clientTotalSpentCents: totalSpentCents ?? 0,
         clientRating: Number(clientRating ?? 0),
         clientReviewCount: Number(clientReviewCount ?? 0),
       }),
     )
     .filter((job) => {
-      const budget = Number(job.total_budget);
+      const budgetCents = job.total_budget_cents;
       return (
         (!filters.levels?.length ||
           filters.levels.includes(job.expertise_level)) &&
         (!filters.durations?.length ||
           filters.durations.includes(job.expected_duration)) &&
-        (filters.minBudget === undefined || budget >= filters.minBudget) &&
-        (filters.maxBudget === undefined || budget <= filters.maxBudget) &&
+        (filters.minBudgetCents === undefined ||
+          budgetCents >= filters.minBudgetCents) &&
+        (filters.maxBudgetCents === undefined ||
+          budgetCents <= filters.maxBudgetCents) &&
         (filters.minProposals === undefined ||
           job.proposalCount >= filters.minProposals) &&
         (filters.maxProposals === undefined ||
@@ -912,7 +915,7 @@ export const getFreelancerJobPost = async (jobId: string) => {
       companyDescription: client_metadata.company_description,
       paymentVerified: accounts.paymentMethodVerified,
       clientJoinedAt: accounts.created_at,
-      totalSpent: client_spents.total_spent,
+      totalSpentCents: client_spents.total_spent_cents,
       clientRating: client_spents.rating,
       clientReviewCount: client_spents.review_count,
     })
@@ -953,7 +956,7 @@ export const getFreelancerJobPost = async (jobId: string) => {
     clientJoinedAt: result.clientJoinedAt,
     proposalCount: Number(proposalTotal?.count ?? 0),
     hireCount: Number(hireTotal?.count ?? 0),
-    clientTotalSpent: Number(result.totalSpent ?? 0),
+    clientTotalSpentCents: result.totalSpentCents ?? 0,
     clientRating: Number(result.clientRating ?? 0),
     clientReviewCount: Number(result.clientReviewCount ?? 0),
   };
@@ -1003,7 +1006,7 @@ export interface PublicTalentSummary {
   completedProjects: number;
   rating: number;
   reviews: number;
-  hourlyRate: number;
+  hourlyRateCents: number;
   skills: string[];
   summary: string;
 }
@@ -1014,8 +1017,8 @@ export interface PublicTalentSearchFilters {
   availableOnly?: boolean;
   minRating?: number;
   minSuccess?: number;
-  minRate?: number;
-  maxRate?: number;
+  minRateCents?: number;
+  maxRateCents?: number;
   sort?: "recommended" | "rating" | "success" | "projects" | "rate-low";
 }
 
@@ -1051,14 +1054,14 @@ export const searchPublicFreelancers = async (
       gte(freelancer_earning.job_success_score, String(filters.minSuccess)),
     );
   }
-  if (filters.minRate) {
+  if (filters.minRateCents) {
     conditions.push(
-      gte(freelancer_metadata.hourly_rate, String(filters.minRate)),
+      gte(freelancer_metadata.hourly_rate_cents, filters.minRateCents),
     );
   }
-  if (filters.maxRate) {
+  if (filters.maxRateCents) {
     conditions.push(
-      lte(freelancer_metadata.hourly_rate, String(filters.maxRate)),
+      lte(freelancer_metadata.hourly_rate_cents, filters.maxRateCents),
     );
   }
 
@@ -1071,7 +1074,7 @@ export const searchPublicFreelancers = async (
       case "projects":
         return desc(freelancer_earning.completed_jobs);
       case "rate-low":
-        return asc(freelancer_metadata.hourly_rate);
+        return asc(freelancer_metadata.hourly_rate_cents);
       default:
         return desc(
           sql`${freelancer_earning.rating} * ${freelancer_earning.job_success_score}`,
@@ -1085,7 +1088,7 @@ export const searchPublicFreelancers = async (
       authId: freelancer_metadata.auth_id,
       professionalTitle: freelancer_metadata.professional_title,
       professionalDescription: freelancer_metadata.professional_description,
-      hourlyRate: freelancer_metadata.hourly_rate,
+      hourlyRateCents: freelancer_metadata.hourly_rate_cents,
       city: freelancer_metadata.city,
       country: freelancer_metadata.country,
       skills: freelancer_metadata.skills,
@@ -1149,7 +1152,7 @@ export const searchPublicFreelancers = async (
       completedProjects: Number(row.completedJobs ?? 0),
       rating: Number(row.rating ?? 0),
       reviews: Number(row.reviewCount ?? 0),
-      hourlyRate: Number(row.hourlyRate),
+      hourlyRateCents: row.hourlyRateCents,
       skills: row.skills,
       summary: row.professionalDescription,
     });

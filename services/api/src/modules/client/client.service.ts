@@ -1,6 +1,7 @@
 import { createClerkClient } from "@clerk/backend";
 import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../../database/client.js";
+import { toSafeCents } from "../../utils/money.js";
 import {
   accounts,
   agency_earning,
@@ -163,7 +164,7 @@ export const saveClientProfile = async (
 };
 
 export interface ClientHiringOverview {
-  totalSpent: number;
+  totalSpentCents: number;
   completedContracts: number;
   rating: number;
   openJobs: number;
@@ -177,7 +178,7 @@ export const getClientHiringOverview = async (
 ): Promise<ClientHiringOverview> => {
   const [spend] = await db
     .select({
-      totalSpent: client_spents.total_spent,
+      totalSpentCents: client_spents.total_spent_cents,
       completedContracts: client_spents.completed_contracts,
       ongoingContracts: client_spents.ongoing_contracts,
       rating: client_spents.rating,
@@ -225,7 +226,7 @@ export const getClientHiringOverview = async (
   const totalJobs = totalJobsRow?.value ?? 0;
 
   return {
-    totalSpent: Number(spend?.totalSpent ?? 0),
+    totalSpentCents: spend?.totalSpentCents ?? 0,
     completedContracts: spend?.completedContracts ?? 0,
     rating: Number(spend?.rating ?? 0),
     openJobs: openJobsRow?.value ?? 0,
@@ -248,8 +249,8 @@ export interface ClientDashboardOverview {
   shortlistedProposals: number;
   activeContracts: number;
   totalContracts: number;
-  totalSpent: number;
-  currentlyFunded: number;
+  totalSpentCents: number;
+  currentlyFundedCents: number;
   inProgressContracts: Array<{
     id: string;
     title: string;
@@ -258,7 +259,7 @@ export interface ClientDashboardOverview {
   activeJobPosts: Array<{
     id: string;
     title: string;
-    budget: number;
+    budgetCents: number;
     level: string;
     duration: string;
     proposalCount: number;
@@ -270,7 +271,7 @@ export const getClientDashboardOverview = async (
 ): Promise<ClientDashboardOverview> => {
   const [spend] = await db
     .select({
-      totalSpent: client_spents.total_spent,
+      totalSpentCents: client_spents.total_spent_cents,
       ongoingContracts: client_spents.ongoing_contracts,
       completedContracts: client_spents.completed_contracts,
     })
@@ -299,9 +300,9 @@ export const getClientDashboardOverview = async (
     .select({
       id: contracts.id,
       title: contracts.title,
-      totalAmount: contracts.total_amount,
-      completedAmount: sql<number>`coalesce(sum(${contract_milestones.amount}) filter (where ${contract_milestones.status} = 'COMPLETED'), 0)`,
-      fundedAmount: sql<number>`coalesce(sum(${contract_milestones.amount}) filter (where ${contract_milestones.funded_at} is not null and ${contract_milestones.status} <> 'COMPLETED'), 0)`,
+      totalAmountCents: contracts.total_amount_cents,
+      completedAmountCents: sql<string>`coalesce(sum(${contract_milestones.amount_cents}) filter (where ${contract_milestones.status} = 'COMPLETED'), 0)`,
+      fundedAmountCents: sql<string>`coalesce(sum(${contract_milestones.amount_cents}) filter (where ${contract_milestones.funded_at} is not null and ${contract_milestones.status} <> 'COMPLETED'), 0)`,
     })
     .from(contracts)
     .innerJoin(
@@ -311,13 +312,13 @@ export const getClientDashboardOverview = async (
     .where(
       and(eq(contracts.client_id, clientId), eq(contracts.status, "ACTIVE")),
     )
-    .groupBy(contracts.id, contracts.title, contracts.total_amount);
+    .groupBy(contracts.id, contracts.title, contracts.total_amount_cents);
 
   const activeJobRows = await db
     .select({
       id: job_posts.id,
       title: job_posts.title,
-      budget: job_posts.total_budget,
+      budgetCents: job_posts.total_budget_cents,
       level: job_posts.expertise_level,
       duration: job_posts.expected_duration,
       proposalCount: count(proposals.id),
@@ -331,8 +332,8 @@ export const getClientDashboardOverview = async (
     .orderBy(desc(job_posts.created_at))
     .limit(5);
 
-  const currentlyFunded = contractRows.reduce(
-    (sum, row) => sum + Number(row.fundedAmount),
+  const currentlyFundedCents = contractRows.reduce(
+    (sum, row) => sum + toSafeCents(row.fundedAmountCents),
     0,
   );
 
@@ -344,22 +345,23 @@ export const getClientDashboardOverview = async (
     activeContracts: spend?.ongoingContracts ?? 0,
     totalContracts:
       (spend?.ongoingContracts ?? 0) + (spend?.completedContracts ?? 0),
-    totalSpent: Number(spend?.totalSpent ?? 0),
-    currentlyFunded,
+    totalSpentCents: spend?.totalSpentCents ?? 0,
+    currentlyFundedCents,
     inProgressContracts: contractRows.map((row) => ({
       id: row.id,
       title: row.title,
       progressPercent:
-        Number(row.totalAmount) > 0
+        row.totalAmountCents > 0
           ? Math.round(
-              (Number(row.completedAmount) / Number(row.totalAmount)) * 100,
+              (toSafeCents(row.completedAmountCents) / row.totalAmountCents) *
+                100,
             )
           : 0,
     })),
     activeJobPosts: activeJobRows.map((row) => ({
       id: row.id,
       title: row.title,
-      budget: Number(row.budget),
+      budgetCents: row.budgetCents,
       level: row.level,
       duration: row.duration,
       proposalCount: row.proposalCount,
@@ -371,7 +373,7 @@ export interface ClientCompletedContract {
   id: string;
   title: string;
   talent: string;
-  budget: number;
+  budgetCents: number;
   completedAt: string | null;
   clientReview: { rating: number; text: string } | null;
   talentReview: { rating: number; text: string } | null;
@@ -384,7 +386,7 @@ export const getClientCompletedContracts = async (
     .select({
       id: contracts.id,
       title: contracts.title,
-      totalAmount: contracts.total_amount,
+      totalAmountCents: contracts.total_amount_cents,
       completedAt: contracts.completed_at,
       freelancerId: contracts.freelancer_id,
       agencyId: contracts.agency_id,
@@ -473,7 +475,7 @@ export const getClientCompletedContracts = async (
       id: row.id,
       title: row.title,
       talent: talentName,
-      budget: Number(row.totalAmount),
+      budgetCents: row.totalAmountCents,
       completedAt: row.completedAt ? row.completedAt.toISOString() : null,
       clientReview: clientReviewRow
         ? { rating: clientReviewRow.rating, text: clientReviewRow.comment }

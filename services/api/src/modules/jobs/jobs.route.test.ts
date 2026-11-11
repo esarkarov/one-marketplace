@@ -50,7 +50,7 @@ describe("GET /api/v1/jobs/public", () => {
 
   it("returns 200 for a valid query", async () => {
     const response = await request(app).get(
-      "/api/v1/jobs/public?sort=budget&offset=0&minBudget=5",
+      "/api/v1/jobs/public?sort=budget&offset=0&minBudgetCents=500",
     );
 
     expect(response.status).toBe(200);

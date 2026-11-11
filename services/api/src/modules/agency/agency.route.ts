@@ -4,6 +4,7 @@ import {
   resolveAccountRole,
   verifyBearerToken,
 } from "../../middleware/auth.middleware.js";
+import { validate } from "../../middleware/validate.middleware.js";
 import { largeJsonBody } from "../../middleware/json-body.middleware.js";
 import { contentWriteLimiter } from "../../middleware/user-rate-limit.middleware.js";
 import {
@@ -34,12 +35,21 @@ import {
   updateAgencyInvitationRoleHandler,
   updateAgencyMemberRoleHandler,
 } from "./agency.controller.js";
+import {
+  agencyJobFeedQuerySchema,
+  agencyTalentSearchQuerySchema,
+} from "./agency.schemas.js";
+import { submitProposalBodySchema } from "../../utils/money-schemas.js";
 
 export const agencyRouter = Router();
 
 const agencyWriteLimiter = contentWriteLimiter();
 
-agencyRouter.get("/search", searchPublicAgenciesHandler);
+agencyRouter.get(
+  "/search",
+  validate({ query: agencyTalentSearchQuerySchema }),
+  searchPublicAgenciesHandler,
+);
 agencyRouter.get("/profile/:id", getPublicAgencyHandler);
 agencyRouter.get("/mine", isAuthenticated, getLoggedInAgency);
 agencyRouter.get("/membership", isAuthenticated, getAgencyMembershipHandler);
@@ -57,7 +67,12 @@ agencyRouter.put(
   resolveAccountRole,
   updateAgencyHandler,
 );
-agencyRouter.get("/jobs", isAuthenticated, getAgencyJobFeed);
+agencyRouter.get(
+  "/jobs",
+  isAuthenticated,
+  validate({ query: agencyJobFeedQuerySchema }),
+  getAgencyJobFeed,
+);
 agencyRouter.get("/connects", isAuthenticated, getAgencyConnects);
 agencyRouter.get(
   "/connects/history",
@@ -66,7 +81,12 @@ agencyRouter.get(
 );
 agencyRouter.post("/connects/checkout", isAuthenticated, buyAgencyConnects);
 agencyRouter.get("/proposals", isAuthenticated, getAgencyProposalsHandler);
-agencyRouter.post("/proposals", isAuthenticated, submitAgencyProposalHandler);
+agencyRouter.post(
+  "/proposals",
+  isAuthenticated,
+  validate({ body: submitProposalBodySchema }),
+  submitAgencyProposalHandler,
+);
 agencyRouter.get(
   "/proposals/metadata",
   isAuthenticated,

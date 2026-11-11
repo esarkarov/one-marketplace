@@ -57,7 +57,7 @@ const jobBody = (attachment: Record<string, unknown>) => ({
   expertise_level: "Expert",
   expected_duration: "1 month",
   skills: ["react"],
-  milestones: [{ title: "M1", budget: 100, dueDate }],
+  milestones: [{ title: "M1", budgetCents: 10000, dueDate }],
   attachments: [{ fileName: "a.pdf", fileSize: 1, ...attachment }],
 });
 

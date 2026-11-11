@@ -22,7 +22,7 @@ export type Owner =
 
 export type PayoutSeed = {
   status?: "PENDING" | "PROCESSING" | "PAID" | "FAILED";
-  amount?: string;
+  amountCents?: number;
   attempts?: number;
   claimedMinutesAgo?: number;
   nextRetryInSeconds?: number;
@@ -179,9 +179,9 @@ export const createTestData = () => {
 
   const createEarning = async (
     owner: Owner,
-    options: { amount?: string; fee?: string; ageMs?: number } = {},
+    options: { amountCents?: number; feeCents?: number; ageMs?: number } = {},
   ) => {
-    const amount = options.amount ?? "110.00";
+    const amountCents = options.amountCents ?? 11000;
     const clientId = await ensureClient();
     const ageMs =
       options.ageMs ?? EARNINGS_HOLD_PERIOD_MS + 24 * 60 * 60 * 1000;
@@ -194,7 +194,7 @@ export const createTestData = () => {
         description: "Integration test job",
         expertise_level: "INTERMEDIATE",
         expected_duration: "1 week",
-        total_budget: amount,
+        total_budget_cents: amountCents,
         milestones: [],
       })
       .returning({ id: job_posts.id });
@@ -207,7 +207,7 @@ export const createTestData = () => {
         sender_id: owner.freelancerId ?? `${TEST_PREFIX}${owner.agencyId}`,
         sender_type: owner.freelancerId ? "FREELANCER" : "AGENCY",
         cover_letter: "integration",
-        bid_amount: amount,
+        bid_amount_cents: amountCents,
         duration: "1 week",
       })
       .returning({ id: proposals.id });
@@ -222,7 +222,7 @@ export const createTestData = () => {
         freelancer_id: owner.freelancerId ?? null,
         agency_id: owner.agencyId ?? null,
         title: "Integration contract",
-        total_amount: amount,
+        total_amount_cents: amountCents,
       })
       .returning({ id: contracts.id });
     created.contractIds.push(contract!.id);
@@ -232,7 +232,7 @@ export const createTestData = () => {
       .values({
         contract_id: contract!.id,
         title: "Integration milestone",
-        amount,
+        amount_cents: amountCents,
         due_date: "2026-01-01",
         position: 0,
       })
@@ -245,8 +245,8 @@ export const createTestData = () => {
         agency_id: owner.agencyId ?? null,
         contract_id: contract!.id,
         milestone_id: milestone!.id,
-        amount,
-        platform_fee_amount: options.fee ?? "10.00",
+        amount_cents: amountCents,
+        platform_fee_cents: options.feeCents ?? 1000,
         description: "Integration earning",
         created_at: new Date(Date.now() - ageMs),
       })
@@ -267,7 +267,7 @@ export const createTestData = () => {
         freelancer_id: owner.freelancerId ?? null,
         agency_id: owner.agencyId ?? null,
         earning_history_id: earningId,
-        amount: seed.amount ?? "100.00",
+        amount_cents: seed.amountCents ?? 10000,
         status,
         attempts: seed.attempts ?? 0,
         claimed_at:
@@ -296,7 +296,7 @@ export const createTestData = () => {
       owner?: "freelancer" | "agency";
       connectAccount?: boolean;
       payout?: PayoutSeed | null;
-      earning?: { amount?: string; fee?: string; ageMs?: number };
+      earning?: { amountCents?: number; feeCents?: number; ageMs?: number };
     } = {},
   ) => {
     const isAgency = options.owner === "agency";

@@ -16,7 +16,7 @@ describe("notification envelope", () => {
     });
 
     expect(envelope.type).toBe("notifications.created");
-    expect(envelope.version).toBe(1);
+    expect(envelope.version).toBe(2);
     expect(notificationEnvelopeSchema.safeParse(envelope).success).toBe(true);
     expect(new Date(envelope.occurredAt).toISOString()).toBe(
       envelope.occurredAt,
@@ -59,8 +59,62 @@ describe("notification envelope", () => {
     expect(notificationEnvelopeSchema.safeParse(envelope).success).toBe(true);
   });
 
+  const base = () =>
+    createNotificationEnvelope({
+      recipientId: "u",
+      type: "T",
+      title: "a",
+      message: "b",
+    });
+  const withMetadata = (
+    version: number,
+    metadata?: Record<string, unknown>,
+  ) => ({
+    ...base(),
+    version,
+    payload: { ...base().payload, metadata },
+  });
+  const parsed = (value: unknown) =>
+    notificationEnvelopeSchema.safeParse(value);
+
+  it("converts a v1 amount to amountCents and emits the v2 shape", () => {
+    const result = parsed(withMetadata(1, { amount: 19.99, a: 1 }));
+
+    expect(result.success).toBe(true);
+    expect(result.data?.version).toBe(2);
+    expect(result.data?.payload.metadata).toEqual({ amountCents: 1999, a: 1 });
+  });
+
+  it("passes a v1 message without amount through", () => {
+    const result = parsed(withMetadata(1, { a: 1 }));
+
+    expect(result.success).toBe(true);
+    expect(result.data?.payload.metadata).toEqual({ a: 1 });
+  });
+
   it.each([
-    ["wrong version", { version: 2 }],
+    ["three decimals", { amount: 1.005 }],
+    ["non-numeric", { amount: "5" }],
+    ["negative", { amount: -1 }],
+  ])("rejects a v1 amount with %s", (_name, metadata) => {
+    expect(parsed(withMetadata(1, metadata)).success).toBe(false);
+  });
+
+  it("accepts a v2 amountCents integer", () => {
+    expect(parsed(withMetadata(2, { amountCents: 1999 })).success).toBe(true);
+  });
+
+  it.each([
+    ["float amountCents", { amountCents: 19.99 }],
+    ["negative amountCents", { amountCents: -1 }],
+    ["amount key", { amount: 5 }],
+    ["amount and amountCents", { amount: 5, amountCents: 500 }],
+  ])("rejects a v2 message with %s", (_name, metadata) => {
+    expect(parsed(withMetadata(2, metadata)).success).toBe(false);
+  });
+
+  it.each([
+    ["wrong version", { version: 3 }],
     ["wrong type", { type: "other" }],
     ["bad id", { id: "not-a-uuid" }],
     ["bad timestamp", { occurredAt: "yesterday" }],

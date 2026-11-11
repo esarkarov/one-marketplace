@@ -250,8 +250,8 @@ export const removeSavedJobPost = async (
 export interface PublicJobFilters {
   query?: string;
   levels?: string[];
-  minBudget?: number;
-  maxBudget?: number;
+  minBudgetCents?: number;
+  maxBudgetCents?: number;
   maxProposals?: number;
   paymentVerified?: boolean;
   sort?: "newest" | "budget" | "rating" | "proposals";
@@ -262,7 +262,7 @@ export interface PublicJobSummary {
   title: string;
   description: string;
   skills: string[];
-  totalBudget: number;
+  totalBudgetCents: number;
   expectedDuration: string;
   expertiseLevel: string;
   publishedAt: Date | null;
@@ -270,7 +270,7 @@ export interface PublicJobSummary {
   clientLocation: string | null;
   paymentVerified: boolean;
   clientRating: number;
-  clientTotalSpent: number;
+  clientTotalSpentCents: number;
   proposalCount: number;
 }
 
@@ -298,11 +298,11 @@ export const getPublicJobFeed = async (
   if (filters.levels?.length) {
     conditions.push(inArray(job_posts.expertise_level, filters.levels));
   }
-  if (filters.minBudget) {
-    conditions.push(gte(job_posts.total_budget, String(filters.minBudget)));
+  if (filters.minBudgetCents) {
+    conditions.push(gte(job_posts.total_budget_cents, filters.minBudgetCents));
   }
-  if (filters.maxBudget) {
-    conditions.push(lte(job_posts.total_budget, String(filters.maxBudget)));
+  if (filters.maxBudgetCents) {
+    conditions.push(lte(job_posts.total_budget_cents, filters.maxBudgetCents));
   }
   if (filters.paymentVerified) {
     conditions.push(eq(accounts.paymentMethodVerified, true));
@@ -314,7 +314,7 @@ export const getPublicJobFeed = async (
   const orderBy = (() => {
     switch (filters.sort) {
       case "budget":
-        return desc(job_posts.total_budget);
+        return desc(job_posts.total_budget_cents);
       case "rating":
         return desc(client_spents.rating);
       case "proposals":
@@ -329,7 +329,7 @@ export const getPublicJobFeed = async (
       job: job_posts,
       companyName: client_metadata.company_name,
       paymentVerified: accounts.paymentMethodVerified,
-      totalSpent: client_spents.total_spent,
+      totalSpentCents: client_spents.total_spent_cents,
       clientRating: client_spents.rating,
       proposalCount: proposalCountExpr,
     })
@@ -389,7 +389,7 @@ export const getPublicJobFeed = async (
       title: row.job.title,
       description: row.job.description,
       skills: row.job.skills,
-      totalBudget: Number(row.job.total_budget),
+      totalBudgetCents: row.job.total_budget_cents,
       expectedDuration: row.job.expected_duration,
       expertiseLevel: row.job.expertise_level,
       publishedAt: row.job.published_at,
@@ -397,7 +397,7 @@ export const getPublicJobFeed = async (
       clientLocation,
       paymentVerified: row.paymentVerified === true,
       clientRating: Number(row.clientRating ?? 0),
-      clientTotalSpent: Number(row.totalSpent ?? 0),
+      clientTotalSpentCents: row.totalSpentCents ?? 0,
       proposalCount: Number(row.proposalCount),
     });
   }

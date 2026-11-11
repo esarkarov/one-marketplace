@@ -26,7 +26,7 @@ export const createProposal: RequestHandler = asyncHandler(
   async (request, response) => {
     const auth = requireFreelancer(request);
     const coverLetter = requireText(request.body?.coverLetter, "Cover letter");
-    const bidAmount = Number(request.body?.bidAmount);
+    const bidAmountCents = request.body.bidAmountCents as number;
     const screeningAnswers = Array.isArray(request.body?.screeningAnswers)
       ? request.body.screeningAnswers.map((answer: unknown) =>
           typeof answer === "string" ? answer.trim() : "",
@@ -34,18 +34,11 @@ export const createProposal: RequestHandler = asyncHandler(
       : [];
     if (coverLetter.length < 80)
       throw new ApiError(400, "Cover letter must be at least 80 characters.");
-    if (
-      !Number.isFinite(bidAmount) ||
-      bidAmount <= 0 ||
-      bidAmount > 1_000_000
-    ) {
-      throw new ApiError(400, "Enter a valid bid amount.");
-    }
 
     const result = await submitProposal(auth.userId, {
       jobId: requireText(request.body?.jobId, "Job post"),
       coverLetter,
-      bidAmount,
+      bidAmountCents,
       duration: requireText(request.body?.duration, "Delivery duration"),
       screeningAnswers,
     });

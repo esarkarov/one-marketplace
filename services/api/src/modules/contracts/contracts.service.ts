@@ -2,7 +2,6 @@ import type Stripe from "stripe";
 import { createClerkClient } from "@clerk/backend";
 import { and, asc, desc, eq, inArray, isNotNull, ne, sql } from "drizzle-orm";
 import { env } from "../../config/env.js";
-import { PLATFORM_FEE_RATE } from "../../config/constants.js";
 import { logger } from "../../config/logger.js";
 import { stripe } from "../../config/stripe.js";
 import { db } from "../../database/client.js";
@@ -24,6 +23,7 @@ import {
   reviews,
 } from "../../database/schema.js";
 import { ApiError } from "../../utils/api-error.js";
+import { splitFee } from "../../utils/money.js";
 import { sendNotification } from "../../events/publisher.js";
 import { emitConversationUpdate } from "../messaging/messaging.socket.js";
 import { getJSSContribution } from "../freelancer/freelancer.service.js";
@@ -67,8 +67,8 @@ export const createContractCheckout = async (
     throw new ApiError(400, "This job does not have a milestone to fund.");
   }
 
-  const amount = Number(firstMilestone.budget);
-  if (!Number.isFinite(amount) || amount <= 0) {
+  const amountCents = firstMilestone.budgetCents;
+  if (!Number.isSafeInteger(amountCents) || amountCents < 1) {
     throw new ApiError(400, "The first milestone amount is invalid.");
   }
 
@@ -94,7 +94,7 @@ export const createContractCheckout = async (
         quantity: 1,
         price_data: {
           currency: "usd",
-          unit_amount: Math.round(amount * 100),
+          unit_amount: amountCents,
           product_data: { name: firstMilestone.title },
         },
       },
@@ -130,7 +130,7 @@ export const createMilestoneFundingCheckout = async (
       contractStatus: contracts.status,
       milestoneId: contract_milestones.id,
       milestoneTitle: contract_milestones.title,
-      milestoneAmount: contract_milestones.amount,
+      milestoneAmountCents: contract_milestones.amount_cents,
       milestonePosition: contract_milestones.position,
       milestoneStatus: contract_milestones.status,
       fundedAt: contract_milestones.funded_at,
@@ -176,7 +176,6 @@ export const createMilestoneFundingCheckout = async (
     throw new ApiError(409, "Client payment profile was not found.");
   }
 
-  const amount = Number(milestone.milestoneAmount);
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
     customer: milestone.customerId,
@@ -186,7 +185,7 @@ export const createMilestoneFundingCheckout = async (
         quantity: 1,
         price_data: {
           currency: "usd",
-          unit_amount: Math.round(amount * 100),
+          unit_amount: milestone.milestoneAmountCents,
           product_data: { name: milestone.milestoneTitle },
         },
       },
@@ -227,7 +226,7 @@ export const fundContractMilestoneFromPayment = async (
       agencyId: contracts.agency_id,
       milestoneId: contract_milestones.id,
       milestoneTitle: contract_milestones.title,
-      milestoneAmount: contract_milestones.amount,
+      milestoneAmountCents: contract_milestones.amount_cents,
       conversationId: conversations.id,
       customerId: accounts.stripe_customer_id,
     })
@@ -265,8 +264,7 @@ export const fundContractMilestoneFromPayment = async (
       : session.customer?.id;
   if (
     customerId !== milestone.customerId ||
-    session.amount_total !==
-      Math.round(Number(milestone.milestoneAmount) * 100) ||
+    session.amount_total !== milestone.milestoneAmountCents ||
     session.currency !== "usd"
   ) {
     throw new ApiError(400, "Stripe milestone payment does not match.");
@@ -308,7 +306,7 @@ export const fundContractMilestoneFromPayment = async (
           contractId: milestone.contractId,
           milestoneId: milestone.milestoneId,
           milestoneTitle: milestone.milestoneTitle,
-          amount: Number(milestone.milestoneAmount),
+          amountCents: milestone.milestoneAmountCents,
           requirements: session.metadata?.requirements || null,
         },
       })
@@ -381,7 +379,7 @@ export const getAccountContracts = async (
       agencyId: contracts.agency_id,
       title: contracts.title,
       description: job_posts.description,
-      totalAmount: contracts.total_amount,
+      totalAmountCents: contracts.total_amount_cents,
       status: contracts.status,
       startedAt: contracts.started_at,
       completedAt: contracts.completed_at,
@@ -390,7 +388,7 @@ export const getAccountContracts = async (
       clientCompanyName: client_metadata.company_name,
       milestoneId: contract_milestones.id,
       milestoneTitle: contract_milestones.title,
-      milestoneAmount: contract_milestones.amount,
+      milestoneAmountCents: contract_milestones.amount_cents,
       milestoneDueDate: contract_milestones.due_date,
       milestonePosition: contract_milestones.position,
       milestoneStatus: contract_milestones.status,
@@ -501,7 +499,7 @@ export const getAccountContracts = async (
       jobId: row.jobId,
       title: row.title,
       description: row.description,
-      totalAmount: Number(row.totalAmount),
+      totalAmountCents: row.totalAmountCents,
       status: row.status,
       startedAt: row.startedAt,
       completedAt: row.completedAt,
@@ -524,7 +522,7 @@ export const getAccountContracts = async (
     contract.milestones.push({
       id: row.milestoneId,
       title: row.milestoneTitle,
-      amount: Number(row.milestoneAmount),
+      amountCents: row.milestoneAmountCents,
       dueDate: row.milestoneDueDate,
       position: row.milestonePosition,
       status: row.milestoneStatus,
@@ -943,7 +941,7 @@ export const submitContractMilestone = async (
       clientId: contracts.client_id,
       milestoneId: contract_milestones.id,
       milestoneTitle: contract_milestones.title,
-      milestoneAmount: contract_milestones.amount,
+      milestoneAmountCents: contract_milestones.amount_cents,
       milestoneStatus: contract_milestones.status,
       fundedAt: contract_milestones.funded_at,
       conversationId: conversations.id,
@@ -1005,7 +1003,7 @@ export const submitContractMilestone = async (
           milestoneId: milestone.milestoneId,
           contractTitle: milestone.contractTitle,
           milestoneTitle: milestone.milestoneTitle,
-          amount: Number(milestone.milestoneAmount),
+          amountCents: milestone.milestoneAmountCents,
           submissionMessage,
           submissionDeliveryLink: submissionDeliveryLink ?? null,
         },
@@ -1076,7 +1074,7 @@ export const reviewContractMilestone = async (
       agencyId: contracts.agency_id,
       milestoneId: contract_milestones.id,
       milestoneTitle: contract_milestones.title,
-      milestoneAmount: contract_milestones.amount,
+      milestoneAmountCents: contract_milestones.amount_cents,
       milestoneStatus: contract_milestones.status,
       paymentRequestedAt: contract_milestones.payment_requested_at,
       conversationId: conversations.id,
@@ -1114,10 +1112,8 @@ export const reviewContractMilestone = async (
 
   const approved = action === "APPROVE";
   const now = new Date();
-  const grossAmount = Number(milestone.milestoneAmount);
-  const platformFeeAmount =
-    Math.round(grossAmount * PLATFORM_FEE_RATE * 100) / 100;
-  const netAmount = Math.round((grossAmount - platformFeeAmount) * 100) / 100;
+  const grossCents = milestone.milestoneAmountCents;
+  const { feeCents, netCents } = splitFee(grossCents);
 
   await db
     .transaction(async (transaction) => {
@@ -1144,12 +1140,12 @@ export const reviewContractMilestone = async (
             .insert(agency_earning)
             .values({
               agency_id: milestone.agencyId,
-              total_earning: netAmount.toFixed(2),
+              total_earning_cents: netCents,
             })
             .onConflictDoUpdate({
               target: agency_earning.agency_id,
               set: {
-                total_earning: sql`${agency_earning.total_earning} + ${netAmount}`,
+                total_earning_cents: sql`${agency_earning.total_earning_cents} + ${netCents}`,
                 updated_at: now,
               },
             });
@@ -1158,12 +1154,12 @@ export const reviewContractMilestone = async (
             .insert(freelancer_earning)
             .values({
               freelancer_id: freelancerAccountId,
-              total_earning: netAmount.toFixed(2),
+              total_earning_cents: netCents,
             })
             .onConflictDoUpdate({
               target: freelancer_earning.freelancer_id,
               set: {
-                total_earning: sql`${freelancer_earning.total_earning} + ${netAmount}`,
+                total_earning_cents: sql`${freelancer_earning.total_earning_cents} + ${netCents}`,
                 updated_at: now,
               },
             });
@@ -1172,12 +1168,12 @@ export const reviewContractMilestone = async (
           .insert(client_spents)
           .values({
             client_id: clientId,
-            total_spent: milestone.milestoneAmount,
+            total_spent_cents: grossCents,
           })
           .onConflictDoUpdate({
             target: client_spents.client_id,
             set: {
-              total_spent: sql`${client_spents.total_spent} + ${milestone.milestoneAmount}`,
+              total_spent_cents: sql`${client_spents.total_spent_cents} + ${grossCents}`,
               updated_at: now,
             },
           });
@@ -1186,8 +1182,8 @@ export const reviewContractMilestone = async (
           agency_id: milestone.agencyId ?? null,
           contract_id: milestone.contractId,
           milestone_id: milestone.milestoneId,
-          amount: grossAmount.toFixed(2),
-          platform_fee_amount: platformFeeAmount.toFixed(2),
+          amount_cents: grossCents,
+          platform_fee_cents: feeCents,
           description: `Milestone payment for "${milestone.milestoneTitle}"`,
         });
       }
@@ -1205,7 +1201,7 @@ export const reviewContractMilestone = async (
                 milestoneId: milestone.milestoneId,
                 contractTitle: milestone.contractTitle,
                 milestoneTitle: milestone.milestoneTitle,
-                amount: Number(milestone.milestoneAmount),
+                amountCents: milestone.milestoneAmountCents,
               },
               created_at: now,
             },
@@ -1222,7 +1218,7 @@ export const reviewContractMilestone = async (
                 milestoneId: milestone.milestoneId,
                 contractTitle: milestone.contractTitle,
                 milestoneTitle: milestone.milestoneTitle,
-                amount: Number(milestone.milestoneAmount),
+                amountCents: milestone.milestoneAmountCents,
               },
               created_at: now,
             },
@@ -1288,7 +1284,7 @@ export const reviewContractMilestone = async (
 export const addContractMilestone = async (
   contractId: string,
   clientId: string,
-  input: { title: string; amount: number; dueDate: string },
+  input: { title: string; amountCents: number; dueDate: string },
 ) => {
   const [contract] = await db
     .select({
@@ -1297,8 +1293,6 @@ export const addContractMilestone = async (
       freelancerId: contracts.freelancer_id,
       agencyId: contracts.agency_id,
       status: contracts.status,
-      totalAmount: contracts.total_amount,
-      jobBudget: job_posts.total_budget,
       jobMilestones: job_posts.milestones,
       conversationId: conversations.id,
       incompleteMilestones: sql<number>`(
@@ -1343,7 +1337,7 @@ export const addContractMilestone = async (
       .values({
         contract_id: contract.id,
         title: input.title,
-        amount: input.amount.toFixed(2),
+        amount_cents: input.amountCents,
         due_date: input.dueDate,
         position: contract.nextPosition,
         status: "PENDING",
@@ -1356,7 +1350,7 @@ export const addContractMilestone = async (
       {
         id: milestone.id,
         title: input.title,
-        budget: input.amount,
+        budgetCents: input.amountCents,
         dueDate: input.dueDate,
       },
     ];
@@ -1364,14 +1358,14 @@ export const addContractMilestone = async (
       .update(job_posts)
       .set({
         milestones: updatedJobMilestones,
-        total_budget: (Number(contract.jobBudget) + input.amount).toFixed(2),
+        total_budget_cents: sql`${job_posts.total_budget_cents} + ${input.amountCents}`,
         updated_at: now,
       })
       .where(eq(job_posts.id, contract.jobId));
     await transaction
       .update(contracts)
       .set({
-        total_amount: (Number(contract.totalAmount) + input.amount).toFixed(2),
+        total_amount_cents: sql`${contracts.total_amount_cents} + ${input.amountCents}`,
         updated_at: now,
       })
       .where(eq(contracts.id, contract.id));
@@ -1391,7 +1385,7 @@ export const addContractMilestone = async (
           contractId: contract.id,
           milestoneId: milestone.id,
           milestoneTitle: input.title,
-          amount: input.amount,
+          amountCents: input.amountCents,
           dueDate: input.dueDate,
         },
       })
@@ -1454,7 +1448,7 @@ export const addContractMilestone = async (
   return {
     id: result.milestoneId,
     title: input.title,
-    amount: input.amount,
+    amountCents: input.amountCents,
     dueDate: input.dueDate,
     status: "PENDING" as const,
   };
@@ -1494,10 +1488,12 @@ export const createContractFromPayment = async (
   const isAgency = offer.proposal.sender_type === "AGENCY";
 
   const milestones = offer.job.milestones;
-  const amounts = milestones.map((milestone) => Number(milestone.budget));
+  const amounts = milestones.map((milestone) => milestone.budgetCents);
+  const totalAmountCents = amounts.reduce((total, amount) => total + amount, 0);
   if (
     !milestones.length ||
-    amounts.some((amount) => !Number.isFinite(amount) || amount <= 0)
+    amounts.some((amount) => !Number.isSafeInteger(amount) || amount < 1) ||
+    !Number.isSafeInteger(totalAmountCents)
   ) {
     throw new ApiError(400, "Contract milestones are invalid.");
   }
@@ -1506,7 +1502,7 @@ export const createContractFromPayment = async (
     typeof session.customer === "string"
       ? session.customer
       : session.customer?.id;
-  const firstMilestoneAmount = Math.round(amounts[0]! * 100);
+  const firstMilestoneAmount = amounts[0]!;
   if (
     stripeCustomerId !== offer.stripeCustomerId ||
     session.amount_total !== firstMilestoneAmount ||
@@ -1530,9 +1526,7 @@ export const createContractFromPayment = async (
         freelancer_id: isAgency ? null : offer.proposal.sender_id,
         agency_id: isAgency ? offer.proposal.sender_id : null,
         title: offer.job.title,
-        total_amount: amounts
-          .reduce((total, amount) => total + amount, 0)
-          .toFixed(2),
+        total_amount_cents: totalAmountCents,
         status: "PENDING",
       })
       .onConflictDoNothing({ target: contracts.proposal_id })
@@ -1544,7 +1538,7 @@ export const createContractFromPayment = async (
       milestones.map((milestone, position) => ({
         contract_id: contract.id,
         title: milestone.title,
-        amount: amounts[position]!.toFixed(2),
+        amount_cents: amounts[position]!,
         due_date: milestone.dueDate,
         position,
         stripe_checkout_session_id: position === 0 ? session.id : undefined,
@@ -1572,7 +1566,7 @@ export const createContractFromPayment = async (
           title: offer.job.title,
           firstMilestone: {
             title: milestones[0]!.title,
-            amount: amounts[0],
+            amountCents: amounts[0],
           },
         },
       })

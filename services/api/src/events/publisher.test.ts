@@ -93,7 +93,7 @@ describe("sendNotification", () => {
     expect(options.timeout).toBeGreaterThan(0);
     expect(body).toMatchObject({
       type: "notifications.created",
-      version: 1,
+      version: 2,
       payload: input,
     });
   });

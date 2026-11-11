@@ -37,7 +37,7 @@ export const submitProposal = async (
   input: {
     jobId: string;
     coverLetter: string;
-    bidAmount: number;
+    bidAmountCents: number;
     duration: string;
     screeningAnswers: string[];
   },
@@ -87,7 +87,7 @@ export const submitProposal = async (
         sender_id: freelancerId,
         sender_type: "FREELANCER",
         cover_letter: input.coverLetter,
-        bid_amount: input.bidAmount.toString(),
+        bid_amount_cents: input.bidAmountCents,
         duration: input.duration,
         screening_answers: questions.map((question, index) => ({
           question,
@@ -136,7 +136,7 @@ export const submitAgencyProposal = async (
   input: {
     jobId: string;
     coverLetter: string;
-    bidAmount: number;
+    bidAmountCents: number;
     duration: string;
     screeningAnswers: string[];
   },
@@ -193,7 +193,7 @@ export const submitAgencyProposal = async (
         sender_id: agencyId,
         sender_type: "AGENCY",
         cover_letter: input.coverLetter,
-        bid_amount: input.bidAmount.toString(),
+        bid_amount_cents: input.bidAmountCents,
         duration: input.duration,
         screening_answers: questions.map((question, index) => ({
           question,
@@ -335,8 +335,8 @@ export const getFreelancerProposals = async (freelancerId: string) =>
       company: client_metadata.company_name,
       status: proposals.status,
       submittedAt: proposals.created_at,
-      budget: job_posts.total_budget,
-      bidAmount: proposals.bid_amount,
+      budgetCents: job_posts.total_budget_cents,
+      bidAmountCents: proposals.bid_amount_cents,
       duration: proposals.duration,
       coverLetter: proposals.cover_letter,
       skills: job_posts.skills,
@@ -361,14 +361,14 @@ export const getAgencyProposals = async (agencyId: string) =>
       company: client_metadata.company_name,
       status: proposals.status,
       submittedAt: proposals.created_at,
-      budget: job_posts.total_budget,
-      bidAmount: proposals.bid_amount,
+      budgetCents: job_posts.total_budget_cents,
+      bidAmountCents: proposals.bid_amount_cents,
       duration: proposals.duration,
       coverLetter: proposals.cover_letter,
       skills: job_posts.skills,
       clientRating: client_spents.rating,
       clientReviewCount: client_spents.review_count,
-      clientTotalSpent: client_spents.total_spent,
+      clientTotalSpentCents: client_spents.total_spent_cents,
       conversationId: conversations.id,
     })
     .from(proposals)
@@ -403,7 +403,7 @@ export const getClientJobProposals = async (
       city: freelancer_metadata.city,
       skills: freelancer_metadata.skills,
       coverLetter: proposals.cover_letter,
-      bidAmount: proposals.bid_amount,
+      bidAmountCents: proposals.bid_amount_cents,
       duration: proposals.duration,
       screeningAnswers: proposals.screening_answers,
       status: proposals.status,

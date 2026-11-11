@@ -15,7 +15,7 @@ import {
   updateJobPost,
 } from "./jobs.service.js";
 import { requireFreelancer } from "../freelancer/freelancer.controller.js";
-import type { JobBody } from "./jobs.schemas.js";
+import { MAX_JOB_BUDGET_CENTS, type JobBody } from "./jobs.schemas.js";
 import {
   assertAttachmentFileName,
   validateAttachmentBatch,
@@ -51,7 +51,7 @@ const buildJobData = (body: JobBody, allowStoredAttachments: boolean) => {
         return {
           id: String(milestone.id || randomUUID()),
           title: requireText(milestone.title, "Milestone title"),
-          budget: Number(milestone.budget),
+          budgetCents: milestone.budgetCents,
           dueDate: requireText(milestone.dueDate, "Milestone due date"),
         };
       })
@@ -61,11 +61,6 @@ const buildJobData = (body: JobBody, allowStoredAttachments: boolean) => {
     throw new ApiError(400, "At least one skill is required.");
   if (!milestones.length) {
     throw new ApiError(400, "At least one milestone is required.");
-  }
-  if (
-    milestones.some(({ budget }) => !Number.isFinite(budget) || budget <= 5)
-  ) {
-    throw new ApiError(400, "Every milestone needs a valid budget.");
   }
 
   const dates = milestones.map(({ dueDate }) => new Date(dueDate).getTime());
@@ -83,12 +78,12 @@ const buildJobData = (body: JobBody, allowStoredAttachments: boolean) => {
     );
   }
 
-  const total_budget = milestones.reduce(
-    (total, item) => total + item.budget,
+  const total_budget_cents = milestones.reduce(
+    (total, item) => total + item.budgetCents,
     0,
   );
 
-  if (total_budget < 5 || total_budget > 1_000_000) {
+  if (total_budget_cents < 500 || total_budget_cents > MAX_JOB_BUDGET_CENTS) {
     throw new ApiError(400, "Total budget must be between $5 and $1,000,000.");
   }
 
@@ -131,7 +126,7 @@ const buildJobData = (body: JobBody, allowStoredAttachments: boolean) => {
     expertise_level: requireText(body.expertise_level, "Expertise level"),
     expected_duration: requireText(body.expected_duration, "Expected duration"),
     skills,
-    total_budget: total_budget.toString(),
+    total_budget_cents,
     milestones,
     screening_questions: Array.isArray(body.screening_questions)
       ? body.screening_questions
@@ -272,7 +267,7 @@ export const getPublicJobFeedHandler: RequestHandler = asyncHandler(
     const offset = Math.max(0, Number(request.query.offset) || 0);
     const numberParam = (key: string) => {
       const value = Number(request.query[key]);
-      return Number.isFinite(value) && value > 0 ? value : undefined;
+      return Number.isSafeInteger(value) && value > 0 ? value : undefined;
     };
     const levels =
       typeof request.query.levels === "string" && request.query.levels
@@ -284,8 +279,8 @@ export const getPublicJobFeedHandler: RequestHandler = asyncHandler(
       sort,
       levels,
       paymentVerified: request.query.paymentVerified === "true",
-      minBudget: numberParam("minBudget"),
-      maxBudget: numberParam("maxBudget"),
+      minBudgetCents: numberParam("minBudgetCents"),
+      maxBudgetCents: numberParam("maxBudgetCents"),
       maxProposals:
         request.query.maxProposals !== undefined
           ? Number(request.query.maxProposals)

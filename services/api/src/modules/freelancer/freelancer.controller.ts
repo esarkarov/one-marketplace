@@ -55,11 +55,6 @@ export const upsertFreelanceProfile: RequestHandler = asyncHandler(
       throw new ApiError(400, "At least one portfolio project is required.");
     }
 
-    const hourlyRate = Number(metadata.hourly_rate);
-    if (!Number.isFinite(hourlyRate) || hourlyRate < 5 || hourlyRate > 1000) {
-      throw new ApiError(400, "Hourly rate must be between 5 and 1000$.");
-    }
-
     const skills = metadata.skills;
 
     if (
@@ -98,7 +93,7 @@ export const upsertFreelanceProfile: RequestHandler = asyncHandler(
         metadata.professional_description,
         "Professional description",
       ),
-      hourly_rate: hourlyRate.toString(),
+      hourly_rate_cents: metadata.hourly_rate_cents as number,
       country: requireText(metadata.country, "Country"),
       city: requireText(metadata.city, "City"),
       availability_status: requireText(
@@ -254,8 +249,8 @@ export const getFreelancerJobFeed: RequestHandler = asyncHandler(
       sort: request.query.filter === "recent" ? "recent" : "best-match",
       levels: list(request.query.levels),
       durations: list(request.query.durations),
-      minBudget: number(request.query.minBudget),
-      maxBudget: number(request.query.maxBudget),
+      minBudgetCents: number(request.query.minBudgetCents),
+      maxBudgetCents: number(request.query.maxBudgetCents),
       minProposals: number(request.query.minProposals),
       maxProposals: number(request.query.maxProposals),
       paymentVerified: request.query.paymentVerified === "true",
@@ -334,8 +329,8 @@ export const searchPublicFreelancersHandler: RequestHandler = asyncHandler(
       availableOnly: request.query.availableOnly === "true",
       minRating: numberParam("minRating"),
       minSuccess: numberParam("minSuccess"),
-      minRate: numberParam("minRate"),
-      maxRate: numberParam("maxRate"),
+      minRateCents: numberParam("minRateCents"),
+      maxRateCents: numberParam("maxRateCents"),
     };
 
     const page = await searchPublicFreelancers(filters, { offset });

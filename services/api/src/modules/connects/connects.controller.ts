@@ -117,7 +117,7 @@ export const connectsWebhook: RequestHandler = asyncHandler(
             eventName: "payment.charge.succeeded",
             attributes: {
               "payment.provider": "stripe",
-              "payment.amount": CONNECTS_PLANS[purchasedConnects],
+              "payment.amount_cents": CONNECTS_PLANS[purchasedConnects],
               "payment.currency": "USD",
               "user.id": freelancerId,
               "payment.transaction_id": session.id,
@@ -135,7 +135,7 @@ export const connectsWebhook: RequestHandler = asyncHandler(
             eventName: "payment.charge.succeeded",
             attributes: {
               "payment.provider": "stripe",
-              "payment.amount": CONNECTS_PLANS[purchasedConnects],
+              "payment.amount_cents": CONNECTS_PLANS[purchasedConnects],
               "payment.currency": "USD",
               "team.id": agencyId,
               "payment.transaction_id": session.id,

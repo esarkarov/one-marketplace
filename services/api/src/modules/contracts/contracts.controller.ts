@@ -4,6 +4,7 @@ import { stripe } from "../../config/stripe.js";
 import { ApiResponse } from "../../types/common.types.js";
 import { ApiError } from "../../utils/api-error.js";
 import { asyncHandler } from "../../utils/async-handler.js";
+import { moneyCents } from "../../utils/money.js";
 import { requireClient } from "../proposals/proposals.controller.js";
 import { requireFreelancer } from "../freelancer/freelancer.controller.js";
 import { getAgencyIdForMember } from "../agency/agency.service.js";
@@ -21,6 +22,10 @@ import {
 } from "./contracts.service.js";
 import { sendNotification } from "../../events/publisher.js";
 import { emitConversationUpdate } from "../messaging/messaging.socket.js";
+
+const MIN_MILESTONE_CENTS = 1000;
+
+const milestoneAmountCents = moneyCents.min(MIN_MILESTONE_CENTS);
 
 const requireUuid = (value: unknown, label: string) => {
   if (
@@ -304,14 +309,17 @@ export const createAdditionalMilestone: RequestHandler = asyncHandler(
     const auth = requireClient(request);
     const title =
       typeof request.body?.title === "string" ? request.body.title.trim() : "";
-    const amount = Number(request.body?.amount);
+    const amount = milestoneAmountCents.safeParse(request.body?.amountCents);
     const dueDate =
       typeof request.body?.dueDate === "string" ? request.body.dueDate : "";
     if (title.length < 3 || title.length > 120) {
       throw new ApiError(400, "Milestone title must be 3–120 characters.");
     }
-    if (!Number.isFinite(amount) || amount < 10) {
-      throw new ApiError(400, "Milestone amount must be at least $10.");
+    if (!amount.success) {
+      throw new ApiError(
+        400,
+        "Milestone amount must be at least $10, in whole cents.",
+      );
     }
     if (
       !/^\d{4}-\d{2}-\d{2}$/.test(dueDate) ||
@@ -331,7 +339,7 @@ export const createAdditionalMilestone: RequestHandler = asyncHandler(
     const milestone = await addContractMilestone(
       requireUuid(request.params.contractId, "Contract"),
       auth.userId,
-      { title, amount, dueDate },
+      { title, amountCents: amount.data, dueDate },
     );
     response.status(201).json({
       success: true,

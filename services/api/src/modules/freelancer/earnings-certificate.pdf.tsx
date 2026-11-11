@@ -1,6 +1,7 @@
 import ReactPDFDefault, { renderToBuffer } from "@react-pdf/renderer";
 import { fileURLToPath } from "node:url";
 import type { EarningsCertificateData } from "./freelancer.service.js";
+import { formatUsdGrouped } from "../../utils/money.js";
 
 const { Document, Page, View, Text, Image, StyleSheet } = ReactPDFDefault;
 
@@ -113,11 +114,7 @@ const styles = StyleSheet.create({
   footerText: { fontSize: 7, color: "#737870", lineHeight: 1.3 },
 });
 
-const formatCurrency = (value: number) =>
-  `$${value.toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })} USD`;
+const formatCurrency = (cents: number) => `${formatUsdGrouped(cents)} USD`;
 
 const formatLongDate = (date: Date) =>
   date.toLocaleDateString("en-US", {
@@ -229,7 +226,7 @@ function EarningsCertificateDocument({
               >
                 <Text style={styles.paymentsHeader}>{window.label}</Text>
                 <Text style={styles.paymentsValue}>
-                  {formatCurrency(window.total)}
+                  {formatCurrency(window.totalCents)}
                 </Text>
               </View>
             ))}

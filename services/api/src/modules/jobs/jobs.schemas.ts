@@ -1,5 +1,11 @@
 import { z } from "zod";
 
+import { moneyCents } from "../../utils/money.js";
+
+const BUDGET_ERROR = "Every milestone needs a valid budget.";
+
+export const MAX_JOB_BUDGET_CENTS = 100_000_000;
+
 const optionalText = z.string().optional().catch(undefined);
 const optionalScalar = z
   .union([z.string(), z.number()])
@@ -13,7 +19,11 @@ const milestoneSchema = z.object(
   {
     id: optionalScalar,
     title: optionalText,
-    budget: optionalScalar,
+    budgetCents: z
+      .number({ error: BUDGET_ERROR })
+      .int({ error: BUDGET_ERROR })
+      .min(501, { error: BUDGET_ERROR })
+      .max(MAX_JOB_BUDGET_CENTS, { error: BUDGET_ERROR }),
     dueDate: optionalText,
   },
   { error: "Each milestone must be an object." },
@@ -57,13 +67,22 @@ export const jobBodySchema = z.object(
 
 export type JobBody = z.infer<typeof jobBodySchema>;
 
+const budgetFilter = z
+  .string()
+  .regex(/^\d+$/, {
+    error: "Budget filter must be an integer number of cents.",
+  })
+  .transform(Number)
+  .pipe(moneyCents)
+  .optional();
+
 export const publicJobFeedQuerySchema = z.object({
   query: optionalText,
   sort: optionalText,
   offset: optionalText,
   levels: optionalText,
   paymentVerified: optionalText,
-  minBudget: optionalText,
-  maxBudget: optionalText,
+  minBudgetCents: budgetFilter,
+  maxBudgetCents: budgetFilter,
   maxProposals: optionalText,
 });

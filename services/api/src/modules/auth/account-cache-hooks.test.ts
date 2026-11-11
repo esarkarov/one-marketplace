@@ -159,7 +159,7 @@ describe("saveFreelancerProfile", () => {
     userId: "user_1",
     professional_title: "Engineer",
     professional_description: "Builds things",
-    hourly_rate: 50,
+    hourly_rate_cents: 5000,
     country: "US",
     city: "Austin",
     availability_status: "available",

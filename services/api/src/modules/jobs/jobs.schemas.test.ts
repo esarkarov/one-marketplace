@@ -24,7 +24,13 @@ describe("jobBodySchema", () => {
       skills: ["a", 2],
       screening_questions: ["q"],
       milestones: [
-        { id: "m", title: "M", budget: 10, dueDate: "2030-01-01", extra: 1 },
+        {
+          id: "m",
+          title: "M",
+          budgetCents: 1000,
+          dueDate: "2030-01-01",
+          extra: 1,
+        },
       ],
       attachments: [
         {
@@ -55,7 +61,7 @@ describe("jobBodySchema", () => {
     expect(result.milestones?.[0]).toEqual({
       id: "m",
       title: "M",
-      budget: 10,
+      budgetCents: 1000,
       dueDate: "2030-01-01",
     });
     expect(result.attachments?.[0]).not.toHaveProperty("extra");
@@ -87,7 +93,7 @@ describe("jobBodySchema", () => {
       title: 5,
       description: null,
       skills: null,
-      milestones: [{ title: 1, budget: "abc", dueDate: {} }],
+      milestones: [{ title: 1, budgetCents: 1000, dueDate: {} }],
       attachments: [{ fileType: 1 }],
     });
 
@@ -96,9 +102,34 @@ describe("jobBodySchema", () => {
     expect(result.data?.milestones?.[0]).toEqual({
       id: undefined,
       title: undefined,
-      budget: "abc",
+      budgetCents: 1000,
       dueDate: undefined,
     });
+  });
+
+  it.each([
+    ["fractional", 1000.5],
+    ["negative", -1000],
+    ["too small", 500],
+    ["above the limit", 100_000_001],
+    ["a string", "1000"],
+    ["missing", undefined],
+  ])("rejects a %s milestone budgetCents", (_name, budgetCents) => {
+    const result = jobBodySchema.safeParse({
+      milestones: [{ title: "M", budgetCents, dueDate: "2030-01-01" }],
+    });
+    expect(result.success).toBe(false);
+    expect(message(result)).toBe("Every milestone needs a valid budget.");
+  });
+
+  it("accepts the milestone budget limits", () => {
+    for (const budgetCents of [501, 100_000_000]) {
+      expect(
+        jobBodySchema.safeParse({
+          milestones: [{ title: "M", budgetCents, dueDate: "2030-01-01" }],
+        }).success,
+      ).toBe(true);
+    }
   });
 
   it("accepts an empty object so the controller reports missing fields", () => {
@@ -129,8 +160,8 @@ describe("publicJobFeedQuerySchema", () => {
         offset: "5",
         levels: "x,y",
         paymentVerified: "true",
-        minBudget: "1",
-        maxBudget: "9",
+        minBudgetCents: "100",
+        maxBudgetCents: "900",
         maxProposals: "3",
         role: "client",
         other: "z",
@@ -141,11 +172,23 @@ describe("publicJobFeedQuerySchema", () => {
       offset: "5",
       levels: "x,y",
       paymentVerified: "true",
-      minBudget: "1",
-      maxBudget: "9",
+      minBudgetCents: 100,
+      maxBudgetCents: 900,
       maxProposals: "3",
     });
   });
+
+  it.each(["1.5", "-1", "abc", "9007199254740993"])(
+    "rejects budget filter %s",
+    (value) => {
+      expect(
+        publicJobFeedQuerySchema.safeParse({ minBudgetCents: value }).success,
+      ).toBe(false);
+      expect(
+        publicJobFeedQuerySchema.safeParse({ maxBudgetCents: value }).success,
+      ).toBe(false);
+    },
+  );
 
   it("ignores non-string values like the controller does", () => {
     const result = publicJobFeedQuerySchema.parse({

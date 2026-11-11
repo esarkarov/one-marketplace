@@ -263,8 +263,8 @@ export const getAgencyJobFeed: RequestHandler = asyncHandler(
       sort: request.query.filter === "recent" ? "recent" : "best-match",
       levels: list(request.query.levels),
       durations: list(request.query.durations),
-      minBudget: number(request.query.minBudget),
-      maxBudget: number(request.query.maxBudget),
+      minBudgetCents: number(request.query.minBudgetCents),
+      maxBudgetCents: number(request.query.maxBudgetCents),
       minProposals: number(request.query.minProposals),
       maxProposals: number(request.query.maxProposals),
       paymentVerified: request.query.paymentVerified === "true",
@@ -394,7 +394,7 @@ export const submitAgencyProposalHandler: RequestHandler = asyncHandler(
     }
 
     const coverLetter = requireText(request.body?.coverLetter, "Cover letter");
-    const bidAmount = Number(request.body?.bidAmount);
+    const bidAmountCents = request.body.bidAmountCents as number;
     const screeningAnswers = Array.isArray(request.body?.screeningAnswers)
       ? request.body.screeningAnswers.map((answer: unknown) =>
           typeof answer === "string" ? answer.trim() : "",
@@ -403,18 +403,11 @@ export const submitAgencyProposalHandler: RequestHandler = asyncHandler(
     if (coverLetter.length < 80) {
       throw new ApiError(400, "Cover letter must be at least 80 characters.");
     }
-    if (
-      !Number.isFinite(bidAmount) ||
-      bidAmount <= 0 ||
-      bidAmount > 1_000_000
-    ) {
-      throw new ApiError(400, "Enter a valid bid amount.");
-    }
 
     const result = await submitAgencyProposal(agencyId, {
       jobId: requireText(request.body?.jobId, "Job post"),
       coverLetter,
-      bidAmount,
+      bidAmountCents,
       duration: requireText(request.body?.duration, "Delivery duration"),
       screeningAnswers,
     });
@@ -462,7 +455,7 @@ export const searchPublicAgenciesHandler: RequestHandler = asyncHandler(
       typeof request.query.sizes === "string" && request.query.sizes
         ? request.query.sizes.split(",").filter(Boolean)
         : undefined;
-    const maxRate = Number(request.query.maxRate);
+    const maxRateCents = Number(request.query.maxRateCents);
 
     const filters: PublicAgencyFilters = {
       query,
@@ -473,7 +466,10 @@ export const searchPublicAgenciesHandler: RequestHandler = asyncHandler(
           ? request.query.specialty
           : undefined,
       verifiedOnly: request.query.verifiedOnly === "true",
-      maxRate: Number.isFinite(maxRate) && maxRate > 0 ? maxRate : undefined,
+      maxRateCents:
+        Number.isSafeInteger(maxRateCents) && maxRateCents > 0
+          ? maxRateCents
+          : undefined,
     };
 
     const page = await searchPublicAgencies(filters, { offset });

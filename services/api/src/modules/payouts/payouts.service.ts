@@ -9,7 +9,7 @@ import {
 } from "../../database/schema.js";
 import { sendNotification } from "../../events/publisher.js";
 import { logger } from "../../config/logger.js";
-import { isValidPayoutAmount, toMinorUnits } from "../../utils/money.js";
+import { formatUsd } from "../../utils/money.js";
 import { uuidV5 } from "../../utils/uuid-v5.js";
 import {
   bumpIdempotencyKey,
@@ -41,7 +41,7 @@ type Outcome = "paid" | "skipped" | "failed";
 type Candidate = {
   id: string;
   earningHistoryId: string;
-  amount: string;
+  amountCents: number;
   status: string;
   freelancerId: string | null;
   agencyId: string | null;
@@ -76,14 +76,13 @@ const errorIdentity = (error: unknown) => {
 };
 
 const notifyPaid = async (row: PayoutRecord): Promise<void> => {
-  const netAmount = Number(row.amount);
   const base = {
     type: "PAYOUT_COMPLETED",
     title: "Payment sent",
-    message: `The payment of $${netAmount.toFixed(2)} is ready for withdrawal now.`,
+    message: `The payment of ${formatUsd(row.amount_cents)} is ready for withdrawal now.`,
     metadata: {
       earningHistoryId: row.earning_history_id,
-      amount: netAmount,
+      amountCents: row.amount_cents,
       stripeTransferId: row.stripe_transfer_id,
     },
     eventId: uuidV5(row.id),
@@ -155,12 +154,11 @@ const createDueRows = async (): Promise<void> => {
 
   await db.execute(sql`
     INSERT INTO payout_history
-      (freelancer_id, agency_id, earning_history_id, amount, status)
+      (freelancer_id, agency_id, earning_history_id, amount_cents, status)
     SELECT e.freelancer_id, e.agency_id, e.id,
-      (e.amount - e.platform_fee_amount), 'PENDING'
+      (e.amount_cents - e.platform_fee_cents), 'PENDING'
     FROM earning_history e
     WHERE e.created_at <= ${cutoff.toISOString()}::timestamptz
-      AND (e.amount - e.platform_fee_amount) > 0
       AND NOT EXISTS (
         SELECT 1 FROM payout_history p WHERE p.earning_history_id = e.id
       )
@@ -168,46 +166,12 @@ const createDueRows = async (): Promise<void> => {
   `);
 };
 
-const reportNonPositiveNet = async (): Promise<number> => {
-  const cutoff = new Date(Date.now() - EARNINGS_HOLD_PERIOD_MS);
-
-  const result = await db.execute<{
-    id: string;
-    freelancer_id: string | null;
-    agency_id: string | null;
-  }>(sql`
-    SELECT e.id, e.freelancer_id, e.agency_id
-    FROM earning_history e
-    WHERE e.created_at <= ${cutoff.toISOString()}::timestamptz
-      AND (e.amount - e.platform_fee_amount) <= 0
-      AND NOT EXISTS (
-        SELECT 1 FROM payout_history p WHERE p.earning_history_id = e.id
-      )
-  `);
-
-  for (const row of result.rows) {
-    await logger.warn({
-      message: "Payout skipped",
-      eventName: "payout.failed",
-      attributes: {
-        "earning.id": row.id,
-        ...(row.freelancer_id
-          ? { "user.id": row.freelancer_id }
-          : { "team.id": row.agency_id }),
-        "error.code": "non_positive_net_amount",
-      },
-    });
-  }
-
-  return result.rows.length;
-};
-
 const selectCandidates = async (): Promise<Candidate[]> =>
   db
     .select({
       id: payout_history.id,
       earningHistoryId: payout_history.earning_history_id,
-      amount: payout_history.amount,
+      amountCents: payout_history.amount_cents,
       status: payout_history.status,
       freelancerId: payout_history.freelancer_id,
       agencyId: payout_history.agency_id,
@@ -223,7 +187,7 @@ const selectCandidates = async (): Promise<Candidate[]> =>
       rows.map((row) => ({
         id: row.id,
         earningHistoryId: row.earningHistoryId,
-        amount: row.amount,
+        amountCents: row.amountCents,
         status: row.status,
         freelancerId: row.freelancerId,
         agencyId: row.agencyId,
@@ -361,7 +325,7 @@ const parkForReview = async (
 
 const findExistingTransfer = async (
   claimed: PayoutRecord,
-  amountMinor: number,
+  amountCents: number,
   destination: string | undefined,
 ): Promise<FoundTransfer | undefined> => {
   const transfers = await stripe.transfers.list({
@@ -372,7 +336,7 @@ const findExistingTransfer = async (
 
   const matches = transfers.data.filter(
     (transfer) =>
-      transfer.amount === amountMinor &&
+      transfer.amount === amountCents &&
       transfer.currency === "usd" &&
       (destination === undefined ||
         (typeof transfer.destination === "string"
@@ -391,14 +355,14 @@ const findExistingTransfer = async (
 const createTransfer = async (
   claimed: PayoutRecord,
   destination: string,
-  amountMinor: number,
+  amountCents: number,
 ): Promise<string> => {
   const idempotencyKey =
     claimed.idempotency_key ?? initialIdempotencyKey(claimed.id);
 
   const transfer = await stripe.transfers.create(
     {
-      amount: amountMinor,
+      amount: amountCents,
       currency: "usd",
       destination,
       transfer_group: `payout:${claimed.id}`,
@@ -417,28 +381,6 @@ const createTransfer = async (
 };
 
 const processCandidate = async (candidate: Candidate): Promise<Outcome> => {
-  const amount = Number(candidate.amount);
-
-  if (!isValidPayoutAmount(amount)) {
-    const rejected = await transitionPayout({
-      id: candidate.id,
-      from: "PENDING",
-      to: "FAILED",
-      set: { last_error: "invalid_amount", next_retry_at: null },
-    });
-    if (!rejected) return "skipped";
-    await logger.warn({
-      message: "Payout rejected",
-      eventName: "payout.failed",
-      attributes: {
-        ...payoutAttributes(rejected),
-        "payout.failure_kind": "definitive",
-        "error.code": "invalid_amount",
-      },
-    });
-    return "failed";
-  }
-
   if (!candidate.stripeConnectAccountId) return "skipped";
   const destination = candidate.stripeConnectAccountId;
 
@@ -473,7 +415,7 @@ const processCandidate = async (candidate: Candidate): Promise<Outcome> => {
     });
   }
 
-  const amountMinor = toMinorUnits(amount);
+  const amountCents = candidate.amountCents;
   let transferId: string | undefined;
   let adoptedReason: string | undefined;
 
@@ -482,7 +424,7 @@ const processCandidate = async (candidate: Candidate): Promise<Outcome> => {
     try {
       found = await findExistingTransfer(
         claimed,
-        amountMinor,
+        amountCents,
         destinationChanged ? undefined : destination,
       );
     } catch (error) {
@@ -503,8 +445,11 @@ const processCandidate = async (candidate: Candidate): Promise<Outcome> => {
   }
 
   if (transferId === undefined) {
+    if (!Number.isSafeInteger(amountCents) || amountCents < 1) {
+      return parkForReview(claimed, "invalid_amount");
+    }
     try {
-      transferId = await createTransfer(claimed, destination, amountMinor);
+      transferId = await createTransfer(claimed, destination, amountCents);
     } catch (error) {
       return failClaimed(claimed, classifyPayoutFailure(error));
     }
@@ -545,7 +490,7 @@ const processCandidate = async (candidate: Candidate): Promise<Outcome> => {
       ...payoutAttributes(paid),
       "payout.attempts": paid.attempts,
       "payment.provider": "stripe",
-      "payment.amount": amount,
+      "payment.amount_cents": amountCents,
       "payment.currency": "USD",
       "payment.transaction_id": transferId,
       ...(adoptedReason ? { reason: adoptedReason } : {}),
@@ -567,11 +512,10 @@ export const processDuePayouts = async (): Promise<PayoutRunSummary> => {
     });
   }
   await createDueRows();
-  const nonPositive = await reportNonPositiveNet();
   const candidates = await selectCandidates();
 
   let paid = 0;
-  let skipped = nonPositive;
+  let skipped = 0;
   let failed = 0;
 
   for (const candidate of candidates) {
@@ -596,7 +540,7 @@ export const processDuePayouts = async (): Promise<PayoutRunSummary> => {
   }
 
   const summary: PayoutRunSummary = {
-    checked: candidates.length + nonPositive,
+    checked: candidates.length,
     paid,
     skipped,
     failed,

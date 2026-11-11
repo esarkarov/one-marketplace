@@ -176,6 +176,40 @@ describe("notification consumer", () => {
     expect(mocks.values).not.toHaveBeenCalled();
   });
 
+  const v1 = (metadata?: Record<string, unknown>) => ({
+    ...envelope(),
+    version: 1,
+    payload: { ...envelope().payload, metadata },
+  });
+
+  it("stores a v1 amount as amountCents and acks", async () => {
+    const { channel, consumer, deliver } = setup();
+    mocks.returning.mockResolvedValue([]);
+    await consumer.start();
+
+    deliver(message(v1({ amount: 19.99, contractId: "c" })));
+    await consumer.stop();
+
+    expect(mocks.values.mock.calls[0]![0].metadata).toEqual({
+      amountCents: 1999,
+      contractId: "c",
+    });
+    expect(channel.ack).toHaveBeenCalledTimes(1);
+  });
+
+  it("dead-letters a v1 amount with three decimals without requeue", async () => {
+    const { channel, consumer, deliver } = setup();
+    await consumer.start();
+
+    const msg = message(v1({ amount: 1.005 }));
+    deliver(msg);
+    await consumer.stop();
+
+    expect(channel.nack).toHaveBeenCalledWith(msg, false, false);
+    expect(channel.ack).not.toHaveBeenCalled();
+    expect(mocks.values).not.toHaveBeenCalled();
+  });
+
   it("dead-letters integrity violations instead of requeueing", async () => {
     const { channel, consumer, deliver } = setup();
     mocks.returning.mockRejectedValue(

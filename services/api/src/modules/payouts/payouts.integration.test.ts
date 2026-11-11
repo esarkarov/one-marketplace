@@ -763,6 +763,38 @@ describe("payout flow against real Postgres", () => {
     );
   });
 
+  it("parks a payout below one cent for review without calling Stripe", async () => {
+    const fixture = await data.createPayoutFixture();
+    const id = fixture.payoutId!;
+    await db.execute(
+      sql`ALTER TABLE payout_history DROP CONSTRAINT payout_history_amount_cents_check`,
+    );
+    try {
+      await db.execute(
+        sql`UPDATE payout_history SET amount_cents = 0 WHERE id = ${id}`,
+      );
+      await processDuePayouts();
+    } finally {
+      await db.execute(
+        sql`UPDATE payout_history SET amount_cents = 1 WHERE id = ${id} AND amount_cents < 1`,
+      );
+      await db.execute(
+        sql`ALTER TABLE payout_history ADD CONSTRAINT payout_history_amount_cents_check CHECK (amount_cents > 0)`,
+      );
+    }
+
+    expect(createCallsFor(id)).toHaveLength(0);
+    expect(await readPayout(id)).toMatchObject({
+      status: "FAILED",
+      next_retry_at: null,
+      last_error: "invalid_amount",
+    });
+    const exhausted = eventsFor(id, "payout.exhausted");
+    expect(exhausted).toHaveLength(1);
+    expect(exhausted[0]!.level).toBe("error");
+    expect(notificationsFor(id)).toHaveLength(0);
+  });
+
   it("stops retrying after the fifth failed attempt", async () => {
     const fixture = await data.createPayoutFixture();
     const id = fixture.payoutId!;
@@ -829,7 +861,7 @@ describe("payout flow against real Postgres", () => {
 
       expect(row).toMatchObject({
         status: "PAID",
-        amount: "100.00",
+        amount_cents: 10000,
         attempts: 1,
         idempotency_key: `payout:${row.id}:1`,
         destination_account_id: fixture.connectAccountId,
@@ -859,7 +891,7 @@ describe("payout flow against real Postgres", () => {
         eventId: uuidV5(row.id),
         metadata: {
           earningHistoryId: fixture.earningId,
-          amount: 100,
+          amountCents: 10000,
           stripeTransferId: row.stripe_transfer_id,
         },
       });
@@ -878,18 +910,14 @@ describe("payout flow against real Postgres", () => {
     expect(new Set(sentIds).size).toBe(sentIds.length);
   });
 
-  it("creates PENDING rows only for old enough earnings with positive net, and rounds odd cents", async () => {
+  it("creates PENDING rows only for old enough earnings, with the net as the amount", async () => {
     const odd = await data.createPayoutFixture({
       payout: null,
-      earning: { amount: "110.50", fee: "10.25" },
+      earning: { amountCents: 11050, feeCents: 1025 },
     });
     const young = await data.createPayoutFixture({
       payout: null,
       earning: { ageMs: 24 * 60 * 60 * 1000 },
-    });
-    const zeroNet = await data.createPayoutFixture({
-      payout: null,
-      earning: { amount: "10.00", fee: "10.00" },
     });
 
     await processDuePayouts();
@@ -897,18 +925,10 @@ describe("payout flow against real Postgres", () => {
 
     const oddRows = await findPayoutsByEarning(odd.earningId);
     expect(oddRows).toHaveLength(1);
-    expect(oddRows[0]).toMatchObject({ amount: "100.25", status: "PAID" });
+    expect(oddRows[0]).toMatchObject({ amount_cents: 10025, status: "PAID" });
     expect(createCallsFor(oddRows[0]!.id)[0]![0].amount).toBe(10025);
 
     expect(await findPayoutsByEarning(young.earningId)).toHaveLength(0);
-    expect(await findPayoutsByEarning(zeroNet.earningId)).toHaveLength(0);
-    const skipped = logs.filter(
-      (entry) =>
-        entry.attributes?.["earning.id"] === zeroNet.earningId &&
-        entry.attributes?.["error.code"] === "non_positive_net_amount",
-    );
-    expect(skipped.length).toBeGreaterThanOrEqual(1);
-    expect(skipped[0]!.level).toBe("warn");
   });
 
   describe("notification sweep", () => {
@@ -1113,9 +1133,9 @@ describe("payout flow against real Postgres", () => {
   });
 
   describe("amounts", () => {
-    it("pays the smallest storable amount of 0.01 as one minor unit", async () => {
+    it("pays the smallest storable amount of 1 cent", async () => {
       const fixture = await data.createPayoutFixture({
-        payout: { amount: "0.01" },
+        payout: { amountCents: 1 },
       });
       const id = fixture.payoutId!;
 
@@ -1126,24 +1146,97 @@ describe("payout flow against real Postgres", () => {
       expect((await readPayout(id))!.status).toBe("PAID");
     });
 
-    it("cannot store an amount below one minor unit, so invalid_amount is unreachable through the schema", async () => {
+    it("sends the stored cents to Stripe without conversion", async () => {
+      const fixture = await data.createPayoutFixture({
+        payout: { amountCents: 3501 },
+      });
+      const id = fixture.payoutId!;
+
+      await processDuePayouts();
+
+      expect(createCallsFor(id)[0]![0].amount).toBe(3501);
+      const notification = notificationsFor(id)[0]![0];
+      expect(notification.metadata.amountCents).toBe(3501);
+      expect(notification.message).toContain("$35.01");
+    });
+
+    it("compares a listed transfer amount to the payout cents when adopting", async () => {
+      const fixture = await data.createPayoutFixture({
+        payout: {
+          status: "PROCESSING",
+          attempts: 1,
+          claimedMinutesAgo: 20,
+          amountCents: 3501,
+        },
+      });
+      const id = fixture.payoutId!;
+      existingTransfers.set(`payout:${id}`, [
+        {
+          id: "tr_it_dollars",
+          amount: 35,
+          currency: "usd",
+          destination: fixture.connectAccountId!,
+        },
+        {
+          id: "tr_it_off_by_one",
+          amount: 3502,
+          currency: "usd",
+          destination: fixture.connectAccountId!,
+        },
+        {
+          id: "tr_it_match",
+          amount: 3501,
+          currency: "usd",
+          destination: fixture.connectAccountId!,
+        },
+      ]);
+
+      await processDuePayouts();
+
+      expect(createCallsFor(id)).toHaveLength(0);
+      expect(await readPayout(id)).toMatchObject({
+        status: "PAID",
+        stripe_transfer_id: "tr_it_match",
+      });
+    });
+
+    it("does not adopt a transfer whose amount differs by one cent", async () => {
+      const fixture = await data.createPayoutFixture({
+        payout: {
+          status: "PROCESSING",
+          attempts: 1,
+          claimedMinutesAgo: 20,
+          amountCents: 3501,
+        },
+      });
+      const id = fixture.payoutId!;
+      existingTransfers.set(`payout:${id}`, [
+        {
+          id: "tr_it_off_by_one",
+          amount: 3500,
+          currency: "usd",
+          destination: fixture.connectAccountId!,
+        },
+      ]);
+
+      await processDuePayouts();
+
+      expect(createCallsFor(id)).toHaveLength(1);
+      expect((await readPayout(id))!.stripe_transfer_id).not.toBe(
+        "tr_it_off_by_one",
+      );
+    });
+
+    it("cannot store an amount below one cent, so the Stripe-boundary guard is unreachable through the schema", async () => {
       const fixture = await data.createPayoutFixture({ payout: null });
 
       await expectRejectsWith(
         pool.query(
-          "insert into payout_history (freelancer_id, earning_history_id, amount) values ($1, $2, '0.004')",
+          "insert into payout_history (freelancer_id, earning_history_id, amount_cents) values ($1, $2, 0)",
           [fixture.owner.freelancerId, fixture.earningId],
         ),
         "23514",
-        "payout_history_amount_check",
-      );
-      await expectRejectsWith(
-        pool.query(
-          "insert into payout_history (freelancer_id, earning_history_id, amount) values ($1, $2, '0')",
-          [fixture.owner.freelancerId, fixture.earningId],
-        ),
-        "23514",
-        "payout_history_amount_check",
+        "payout_history_amount_cents_check",
       );
       expect(await findPayoutsByEarning(fixture.earningId)).toHaveLength(0);
     });
@@ -1255,30 +1348,30 @@ describe("payout flow against real Postgres", () => {
         owner: typeof freelancerOwner | typeof agencyOwner,
       ) => {
         const pendingEarning = await data.createEarning(owner, {
-          amount: "110.00",
-          fee: "10.00",
+          amountCents: 11000,
+          feeCents: 1000,
         });
         const failedEarning = await data.createEarning(owner, {
-          amount: "55.00",
-          fee: "5.00",
+          amountCents: 5500,
+          feeCents: 500,
         });
         const paidEarning = await data.createEarning(owner, {
-          amount: "27.50",
-          fee: "2.50",
+          amountCents: 2750,
+          feeCents: 250,
         });
         const pending = await data.createPayout(pendingEarning, owner, {
           status: "PENDING",
-          amount: "100.00",
+          amountCents: 10000,
         });
         const failed = await data.createPayout(failedEarning, owner, {
           status: "FAILED",
-          amount: "50.00",
+          amountCents: 5000,
           attempts: 1,
           nextRetryInSeconds: 600,
         });
         const paid = await data.createPayout(paidEarning, owner, {
           status: "PAID",
-          amount: "25.00",
+          amountCents: 2500,
           attempts: 1,
           notified: true,
         });
@@ -1298,9 +1391,9 @@ describe("payout flow against real Postgres", () => {
       const freelancerOverview = await getFreelancerEarningsOverview(
         freelancer.authId,
       );
-      expect(freelancerOverview.withdrawn).toBe(25);
-      expect(freelancerOverview.available).toBe(150);
-      expect(freelancerOverview.pending).toBe(0);
+      expect(freelancerOverview.withdrawnCents).toBe(2500);
+      expect(freelancerOverview.availableCents).toBe(15000);
+      expect(freelancerOverview.pendingCents).toBe(0);
       const byId = new Map(
         freelancerOverview.recentEarnings.map((row) => [row.id, row.status]),
       );
@@ -1309,8 +1402,8 @@ describe("payout flow against real Postgres", () => {
       expect(byId.get(freelancerSet.failedEarning)).toBe("AVAILABLE");
 
       const agencyOverview = await getAgencyEarningsOverview(agency.agencyId);
-      expect(agencyOverview.withdrawn).toBe(25);
-      expect(agencyOverview.available).toBe(150);
+      expect(agencyOverview.withdrawnCents).toBe(2500);
+      expect(agencyOverview.availableCents).toBe(15000);
       const agencyById = new Map(
         agencyOverview.recentEarnings.map((row) => [row.id, row.status]),
       );
@@ -1320,8 +1413,8 @@ describe("payout flow against real Postgres", () => {
 
       const after = await getAdminOverviewTotals();
       expect(
-        after.volume.totalPaidOut - before.volume.totalPaidOut,
-      ).toBeCloseTo(50, 2);
+        after.volume.totalPaidOutCents - before.volume.totalPaidOutCents,
+      ).toBe(5000);
 
       const paidAt = new Date(Date.now() - 24 * 60 * 60 * 1000);
       const createdAt = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000);

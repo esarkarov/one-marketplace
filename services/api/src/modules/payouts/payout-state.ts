@@ -138,7 +138,8 @@ export const claimPayout = async (input: {
       old.claimed_at AS prev_claimed_at,
       old.idempotency_key AS prev_idempotency_key
   `);
-  return result.rows[0];
+  const row = result.rows[0];
+  return row && { ...row, amount_cents: Number(row.amount_cents) };
 };
 
 export const transitionPayout = async (input: {

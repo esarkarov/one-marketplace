@@ -14,7 +14,7 @@ export interface PortfolioData {
 export interface FreelancerProfileData {
   professional_title: string;
   professional_description: string;
-  hourly_rate: string;
+  hourly_rate_cents: number;
   country: string;
   city: string;
   availability_status: string;
@@ -27,7 +27,7 @@ export interface FreelancerProfileData {
   joined_at: Date | null;
   agency?: { id: string; name: string; avatarUrl: string | null } | null;
   stats?: {
-    totalEarning: number;
+    totalEarningCents: number;
     completedJobs: number;
     ongoingJobs: number;
     reviewCount: number;
@@ -41,7 +41,7 @@ export interface FreelancerProfileData {
     status: "ACTIVE" | "COMPLETED";
     completed: Date | string | null;
     created_at: Date | string;
-    amount: number;
+    amountCents: number;
     rating: number | null;
     review: string | null;
     clientHasReviewed: boolean;
@@ -54,7 +54,7 @@ export interface SaveFreelancerProfileInput {
   userId: string;
   professional_title: string;
   professional_description: string;
-  hourly_rate: string;
+  hourly_rate_cents: number;
   country: string;
   city: string;
   availability_status: string;

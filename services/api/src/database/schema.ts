@@ -1,6 +1,7 @@
 import { relations, sql } from "drizzle-orm";
 import {
   AnyPgColumn,
+  bigint,
   boolean,
   check,
   date,
@@ -55,29 +56,37 @@ export const client_metadata = pgTable("client_metadata", {
   updated_at: timestamp("updated_at", { withTimezone: true }),
 });
 
-export const freelancer_metadata = pgTable("freelancer_metadata", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  auth_id: text("auth_id").notNull().unique(),
-  professional_title: text("professional_title").notNull(),
-  professional_description: text("professional_description").notNull(),
-  hourly_rate: numeric("hourly_rate", {
-    precision: 6,
-    scale: 2,
-  }).notNull(),
-  country: text("country").notNull(),
-  city: text("city").notNull(),
-  availability_status: text("availability_status")
-    .notNull()
-    .default("AVAILABLE"),
-  weekly_availability: text("weekly_availability").notNull(),
-  experience_level: text("experience_level").notNull(),
-  skills: text("skills").array().notNull().default([]),
-  languages: jsonb("languages")
-    .$type<Array<{ language: string; proficiency: string }>>()
-    .notNull(),
-  created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
-  updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow(),
-});
+export const freelancer_metadata = pgTable(
+  "freelancer_metadata",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    auth_id: text("auth_id").notNull().unique(),
+    professional_title: text("professional_title").notNull(),
+    professional_description: text("professional_description").notNull(),
+    hourly_rate_cents: bigint("hourly_rate_cents", {
+      mode: "number",
+    }).notNull(),
+    country: text("country").notNull(),
+    city: text("city").notNull(),
+    availability_status: text("availability_status")
+      .notNull()
+      .default("AVAILABLE"),
+    weekly_availability: text("weekly_availability").notNull(),
+    experience_level: text("experience_level").notNull(),
+    skills: text("skills").array().notNull().default([]),
+    languages: jsonb("languages")
+      .$type<Array<{ language: string; proficiency: string }>>()
+      .notNull(),
+    created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  },
+  (table) => [
+    check(
+      "freelancer_metadata_hourly_rate_cents_max_check",
+      sql`${table.hourly_rate_cents} <= 9007199254740991`,
+    ),
+  ],
+);
 
 export const freelancer_portfolios = pgTable("freelancer_portfolios", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -117,67 +126,75 @@ export const freelancerPortfolioRelations = relations(
   }),
 );
 
-export const job_posts = pgTable("job_posts", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  client_id: text("client_id")
-    .notNull()
-    .references(() => accounts.auth_id, {
-      onDelete: "cascade",
+export const job_posts = pgTable(
+  "job_posts",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    client_id: text("client_id")
+      .notNull()
+      .references(() => accounts.auth_id, {
+        onDelete: "cascade",
+      }),
+    title: text("title").notNull(),
+    description: text("description").notNull(),
+    expertise_level: text("expertise_level").notNull(),
+    expected_duration: text("expected_duration").notNull(),
+    skills: text("skills").array().notNull().default([]),
+
+    total_budget_cents: bigint("total_budget_cents", {
+      mode: "number",
+    }).notNull(),
+
+    milestones: jsonb("milestones")
+      .$type<
+        Array<{
+          id: string;
+          title: string;
+          budgetCents: number;
+          dueDate: string;
+        }>
+      >()
+      .notNull(),
+
+    screening_questions: text("screening_questions").array().default([]),
+
+    attachments: jsonb("attachments")
+      .$type<
+        Array<{
+          fileId: string;
+          fileName: string;
+          fileUrl: string;
+          fileType: string;
+          fileSize: number;
+        }>
+      >()
+      .default([]),
+
+    status: text("status").notNull().default("DRAFT"),
+
+    published_at: timestamp("published_at", {
+      withTimezone: true,
     }),
-  title: text("title").notNull(),
-  description: text("description").notNull(),
-  expertise_level: text("expertise_level").notNull(),
-  expected_duration: text("expected_duration").notNull(),
-  skills: text("skills").array().notNull().default([]),
 
-  total_budget: numeric("total_budget", {
-    precision: 9,
-    scale: 2,
-  }).notNull(),
+    hired_at: timestamp("hired_at", {
+      withTimezone: true,
+    }),
 
-  milestones: jsonb("milestones")
-    .$type<
-      Array<{
-        id: string;
-        title: string;
-        budget: number;
-        dueDate: string;
-      }>
-    >()
-    .notNull(),
+    created_at: timestamp("created_at", {
+      withTimezone: true,
+    }).defaultNow(),
 
-  screening_questions: text("screening_questions").array().default([]),
-
-  attachments: jsonb("attachments")
-    .$type<
-      Array<{
-        fileId: string;
-        fileName: string;
-        fileUrl: string;
-        fileType: string;
-        fileSize: number;
-      }>
-    >()
-    .default([]),
-
-  status: text("status").notNull().default("DRAFT"),
-
-  published_at: timestamp("published_at", {
-    withTimezone: true,
-  }),
-
-  hired_at: timestamp("hired_at", {
-    withTimezone: true,
-  }),
-
-  created_at: timestamp("created_at", {
-    withTimezone: true,
-  }).defaultNow(),
-
-  updated_at: timestamp("updated_at", {
-    withTimezone: true,
-  }).defaultNow(),
-});
+    updated_at: timestamp("updated_at", {
+      withTimezone: true,
+    }).defaultNow(),
+  },
+  (table) => [
+    check(
+      "job_posts_total_budget_cents_max_check",
+      sql`${table.total_budget_cents} <= 9007199254740991`,
+    ),
+  ],
+);
 
 export const connects = pgTable(
   "connects",
@@ -216,18 +233,29 @@ export const connects_history = pgTable("connects_history", {
   created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
 
-export const connects_purchase_history = pgTable("connects_purchase_history", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  connects_id: uuid("connects_id")
-    .notNull()
-    .references(() => connects.id, { onDelete: "cascade" }),
-  purchased_connects: integer("purchased_connects").notNull(),
-  amount_paid: numeric("amount_paid").notNull(),
-  payment_id: text("payment_id").notNull().unique(),
-  status: text("status").notNull().default("PENDING"),
-  created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
-  updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow(),
-});
+export const connects_purchase_history = pgTable(
+  "connects_purchase_history",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    connects_id: uuid("connects_id")
+      .notNull()
+      .references(() => connects.id, { onDelete: "cascade" }),
+    purchased_connects: integer("purchased_connects").notNull(),
+    amount_paid_cents: bigint("amount_paid_cents", {
+      mode: "number",
+    }).notNull(),
+    payment_id: text("payment_id").notNull().unique(),
+    status: text("status").notNull().default("PENDING"),
+    created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  },
+  (table) => [
+    check(
+      "connects_purchase_history_amount_paid_cents_max_check",
+      sql`${table.amount_paid_cents} <= 9007199254740991`,
+    ),
+  ],
+);
 
 export const connectsRelations = relations(connects, ({ many, one }) => ({
   freelancer: one(freelancer_metadata, {
@@ -298,7 +326,7 @@ export const proposals = pgTable(
     sender_id: text("sender_id").notNull(),
     sender_type: text("sender_type").notNull(),
     cover_letter: text("cover_letter").notNull(),
-    bid_amount: numeric("bid_amount", { precision: 9, scale: 2 }).notNull(),
+    bid_amount_cents: bigint("bid_amount_cents", { mode: "number" }).notNull(),
     duration: text("duration").notNull(),
     screening_answers: jsonb("screening_answers")
       .$type<Array<{ question: string; answer: string }>>()
@@ -311,6 +339,10 @@ export const proposals = pgTable(
   },
   (table) => [
     uniqueIndex("proposal_sender_job_unique").on(table.sender_id, table.job_id),
+    check(
+      "proposals_bid_amount_cents_max_check",
+      sql`${table.bid_amount_cents} <= 9007199254740991`,
+    ),
   ],
 );
 
@@ -628,9 +660,8 @@ export const contracts = pgTable(
       onDelete: "restrict",
     }),
     title: text("title").notNull(),
-    total_amount: numeric("total_amount", {
-      precision: 12,
-      scale: 2,
+    total_amount_cents: bigint("total_amount_cents", {
+      mode: "number",
     }).notNull(),
     status: contractStatus().notNull().default("PENDING"),
     started_at: timestamp("started_at", { withTimezone: true }),
@@ -649,7 +680,14 @@ export const contracts = pgTable(
       table.freelancer_id,
       table.status,
     ),
-    check("contracts_total_amount_check", sql`${table.total_amount} > 0`),
+    check(
+      "contracts_total_amount_cents_check",
+      sql`${table.total_amount_cents} > 0`,
+    ),
+    check(
+      "contracts_total_amount_cents_max_check",
+      sql`${table.total_amount_cents} <= 9007199254740991`,
+    ),
     check(
       "contracts_owner_check",
       sql`(${table.freelancer_id} IS NOT NULL) <> (${table.agency_id} IS NOT NULL)`,
@@ -665,7 +703,7 @@ export const contract_milestones = pgTable(
       .notNull()
       .references(() => contracts.id, { onDelete: "cascade" }),
     title: text("title").notNull(),
-    amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
+    amount_cents: bigint("amount_cents", { mode: "number" }).notNull(),
     due_date: date("due_date").notNull(),
     position: integer("position").notNull(),
     status: contractMilestoneStatus().notNull().default("PENDING"),
@@ -694,7 +732,14 @@ export const contract_milestones = pgTable(
       table.contract_id,
       table.status,
     ),
-    check("contract_milestones_amount_check", sql`${table.amount} > 0`),
+    check(
+      "contract_milestones_amount_cents_check",
+      sql`${table.amount_cents} > 0`,
+    ),
+    check(
+      "contract_milestones_amount_cents_max_check",
+      sql`${table.amount_cents} <= 9007199254740991`,
+    ),
     check("contract_milestones_position_check", sql`${table.position} >= 0`),
   ],
 );
@@ -739,9 +784,9 @@ export const freelancer_earning = pgTable(
       .notNull()
       .unique()
       .references(() => accounts.auth_id, { onDelete: "cascade" }),
-    total_earning: numeric("total_earning", { precision: 12, scale: 2 })
+    total_earning_cents: bigint("total_earning_cents", { mode: "number" })
       .notNull()
-      .default("0"),
+      .default(0),
     completed_jobs: integer("completed_jobs").notNull().default(0),
     ongoing_jobs: integer("ongoing_jobs").notNull().default(0),
     review_count: integer("review_count").notNull().default(0),
@@ -759,7 +804,14 @@ export const freelancer_earning = pgTable(
       .notNull(),
   },
   (table) => [
-    check("freelancer_earning_total_check", sql`${table.total_earning} >= 0`),
+    check(
+      "freelancer_earning_total_earning_cents_check",
+      sql`${table.total_earning_cents} >= 0`,
+    ),
+    check(
+      "freelancer_earning_total_earning_cents_max_check",
+      sql`${table.total_earning_cents} <= 9007199254740991`,
+    ),
     check(
       "freelancer_earning_completed_check",
       sql`${table.completed_jobs} >= 0`,
@@ -785,9 +837,9 @@ export const agency_earning = pgTable(
       .notNull()
       .unique()
       .references(() => agency_metadata.id, { onDelete: "cascade" }),
-    total_earning: numeric("total_earning", { precision: 12, scale: 2 })
+    total_earning_cents: bigint("total_earning_cents", { mode: "number" })
       .notNull()
-      .default("0"),
+      .default(0),
     completed_jobs: integer("completed_jobs").notNull().default(0),
     ongoing_jobs: integer("ongoing_jobs").notNull().default(0),
     review_count: integer("review_count").notNull().default(0),
@@ -805,7 +857,14 @@ export const agency_earning = pgTable(
       .notNull(),
   },
   (table) => [
-    check("agency_earning_total_check", sql`${table.total_earning} >= 0`),
+    check(
+      "agency_earning_total_earning_cents_check",
+      sql`${table.total_earning_cents} >= 0`,
+    ),
+    check(
+      "agency_earning_total_earning_cents_max_check",
+      sql`${table.total_earning_cents} <= 9007199254740991`,
+    ),
     check("agency_earning_completed_check", sql`${table.completed_jobs} >= 0`),
     check("agency_earning_ongoing_check", sql`${table.ongoing_jobs} >= 0`),
     check("agency_earning_reviews_check", sql`${table.review_count} >= 0`),
@@ -834,13 +893,10 @@ export const earning_history = pgTable(
       .notNull()
       .unique()
       .references(() => contract_milestones.id, { onDelete: "cascade" }),
-    amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
-    platform_fee_amount: numeric("platform_fee_amount", {
-      precision: 12,
-      scale: 2,
-    })
+    amount_cents: bigint("amount_cents", { mode: "number" }).notNull(),
+    platform_fee_cents: bigint("platform_fee_cents", { mode: "number" })
       .notNull()
-      .default("0"),
+      .default(0),
     description: text("description").notNull(),
     created_at: timestamp("created_at", { withTimezone: true })
       .defaultNow()
@@ -855,8 +911,23 @@ export const earning_history = pgTable(
       table.agency_id,
       table.created_at,
     ),
-    check("earning_history_amount_check", sql`${table.amount} > 0`),
-    check("earning_history_fee_check", sql`${table.platform_fee_amount} >= 0`),
+    check("earning_history_amount_cents_check", sql`${table.amount_cents} > 0`),
+    check(
+      "earning_history_platform_fee_cents_nonneg_check",
+      sql`${table.platform_fee_cents} >= 0`,
+    ),
+    check(
+      "earning_history_platform_fee_cents_lt_amount_check",
+      sql`${table.platform_fee_cents} < ${table.amount_cents}`,
+    ),
+    check(
+      "earning_history_amount_cents_max_check",
+      sql`${table.amount_cents} <= 9007199254740991`,
+    ),
+    check(
+      "earning_history_platform_fee_cents_max_check",
+      sql`${table.platform_fee_cents} <= 9007199254740991`,
+    ),
     check(
       "earning_history_owner_check",
       sql`(${table.freelancer_id} IS NOT NULL) <> (${table.agency_id} IS NOT NULL)`,
@@ -900,7 +971,7 @@ export const payout_history = pgTable(
       .notNull()
       .unique()
       .references(() => earning_history.id, { onDelete: "cascade" }),
-    amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
+    amount_cents: bigint("amount_cents", { mode: "number" }).notNull(),
     stripe_transfer_id: text("stripe_transfer_id").unique(),
     status: text("status").notNull().default("PENDING"),
     attempts: integer("attempts").notNull().default(0),
@@ -939,7 +1010,11 @@ export const payout_history = pgTable(
       sql`(${table.status} = 'PAID') = (${table.stripe_transfer_id} IS NOT NULL)`,
     ),
     check("payout_history_attempts_check", sql`${table.attempts} >= 0`),
-    check("payout_history_amount_check", sql`${table.amount} > 0`),
+    check("payout_history_amount_cents_check", sql`${table.amount_cents} > 0`),
+    check(
+      "payout_history_amount_cents_max_check",
+      sql`${table.amount_cents} <= 9007199254740991`,
+    ),
     check(
       "payout_history_owner_check",
       sql`(${table.freelancer_id} IS NOT NULL) <> (${table.agency_id} IS NOT NULL)`,
@@ -966,9 +1041,9 @@ export const client_spents = pgTable(
       .notNull()
       .unique()
       .references(() => accounts.auth_id, { onDelete: "cascade" }),
-    total_spent: numeric("total_spent", { precision: 12, scale: 2 })
+    total_spent_cents: bigint("total_spent_cents", { mode: "number" })
       .notNull()
-      .default("0"),
+      .default(0),
     completed_contracts: integer("completed_contracts").notNull().default(0),
     ongoing_contracts: integer("ongoing_contracts").notNull().default(0),
     review_count: integer("review_count").notNull().default(0),
@@ -983,7 +1058,14 @@ export const client_spents = pgTable(
       .notNull(),
   },
   (table) => [
-    check("client_spents_total_check", sql`${table.total_spent} >= 0`),
+    check(
+      "client_spents_total_spent_cents_check",
+      sql`${table.total_spent_cents} >= 0`,
+    ),
+    check(
+      "client_spents_total_spent_cents_max_check",
+      sql`${table.total_spent_cents} <= 9007199254740991`,
+    ),
     check(
       "client_spents_completed_check",
       sql`${table.completed_contracts} >= 0`,

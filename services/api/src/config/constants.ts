@@ -58,7 +58,7 @@ export const CONNECTS_PLANS = {
 } as const;
 
 export type ConnectsPlan = keyof typeof CONNECTS_PLANS;
-export const PLATFORM_FEE_RATE = 0.1;
+export const PLATFORM_FEE_BPS = 1000;
 
 export const EARNINGS_HOLD_PERIOD_DAYS = 5;
 export const EARNINGS_HOLD_PERIOD_MS =

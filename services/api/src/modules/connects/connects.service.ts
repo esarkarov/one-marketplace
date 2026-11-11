@@ -269,7 +269,7 @@ export const completeConnectsPurchase = async (
       .values({
         connects_id: sql`(select ${connects.id} from ${connects} where ${connects.freelancer_id} = ${freelancerId})`,
         purchased_connects: purchasedConnects,
-        amount_paid: String(CONNECTS_PLANS[purchasedConnects] / 100),
+        amount_paid_cents: CONNECTS_PLANS[purchasedConnects],
         payment_id: paymentId,
         status: "COMPLETED",
       })
@@ -368,7 +368,7 @@ export const completeAgencyConnectsPurchase = async (
       .values({
         connects_id: sql`(select ${connects.id} from ${connects} where ${connects.agency_id} = ${agencyId})`,
         purchased_connects: purchasedConnects,
-        amount_paid: String(CONNECTS_PLANS[purchasedConnects] / 100),
+        amount_paid_cents: CONNECTS_PLANS[purchasedConnects],
         payment_id: paymentId,
         status: "COMPLETED",
       })

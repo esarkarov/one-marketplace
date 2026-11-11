@@ -1,6 +1,7 @@
 import { createClerkClient } from "@clerk/backend";
 import { and, count, desc, eq, inArray, sql, sum } from "drizzle-orm";
 import { db } from "../../database/client.js";
+import { toSafeCents } from "../../utils/money.js";
 import { redis } from "../../config/redis.js";
 import { getRabbitStatus } from "../../config/rabbitmq.js";
 import { env } from "../../config/env.js";
@@ -108,13 +109,13 @@ export const getAdminOverviewTotals = async () => {
       .select({ value: count() })
       .from(contracts)
       .where(eq(contracts.status, "ACTIVE")),
-    db.select({ value: sum(contracts.total_amount) }).from(contracts),
+    db.select({ value: sum(contracts.total_amount_cents) }).from(contracts),
     db
-      .select({ value: sum(payout_history.amount) })
+      .select({ value: sum(payout_history.amount_cents) })
       .from(payout_history)
       .where(eq(payout_history.status, "PAID")),
     db
-      .select({ value: sum(connects_purchase_history.amount_paid) })
+      .select({ value: sum(connects_purchase_history.amount_paid_cents) })
       .from(connects_purchase_history)
       .where(eq(connects_purchase_history.status, "COMPLETED")),
   ]);
@@ -130,9 +131,9 @@ export const getAdminOverviewTotals = async () => {
       activeContracts: Number(activeContractCount?.value ?? 0),
     },
     volume: {
-      totalContractValue: Number(contractVolume?.value ?? 0),
-      totalPaidOut: Number(payoutVolume?.value ?? 0),
-      totalConnectsRevenue: Number(connectsRevenue?.value ?? 0),
+      totalContractValueCents: toSafeCents(contractVolume?.value),
+      totalPaidOutCents: toSafeCents(payoutVolume?.value),
+      totalConnectsRevenueCents: toSafeCents(connectsRevenue?.value),
     },
   };
 };
@@ -289,7 +290,7 @@ export const getAdminJobPosts = async ({ limit, offset }: Pagination) => {
       title: job_posts.title,
       description: job_posts.description,
       status: job_posts.status,
-      totalBudget: job_posts.total_budget,
+      totalBudgetCents: job_posts.total_budget_cents,
       expertiseLevel: job_posts.expertise_level,
       expectedDuration: job_posts.expected_duration,
       skills: job_posts.skills,
@@ -325,7 +326,6 @@ export const getAdminJobPosts = async ({ limit, offset }: Pagination) => {
   return {
     results: rows.map((row) => ({
       ...row,
-      totalBudget: Number(row.totalBudget),
       clientName: row.companyName ?? "Unknown client",
     })),
     hasMore: rows.length === limit,
@@ -338,12 +338,12 @@ export const getAdminProposals = async ({ limit, offset }: Pagination) => {
       id: proposals.id,
       jobId: proposals.job_id,
       jobTitle: job_posts.title,
-      jobBudget: job_posts.total_budget,
+      jobBudgetCents: job_posts.total_budget_cents,
       jobStatus: job_posts.status,
       senderId: proposals.sender_id,
       senderType: proposals.sender_type,
       coverLetter: proposals.cover_letter,
-      bidAmount: proposals.bid_amount,
+      bidAmountCents: proposals.bid_amount_cents,
       duration: proposals.duration,
       screeningAnswers: proposals.screening_answers,
       status: proposals.status,
@@ -378,7 +378,7 @@ export const getAdminProposals = async ({ limit, offset }: Pagination) => {
       id: row.id,
       jobId: row.jobId,
       jobTitle: row.jobTitle,
-      jobBudget: Number(row.jobBudget),
+      jobBudgetCents: row.jobBudgetCents,
       jobStatus: row.jobStatus,
       senderId: row.senderId,
       senderType: row.senderType,
@@ -393,7 +393,7 @@ export const getAdminProposals = async ({ limit, offset }: Pagination) => {
       agencySpecialty: row.senderType === "AGENCY" ? row.agencySpecialty : null,
       agencyWebsite: row.senderType === "AGENCY" ? row.agencyWebsite : null,
       coverLetter: row.coverLetter,
-      bidAmount: Number(row.bidAmount),
+      bidAmountCents: row.bidAmountCents,
       duration: row.duration,
       screeningAnswers: row.screeningAnswers,
       status: row.status,
@@ -412,7 +412,7 @@ export const getAdminContracts = async ({ limit, offset }: Pagination) => {
       id: contracts.id,
       title: contracts.title,
       status: contracts.status,
-      totalAmount: contracts.total_amount,
+      totalAmountCents: contracts.total_amount_cents,
       jobId: contracts.job_id,
       proposalId: contracts.proposal_id,
       clientId: contracts.client_id,
@@ -447,7 +447,7 @@ export const getAdminContracts = async ({ limit, offset }: Pagination) => {
           id: contract_milestones.id,
           contractId: contract_milestones.contract_id,
           title: contract_milestones.title,
-          amount: contract_milestones.amount,
+          amountCents: contract_milestones.amount_cents,
           dueDate: contract_milestones.due_date,
           position: contract_milestones.position,
           status: contract_milestones.status,
@@ -474,7 +474,7 @@ export const getAdminContracts = async ({ limit, offset }: Pagination) => {
       id: row.id,
       title: row.title,
       status: row.status,
-      totalAmount: Number(row.totalAmount),
+      totalAmountCents: row.totalAmountCents,
       jobId: row.jobId,
       proposalId: row.proposalId,
       clientId: row.clientId,
@@ -495,12 +495,9 @@ export const getAdminContracts = async ({ limit, offset }: Pagination) => {
       updatedAt: row.updatedAt,
       startedAt: row.startedAt,
       completedAt: row.completedAt,
-      milestones: milestoneRows
-        .filter((milestone) => milestone.contractId === row.id)
-        .map((milestone) => ({
-          ...milestone,
-          amount: Number(milestone.amount),
-        })),
+      milestones: milestoneRows.filter(
+        (milestone) => milestone.contractId === row.id,
+      ),
     };
   });
 
@@ -513,7 +510,7 @@ type AdminTransactionRow =
       type: "MILESTONE_FUNDED";
       description: string;
       party: string;
-      amount: number;
+      amountCents: number;
       createdAt: Date | null;
     }
   | {
@@ -521,7 +518,7 @@ type AdminTransactionRow =
       type: "EARNING";
       description: string;
       party: string;
-      amount: number;
+      amountCents: number;
       createdAt: Date | null;
     }
   | {
@@ -529,7 +526,7 @@ type AdminTransactionRow =
       type: "PAYOUT";
       description: string;
       party: string;
-      amount: number;
+      amountCents: number;
       createdAt: Date | null;
     }
   | {
@@ -537,7 +534,7 @@ type AdminTransactionRow =
       type: "CONNECTS_PURCHASE";
       description: string;
       party: string;
-      amount: number;
+      amountCents: number;
       createdAt: Date | null;
     };
 
@@ -550,7 +547,7 @@ export const getAdminTransactions = async (pagination: Pagination) => {
         id: contract_milestones.id,
         contractId: contract_milestones.contract_id,
         title: contract_milestones.title,
-        amount: contract_milestones.amount,
+        amountCents: contract_milestones.amount_cents,
         createdAt: contract_milestones.funded_at,
       })
       .from(contract_milestones)
@@ -562,7 +559,7 @@ export const getAdminTransactions = async (pagination: Pagination) => {
         id: earning_history.id,
         contractId: earning_history.contract_id,
         description: earning_history.description,
-        amount: earning_history.amount,
+        amountCents: earning_history.amount_cents,
         freelancerId: earning_history.freelancer_id,
         agencyId: earning_history.agency_id,
         createdAt: earning_history.created_at,
@@ -573,7 +570,7 @@ export const getAdminTransactions = async (pagination: Pagination) => {
     db
       .select({
         id: payout_history.id,
-        amount: payout_history.amount,
+        amountCents: payout_history.amount_cents,
         freelancerId: payout_history.freelancer_id,
         agencyId: payout_history.agency_id,
         paidAt: payout_history.paid_at,
@@ -591,7 +588,7 @@ export const getAdminTransactions = async (pagination: Pagination) => {
       .select({
         id: connects_purchase_history.id,
         purchasedConnects: connects_purchase_history.purchased_connects,
-        amountPaid: connects_purchase_history.amount_paid,
+        amountPaidCents: connects_purchase_history.amount_paid_cents,
         status: connects_purchase_history.status,
         freelancerId: connects.freelancer_id,
         agencyId: connects.agency_id,
@@ -642,7 +639,7 @@ export const getAdminTransactions = async (pagination: Pagination) => {
         type: "MILESTONE_FUNDED" as const,
         description: row.title,
         party: "Client escrow",
-        amount: Number(row.amount),
+        amountCents: row.amountCents,
         createdAt: row.createdAt,
       })),
       earned.map((row) => ({
@@ -650,7 +647,7 @@ export const getAdminTransactions = async (pagination: Pagination) => {
         type: "EARNING" as const,
         description: row.description,
         party: partyName(row.freelancerId, row.agencyId),
-        amount: Number(row.amount),
+        amountCents: row.amountCents,
         createdAt: row.createdAt,
       })),
       paidOut.map((row) => ({
@@ -658,7 +655,7 @@ export const getAdminTransactions = async (pagination: Pagination) => {
         type: "PAYOUT" as const,
         description: "Stripe payout",
         party: partyName(row.freelancerId, row.agencyId),
-        amount: Number(row.amount),
+        amountCents: row.amountCents,
         createdAt: row.paidAt ?? row.createdAt,
       })),
       connectsPurchases.map((row) => ({
@@ -666,7 +663,7 @@ export const getAdminTransactions = async (pagination: Pagination) => {
         type: "CONNECTS_PURCHASE" as const,
         description: `${row.purchasedConnects} Connects (${row.status})`,
         party: partyName(row.freelancerId, row.agencyId),
-        amount: Number(row.amountPaid),
+        amountCents: row.amountPaidCents,
         createdAt: row.createdAt,
       })),
     ],
