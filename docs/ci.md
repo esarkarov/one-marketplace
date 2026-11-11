@@ -25,6 +25,8 @@ Require one check in the branch ruleset: `ci-pass`. It depends on every blocking
 
 CodeQL is configured in the workflow. Do not also enable GitHub's CodeQL default setup in the repository settings; the two conflict.
 
+CodeQL reads `.github/codeql/codeql-config.yml` (the `config-file` input of the `init` step). It excludes test code from analysis with `paths-ignore`: `**/*.test.ts`, `**/*.test.tsx` and `**/test/**`. Add a pattern there if test helpers live elsewhere. The first CodeQL run after a change to this file shows whether the exclusion took effect; nothing here can run locally.
+
 ## Run the checks locally
 
 ```bash
