@@ -29,7 +29,7 @@ import {
   uploadDocuments,
 } from "../../utils/upload-documents.js";
 import { reuseStoredAttachments } from "../../utils/attachments.js";
-import { createClerkClient } from "@clerk/backend";
+import { clerk } from "../../config/clerk.js";
 
 type JobData = Omit<typeof job_posts.$inferInsert, "client_id">;
 
@@ -350,7 +350,6 @@ export const getPublicJobFeed = async (
 
   const clientCountries = new Map<string, string | null>();
   if (env.clerkSecretKey) {
-    const clerk = createClerkClient({ secretKey: env.clerkSecretKey });
     const uniqueClientIds = [...new Set(rows.map((row) => row.job.client_id))];
     await Promise.all(
       uniqueClientIds.map(async (clientId) => {

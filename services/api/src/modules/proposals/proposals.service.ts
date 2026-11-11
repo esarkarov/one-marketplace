@@ -26,9 +26,11 @@ import {
   PROPOSAL_CONNECTS,
 } from "../../config/constants.js";
 import { redis } from "../../config/redis.js";
-import { env } from "../../config/env.js";
-import { createClerkClient } from "@clerk/backend";
-import { getAgencyOwnerId } from "../agency/agency.service.js";
+import { clerk } from "../../config/clerk.js";
+import {
+  getAgencyOwnerId,
+  getAgencyTeamMemberIds,
+} from "../agency/agency.service.js";
 import { sendNotification } from "../../events/publisher.js";
 import { emitConversationUpdate } from "../messaging/messaging.socket.js";
 
@@ -56,6 +58,9 @@ export const submitProposal = async (
       )
       .limit(1);
     if (!job) throw new ApiError(404, "Job post not found.");
+    if (job.clientId === freelancerId) {
+      throw new ApiError(403, "You cannot submit a proposal to your own job.");
+    }
     const questions = job.screeningQuestions ?? [];
     if (
       input.screeningAnswers.length !== questions.length ||
@@ -155,6 +160,12 @@ export const submitAgencyProposal = async (
       )
       .limit(1);
     if (!job) throw new ApiError(404, "Job post not found.");
+    if ((await getAgencyTeamMemberIds(agencyId)).includes(job.clientId)) {
+      throw new ApiError(
+        403,
+        "Your agency cannot submit a proposal to a job posted by its own team.",
+      );
+    }
     const questions = job.screeningQuestions ?? [];
     if (
       input.screeningAnswers.length !== questions.length ||
@@ -443,7 +454,6 @@ export const getClientJobProposals = async (
     .where(and(eq(proposals.job_id, jobId), eq(job_posts.client_id, clientId)))
     .orderBy(desc(proposals.created_at));
 
-  const clerk = createClerkClient({ secretKey: env.clerkSecretKey });
   return Promise.all(
     rows.map(
       async ({

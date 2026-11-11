@@ -5,6 +5,7 @@ import {
   verifyBearerToken,
 } from "../../middleware/auth.middleware.js";
 import { largeJsonBody } from "../../middleware/json-body.middleware.js";
+import { publicSearchLimiter } from "../../middleware/rate-limit.middleware.js";
 import { contentWriteLimiter } from "../../middleware/user-rate-limit.middleware.js";
 import {
   getFreelancerEarningsCertificate,
@@ -33,6 +34,7 @@ const profileWriteLimiter = contentWriteLimiter();
 freelancerRouter.get("/profile", isAuthenticated, getLoggedInFreelancerProfile);
 freelancerRouter.get(
   "/search",
+  publicSearchLimiter,
   validate({ query: talentSearchQuerySchema }),
   searchPublicFreelancersHandler,
 );

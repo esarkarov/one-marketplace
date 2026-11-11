@@ -5,7 +5,9 @@ const toOrigin = (
   value: string | undefined,
   fallback: string,
 ) => {
-  const candidate = value || fallback;
+  const candidate = value || (env.nodeEnv === "production" ? "" : fallback);
+
+  if (!candidate) return undefined;
 
   try {
     return new URL(candidate).origin;
@@ -23,7 +25,7 @@ export const allowedOrigins: string[] = [
   ),
   toOrigin("AGENCY_DASHBOARD", env.agencyDashboard, "http://localhost:3003"),
   toOrigin("ADMIN_DASHBOARD", env.adminDashboard, "http://localhost:3004"),
-];
+].filter((origin): origin is string => origin !== undefined);
 
 const originCallback = (
   origin: string | undefined,

@@ -5,6 +5,7 @@ import { socketCorsOptions } from "../../config/cors.js";
 import { db } from "../../database/client.js";
 import { conversation_participants, messages } from "../../database/schema.js";
 import { authenticateAccount } from "../../middleware/auth.middleware.js";
+import { ApiError } from "../../utils/api-error.js";
 import { getAgencyIdForMember } from "../agency/agency.service.js";
 
 type ConversationScope = "default" | "agency";
@@ -68,14 +69,22 @@ const getConversationUsers = async (
   return { conversationIds, participants };
 };
 
+export const authenticateHandshake = async (auth: {
+  token?: unknown;
+  role?: unknown;
+}) => {
+  const account = await authenticateAccount(auth?.token, auth?.role);
+  if (!account.accountExists) {
+    throw new ApiError(403, "An account for this role is required.");
+  }
+  return account;
+};
+
 export const initializeMessagingSocket = (server: HttpServer) => {
   io = new Server(server, { cors: socketCorsOptions });
   io.use(async (socket, next) => {
     try {
-      socket.data.auth = await authenticateAccount(
-        socket.handshake.auth.token,
-        socket.handshake.auth.role,
-      );
+      socket.data.auth = await authenticateHandshake(socket.handshake.auth);
       next();
     } catch (error) {
       next(new Error(error instanceof Error ? error.message : "Unauthorized"));

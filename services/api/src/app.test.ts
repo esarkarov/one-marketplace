@@ -1,8 +1,24 @@
 import request from "supertest";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import { app } from "./app.js";
-import { connectRedis, disconnectRedis } from "./config/redis.js";
+import { getAccountAuthCacheKey } from "./config/constants.js";
+import { connectRedis, disconnectRedis, redis } from "./config/redis.js";
 import { pool } from "./database/client.js";
+
+const clerk = vi.hoisted(() => ({ verifyToken: vi.fn() }));
+
+vi.mock("@clerk/backend", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@clerk/backend")>()),
+  verifyToken: clerk.verifyToken,
+}));
 
 beforeAll(async () => {
   await connectRedis();
@@ -40,6 +56,11 @@ describe("health and readiness", () => {
     expect(response.body.data.checks.postgres).toBe("failed");
     expect(response.text).not.toContain("secret-connection-detail");
   });
+});
+
+beforeEach(() => {
+  clerk.verifyToken.mockReset();
+  clerk.verifyToken.mockRejectedValue(new Error("invalid token"));
 });
 
 describe("authentication", () => {
@@ -116,11 +137,22 @@ describe("body limits", () => {
     expect(response.status).toBe(413);
   });
 
-  it("accepts a large body on an exception route", async () => {
-    const response = await request(app)
-      .post("/api/v1/jobs")
-      .send({ data: "a".repeat(1024 * 1024) });
+  it("accepts and parses a large body on an exception route", async () => {
+    const userId = "app_test_large_body_user";
+    clerk.verifyToken.mockResolvedValueOnce({ sub: userId, sid: "sess" });
 
-    expect(response.status).toBe(401);
+    try {
+      const response = await request(app)
+        .post("/api/v1/jobs")
+        .set("Authorization", "Bearer test-token")
+        .send({ role: "client", data: "a".repeat(1024 * 1024) });
+
+      expect(response.status).toBe(403);
+      expect(response.body.message).toBe(
+        "An account for this role is required.",
+      );
+    } finally {
+      await redis.del(getAccountAuthCacheKey(userId, "client"));
+    }
   });
 });

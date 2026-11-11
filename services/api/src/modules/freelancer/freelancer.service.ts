@@ -35,16 +35,18 @@ import {
 } from "../../config/constants.js";
 import { invalidateAccountAuthCache } from "../../utils/account-auth-cache.js";
 import { addConnects } from "../connects/connects.service.js";
-import { createClerkClient } from "@clerk/backend";
+import { clerk } from "../../config/clerk.js";
+import {
+  isImageDataUrl,
+  reuseStoredImage,
+} from "../../utils/portfolio-images.js";
 
 const getClientCountry = async (clientId: string) => {
   if (!env.clerkSecretKey) {
     throw new ApiError(503, "Authentication is not configured.");
   }
 
-  const client = await createClerkClient({
-    secretKey: env.clerkSecretKey,
-  }).users.getUser(clientId);
+  const client = await clerk.users.getUser(clientId);
   const country = client.unsafeMetadata.country;
 
   return typeof country === "string" ? country : null;
@@ -390,9 +392,7 @@ export const getFreelancerEarningsCertificateData = async (
 
   if (!account) throw new ApiError(404, "Freelancer profile not found.");
 
-  const user = await createClerkClient({
-    secretKey: env.clerkSecretKey,
-  }).users.getUser(userId);
+  const user = await clerk.users.getUser(userId);
   const freelancerName = user.fullName ?? "Freelancer";
 
   const rows = await db
@@ -574,7 +574,7 @@ const uploadPortfolioImages = async (
 
   try {
     for (const portfolio of portfolios) {
-      if (!portfolio.cover_image.url.startsWith("data:image/")) {
+      if (!isImageDataUrl(portfolio.cover_image.url)) {
         uploadedPortfolios.push(portfolio);
         continue;
       }
@@ -618,9 +618,19 @@ export const saveFreelancerProfile = async (
     )
     .where(eq(freelancer_metadata.auth_id, input.userId));
 
+  const storedImages = existingImages.map(({ cover_image }) => cover_image);
+  const resolvedPortfolios: PortfolioData[] = input.portfolios.map(
+    (portfolio) => ({
+      ...portfolio,
+      cover_image: isImageDataUrl(portfolio.cover_image.url)
+        ? { imageId: "", url: portfolio.cover_image.url }
+        : reuseStoredImage(storedImages, portfolio.cover_image.url),
+    }),
+  );
+
   const { uploadedPortfolios, uploadedFileIds } = await uploadPortfolioImages(
     input.userId,
-    input.portfolios,
+    resolvedPortfolios,
   );
 
   let profile: FreelancerProfileData;
@@ -975,9 +985,7 @@ export const getPublicFreelancerProfile = async (profileId: string) => {
 
   let user;
   try {
-    user = await createClerkClient({
-      secretKey: env.clerkSecretKey,
-    }).users.getUser(freelancer.userId);
+    user = await clerk.users.getUser(freelancer.userId);
   } catch {
     return null;
   }
@@ -1114,7 +1122,6 @@ export const searchPublicFreelancers = async (
   if (!rows.length || !env.clerkSecretKey)
     return { results: [], hasMore: false };
 
-  const clerk = createClerkClient({ secretKey: env.clerkSecretKey });
   const clerkUsers = await Promise.all(
     rows.map(async (row) => {
       try {

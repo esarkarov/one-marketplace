@@ -1,4 +1,4 @@
-import { createClerkClient } from "@clerk/backend";
+import { clerk } from "../../config/clerk.js";
 import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../../database/client.js";
 import { toSafeCents } from "../../utils/money.js";
@@ -426,7 +426,6 @@ export const getClientCompletedContracts = async (
   ];
   const names = new Map<string, string>();
   if (env.clerkSecretKey && freelancerIds.length) {
-    const clerk = createClerkClient({ secretKey: env.clerkSecretKey });
     await Promise.all(
       freelancerIds.map(async (freelancerId) => {
         try {
@@ -583,7 +582,6 @@ export const searchMarketplace = async (
     if (rows.length === limit) hasMore = true;
 
     if (rows.length && env.clerkSecretKey) {
-      const clerk = createClerkClient({ secretKey: env.clerkSecretKey });
       const clerkUsers = await Promise.all(
         rows.map(async (row) => {
           try {

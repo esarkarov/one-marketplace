@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { moneyCents } from "../../utils/money.js";
 import { centsQueryParam } from "../../utils/money-schemas.js";
+import { searchPagingShape } from "../../utils/search-schemas.js";
 
 export const MIN_HOURLY_RATE_CENTS = 500;
 export const MAX_HOURLY_RATE_CENTS = 100_000;
@@ -27,6 +28,7 @@ export const jobFeedQuerySchema = z.looseObject({
 });
 
 export const talentSearchQuerySchema = z.looseObject({
+  ...searchPagingShape,
   minRateCents: centsQueryParam,
   maxRateCents: centsQueryParam,
 });

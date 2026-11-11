@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { createClerkClient } from "@clerk/backend";
+import { clerk } from "../../config/clerk.js";
 import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { db } from "../../database/client.js";
 import { toSafeCents } from "../../utils/money.js";
@@ -33,10 +33,13 @@ import {
   STRIPE_PAYOUT_ELIGIBLE_COUNTRIES,
 } from "../../config/constants.js";
 import { getJSSContribution } from "../freelancer/freelancer.service.js";
+import {
+  isImageDataUrl,
+  reuseStoredImage,
+  type StoredImage,
+} from "../../utils/portfolio-images.js";
 
 const regionNames = new Intl.DisplayNames(["en"], { type: "region" });
-
-type StoredImage = { imageId: string; url: string };
 
 export interface AgencyPortfolioItem {
   id: string;
@@ -114,7 +117,6 @@ export interface CreateAgencyInput {
 }
 
 export interface ImageInput {
-  imageId?: string;
   url: string;
 }
 
@@ -594,7 +596,6 @@ const attachOwnerProfile = async (
   const avatars = new Map<string, string | null>();
 
   if (env.clerkSecretKey) {
-    const clerk = createClerkClient({ secretKey: env.clerkSecretKey });
     await Promise.all(
       freelancerIds.map(async (freelancerId) => {
         try {
@@ -694,43 +695,88 @@ export const getAgencyForMember = async (
   return getPublicAgencyProfile(agencyId);
 };
 
+const AGENCY_MEMBER_UNIQUE = "agency_members_freelancer_id_unique";
+const AGENCY_OWNER_UNIQUE = "agency_metadata_owner_id_unique";
+
+const isUniqueViolation = (error: unknown, constraintName: string): boolean => {
+  for (
+    let current: unknown = error, depth = 0;
+    typeof current === "object" && current !== null && depth < 3;
+    current = (current as { cause?: unknown }).cause, depth += 1
+  ) {
+    const { code, constraint } = current as {
+      code?: unknown;
+      constraint?: unknown;
+    };
+    if (code === "23505" && constraint === constraintName) return true;
+  }
+  return false;
+};
+
+const alreadyInAgencyError = (message: string) =>
+  new ApiError(409, message, "ALREADY_IN_AGENCY");
+
+const ALREADY_IN_AGENCY_MESSAGE =
+  "You're already part of an agency. Leave your current agency before joining a new one.";
+
+const invitationHandledError = () =>
+  new ApiError(
+    409,
+    "This invitation has already been handled.",
+    "INVITATION_ALREADY_HANDLED",
+  );
+
 export const createAgency = async (
   input: CreateAgencyInput,
 ): Promise<AgencyData> => {
   const existing = await getAgencyByOwner(input.ownerId);
   if (existing) {
-    throw new ApiError(409, "You already have an agency workspace.");
+    throw alreadyInAgencyError("You already have an agency workspace.");
+  }
+  if (await getAgencyIdForMember(input.ownerId)) {
+    throw alreadyInAgencyError(ALREADY_IN_AGENCY_MESSAGE);
   }
 
   const now = new Date();
 
-  const created = await db.transaction(async (transaction) => {
-    const [created] = await transaction
-      .insert(agency_metadata)
-      .values({
-        owner_id: input.ownerId,
-        name: input.name,
-        size: input.size,
-        specialty: input.specialty,
-        website: input.website || null,
-        overview: input.overview,
-        created_at: now,
-        updated_at: now,
-      })
-      .returning(agencyColumns);
+  let created;
+  try {
+    created = await db.transaction(async (transaction) => {
+      const [row] = await transaction
+        .insert(agency_metadata)
+        .values({
+          owner_id: input.ownerId,
+          name: input.name,
+          size: input.size,
+          specialty: input.specialty,
+          website: input.website || null,
+          overview: input.overview,
+          created_at: now,
+          updated_at: now,
+        })
+        .returning(agencyColumns);
 
-    if (!created) {
-      throw new ApiError(500, "The agency could not be created.");
-    }
+      if (!row) {
+        throw new ApiError(500, "The agency could not be created.");
+      }
 
-    await transaction.insert(agency_members).values({
-      agency_id: created.id,
-      freelancer_id: input.ownerId,
-      role: "Founder",
+      await transaction.insert(agency_members).values({
+        agency_id: row.id,
+        freelancer_id: input.ownerId,
+        role: "Founder",
+      });
+
+      return row;
     });
-
-    return created;
-  });
+  } catch (error) {
+    if (
+      isUniqueViolation(error, AGENCY_MEMBER_UNIQUE) ||
+      isUniqueViolation(error, AGENCY_OWNER_UNIQUE)
+    ) {
+      throw alreadyInAgencyError(ALREADY_IN_AGENCY_MESSAGE);
+    }
+    throw error;
+  }
 
   return attachOwnerProfile(input.ownerId, {
     ...created,
@@ -739,23 +785,32 @@ export const createAgency = async (
   });
 };
 
-const isDataUrl = (value: string): boolean => value.startsWith("data:image/");
-
 const resolveAgencyImages = async (
   ownerId: string,
   input: UpdateAgencyInput,
+  stored: {
+    avatarImage: StoredImage | null;
+    coverImages: StoredImage[];
+  },
 ) => {
   const uploadedFileIds: string[] = [];
+
+  if (input.avatarImage && !isImageDataUrl(input.avatarImage.url)) {
+    reuseStoredImage([stored.avatarImage], input.avatarImage.url);
+  }
+  for (const item of input.portfolio) {
+    if (!isImageDataUrl(item.coverImage.url)) {
+      reuseStoredImage(stored.coverImages, item.coverImage.url);
+    }
+  }
 
   const resolveOne = async (
     image: ImageInput,
     prefix: string,
+    candidates: Array<StoredImage | null>,
   ): Promise<StoredImage> => {
-    if (!isDataUrl(image.url)) {
-      if (!image.imageId) {
-        throw new ApiError(400, "An image could not be resolved.");
-      }
-      return { imageId: image.imageId, url: image.url };
+    if (!isImageDataUrl(image.url)) {
+      return reuseStoredImage(candidates, image.url);
     }
 
     if (!env.imageKitPrivateKey) {
@@ -778,13 +833,17 @@ const resolveAgencyImages = async (
 
   try {
     const avatarImage = input.avatarImage
-      ? await resolveOne(input.avatarImage, "avatar")
+      ? await resolveOne(input.avatarImage, "avatar", [stored.avatarImage])
       : undefined;
 
     const portfolio = await Promise.all(
       input.portfolio.map(async (item) => ({
         ...item,
-        coverImage: await resolveOne(item.coverImage, "portfolio"),
+        coverImage: await resolveOne(
+          item.coverImage,
+          "portfolio",
+          stored.coverImages,
+        ),
       })),
     );
 
@@ -808,6 +867,10 @@ export const updateAgencyProfile = async (
   const { avatarImage, portfolio, uploadedFileIds } = await resolveAgencyImages(
     input.ownerId,
     input,
+    {
+      avatarImage: existing.avatarImage ?? null,
+      coverImages: existing.portfolio.map((item) => item.coverImage),
+    },
   );
 
   let result: Omit<
@@ -1078,34 +1141,10 @@ export const getAgencyInvitations = async (
     )
     .orderBy(desc(agency_invitations.created_at));
 
-  if (!rows.length) return rows.map((row) => ({ ...row, avatarUrl: null }));
-
-  const emails = [...new Set(rows.map((row) => row.email))];
-  const matchedAccounts = await db
-    .select({ email: accounts.email, authId: accounts.auth_id })
-    .from(accounts)
-    .where(inArray(accounts.email, emails));
-
-  const avatarByEmail = new Map<string, string | null>();
-  if (env.clerkSecretKey && matchedAccounts.length) {
-    const clerk = createClerkClient({ secretKey: env.clerkSecretKey });
-    await Promise.all(
-      matchedAccounts.map(async ({ email, authId }) => {
-        try {
-          const user = await clerk.users.getUser(authId);
-          avatarByEmail.set(email, user.imageUrl || null);
-        } catch {
-          avatarByEmail.set(email, null);
-        }
-      }),
-    );
-  }
-
-  return rows.map((row) => ({
-    ...row,
-    avatarUrl: avatarByEmail.get(row.email) ?? null,
-  }));
+  return rows.map((row) => ({ ...row, avatarUrl: null }));
 };
+
+const INVITATION_RESEND_COOLDOWN_SECONDS = 60;
 
 const notifyInvitee = async (
   email: string,
@@ -1118,17 +1157,27 @@ const notifyInvitee = async (
     .where(eq(accounts.email, email))
     .limit(1);
 
-  if (!account || account.role !== "FREELANCER") return false;
+  if (!account || account.role !== "FREELANCER") return;
+  if (await getAgencyIdForMember(account.authId)) return;
 
-  await sendNotification({
-    recipientId: account.authId,
-    type: "AGENCY_INVITATION",
-    title: "You've been invited to join an agency",
-    message: `${agencyName} invited you to join their agency team.`,
-    link: "/agency-invitations",
-    metadata: { agencyId },
-  });
-  return true;
+  try {
+    await sendNotification({
+      recipientId: account.authId,
+      type: "AGENCY_INVITATION",
+      title: "You've been invited to join an agency",
+      message: `${agencyName} invited you to join their agency team.`,
+      link: "/agency-invitations",
+      metadata: { agencyId },
+    });
+  } catch (error) {
+    await logger
+      .warn({
+        message: "Agency invitation notification failed",
+        eventName: "task.agency.invitation_notify_failed",
+        attributes: errorLogAttributes(error),
+      })
+      .catch(() => {});
+  }
 };
 
 export const inviteAgencyMember = async (
@@ -1136,19 +1185,22 @@ export const inviteAgencyMember = async (
   agencyName: string,
   invitedBy: string,
   input: { email: string; role: string },
-): Promise<AgencyInvitationData & { notifiedInApp: boolean }> => {
+): Promise<AgencyInvitationData> => {
   const email = input.email.trim().toLowerCase();
 
   const [existingMember] = await db
     .select({ id: agency_members.id })
     .from(agency_members)
     .innerJoin(accounts, eq(accounts.auth_id, agency_members.freelancer_id))
-    .where(eq(accounts.email, email))
+    .where(
+      and(eq(accounts.email, email), eq(agency_members.agency_id, agencyId)),
+    )
     .limit(1);
   if (existingMember) {
     throw new ApiError(
       409,
-      "This person is already part of an agency team and cannot be invited.",
+      "This person is already part of your agency team.",
+      "INVITEE_ALREADY_MEMBER",
     );
   }
 
@@ -1164,7 +1216,11 @@ export const inviteAgencyMember = async (
     )
     .limit(1);
   if (existingInvite) {
-    throw new ApiError(409, "An invitation is already pending for this email.");
+    throw new ApiError(
+      409,
+      "An invitation is already pending for this email.",
+      "INVITATION_ALREADY_PENDING",
+    );
   }
 
   const [invitation] = await db
@@ -1185,9 +1241,9 @@ export const inviteAgencyMember = async (
 
   if (!invitation) throw new ApiError(500, "The invitation could not be sent.");
 
-  const notifiedInApp = await notifyInvitee(email, agencyId, agencyName);
+  await notifyInvitee(email, agencyId, agencyName);
 
-  return { ...invitation, avatarUrl: null, notifiedInApp };
+  return { ...invitation, avatarUrl: null };
 };
 
 export const cancelAgencyInvitation = async (
@@ -1220,24 +1276,38 @@ export const resendAgencyInvitation = async (
 ) => {
   const [invitation] = await db
     .update(agency_invitations)
-    .set({ updated_at: new Date() })
+    .set({ updated_at: sql`now()` })
     .where(
       and(
         eq(agency_invitations.id, invitationId),
         eq(agency_invitations.agency_id, agencyId),
         eq(agency_invitations.status, "PENDING"),
+        sql`${agency_invitations.updated_at} <= now() - make_interval(secs => ${INVITATION_RESEND_COOLDOWN_SECONDS})`,
       ),
     )
     .returning({ email: agency_invitations.email });
 
-  if (!invitation) throw new ApiError(404, "Invitation not found.");
+  if (!invitation) {
+    const [pending] = await db
+      .select({ id: agency_invitations.id })
+      .from(agency_invitations)
+      .where(
+        and(
+          eq(agency_invitations.id, invitationId),
+          eq(agency_invitations.agency_id, agencyId),
+          eq(agency_invitations.status, "PENDING"),
+        ),
+      )
+      .limit(1);
+    if (!pending) throw new ApiError(404, "Invitation not found.");
+    throw new ApiError(
+      429,
+      `Please wait ${INVITATION_RESEND_COOLDOWN_SECONDS} seconds before resending this invitation.`,
+      "INVITATION_RESEND_COOLDOWN",
+    );
+  }
 
-  const notifiedInApp = await notifyInvitee(
-    invitation.email,
-    agencyId,
-    agencyName,
-  );
-  return { notifiedInApp };
+  await notifyInvitee(invitation.email, agencyId, agencyName);
 };
 
 export const updateAgencyInvitationRole = async (
@@ -1398,41 +1468,49 @@ export const respondToAgencyInvitation = async (
   if (!invitation || invitation.email !== account.email) {
     throw new ApiError(404, "Invitation not found.");
   }
-  if (invitation.status !== "PENDING") {
-    throw new ApiError(409, "This invitation has already been handled.");
-  }
 
   const now = new Date();
 
-  if (accept) {
-    const [existingMembership] = await db
-      .select({ id: agency_members.id })
-      .from(agency_members)
-      .where(eq(agency_members.freelancer_id, userId))
-      .limit(1);
-    if (existingMembership) {
-      throw new ApiError(
-        409,
-        "You're already part of an agency. Leave your current agency before joining a new one.",
-      );
-    }
-
-    await db.transaction(async (transaction) => {
-      await transaction.insert(agency_members).values({
-        agency_id: invitation.agencyId,
-        freelancer_id: userId,
-        role: invitation.role,
-      });
-      await transaction
-        .update(agency_invitations)
-        .set({ status: "ACCEPTED", responded_at: now, updated_at: now })
-        .where(eq(agency_invitations.id, invitationId));
-    });
-  } else {
-    await db
+  const resolveInvitation = (executor: DbExecutor) =>
+    executor
       .update(agency_invitations)
-      .set({ status: "DECLINED", responded_at: now, updated_at: now })
-      .where(eq(agency_invitations.id, invitationId));
+      .set({
+        status: accept ? "ACCEPTED" : "DECLINED",
+        responded_at: now,
+        updated_at: now,
+      })
+      .where(
+        and(
+          eq(agency_invitations.id, invitationId),
+          eq(agency_invitations.status, "PENDING"),
+        ),
+      )
+      .returning({
+        agencyId: agency_invitations.agency_id,
+        role: agency_invitations.role,
+      });
+
+  if (accept) {
+    try {
+      await db.transaction(async (transaction) => {
+        const [resolved] = await resolveInvitation(transaction);
+        if (!resolved) throw invitationHandledError();
+
+        await transaction.insert(agency_members).values({
+          agency_id: resolved.agencyId,
+          freelancer_id: userId,
+          role: resolved.role,
+        });
+      });
+    } catch (error) {
+      if (isUniqueViolation(error, AGENCY_MEMBER_UNIQUE)) {
+        throw alreadyInAgencyError(ALREADY_IN_AGENCY_MESSAGE);
+      }
+      throw error;
+    }
+  } else {
+    const [resolved] = await resolveInvitation(db);
+    if (!resolved) throw invitationHandledError();
   }
 
   const ownerId = await getAgencyOwnerId(invitation.agencyId);
@@ -1440,7 +1518,6 @@ export const respondToAgencyInvitation = async (
     let responderName = account.email;
     if (env.clerkSecretKey) {
       try {
-        const clerk = createClerkClient({ secretKey: env.clerkSecretKey });
         const user = await clerk.users.getUser(userId);
         responderName =
           [user.firstName, user.lastName].filter(Boolean).join(" ") ||

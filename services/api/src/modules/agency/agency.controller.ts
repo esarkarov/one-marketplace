@@ -4,6 +4,7 @@ import { ApiError } from "../../utils/api-error.js";
 import { isValidEmail } from "../../utils/email.js";
 import { ApiResponse } from "../../types/common.types.js";
 import { requireText } from "../../config/constants.js";
+import { parseLiveUrl } from "../../utils/portfolio-images.js";
 import {
   AgencyData,
   cancelAgencyInvitation,
@@ -74,11 +75,7 @@ const parseImageInput = (value: unknown): ImageInput | undefined => {
   const url = (value as { url?: unknown }).url;
   if (typeof url !== "string" || !url.trim()) return undefined;
 
-  const imageId = (value as { imageId?: unknown }).imageId;
-  return {
-    url,
-    imageId: typeof imageId === "string" && imageId ? imageId : undefined,
-  };
+  return { url };
 };
 
 const parsePortfolio = (value: unknown): UpdateAgencyPortfolioInput[] => {
@@ -114,10 +111,7 @@ const parsePortfolio = (value: unknown): UpdateAgencyPortfolioInput[] => {
         typeof item.description === "string" ? item.description : undefined,
         `Portfolio project ${index + 1} description`,
       ),
-      liveUrl:
-        typeof item.liveUrl === "string"
-          ? item.liveUrl.trim() || undefined
-          : undefined,
+      liveUrl: parseLiveUrl(item.liveUrl),
       coverImage,
     };
   });
@@ -718,7 +712,7 @@ export const resendAgencyInvitationHandler: RequestHandler = asyncHandler(
     const auth = requireAgencyAuth(request);
     const agency = await requireAgencyOwner(auth.userId);
 
-    const result = await resendAgencyInvitation(
+    await resendAgencyInvitation(
       agency.id,
       requireText(request.params.invitationId, "Invitation"),
       agency.name,
@@ -727,7 +721,7 @@ export const resendAgencyInvitationHandler: RequestHandler = asyncHandler(
     response.status(200).json({
       success: true,
       message: "Invitation resent.",
-      data: result,
+      data: null,
     });
   },
 );

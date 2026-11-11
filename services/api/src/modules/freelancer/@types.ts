@@ -11,6 +11,10 @@ export interface PortfolioData {
   cover_image: { imageId: string; url: string };
 }
 
+export interface PortfolioInput extends Omit<PortfolioData, "cover_image"> {
+  cover_image: { url: string };
+}
+
 export interface FreelancerProfileData {
   professional_title: string;
   professional_description: string;
@@ -62,5 +66,5 @@ export interface SaveFreelancerProfileInput {
   experience_level: string;
   skills: string[];
   languages: LanguageData[];
-  portfolios: PortfolioData[];
+  portfolios: PortfolioInput[];
 }

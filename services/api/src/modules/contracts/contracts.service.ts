@@ -1,5 +1,5 @@
 import type Stripe from "stripe";
-import { createClerkClient } from "@clerk/backend";
+import { clerk } from "../../config/clerk.js";
 import { and, asc, desc, eq, inArray, isNotNull, ne, sql } from "drizzle-orm";
 import { env } from "../../config/env.js";
 import { logger } from "../../config/logger.js";
@@ -442,7 +442,6 @@ export const getAccountContracts = async (
   const names = new Map<string, string>();
   const avatars = new Map<string, string | null>();
   if (env.clerkSecretKey && counterpartyIds.length) {
-    const clerk = createClerkClient({ secretKey: env.clerkSecretKey });
     await Promise.all(
       counterpartyIds.map(async (accountId) => {
         try {

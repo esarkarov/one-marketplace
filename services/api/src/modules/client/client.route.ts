@@ -1,5 +1,7 @@
 import { Router } from "express";
 import { isAuthenticated } from "../../middleware/auth.middleware.js";
+import { validate } from "../../middleware/validate.middleware.js";
+import { marketplaceSearchQuerySchema } from "./client.schemas.js";
 import {
   getClientCompletedContractsHandler,
   getClientDashboardOverviewHandler,
@@ -37,5 +39,6 @@ clientRouter.get(
 clientRouter.get(
   "/marketplace/search",
   isAuthenticated,
+  validate({ query: marketplaceSearchQuerySchema }),
   searchMarketplaceHandler,
 );

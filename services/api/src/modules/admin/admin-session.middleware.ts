@@ -28,15 +28,15 @@ const getBearerToken = (authorizationHeader: string | undefined) => {
   return authorizationHeader.slice("Bearer ".length).trim() || undefined;
 };
 
-export const requireAdminSession: RequestHandler = asyncHandler(
-  async (request, _response, next) => {
+const createAdminSessionGuard = (allowQueryToken: boolean): RequestHandler =>
+  asyncHandler(async (request, _response, next) => {
     if (!env.adminSessionSecret) {
       throw new ApiError(503, "Admin authentication is not configured.");
     }
 
     const token =
       getBearerToken(request.headers.authorization) ??
-      (typeof request.query.token === "string"
+      (allowQueryToken && typeof request.query.token === "string"
         ? request.query.token
         : undefined);
 
@@ -53,5 +53,8 @@ export const requireAdminSession: RequestHandler = asyncHandler(
     }
 
     next();
-  },
-);
+  });
+
+export const requireAdminSession = createAdminSessionGuard(false);
+export const requireAdminSessionAllowingQueryToken =
+  createAdminSessionGuard(true);

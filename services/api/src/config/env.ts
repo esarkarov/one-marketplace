@@ -112,6 +112,66 @@ const describe = (issues: z.core.$ZodIssue[]): string[] =>
     return `- ${name}: ${issue.message}`;
   });
 
+const productionRequired = [
+  "CLERK_SECRET_KEY",
+  "STRIPE_SECRET_KEY",
+  "STRIPE_WEBHOOK_SECRET",
+  "STRIPE_CONNECTS_WEBHOOK_SECRET",
+  "STRIPE_IDENTITY_WEBHOOK_SECRET",
+  "ADMIN_DASHBOARD_PASSWORD",
+  "ADMIN_SESSION_SECRET",
+] as const;
+
+const dashboardOriginVariables = [
+  "CLIENT_DASHBOARD",
+  "FREELANCER_DASHBOARD",
+  "AGENCY_DASHBOARD",
+  "ADMIN_DASHBOARD",
+] as const;
+
+const MIN_ADMIN_SESSION_SECRET_LENGTH = 32;
+
+const productionIssues = (source: Source): string[] => {
+  const issues: string[] = [];
+
+  for (const name of productionRequired) {
+    const value = source[name];
+
+    if (!value) {
+      issues.push(`- ${name}: is required in production`);
+    } else if (value.includes("change-me")) {
+      issues.push(`- ${name}: must not be a placeholder value`);
+    } else if (
+      name === "ADMIN_SESSION_SECRET" &&
+      value.length < MIN_ADMIN_SESSION_SECRET_LENGTH
+    ) {
+      issues.push(
+        `- ${name}: must be at least ${MIN_ADMIN_SESSION_SECRET_LENGTH} characters`,
+      );
+    }
+  }
+
+  const provided = dashboardOriginVariables.filter((name) => source[name]);
+
+  if (provided.length === 0) {
+    issues.push(
+      `- ${dashboardOriginVariables.join(", ")}: at least one dashboard origin is required in production`,
+    );
+  }
+
+  for (const name of provided) {
+    const protocol = URL.canParse(source[name] as string)
+      ? new URL(source[name] as string).protocol
+      : "";
+
+    if (protocol !== "http:" && protocol !== "https:") {
+      issues.push(`- ${name}: must be a valid http(s) URL`);
+    }
+  }
+
+  return issues;
+};
+
 export const parseEnv = (source: Source) => {
   const required = requiredToStart.safeParse(source);
   const optional = optionalFeatures.safeParse(source);
@@ -138,6 +198,14 @@ export const parseEnv = (source: Source) => {
     }
 
     throw new Error(sections.join("\n"));
+  }
+
+  if (optional.data.NODE_ENV === "production") {
+    const issues = productionIssues(source);
+
+    if (issues.length) {
+      throw new Error(["Invalid production variables:", ...issues].join("\n"));
+    }
   }
 
   const r = required.data;

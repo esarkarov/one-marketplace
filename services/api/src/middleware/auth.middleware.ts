@@ -3,8 +3,10 @@ import type { Request, RequestHandler } from "express";
 import { asyncHandler } from "../utils/async-handler.js";
 import { ApiError } from "../utils/api-error.js";
 import { env } from "../config/env.js";
+import { allowedOrigins } from "../config/cors.js";
 import {
   ACCOUNT_AUTH_CACHE_TTL_SECONDS,
+  ACCOUNT_AUTH_NEGATIVE_CACHE_TTL_SECONDS,
   getAccountAuthCacheKey,
 } from "../config/constants.js";
 import { redis } from "../config/redis.js";
@@ -68,7 +70,9 @@ const isAccountAvailable = async (
 
   await redis.setEx(
     cacheKey,
-    ACCOUNT_AUTH_CACHE_TTL_SECONDS,
+    accountAuth.accountExists
+      ? ACCOUNT_AUTH_CACHE_TTL_SECONDS
+      : ACCOUNT_AUTH_NEGATIVE_CACHE_TTL_SECONDS,
     JSON.stringify(accountAuth),
   );
 
@@ -90,7 +94,10 @@ export const authenticateAccount = async (
   }
 
   try {
-    const claims = await verifyToken(token, { secretKey: env.clerkSecretKey });
+    const claims = await verifyToken(token, {
+      secretKey: env.clerkSecretKey,
+      authorizedParties: allowedOrigins,
+    });
     return {
       ...(await isAccountAvailable(requestedRole, claims.sub)),
       sessionId: typeof claims.sid === "string" ? claims.sid : undefined,
@@ -125,6 +132,7 @@ const verifyClaims = async (token: string): Promise<AuthClaims> => {
   try {
     const claims = await verifyToken(token, {
       secretKey: env.clerkSecretKey,
+      authorizedParties: allowedOrigins,
     });
 
     return {
@@ -151,8 +159,8 @@ const loadRequestAuth = async (
   };
 };
 
-export const isAuthenticated: RequestHandler = asyncHandler(
-  async (request, _response, next) => {
+const authenticateRequest = (requireAccount: boolean): RequestHandler =>
+  asyncHandler(async (request, _response, next) => {
     const token = getBearerToken(request?.headers.authorization);
     const requestedRole = request.body?.role ?? request?.query.role;
 
@@ -165,11 +173,19 @@ export const isAuthenticated: RequestHandler = asyncHandler(
     }
 
     const claims = await verifyClaims(token);
-    request.auth = await loadRequestAuth(claims, requestedRole);
+    const auth = await loadRequestAuth(claims, requestedRole);
 
+    if (requireAccount && !auth.accountExists) {
+      throw new ApiError(403, "An account for this role is required.");
+    }
+
+    request.auth = auth;
     next();
-  },
-);
+  });
+
+export const isAuthenticated = authenticateRequest(true);
+
+export const identifyAccount = authenticateRequest(false);
 
 export const verifyBearerToken: RequestHandler = asyncHandler(
   async (request, _response, next) => {

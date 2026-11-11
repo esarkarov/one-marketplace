@@ -111,12 +111,12 @@ describe("parseEnv", () => {
   it("passes optional values through when set", () => {
     const env = parseEnv({
       ...base,
-      NODE_ENV: "production",
+      NODE_ENV: "staging",
       RABBITMQ_URL: "amqp://localhost:5672",
       CLIENT_DASHBOARD: "https://client.example.com",
     });
 
-    expect(env.nodeEnv).toBe("production");
+    expect(env.nodeEnv).toBe("staging");
     expect(env.rabbitmqUrl).toBe("amqp://localhost:5672");
     expect(env.clientDashboard).toBe("https://client.example.com");
   });
@@ -192,5 +192,107 @@ describe("parseEnv", () => {
     expect(message).toContain("ADMIN_DASHBOARD must be a valid URL.");
     expect(message).not.toContain("pw1");
     expect(message).not.toContain("pw2");
+  });
+
+  describe("production", () => {
+    const production = {
+      ...base,
+      NODE_ENV: "production",
+      CLERK_SECRET_KEY: "sk_live_clerk",
+      STRIPE_SECRET_KEY: "sk_live_stripe",
+      STRIPE_WEBHOOK_SECRET: "whsec_a",
+      STRIPE_CONNECTS_WEBHOOK_SECRET: "whsec_b",
+      STRIPE_IDENTITY_WEBHOOK_SECRET: "whsec_c",
+      ADMIN_DASHBOARD_PASSWORD: "a-strong-admin-password",
+      ADMIN_SESSION_SECRET: "s".repeat(32),
+      CLIENT_DASHBOARD: "https://client.example.com",
+    };
+
+    it("accepts a complete production env", () => {
+      expect(parseEnv(production).nodeEnv).toBe("production");
+    });
+
+    it("requires at least one dashboard origin", () => {
+      for (const value of [undefined, ""]) {
+        const message = errorOf({ ...production, CLIENT_DASHBOARD: value });
+
+        expect(message).toContain("Invalid production variables:");
+        expect(message).toContain("CLIENT_DASHBOARD, FREELANCER_DASHBOARD");
+        expect(message).toContain("dashboard origin is required in production");
+      }
+    });
+
+    it("accepts several valid dashboard origins", () => {
+      const env = parseEnv({
+        ...production,
+        ADMIN_DASHBOARD: "http://admin.example.com:8080/x",
+      });
+
+      expect(env.adminDashboard).toBe("http://admin.example.com:8080/x");
+    });
+
+    it("rejects an invalid dashboard URL", () => {
+      expect(
+        errorOf({ ...production, CLIENT_DASHBOARD: "not a url" }),
+      ).toContain("CLIENT_DASHBOARD");
+      expect(
+        errorOf({
+          ...production,
+          AGENCY_DASHBOARD: "ftp://agency.example.com",
+        }),
+      ).toContain("- AGENCY_DASHBOARD: must be a valid http(s) URL");
+    });
+
+    it("reports every missing required variable", () => {
+      const message = errorOf({ ...base, NODE_ENV: "production" });
+
+      expect(message).toContain("Invalid production variables:");
+      for (const name of [
+        "CLERK_SECRET_KEY",
+        "STRIPE_SECRET_KEY",
+        "STRIPE_WEBHOOK_SECRET",
+        "STRIPE_CONNECTS_WEBHOOK_SECRET",
+        "STRIPE_IDENTITY_WEBHOOK_SECRET",
+        "ADMIN_DASHBOARD_PASSWORD",
+        "ADMIN_SESSION_SECRET",
+      ]) {
+        expect(message).toContain(`- ${name}: is required in production`);
+      }
+    });
+
+    it("rejects change-me values without echoing them", () => {
+      const message = errorOf({
+        ...production,
+        STRIPE_SECRET_KEY: "sk_change-me-now",
+      });
+
+      expect(message).toContain(
+        "- STRIPE_SECRET_KEY: must not be a placeholder",
+      );
+      expect(message).not.toContain("sk_change-me-now");
+    });
+
+    it("rejects a short ADMIN_SESSION_SECRET", () => {
+      const message = errorOf({
+        ...production,
+        ADMIN_SESSION_SECRET: "short",
+      });
+
+      expect(message).toContain("- ADMIN_SESSION_SECRET: must be at least 32");
+    });
+
+    it("leaves non-production lenient", () => {
+      for (const nodeEnv of ["development", "test", undefined]) {
+        const env = parseEnv({
+          ...base,
+          NODE_ENV: nodeEnv,
+          ADMIN_SESSION_SECRET: "short",
+          STRIPE_SECRET_KEY: "change-me",
+        });
+
+        expect(env.adminSessionSecret).toBe("short");
+        expect(env.clientDashboard).toBeUndefined();
+      }
+    });
   });
 });

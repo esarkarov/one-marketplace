@@ -6,7 +6,11 @@ import {
 } from "../../middleware/auth.middleware.js";
 import { validate } from "../../middleware/validate.middleware.js";
 import { largeJsonBody } from "../../middleware/json-body.middleware.js";
-import { contentWriteLimiter } from "../../middleware/user-rate-limit.middleware.js";
+import { publicSearchLimiter } from "../../middleware/rate-limit.middleware.js";
+import {
+  contentWriteLimiter,
+  inviteWriteLimiter,
+} from "../../middleware/user-rate-limit.middleware.js";
 import {
   buyAgencyConnects,
   cancelAgencyInvitationHandler,
@@ -47,6 +51,7 @@ const agencyWriteLimiter = contentWriteLimiter();
 
 agencyRouter.get(
   "/search",
+  publicSearchLimiter,
   validate({ query: agencyTalentSearchQuerySchema }),
   searchPublicAgenciesHandler,
 );
@@ -115,11 +120,13 @@ agencyRouter.get(
 agencyRouter.post(
   "/team/invitations",
   isAuthenticated,
+  inviteWriteLimiter,
   inviteAgencyMemberHandler,
 );
 agencyRouter.delete(
   "/team/invitations/:invitationId",
   isAuthenticated,
+  inviteWriteLimiter,
   cancelAgencyInvitationHandler,
 );
 agencyRouter.patch(
@@ -130,6 +137,7 @@ agencyRouter.patch(
 agencyRouter.post(
   "/team/invitations/:invitationId/resend",
   isAuthenticated,
+  inviteWriteLimiter,
   resendAgencyInvitationHandler,
 );
 agencyRouter.patch(

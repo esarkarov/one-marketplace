@@ -1,4 +1,4 @@
-import { createClerkClient } from "@clerk/backend";
+import { clerk } from "../../config/clerk.js";
 import {
   and,
   count,
@@ -92,17 +92,12 @@ const getParticipantProfiles = async (conversationIds: string[]) => {
       accountId: conversation_participants.account_id,
       agencyId: conversation_participants.agency_id,
       participantType: conversation_participants.participant_type,
-      email: accounts.email,
       professionalTitle: freelancer_metadata.professional_title,
       companyName: client_metadata.company_name,
       agencyName: agency_metadata.name,
       agencyAvatar: agency_metadata.avatar_image,
     })
     .from(conversation_participants)
-    .leftJoin(
-      accounts,
-      eq(conversation_participants.account_id, accounts.auth_id),
-    )
     .leftJoin(
       freelancer_metadata,
       eq(conversation_participants.account_id, freelancer_metadata.auth_id),
@@ -122,7 +117,6 @@ const getParticipantProfiles = async (conversationIds: string[]) => {
     { name: string | null; avatarUrl: string | null }
   >();
   if (env.clerkSecretKey) {
-    const clerk = createClerkClient({ secretKey: env.clerkSecretKey });
     const accountIds = [
       ...new Set(
         rows
@@ -151,13 +145,15 @@ const getParticipantProfiles = async (conversationIds: string[]) => {
     const isAgency = row.participantType === "AGENCY";
     const clerkUser = row.accountId ? clerkUsers.get(row.accountId) : undefined;
     const profile = {
-      ...row,
+      participantType: row.participantType,
       name: isAgency
         ? (row.agencyName ?? "Agency")
-        : (clerkUser?.name ?? row.companyName ?? row.email),
+        : (clerkUser?.name ?? row.companyName ?? "Member"),
       avatarUrl: isAgency
         ? (row.agencyAvatar?.url ?? null)
         : (clerkUser?.avatarUrl ?? null),
+      professionalTitle: row.professionalTitle ?? null,
+      companyName: row.companyName ?? null,
     };
     profiles.set(row.conversationId, [
       ...(profiles.get(row.conversationId) ?? []),
@@ -284,14 +280,31 @@ export const createConversation = async (
     }
 
     if (proposal.senderType === "AGENCY") {
+      if (
+        (await getAgencyTeamMemberIds(proposal.freelancerId)).includes(clientId)
+      ) {
+        throw new ApiError(
+          400,
+          "You cannot start a conversation with yourself.",
+        );
+      }
       isAgencyConversation = true;
       agencyIdForKey = proposal.freelancerId;
     } else {
+      if (proposal.freelancerId === clientId) {
+        throw new ApiError(
+          400,
+          "You cannot start a conversation with yourself.",
+        );
+      }
       recipientId = proposal.freelancerId;
     }
     jobId = proposal.jobId;
   } else {
     if (!recipientId) throw new ApiError(400, "Recipient is required.");
+    if (recipientId === clientId) {
+      throw new ApiError(400, "You cannot start a conversation with yourself.");
+    }
     const [recipient] = await db
       .select({ role: accounts.role })
       .from(accounts)

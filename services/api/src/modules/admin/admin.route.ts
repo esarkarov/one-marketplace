@@ -15,7 +15,10 @@ import {
 } from "./admin.controller.js";
 import { validate } from "../../middleware/validate.middleware.js";
 import { redisKeyParamsSchema, redisScanQuerySchema } from "./admin-redis.js";
-import { requireAdminSession } from "./admin-session.middleware.js";
+import {
+  requireAdminSession,
+  requireAdminSessionAllowingQueryToken,
+} from "./admin-session.middleware.js";
 import {
   adminLimiter,
   adminLoginLimiter,
@@ -26,6 +29,11 @@ export const adminRouter = Router();
 adminRouter.post("/auth/login", adminLoginLimiter, loginAdminHandler);
 
 adminRouter.use(adminLimiter);
+adminRouter.get(
+  "/logs/stream",
+  requireAdminSessionAllowingQueryToken,
+  streamLogsHandler,
+);
 adminRouter.use(requireAdminSession);
 adminRouter.get("/overview", getOverviewHandler);
 adminRouter.get("/overview/activity", getOverviewActivityHandler);
@@ -34,7 +42,6 @@ adminRouter.get("/job-posts", getJobPostsHandler);
 adminRouter.get("/proposals", getProposalsHandler);
 adminRouter.get("/contracts", getContractsHandler);
 adminRouter.get("/transactions", getTransactionsHandler);
-adminRouter.get("/logs/stream", streamLogsHandler);
 adminRouter.get("/system/health", getSystemHealthHandler);
 adminRouter.get(
   "/system/redis/keys",

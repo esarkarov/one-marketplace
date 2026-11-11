@@ -1,7 +1,10 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
-  const entries = new Map<string, { value: string; ttl: number }>();
+  const entries = new Map<
+    string,
+    { value: string; ttl: number; expiresAt?: number }
+  >();
   return {
     entries,
     accountRows: [] as unknown[],
@@ -25,7 +28,15 @@ vi.mock("../config/logger.js", () => ({
 
 vi.mock("../config/redis.js", () => ({
   redis: {
-    get: async (key: string) => mocks.entries.get(key)?.value ?? null,
+    get: async (key: string) => {
+      const entry = mocks.entries.get(key);
+      if (!entry) return null;
+      if (entry.expiresAt !== undefined && Date.now() >= entry.expiresAt) {
+        mocks.entries.delete(key);
+        return null;
+      }
+      return entry.value;
+    },
     expire: async (key: string, ttl: number) => {
       mocks.expire(key, ttl);
       const entry = mocks.entries.get(key);
@@ -34,7 +45,11 @@ vi.mock("../config/redis.js", () => ({
     },
     setEx: async (key: string, ttl: number, value: string) => {
       mocks.setEx(key, ttl, value);
-      mocks.entries.set(key, { value, ttl });
+      mocks.entries.set(key, {
+        value,
+        ttl,
+        expiresAt: Date.now() + ttl * 1000,
+      });
       return "OK";
     },
     del: async (keys: string | string[]) => {
@@ -116,6 +131,64 @@ describe("account auth cache lookup", () => {
     );
     expect(second).toMatchObject({ accountExists: true, isOnboarded: true });
     expect(mocks.expire).not.toHaveBeenCalled();
+  });
+});
+
+describe("negative account cache", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("caches a missing account for 30 seconds", async () => {
+    await authenticateAccount("token", "client");
+
+    expect(mocks.setEx).toHaveBeenCalledWith(
+      "account:auth:user_1:client",
+      30,
+      expect.stringContaining('"accountExists":false'),
+    );
+  });
+
+  it("caches an existing account with the positive TTL", async () => {
+    mocks.accountRows = [{ isOnboardingComplete: true }];
+
+    await authenticateAccount("token", "client");
+
+    expect(mocks.setEx).toHaveBeenCalledWith(
+      "account:auth:user_1:client",
+      600,
+      expect.stringContaining('"accountExists":true'),
+    );
+  });
+
+  it("sees a new account once a stale negative entry expires", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+
+    const stale = await authenticateAccount("token", "client");
+    expect(stale.accountExists).toBe(false);
+
+    mocks.accountRows = [{ isOnboardingComplete: false }];
+    vi.advanceTimersByTime(29_000);
+    expect((await authenticateAccount("token", "client")).accountExists).toBe(
+      false,
+    );
+    expect(mocks.dbReads).toHaveBeenCalledTimes(1);
+
+    vi.advanceTimersByTime(1_000);
+    const fresh = await authenticateAccount("token", "client");
+    expect(fresh.accountExists).toBe(true);
+    expect(mocks.dbReads).toHaveBeenCalledTimes(2);
+  });
+
+  it("is cleared by invalidation after sign-up even when the TTL has not passed", async () => {
+    await authenticateAccount("token", "client");
+    mocks.accountRows = [{ isOnboardingComplete: false }];
+
+    await invalidateAccountAuthCache("user_1");
+
+    expect((await authenticateAccount("token", "client")).accountExists).toBe(
+      true,
+    );
   });
 });
 

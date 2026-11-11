@@ -58,6 +58,16 @@ export const adminLimiter = rateLimit({
   skip: isTestEnvironment,
 });
 
+export const PUBLIC_SEARCH_LIMIT = 60;
+export const PUBLIC_SEARCH_WINDOW_MS = 60 * 1000;
+
+export const publicSearchLimiter = rateLimit({
+  ...baseOptions,
+  windowMs: PUBLIC_SEARCH_WINDOW_MS,
+  limit: PUBLIC_SEARCH_LIMIT,
+  skip: isTestEnvironment,
+});
+
 export const signUpLimiter = rateLimit({
   ...baseOptions,
   windowMs: ONE_HOUR,

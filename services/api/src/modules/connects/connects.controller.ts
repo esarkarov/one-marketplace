@@ -81,7 +81,7 @@ export const connectsWebhook: RequestHandler = asyncHandler(
         signature,
         env.stripeConnectsWebhookSecret,
       );
-    } catch (error) {
+    } catch {
       await request.logger.warn({
         message: "Webhook signature rejected",
         eventName: "webhook.inbound.rejected",
@@ -90,7 +90,7 @@ export const connectsWebhook: RequestHandler = asyncHandler(
           "webhook.reject_reason": "invalid_signature",
         },
       });
-      throw error;
+      throw new ApiError(400, "Invalid Stripe webhook signature.");
     }
 
     if (event.type === "checkout.session.completed") {

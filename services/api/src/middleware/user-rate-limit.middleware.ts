@@ -33,8 +33,18 @@ export const createUserRateLimiter = ({
     handler,
     skip: () => env.nodeEnv === "test",
     keyGenerator: (request) =>
-      request.authClaims?.userId ?? ipKeyGenerator(request.ip ?? ""),
+      request.auth?.userId ??
+      request.authClaims?.userId ??
+      ipKeyGenerator(request.ip ?? ""),
   });
+
+export const INVITE_WRITE_LIMIT = 20;
+export const INVITE_WRITE_WINDOW_MS = 60 * 60 * 1000;
+
+export const inviteWriteLimiter = createUserRateLimiter({
+  limit: INVITE_WRITE_LIMIT,
+  windowMs: INVITE_WRITE_WINDOW_MS,
+});
 
 export const messageWriteLimiter = () =>
   createUserRateLimiter({ limit: MESSAGE_WRITE_LIMIT });

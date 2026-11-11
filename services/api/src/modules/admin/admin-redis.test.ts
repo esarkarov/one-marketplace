@@ -32,10 +32,14 @@ vi.mock("../../middleware/rate-limit.middleware.js", () => ({
   adminLoginLimiter: (_req: unknown, _res: unknown, next: () => void) => next(),
 }));
 
-vi.mock("./admin-session.middleware.js", () => ({
-  requireAdminSession: (_req: unknown, _res: unknown, next: () => void) =>
-    next(),
-}));
+vi.mock("./admin-session.middleware.js", () => {
+  const passThrough = (_req: unknown, _res: unknown, next: () => void) =>
+    next();
+  return {
+    requireAdminSession: passThrough,
+    requireAdminSessionAllowingQueryToken: passThrough,
+  };
+});
 
 const { adminRouter } = await import("./admin.route.js");
 const { errorHandler } = await import("../../middleware/error.middleware.js");

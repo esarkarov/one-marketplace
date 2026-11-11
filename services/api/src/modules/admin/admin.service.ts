@@ -1,4 +1,4 @@
-import { createClerkClient } from "@clerk/backend";
+import { clerk } from "../../config/clerk.js";
 import { and, count, desc, eq, inArray, sql, sum } from "drizzle-orm";
 import { db } from "../../database/client.js";
 import { toSafeCents } from "../../utils/money.js";
@@ -45,7 +45,6 @@ const clerkNames = async (authIds: string[]) => {
   >();
   if (!unique.length || !env.clerkSecretKey) return names;
 
-  const clerk = createClerkClient({ secretKey: env.clerkSecretKey });
   await Promise.all(
     unique.map(async (authId) => {
       try {

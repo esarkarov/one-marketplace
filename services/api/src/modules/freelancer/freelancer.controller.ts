@@ -4,6 +4,7 @@ import { asyncHandler } from "../../utils/async-handler.js";
 import { ApiResponse } from "../../types/common.types.js";
 import { FreelancerProfileData, SaveFreelancerProfileInput } from "./@types.js";
 import { requireText } from "../../config/constants.js";
+import { parseLiveUrl } from "../../utils/portfolio-images.js";
 import {
   getFreelancerEarningsCertificateData,
   getFreelancerEarningsOverview,
@@ -125,16 +126,10 @@ export const upsertFreelanceProfile: RequestHandler = asyncHandler(
           Record<string, string> | undefined;
         if (!coverImage)
           throw new ApiError(400, "Portfolio cover image is required.");
-        const imageId =
-          typeof coverImage.imageId === "string" ? coverImage.imageId : "";
         const imageUrl = requireText(
           coverImage.url,
           "Portfolio cover image URL",
         );
-
-        if (!imageId && !imageUrl.startsWith("data:image/")) {
-          throw new ApiError(400, "Portfolio cover image is invalid.");
-        }
 
         return {
           title: requireText(portfolio.title, "Portfolio title"),
@@ -143,14 +138,8 @@ export const upsertFreelanceProfile: RequestHandler = asyncHandler(
             portfolio.description,
             "Portfolio description",
           ),
-          live_url:
-            typeof portfolio.live_url === "string" && portfolio.live_url.trim()
-              ? portfolio.live_url.trim()
-              : null,
-          cover_image: {
-            imageId,
-            url: imageUrl,
-          },
+          live_url: parseLiveUrl(portfolio.live_url) ?? null,
+          cover_image: { url: imageUrl },
         };
       }),
     };

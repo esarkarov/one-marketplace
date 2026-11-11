@@ -14,9 +14,12 @@ vi.mock("../config/env.js", () => ({
 
 const {
   CONTENT_WRITE_LIMIT,
+  INVITE_WRITE_LIMIT,
+  INVITE_WRITE_WINDOW_MS,
   MESSAGE_WRITE_LIMIT,
   contentWriteLimiter,
   createUserRateLimiter,
+  inviteWriteLimiter,
   messageWriteLimiter,
 } = await import("./user-rate-limit.middleware.js");
 
@@ -89,6 +92,44 @@ describe("user rate limiter", () => {
 
     expect((await hit(first, "user_1", 1))[0]!.status).toBe(429);
     expect((await hit(second, "user_1", 1))[0]!.status).toBe(200);
+  });
+
+  it("allows 20 invitation actions per hour in one bucket and blocks the 21st", async () => {
+    expect(INVITE_WRITE_LIMIT).toBe(20);
+    expect(INVITE_WRITE_WINDOW_MS).toBe(60 * 60 * 1000);
+
+    const app = express();
+    app.use((req, _res, next) => {
+      req.auth = { userId: req.header("x-test-user") ?? "" } as typeof req.auth;
+      next();
+    });
+    app.post("/invite", inviteWriteLimiter, (_req, res) => {
+      res.json({ success: true });
+    });
+    app.delete("/invite/:id", inviteWriteLimiter, (_req, res) => {
+      res.json({ success: true });
+    });
+    app.post("/invite/:id/resend", inviteWriteLimiter, (_req, res) => {
+      res.json({ success: true });
+    });
+
+    const calls = [
+      ...Array.from({ length: 10 }, () => request(app).post("/invite")),
+      ...Array.from({ length: 5 }, () => request(app).delete("/invite/1")),
+      ...Array.from({ length: 5 }, () => request(app).post("/invite/1/resend")),
+    ].map((call) => call.set("x-test-user", "owner_1"));
+    const allowed = await Promise.all(calls);
+    expect(allowed.every((response) => response.status === 200)).toBe(true);
+
+    const blocked = await request(app)
+      .post("/invite/1/resend")
+      .set("x-test-user", "owner_1");
+    expect(blocked.status).toBe(429);
+
+    const other = await request(app)
+      .post("/invite")
+      .set("x-test-user", "owner_2");
+    expect(other.status).toBe(200);
   });
 
   it("is skipped in the test environment", async () => {

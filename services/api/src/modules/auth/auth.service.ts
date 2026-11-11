@@ -1,5 +1,4 @@
-import { createClerkClient } from "@clerk/backend";
-import { env } from "../../config/env.js";
+import { clerk } from "../../config/clerk.js";
 import { ApiError } from "../../utils/api-error.js";
 import { db } from "../../database/client.js";
 import { accounts } from "../../database/schema.js";
@@ -18,10 +17,7 @@ const toDatabaseRole = (role: SignupInput["role"]): "CLIENT" | "FREELANCER" =>
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const getClerkUserWithRetry = async (
-  clerk: ReturnType<typeof createClerkClient>,
-  userId: string,
-) => {
+const getClerkUserWithRetry = async (userId: string) => {
   const delaysMs = [300, 600];
   for (let attempt = 0; ; attempt += 1) {
     try {
@@ -38,8 +34,7 @@ export const receiveSignup = async (input: SignupInput): Promise<void> => {
     return;
   }
 
-  const clerk = createClerkClient({ secretKey: env.clerkSecretKey });
-  const user = await getClerkUserWithRetry(clerk, input.userId);
+  const user = await getClerkUserWithRetry(input.userId);
   const email =
     user.primaryEmailAddress?.emailAddress ??
     user.emailAddresses.at(0)?.emailAddress;
