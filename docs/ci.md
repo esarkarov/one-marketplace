@@ -65,9 +65,30 @@ Dependabot proposes action bumps weekly with a 3-day cooldown and also covers th
 
 The service image tags in `ci.yml` (`postgres`, `redis` and `rabbitmq` under `api-test`) are not covered by Dependabot, which scans only `infra/docker`. Keep them in sync with `infra/docker/docker-compose.yml` by hand when that file changes.
 
+## Supply-chain policy
+
+`pnpm-workspace.yaml` sets `minimumReleaseAge: 1440`. pnpm (checked against the pnpm 12.15 docs and pnpm 12.18.0) will not resolve or install a package version published less than 1440 minutes (1 day) ago. This applies to every dependency, transitive ones included, and `pnpm install --frozen-lockfile` (local and in the `check`, `build` and `api-test` jobs) verifies the lockfile against it.
+
+Because the value is set explicitly, pnpm's strict mode is on: resolution fails with `ERR_PNPM_NO_MATURE_MATCHING_VERSION` instead of falling back to a younger version. Without the setting, pnpm's built-in 1-day default is non-strict. On pnpm 12.18.0 that default installed a version published hours earlier and wrote it into `minimumReleaseAgeExclude` by itself, so the age check never actually blocked anything.
+
+**Why 1 day.** Compromised or defective releases are usually found and pulled from the registry within hours, so a day of delay avoids most of them at little cost to normal work. Dependabot adds its own 3-day cooldown on top (see `.github/dependabot.yml`).
+
+**One-off exception for an urgent patch.** List the exact version in `pnpm-workspace.yaml`:
+
+```yaml
+minimumReleaseAgeExclude:
+  - some-package@1.2.3
+```
+
+Pin the version (`name@version`) instead of the bare name, because a bare name exempts every version of the package. Put the change in its own commit and link the advisory in the commit message. Remove the entry once the version is a day old.
+
+**Never lower the value casually.** Do not reduce `minimumReleaseAge`, set it to 0, or exclude a whole package without a reviewed pull request that states the reason.
+
+**Check that it is enforced.** In an empty directory outside the repository, create a `package.json` with `"packageManager": "pnpm@12.18.0"` and a `pnpm-workspace.yaml` containing `packages: []` and `minimumReleaseAge: 1440`. Then run `pnpm add <package>@<version published today> --lockfile-only`. It must fail with `ERR_PNPM_NO_MATURE_MATCHING_VERSION`, while an older version succeeds. `--lockfile-only` resolves without installing or running anything.
+
 ## Accepted advisories
 
-`pnpm audit` (the informational `audit` job) reports two moderate advisories. Both are accepted for now: no dependency or override was changed, and `minimumReleaseAge` was not touched.
+`pnpm audit` (the informational `audit` job) reports two moderate advisories. Both are accepted for now: no dependency or override was changed for them.
 
 | Advisory                                                                                      | Package     | Where it comes from                                                                                                                                                  | Why it is not exploitable here                                                                                                                                     | Revisit when                                                                 |
 | --------------------------------------------------------------------------------------------- | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------- |

@@ -22,3 +22,5 @@ catalog:
 allowBuilds:
   esbuild: true
   sharp: true
+
+minimumReleaseAge: 1440
