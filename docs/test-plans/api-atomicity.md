@@ -4,7 +4,7 @@
 
 - `services/api/src/modules/meetings/meetings.service.ts`: `endMeetingByRoomName` now ends the meeting with one guarded `UPDATE ... WHERE provider_room_name = $room AND status = 'ACTIVE' RETURNING`, posts the `MEETING_ENDED` system message in the same transaction (via `postSystemEventMessage` with `{ executor: transaction }`, `src/database/db-executor.ts`), and emits the socket/SSE event only after commit. An emit failure is logged (`task.meeting.emit_failed`) and does not fail the end.
 - `services/api/src/modules/meetings/meetings.controller.ts`: Daily webhook claim (`webhook:daily:<event id>`), claim released on error.
-- `services/api/src/modules/contracts/contracts.service.ts`: `reviewContractMilestone` now updates the milestone with `WHERE id AND status = 'ACTIVE' AND payment_requested_at IS NOT NULL RETURNING`; no row means 409 "This milestone is not awaiting review."; a `23505` on `earning_history_milestone_id_unique` (also found through `cause`) maps to the same 409 and rolls back.
+- `services/api/src/modules/contracts/services/contracts.milestones.service.ts`: `reviewContractMilestone` now updates the milestone with `WHERE id AND status = 'ACTIVE' AND payment_requested_at IS NOT NULL RETURNING`; no row means 409 "This milestone is not awaiting review."; a `23505` on `earning_history_milestone_id_unique` (also found through `cause`) maps to the same 409 and rolls back.
 
 Use only the `_test` database (`src/test/setup/setup.ts` guards) and Stripe/Daily test or mocked data. Never use or print the real `.env`. Do not run any `db:*` script or start the API against the dev database for the automated part. The manual scenarios in section 2 need a running API and must only be run against a dev database that the user has already migrated (migration `0001`, see `api-payouts.md`).
 
@@ -12,7 +12,7 @@ Legend: U unit, I integration (real Postgres `_test`), E end to end / manual.
 
 ## 1. Automated coverage
 
-Files: `services/api/src/modules/meetings/meetings.integration.test.ts` (MI, 9 tests) and `services/api/src/modules/contracts/contracts.review.integration.test.ts` (CI, 12 tests).
+Files: `services/api/src/modules/meetings/meetings.integration.test.ts` (MI, 9 tests) and `services/api/src/modules/contracts/tests/contracts.review.integration.test.ts` (CI, 12 tests).
 
 | Requirement                                         | Tests                                                                                                                                                                                                                                                                                | Type |
 | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---- |

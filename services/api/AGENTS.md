@@ -7,12 +7,13 @@ Express 5 modular monolith. Package name: `@onemarketplace/api`. ESM; import loc
 Source layout and import rules: `docs/decisions/0013-api-source-layout-and-import-boundaries.md`. To add a module or route, follow `docs/adding-an-api-module.md`.
 
 - `src/modules/<name>/<name>.{route,controller,service,schemas,responses,types}.ts`: one folder per domain; `<name>.public.ts` only where another module needs it (agency, connects, freelancer, messaging).
+- `src/modules/contracts/` is the reference for a split module: use-case services in `services/` (`contracts.checkout`, `listing`, `lifecycle`, `milestones`, plus the leaf `contracts.helpers.ts` that imports no sibling service), tests in `tests/`. The controller imports the specific service file; there is no barrel.
 - `src/infrastructure/`: every third-party client (Stripe, Clerk, Daily, ImageKit, Redis, RabbitMQ) and adapter, plus `events/` (envelope, topology, publisher; ADR 0004). The consumer is `modules/notifications/notifications.consumer.ts`.
 - `src/app-middleware/`: middleware composed only by `app.ts` (error handler, http logger, not-found, request id). It never imports modules (ADR 0014).
 - `src/shared/`: `http/` (`validate.middleware.ts`, `api-error.ts`, `async-handler.ts`; `auth/` with the auth, admin-session and role guards; `limits/` with json-body and rate limiters), `validation/` (`common-schemas.ts`, `validation-limits.ts` with all max lengths and counts, `response-schemas.ts`, `money-schemas.ts`), `money/money.ts`, `logging/` (`sanitize-log.ts`), `uploads/` (`attachments.ts`, `portfolio-images.ts`), `ids/` (`uuid-v5.ts`); `email.ts` lives in `validation/`.
 - `src/config/`: validated env, constants, cors, pino logger, webhooks. Configuration only.
 - `src/bootstrap/`: ordered start, shutdown and readiness. `src/routes/`: route assembly and the validation and contract allowlists.
-- `src/database/`, `drizzle/`, `drizzle.config.ts`: Drizzle schema (`schema.ts` re-exports `schema/<domain>.ts`, enums and accounts at the bottom, other files import downward only; ADR 0014), generated migrations, config.
+- `src/database/`, `drizzle/`, `drizzle.config.ts`: `pg-errors.ts` (`isUniqueViolation(error, constraintName)` for SQLSTATE 23505), Drizzle schema (`schema.ts` re-exports `schema/<domain>.ts`, enums and accounts at the bottom, other files import downward only; ADR 0014), generated migrations, config.
 
 ## Rules
 
@@ -34,3 +35,4 @@ Source layout and import rules: `docs/decisions/0013-api-source-layout-and-impor
 - Redis is configured with `REDIS_URL`.
 - Extend `@onemarketplace/tsconfig/node.json` and `@onemarketplace/eslint-config/node`.
 - Schema changes and migrations go only through `/db-change`, against the local Docker database. Never run migrations against Neon or any remote database.
+- A test that writes PAID `payout_history` rows or reads global payout totals must be added to the `payout-totals` project in `vitest.config.ts`.

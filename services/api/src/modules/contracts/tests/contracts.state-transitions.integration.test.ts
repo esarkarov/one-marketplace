@@ -16,21 +16,24 @@ const mocks = vi.hoisted(() => ({
   emitConversationUpdate: vi.fn(),
 }));
 
-vi.mock("../../infrastructure/events/publisher.js", async (importOriginal) => ({
-  ...(await importOriginal<
-    typeof import("../../infrastructure/events/publisher.js")
-  >()),
-  sendNotification: mocks.sendNotification,
-}));
+vi.mock(
+  "../../../infrastructure/events/publisher.js",
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import("../../../infrastructure/events/publisher.js")
+    >()),
+    sendNotification: mocks.sendNotification,
+  }),
+);
 
-vi.mock("../messaging/messaging.socket.js", async (importOriginal) => ({
+vi.mock("../../messaging/messaging.socket.js", async (importOriginal) => ({
   ...(await importOriginal<
-    typeof import("../messaging/messaging.socket.js")
+    typeof import("../../messaging/messaging.socket.js")
   >()),
   emitConversationUpdate: mocks.emitConversationUpdate,
 }));
 
-import { db, pool } from "../../database/client.js";
+import { db, pool } from "../../../database/client.js";
 import {
   accounts,
   client_spents,
@@ -43,23 +46,25 @@ import {
   messages,
   proposals,
   reviews,
-} from "../../database/schema.js";
-import { assertTestDatabase } from "../../test/setup/assert-test-database.js";
+} from "../../../database/schema.js";
+import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
 import {
   countBlocked,
   holdRowLock,
   openLockHolder,
   raceBlocked,
   waitForBlocked,
-} from "../../test/support/lock-holder.js";
-import { ApiError } from "../../shared/http/api-error.js";
+} from "../../../test/support/lock-holder.js";
+import { ApiError } from "../../../shared/http/api-error.js";
 import {
   acceptContract,
-  addContractMilestone,
   finishContractWithReview,
+} from "../services/contracts.lifecycle.service.js";
+import {
+  addContractMilestone,
   reviewContractMilestone,
   submitContractMilestone,
-} from "./contracts.service.js";
+} from "../services/contracts.milestones.service.js";
 
 const PREFIX = "transition-it-";
 const AMOUNT = 20000;

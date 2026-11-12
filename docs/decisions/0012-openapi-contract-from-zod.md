@@ -11,7 +11,7 @@ Mechanism:
 - `validate({ params, query, body, responses })` stores `responses` (a status code to zod schema map) next to the request schemas under `VALIDATION_SCHEMAS`. `getValidationSchemas` returns it.
 - `src/utils/response-schemas.ts` holds shared schemas: `ok`, `okNoData`, `isoDateTime`, `cents`, `offsetPage`, `cursorPage`, `ErrorBody`, `ValidationErrorBody`, `BadRequestBody` (union of the two), `InternalErrorBody`, `RateLimitBody`.
 - Each module has `src/modules/<name>/<name>.responses.ts`. Component ids are prefixed by module so two modules cannot register different definitions under one id (the generator throws on a clash).
-- The registry test (`src/routes/route-validation.test.ts`) fails when a route has no 2xx entry in `responses`, unless it is allowlisted.
+- The registry test (`src/routes/route-validation-check.test.ts`) fails when a route has no 2xx entry in `responses`, unless it is allowlisted.
 - `src/routes/contract-allowlist.ts` has three lists, each entry with `method`, `path` and a required `reason`: `rawBodyWebhooks` (4: connects, contracts, identity, meetings), `eventStreams` (2: `GET /notifications/stream`, `GET /admin/logs/stream`) and `untestedRoutes` (empty). A route in `untestedRoutes` still declares `responses` and is only skipped by the contract test.
 - Generator: `src/openapi/{build-spec,convert-schema,schema-walk,document,generate}.ts`. `build-spec.ts` walks the registered routes and builds the document; `convert-schema.ts` wraps `z.toJSONSchema`; `schema-walk.ts` has the JSON helpers, key sorting, the formatter and the empty-schema check; `document.ts` resolves the output path and mount paths; `generate.ts` is the script.
 

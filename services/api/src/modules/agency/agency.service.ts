@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import { clerk } from "../../infrastructure/clerk.js";
 import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { db } from "../../database/client.js";
+import { isUniqueViolation } from "../../database/pg-errors.js";
 import { toSafeCents } from "../../shared/money/money.js";
 import {
   accounts,
@@ -700,21 +701,6 @@ export const getAgencyForMember = async (
 
 const AGENCY_MEMBER_UNIQUE = "agency_members_freelancer_id_unique";
 const AGENCY_OWNER_UNIQUE = "agency_metadata_owner_id_unique";
-
-const isUniqueViolation = (error: unknown, constraintName: string): boolean => {
-  for (
-    let current: unknown = error, depth = 0;
-    typeof current === "object" && current !== null && depth < 3;
-    current = (current as { cause?: unknown }).cause, depth += 1
-  ) {
-    const { code, constraint } = current as {
-      code?: unknown;
-      constraint?: unknown;
-    };
-    if (code === "23505" && constraint === constraintName) return true;
-  }
-  return false;
-};
 
 const alreadyInAgencyError = (message: string) =>
   new ApiError(409, message, "ALREADY_IN_AGENCY");

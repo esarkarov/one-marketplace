@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 import { and, eq } from "drizzle-orm";
 import { db } from "../../database/client.js";
+import { isUniqueViolation } from "../../database/pg-errors.js";
 import { meetings } from "../../database/schema.js";
 import { ApiError } from "../../shared/http/api-error.js";
 import { errorLogAttributes } from "../../shared/logging/sanitize-log.js";
@@ -12,21 +13,6 @@ import {
 } from "../messaging/messaging.public.js";
 
 const ACTIVE_MEETING_UNIQUE = "meetings_one_active_per_conversation_unique";
-
-const isUniqueViolation = (error: unknown, constraintName: string): boolean => {
-  for (
-    let current: unknown = error, depth = 0;
-    typeof current === "object" && current !== null && depth < 3;
-    current = (current as { cause?: unknown }).cause, depth += 1
-  ) {
-    const { code, constraint } = current as {
-      code?: unknown;
-      constraint?: unknown;
-    };
-    if (code === "23505" && constraint === constraintName) return true;
-  }
-  return false;
-};
 
 const logOrphanedRoom = async (
   roomName: string,

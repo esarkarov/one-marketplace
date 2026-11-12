@@ -13,17 +13,21 @@ import {
   requireAgencyPermission,
 } from "../agency/agency.public.js";
 import {
-  acceptContract,
   createContractCheckout,
-  createContractFromPayment,
   createMilestoneFundingCheckout,
   fundContractMilestoneFromPayment,
-  getAccountContracts,
-  submitContractMilestone,
-  reviewContractMilestone,
-  addContractMilestone,
+} from "./services/contracts.checkout.service.js";
+import { getAccountContracts } from "./services/contracts.listing.service.js";
+import {
+  acceptContract,
+  createContractFromPayment,
   finishContractWithReview,
-} from "./contracts.service.js";
+} from "./services/contracts.lifecycle.service.js";
+import {
+  addContractMilestone,
+  reviewContractMilestone,
+  submitContractMilestone,
+} from "./services/contracts.milestones.service.js";
 import { sendNotification } from "../../infrastructure/events/publisher.js";
 import { emitConversationUpdate } from "../messaging/messaging.public.js";
 

@@ -20,8 +20,9 @@ const mocks = vi.hoisted(() => ({
   sessionsCreate: vi.fn(),
 }));
 
-vi.mock("../../config/env.js", async (importOriginal) => {
-  const original = await importOriginal<typeof import("../../config/env.js")>();
+vi.mock("../../../config/env.js", async (importOriginal) => {
+  const original =
+    await importOriginal<typeof import("../../../config/env.js")>();
   return {
     ...original,
     env: {
@@ -33,12 +34,12 @@ vi.mock("../../config/env.js", async (importOriginal) => {
   };
 });
 
-vi.mock("../../infrastructure/clerk.js", () => ({
+vi.mock("../../../infrastructure/clerk.js", () => ({
   clerk: { users: { getUser: mocks.getUser } },
   verifyToken: mocks.verifyToken,
 }));
 
-vi.mock("../../infrastructure/stripe.js", () => ({
+vi.mock("../../../infrastructure/stripe.js", () => ({
   STRIPE_TIMEOUT_MS: 30_000,
   stripe: {
     customers: { create: mocks.customersCreate },
@@ -46,11 +47,11 @@ vi.mock("../../infrastructure/stripe.js", () => ({
   },
 }));
 
-vi.mock("../../infrastructure/image-kit.js", () => ({
+vi.mock("../../../infrastructure/image-kit.js", () => ({
   imageKit: { files: { upload: vi.fn(), delete: vi.fn() } },
 }));
 
-vi.mock("../../infrastructure/redis.js", () => ({
+vi.mock("../../../infrastructure/redis.js", () => ({
   redis: {
     get: async (key: string) => mocks.store.get(key) ?? null,
     expire: async () => true,
@@ -69,21 +70,24 @@ vi.mock("../../infrastructure/redis.js", () => ({
   disconnectRedis: async () => undefined,
 }));
 
-vi.mock("../../infrastructure/events/publisher.js", async (importOriginal) => ({
-  ...(await importOriginal<
-    typeof import("../../infrastructure/events/publisher.js")
-  >()),
-  sendNotification: mocks.sendNotification,
-}));
+vi.mock(
+  "../../../infrastructure/events/publisher.js",
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import("../../../infrastructure/events/publisher.js")
+    >()),
+    sendNotification: mocks.sendNotification,
+  }),
+);
 
-vi.mock("../messaging/messaging.socket.js", async (importOriginal) => ({
+vi.mock("../../messaging/messaging.socket.js", async (importOriginal) => ({
   ...(await importOriginal<
-    typeof import("../messaging/messaging.socket.js")
+    typeof import("../../messaging/messaging.socket.js")
   >()),
   emitConversationUpdate: mocks.emitConversationUpdate,
 }));
 
-import { db, pool } from "../../database/client.js";
+import { db, pool } from "../../../database/client.js";
 import {
   accounts,
   agency_members,
@@ -94,11 +98,11 @@ import {
   conversations,
   job_posts,
   proposals,
-} from "../../database/schema.js";
-import { assertTestDatabase } from "../../test/setup/assert-test-database.js";
-import { contractsResponses } from "./contracts.responses.js";
+} from "../../../database/schema.js";
+import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
+import { contractsResponses } from "../contracts.responses.js";
 
-const { app } = await import("../../app.js");
+const { app } = await import("../../../app.js");
 
 const PREFIX = "contracts-contract-it-";
 const API = "/api/v1/contracts";

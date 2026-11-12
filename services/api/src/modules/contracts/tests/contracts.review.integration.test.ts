@@ -20,30 +20,33 @@ const mocks = vi.hoisted(() => ({
   loggerWarn: vi.fn(),
 }));
 
-vi.mock("../../config/logger.js", async (importOriginal) => {
+vi.mock("../../../config/logger.js", async (importOriginal) => {
   const original =
-    await importOriginal<typeof import("../../config/logger.js")>();
+    await importOriginal<typeof import("../../../config/logger.js")>();
   return {
     ...original,
     logger: { ...original.logger, warn: mocks.loggerWarn },
   };
 });
 
-vi.mock("../../infrastructure/events/publisher.js", async (importOriginal) => ({
-  ...(await importOriginal<
-    typeof import("../../infrastructure/events/publisher.js")
-  >()),
-  sendNotification: mocks.sendNotification,
-}));
+vi.mock(
+  "../../../infrastructure/events/publisher.js",
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import("../../../infrastructure/events/publisher.js")
+    >()),
+    sendNotification: mocks.sendNotification,
+  }),
+);
 
-vi.mock("../messaging/messaging.socket.js", async (importOriginal) => ({
+vi.mock("../../messaging/messaging.socket.js", async (importOriginal) => ({
   ...(await importOriginal<
-    typeof import("../messaging/messaging.socket.js")
+    typeof import("../../messaging/messaging.socket.js")
   >()),
   emitConversationUpdate: mocks.emitConversationUpdate,
 }));
 
-import { db, pool } from "../../database/client.js";
+import { db, pool } from "../../../database/client.js";
 import {
   accounts,
   agency_earning,
@@ -58,20 +61,20 @@ import {
   job_posts,
   messages,
   proposals,
-} from "../../database/schema.js";
-import { errorHandler } from "../../app-middleware/error.middleware.js";
-import { assertTestDatabase } from "../../test/setup/assert-test-database.js";
-import { ApiError } from "../../shared/http/api-error.js";
-import { splitFee } from "../../shared/money/money.js";
-import { holdRowLock, raceBlocked } from "../../test/support/lock-holder.js";
-import { reviewMilestoneWork } from "./contracts.controller.js";
+} from "../../../database/schema.js";
+import { errorHandler } from "../../../app-middleware/error.middleware.js";
+import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
+import { ApiError } from "../../../shared/http/api-error.js";
+import { splitFee } from "../../../shared/money/money.js";
+import { holdRowLock, raceBlocked } from "../../../test/support/lock-holder.js";
+import { reviewMilestoneWork } from "../contracts.controller.js";
+import { createContractFromPayment } from "../services/contracts.lifecycle.service.js";
+import { fundContractMilestoneFromPayment } from "../services/contracts.checkout.service.js";
 import {
   addContractMilestone,
-  createContractFromPayment,
-  fundContractMilestoneFromPayment,
   reviewContractMilestone,
   submitContractMilestone,
-} from "./contracts.service.js";
+} from "../services/contracts.milestones.service.js";
 
 const PREFIX = "milestone-it-";
 const AMOUNT = 20000;
