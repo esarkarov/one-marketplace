@@ -18,20 +18,20 @@ import {
   messages,
   proposals,
 } from "../../database/schema.js";
-import { ApiError } from "../../utils/api-error.js";
+import { ApiError } from "../../shared/http/api-error.js";
 import {
   CONNECTS_CACHE_TTL_SECONDS,
   getAgencyConnectsCacheKey,
   getConnectsCacheKey,
   PROPOSAL_CONNECTS,
 } from "../../config/constants.js";
-import { redis } from "../../config/redis.js";
-import { clerk } from "../../config/clerk.js";
+import { redis } from "../../infrastructure/redis.js";
+import { clerk } from "../../infrastructure/clerk.js";
 import {
   getAgencyOwnerId,
   getAgencyTeamMemberIds,
 } from "../agency/agency.service.js";
-import { sendNotification } from "../../events/publisher.js";
+import { sendNotification } from "../../infrastructure/events/publisher.js";
 import { emitConversationUpdate } from "../messaging/messaging.socket.js";
 
 export const submitProposal = async (

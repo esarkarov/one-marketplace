@@ -39,7 +39,7 @@ vi.mock("../../config/env.js", async (importOriginal) => {
   };
 });
 
-vi.mock("../../config/redis.js", () => ({
+vi.mock("../../infrastructure/redis.js", () => ({
   redis: {
     isReady: true,
     set: async (key: string, value: string) => {
@@ -86,7 +86,7 @@ import {
   meetings,
   messages,
 } from "../../database/schema.js";
-import { errorHandler } from "../../middleware/error.middleware.js";
+import { errorHandler } from "../../shared/http/error.middleware.js";
 import { assertTestDatabase } from "../../test/assert-test-database.js";
 import { dailyWebhookHandler } from "./meetings.controller.js";
 import { endMeetingByRoomName } from "./meetings.service.js";

@@ -1,8 +1,8 @@
 import { RequestHandler } from "express";
 import { env } from "../../config/env.js";
-import { stripe } from "../../config/stripe.js";
-import { ApiError } from "../../utils/api-error.js";
-import { asyncHandler } from "../../utils/async-handler.js";
+import { stripe } from "../../infrastructure/stripe.js";
+import { ApiError } from "../../shared/http/api-error.js";
+import { asyncHandler } from "../../shared/http/async-handler.js";
 import {
   completeIdentityVerification,
   createIdentitySession,

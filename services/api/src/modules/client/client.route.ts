@@ -1,7 +1,7 @@
 import { Router } from "express";
-import { isAuthenticated } from "../../middleware/auth.middleware.js";
-import { validate } from "../../middleware/validate.middleware.js";
-import { authRoleShape } from "../../utils/common-schemas.js";
+import { isAuthenticated } from "../../shared/http/auth.middleware.js";
+import { validate } from "../../shared/http/validate.middleware.js";
+import { authRoleShape } from "../../shared/validation/common-schemas.js";
 import {
   clientProfileBodySchema,
   marketplaceSearchQuerySchema,

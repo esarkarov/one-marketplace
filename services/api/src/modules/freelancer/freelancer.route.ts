@@ -3,10 +3,10 @@ import {
   isAuthenticated,
   resolveAccountRole,
   verifyBearerToken,
-} from "../../middleware/auth.middleware.js";
-import { largeJsonBody } from "../../middleware/json-body.middleware.js";
-import { publicSearchLimiter } from "../../middleware/rate-limit.middleware.js";
-import { contentWriteLimiter } from "../../middleware/user-rate-limit.middleware.js";
+} from "../../shared/http/auth.middleware.js";
+import { largeJsonBody } from "../../shared/http/json-body.middleware.js";
+import { publicSearchLimiter } from "../../shared/http/rate-limit.middleware.js";
+import { contentWriteLimiter } from "../../shared/http/user-rate-limit.middleware.js";
 import {
   getFreelancerEarningsCertificate,
   getFreelancerEarningsOverviewHandler,
@@ -20,8 +20,8 @@ import {
   upsertFreelanceProfile,
 } from "./freelancer.controller.js";
 
-import { validate } from "../../middleware/validate.middleware.js";
-import { authRoleShape } from "../../utils/common-schemas.js";
+import { validate } from "../../shared/http/validate.middleware.js";
+import { authRoleShape } from "../../shared/validation/common-schemas.js";
 import {
   freelancerEarningsCertificateResponses,
   freelancerEarningsOverviewResponses,

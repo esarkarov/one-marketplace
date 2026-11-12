@@ -17,7 +17,7 @@ Rules:
 
 - Never run git write commands: no add, commit, push, mv, rm, checkout, stash or reset. Use read-only git only.
 - Respect module boundaries: no importing another module's controller or internals, no querying its tables.
-- Third-party clients live only in `src/config/`. No `console.*`; use pino.
+- Third-party clients live only in `src/infrastructure/`. No `console.*`; use pino.
 - Validate every input with zod at the route boundary. Enforce authorization and object ownership in the service layer.
 - Webhooks take the raw body before `express.json`. Errors use `{ success: false, message }` with no internals on 5xx.
 - RabbitMQ is optional (`RABBITMQ_URL`); the API must run with only Postgres and Redis.

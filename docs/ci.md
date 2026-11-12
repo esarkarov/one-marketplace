@@ -42,7 +42,7 @@ API tests with coverage and the RabbitMQ integration test (needs `pnpm infra:up`
 ```bash
 pnpm --filter @onemarketplace/api db:test:setup
 pnpm --filter @onemarketplace/api exec vitest run --coverage --coverage.reporter=text-summary --coverage.reporter=lcov --coverage.reporter=json-summary --reporter=verbose --reporter=junit --outputFile.junit=test-results/junit.xml
-node .github/scripts/verify-integration-junit.mjs services/api/test-results/junit.xml src/events/rabbitmq.integration.test.ts
+node .github/scripts/verify-integration-junit.mjs services/api/test-results/junit.xml src/infrastructure/events/rabbitmq.integration.test.ts
 ```
 
 OpenAPI spec drift (no infrastructure needed):

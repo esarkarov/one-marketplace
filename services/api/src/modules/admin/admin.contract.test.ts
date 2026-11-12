@@ -20,11 +20,15 @@ vi.mock("../../config/env.js", async (importOriginal) => {
   return { ...original, env: { ...original.env, clerkSecretKey: "sk_test" } };
 });
 
-vi.mock("../../config/clerk.js", () => ({
+vi.mock("../../infrastructure/clerk.js", () => ({
   clerk: { users: { getUser: mocks.getUser } },
 }));
 
-import { connectRedis, disconnectRedis, redis } from "../../config/redis.js";
+import {
+  connectRedis,
+  disconnectRedis,
+  redis,
+} from "../../infrastructure/redis.js";
 import { db, pool } from "../../database/client.js";
 import {
   client_metadata,

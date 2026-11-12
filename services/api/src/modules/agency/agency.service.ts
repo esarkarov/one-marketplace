@@ -1,8 +1,8 @@
 import { randomUUID } from "crypto";
-import { clerk } from "../../config/clerk.js";
+import { clerk } from "../../infrastructure/clerk.js";
 import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { db } from "../../database/client.js";
-import { toSafeCents } from "../../utils/money.js";
+import { toSafeCents } from "../../shared/money/money.js";
 import {
   accounts,
   agency_earning,
@@ -18,19 +18,19 @@ import {
   payout_history,
   reviews,
 } from "../../database/schema.js";
-import { ApiError } from "../../utils/api-error.js";
-import type { DbExecutor } from "../../utils/db-executor.js";
-import { imageKit } from "../../config/imageKit.js";
+import { ApiError } from "../../shared/http/api-error.js";
+import type { DbExecutor } from "../../database/db-executor.js";
+import { imageKit } from "../../infrastructure/image-kit.js";
 import { env } from "../../config/env.js";
 import { logger } from "../../config/logger.js";
-import { errorLogAttributes } from "../../utils/sanitize-log.js";
-import { stripe } from "../../config/stripe.js";
+import { errorLogAttributes } from "../../shared/utils/sanitize-log.js";
+import { stripe } from "../../infrastructure/stripe.js";
 import { addAgencyConnects } from "../connects/connects.service.js";
 import {
   isAgencyRoleAllowed,
   type AgencyPermission,
 } from "./agency.permissions.js";
-import { sendNotification } from "../../events/publisher.js";
+import { sendNotification } from "../../infrastructure/events/publisher.js";
 import {
   EARNINGS_HOLD_PERIOD_MS,
   INITIAL_CONNECTS,
@@ -41,7 +41,7 @@ import {
   isImageDataUrl,
   reuseStoredImage,
   type StoredImage,
-} from "../../utils/portfolio-images.js";
+} from "../../shared/utils/portfolio-images.js";
 
 const regionNames = new Intl.DisplayNames(["en"], { type: "region" });
 

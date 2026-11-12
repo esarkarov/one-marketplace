@@ -1,7 +1,7 @@
 import { RequestHandler } from "express";
-import { ApiError } from "../../utils/api-error.js";
+import { ApiError } from "../../shared/http/api-error.js";
 import { randomUUID } from "crypto";
-import { asyncHandler } from "../../utils/async-handler.js";
+import { asyncHandler } from "../../shared/http/async-handler.js";
 import {
   createJobPost,
   deleteJobPost,
@@ -14,12 +14,12 @@ import {
   saveJobPost,
   updateJobPost,
 } from "./jobs.service.js";
-import { requireFreelancer } from "../freelancer/freelancer.controller.js";
+import { requireFreelancer } from "../../shared/http/role-guards.js";
 import { MAX_JOB_BUDGET_CENTS, type JobBody } from "./jobs.schemas.js";
 import {
   assertAttachmentFileName,
   validateAttachmentBatch,
-} from "../../utils/attachments.js";
+} from "../../shared/utils/attachments.js";
 
 const requireClient = (request: Parameters<RequestHandler>[0]) => {
   const auth = request.auth!;

@@ -7,15 +7,15 @@ import {
   pagingDigits,
   uuidParams,
   withIgnoredKeys,
-} from "../../utils/common-schemas.js";
-import { centsQueryParam } from "../../utils/money-schemas.js";
-import { searchPagingShape } from "../../utils/search-schemas.js";
+} from "../../shared/validation/common-schemas.js";
+import { centsQueryParam } from "../../shared/validation/money-schemas.js";
+import { searchPagingShape } from "../../shared/validation/search-schemas.js";
 import {
   AGENCY_LIMITS,
   COMMON_LIMITS,
   JOB_LIMITS,
   MAX_LIVE_URL_LENGTH,
-} from "../../utils/validation-limits.js";
+} from "../../shared/validation/validation-limits.js";
 
 const optionalBody = <T extends z.ZodType>(schema: T) =>
   z.preprocess((value) => value ?? {}, schema);

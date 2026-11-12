@@ -10,7 +10,11 @@ import {
 } from "vitest";
 import { app } from "./app.js";
 import { getAccountAuthCacheKey } from "./config/constants.js";
-import { connectRedis, disconnectRedis, redis } from "./config/redis.js";
+import {
+  connectRedis,
+  disconnectRedis,
+  redis,
+} from "./infrastructure/redis.js";
 import { pool } from "./database/client.js";
 
 const clerk = vi.hoisted(() => ({ verifyToken: vi.fn() }));

@@ -1,6 +1,9 @@
 import { z } from "zod";
-import { authRoleShape, uuidParam } from "../../utils/common-schemas.js";
-import { PROPOSAL_LIMITS } from "../../utils/validation-limits.js";
+import {
+  authRoleShape,
+  uuidParam,
+} from "../../shared/validation/common-schemas.js";
+import { PROPOSAL_LIMITS } from "../../shared/validation/validation-limits.js";
 
 export const proposalIdParamsSchema = z.strictObject({
   proposalId: uuidParam("Proposal"),

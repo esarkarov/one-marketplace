@@ -1,11 +1,13 @@
 import { RequestHandler } from "express";
 import { env } from "../../config/env.js";
-import { stripe } from "../../config/stripe.js";
+import { stripe } from "../../infrastructure/stripe.js";
 import { ApiResponse } from "../../types/common.types.js";
-import { ApiError } from "../../utils/api-error.js";
-import { asyncHandler } from "../../utils/async-handler.js";
-import { requireClient } from "../proposals/proposals.controller.js";
-import { requireFreelancer } from "../freelancer/freelancer.controller.js";
+import { ApiError } from "../../shared/http/api-error.js";
+import { asyncHandler } from "../../shared/http/async-handler.js";
+import {
+  requireClient,
+  requireFreelancer,
+} from "../../shared/http/role-guards.js";
 import {
   getAgencyIdForMember,
   requireAgencyPermission,
@@ -22,7 +24,7 @@ import {
   addContractMilestone,
   finishContractWithReview,
 } from "./contracts.service.js";
-import { sendNotification } from "../../events/publisher.js";
+import { sendNotification } from "../../infrastructure/events/publisher.js";
 import { emitConversationUpdate } from "../messaging/messaging.socket.js";
 
 export const startContractCheckout: RequestHandler = asyncHandler(

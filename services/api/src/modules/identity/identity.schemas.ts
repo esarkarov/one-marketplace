@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { authRoleShape } from "../../utils/common-schemas.js";
+import { authRoleShape } from "../../shared/validation/common-schemas.js";
 
 export const identitySessionQuerySchema = z.strictObject({
   ...authRoleShape,

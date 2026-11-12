@@ -3,7 +3,7 @@ import type { z } from "zod";
 import {
   getValidationSchemas,
   type ValidationSchemas,
-} from "../middleware/validate.middleware.js";
+} from "../shared/http/validate.middleware.js";
 import { type ContractAllowlist } from "./contract-allowlist.js";
 import type { ValidationAllowlistEntry } from "./validation-allowlist.js";
 

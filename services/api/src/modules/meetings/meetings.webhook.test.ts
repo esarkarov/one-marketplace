@@ -23,7 +23,7 @@ vi.mock("../../config/env.js", () => ({
   },
 }));
 
-vi.mock("../../config/redis.js", () => ({
+vi.mock("../../infrastructure/redis.js", () => ({
   redis: {
     get isReady() {
       return mocks.ready;
@@ -48,7 +48,7 @@ vi.mock("./meetings.service.js", () => ({
 }));
 
 const { dailyWebhookHandler } = await import("./meetings.controller.js");
-const { errorHandler } = await import("../../middleware/error.middleware.js");
+const { errorHandler } = await import("../../shared/http/error.middleware.js");
 
 const app = express();
 app.use((req, _res, next) => {

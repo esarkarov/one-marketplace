@@ -2,10 +2,10 @@ import { randomUUID } from "crypto";
 import { and, eq } from "drizzle-orm";
 import { db } from "../../database/client.js";
 import { meetings } from "../../database/schema.js";
-import { ApiError } from "../../utils/api-error.js";
-import { errorLogAttributes } from "../../utils/sanitize-log.js";
+import { ApiError } from "../../shared/http/api-error.js";
+import { errorLogAttributes } from "../../shared/utils/sanitize-log.js";
 import { logger } from "../../config/logger.js";
-import { createDailyRoom } from "../../config/daily.js";
+import { createDailyRoom } from "../../infrastructure/daily.js";
 import {
   postSystemEventMessage,
   requireMember,

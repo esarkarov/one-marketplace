@@ -4,7 +4,7 @@ import {
   isoDateTime,
   ok,
   okNoData,
-} from "../../utils/response-schemas.js";
+} from "../../shared/validation/response-schemas.js";
 
 const Notification = z
   .strictObject({

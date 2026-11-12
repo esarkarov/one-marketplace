@@ -1,5 +1,8 @@
 import { z } from "zod";
-import { BadRequestBody, ok } from "../../utils/response-schemas.js";
+import {
+  BadRequestBody,
+  ok,
+} from "../../shared/validation/response-schemas.js";
 
 export const AuthStatus = z
   .strictObject({

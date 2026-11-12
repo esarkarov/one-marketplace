@@ -1,7 +1,7 @@
-import { clerk } from "../../config/clerk.js";
+import { clerk } from "../../infrastructure/clerk.js";
 import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../../database/client.js";
-import { toSafeCents } from "../../utils/money.js";
+import { toSafeCents } from "../../shared/money/money.js";
 import {
   accounts,
   agency_earning,
@@ -18,10 +18,10 @@ import {
   proposals,
   reviews,
 } from "../../database/schema.js";
-import { ApiError } from "../../utils/api-error.js";
+import { ApiError } from "../../shared/http/api-error.js";
 import { env } from "../../config/env.js";
-import { stripe } from "../../config/stripe.js";
-import { invalidateAccountAuthCache } from "../../utils/account-auth-cache.js";
+import { stripe } from "../../infrastructure/stripe.js";
+import { invalidateAccountAuthCache } from "../../infrastructure/account-auth-cache.js";
 
 export interface SaveClientProfileInput {
   userId: string;

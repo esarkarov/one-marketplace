@@ -4,8 +4,8 @@ import { Server } from "socket.io";
 import { socketCorsOptions } from "../../config/cors.js";
 import { db } from "../../database/client.js";
 import { conversation_participants, messages } from "../../database/schema.js";
-import { authenticateAccount } from "../../middleware/auth.middleware.js";
-import { ApiError } from "../../utils/api-error.js";
+import { authenticateAccount } from "../../shared/http/auth.middleware.js";
+import { ApiError } from "../../shared/http/api-error.js";
 import { getAgencyIdForMember } from "../agency/agency.service.js";
 
 type ConversationScope = "default" | "agency";

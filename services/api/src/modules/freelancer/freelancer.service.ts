@@ -1,6 +1,6 @@
 import { and, asc, count, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { db } from "../../database/client.js";
-import { toSafeCents } from "../../utils/money.js";
+import { toSafeCents } from "../../shared/money/money.js";
 import {
   accounts,
   client_metadata,
@@ -23,23 +23,23 @@ import {
 import { getAgencyIdentityForMember } from "../agency/agency.service.js";
 import { env } from "../../config/env.js";
 import { logger } from "../../config/logger.js";
-import { errorLogAttributes } from "../../utils/sanitize-log.js";
-import { stripe } from "../../config/stripe.js";
-import { ApiError } from "../../utils/api-error.js";
-import { imageKit } from "../../config/imageKit.js";
+import { errorLogAttributes } from "../../shared/utils/sanitize-log.js";
+import { stripe } from "../../infrastructure/stripe.js";
+import { ApiError } from "../../shared/http/api-error.js";
+import { imageKit } from "../../infrastructure/image-kit.js";
 import { randomUUID } from "crypto";
 import {
   EARNINGS_HOLD_PERIOD_MS,
   PLATFORM_FEE_BPS,
   STRIPE_PAYOUT_ELIGIBLE_COUNTRIES,
 } from "../../config/constants.js";
-import { invalidateAccountAuthCache } from "../../utils/account-auth-cache.js";
+import { invalidateAccountAuthCache } from "../../infrastructure/account-auth-cache.js";
 import { addConnects } from "../connects/connects.service.js";
-import { clerk } from "../../config/clerk.js";
+import { clerk } from "../../infrastructure/clerk.js";
 import {
   isImageDataUrl,
   reuseStoredImage,
-} from "../../utils/portfolio-images.js";
+} from "../../shared/utils/portfolio-images.js";
 
 const getClientCountry = async (clientId: string) => {
   if (!env.clerkSecretKey) {

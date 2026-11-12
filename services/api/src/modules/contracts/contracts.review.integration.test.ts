@@ -29,8 +29,10 @@ vi.mock("../../config/logger.js", async (importOriginal) => {
   };
 });
 
-vi.mock("../../events/publisher.js", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../../events/publisher.js")>()),
+vi.mock("../../infrastructure/events/publisher.js", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("../../infrastructure/events/publisher.js")
+  >()),
   sendNotification: mocks.sendNotification,
 }));
 
@@ -57,10 +59,10 @@ import {
   messages,
   proposals,
 } from "../../database/schema.js";
-import { errorHandler } from "../../middleware/error.middleware.js";
+import { errorHandler } from "../../shared/http/error.middleware.js";
 import { assertTestDatabase } from "../../test/assert-test-database.js";
-import { ApiError } from "../../utils/api-error.js";
-import { splitFee } from "../../utils/money.js";
+import { ApiError } from "../../shared/http/api-error.js";
+import { splitFee } from "../../shared/money/money.js";
 import { holdRowLock, raceBlocked } from "../../test/lock-holder.js";
 import { reviewMilestoneWork } from "./contracts.controller.js";
 import {

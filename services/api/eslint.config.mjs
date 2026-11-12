@@ -22,11 +22,56 @@ export default defineConfig([
     rules: { "no-console": "error" },
   },
   {
+    files: ["src/modules/**/*.controller.ts", "src/modules/**/*.route.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              regex: "(^|/)database(/|$)",
+              message:
+                "Controllers and routes go through the service layer, not the database.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/**/*.ts"],
+    ignores: ["src/infrastructure/**", "src/**/*.test.ts", "src/test/**"],
+    rules: {
+      "@typescript-eslint/no-restricted-imports": [
+        "error",
+        {
+          paths: ["stripe", "redis", "amqplib", "amqp-connection-manager"].map(
+            (name) => ({
+              name,
+              allowTypeImports: true,
+              message: "Third-party clients live only in src/infrastructure.",
+            }),
+          ),
+          patterns: [
+            {
+              group: ["@imagekit/*"],
+              allowTypeImports: true,
+              message: "Third-party clients live only in src/infrastructure.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     files: [
       "src/modules/jobs/**/*.ts",
       "src/config/**/*.ts",
+      "src/infrastructure/**/*.ts",
+      "src/shared/**/*.ts",
+      "src/bootstrap/**/*.ts",
+      "src/database/db-executor.ts",
       "src/middleware/**/*.ts",
-      "src/utils/**/*.ts",
       "src/routes/**/*.ts",
       "src/types/**/*.ts",
       "src/*.ts",

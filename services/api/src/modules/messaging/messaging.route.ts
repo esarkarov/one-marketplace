@@ -6,19 +6,14 @@ import {
   openConversation,
   readConversation,
 } from "./messaging.controller.js";
-import { createMeetingHandler } from "../meetings/meetings.controller.js";
-import {
-  createMeetingParamsSchema,
-  createMeetingQuerySchema,
-} from "../meetings/meetings.schemas.js";
 import {
   isAuthenticated,
   resolveAccountRole,
   verifyBearerToken,
-} from "../../middleware/auth.middleware.js";
-import { largeJsonBody } from "../../middleware/json-body.middleware.js";
-import { messageWriteLimiter } from "../../middleware/user-rate-limit.middleware.js";
-import { validate } from "../../middleware/validate.middleware.js";
+} from "../../shared/http/auth.middleware.js";
+import { largeJsonBody } from "../../shared/http/json-body.middleware.js";
+import { messageWriteLimiter } from "../../shared/http/user-rate-limit.middleware.js";
+import { validate } from "../../shared/http/validate.middleware.js";
 import {
   conversationParamsSchema,
   createMessageBodySchema,
@@ -29,7 +24,6 @@ import {
   roleOnlyQuerySchema,
 } from "./messaging.schemas.js";
 import { messagingResponses } from "./messaging.responses.js";
-import { meetingsResponses } from "../meetings/meetings.responses.js";
 
 export const messagingRouter = Router();
 
@@ -88,14 +82,4 @@ messagingRouter.post(
     responses: messagingResponses.read,
   }),
   readConversation,
-);
-messagingRouter.post(
-  "/:conversationId/meetings",
-  isAuthenticated,
-  validate({
-    params: createMeetingParamsSchema,
-    query: createMeetingQuerySchema,
-    responses: meetingsResponses.create,
-  }),
-  createMeetingHandler,
 );

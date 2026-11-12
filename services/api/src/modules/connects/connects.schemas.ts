@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { CONNECTS_PLANS } from "../../config/constants.js";
-import { authRoleShape } from "../../utils/common-schemas.js";
+import { authRoleShape } from "../../shared/validation/common-schemas.js";
 
 const PLAN_ERROR = "Select a valid Connects package.";
 

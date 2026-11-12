@@ -5,11 +5,11 @@ import {
   identifyAccount,
   isAuthenticated,
   verifyBearerToken,
-} from "../middleware/auth.middleware.js";
+} from "../shared/http/auth.middleware.js";
 import {
   requireAdminSession,
   requireAdminSessionAllowingQueryToken,
-} from "../modules/admin/admin-session.middleware.js";
+} from "../shared/http/admin-session.middleware.js";
 import { contractAllowlist } from "../routes/contract-allowlist.js";
 import {
   routeKey,
@@ -21,7 +21,7 @@ import {
   InternalErrorBody,
   RateLimitBody,
   ValidationErrorBody,
-} from "../utils/response-schemas.js";
+} from "../shared/validation/response-schemas.js";
 import { convertSchema, type ComponentSchemas } from "./convert-schema.js";
 import {
   findEmptySchemas,

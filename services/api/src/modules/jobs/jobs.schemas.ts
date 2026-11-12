@@ -7,8 +7,8 @@ import {
   pagingDigits,
   uuidParam,
   withIgnoredKeys,
-} from "../../utils/common-schemas.js";
-import { moneyCents } from "../../utils/money.js";
+} from "../../shared/validation/common-schemas.js";
+import { moneyCents } from "../../shared/money/money.js";
 import {
   COMMON_LIMITS,
   JOB_LIMITS,
@@ -16,7 +16,7 @@ import {
   MAX_ATTACHMENT_FILE_NAME_LENGTH,
   MAX_ATTACHMENTS,
   SEARCH_QUERY_MAX_LENGTH,
-} from "../../utils/validation-limits.js";
+} from "../../shared/validation/validation-limits.js";
 
 const BUDGET_ERROR = "Every milestone needs a valid budget.";
 

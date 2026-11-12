@@ -7,15 +7,15 @@ import {
   pagingDigits,
   uuidParams,
   withIgnoredKeys,
-} from "../../utils/common-schemas.js";
-import { moneyCents } from "../../utils/money.js";
-import { centsQueryParam } from "../../utils/money-schemas.js";
-import { searchPagingShape } from "../../utils/search-schemas.js";
+} from "../../shared/validation/common-schemas.js";
+import { moneyCents } from "../../shared/money/money.js";
+import { centsQueryParam } from "../../shared/validation/money-schemas.js";
+import { searchPagingShape } from "../../shared/validation/search-schemas.js";
 import {
   FREELANCER_LIMITS,
   JOB_LIMITS,
   MAX_LIVE_URL_LENGTH,
-} from "../../utils/validation-limits.js";
+} from "../../shared/validation/validation-limits.js";
 
 export const MIN_HOURLY_RATE_CENTS = 500;
 export const MAX_HOURLY_RATE_CENTS = 100_000;

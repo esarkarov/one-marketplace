@@ -1,7 +1,7 @@
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { app } from "../../app.js";
-import { connectRedis, disconnectRedis } from "../../config/redis.js";
+import { connectRedis, disconnectRedis } from "../../infrastructure/redis.js";
 import { pool } from "../../database/client.js";
 
 const id = "123e4567-e89b-42d3-a456-426614174000";

@@ -3,14 +3,14 @@ import {
   isAuthenticated,
   resolveAccountRole,
   verifyBearerToken,
-} from "../../middleware/auth.middleware.js";
-import { validate } from "../../middleware/validate.middleware.js";
-import { largeJsonBody } from "../../middleware/json-body.middleware.js";
-import { publicSearchLimiter } from "../../middleware/rate-limit.middleware.js";
+} from "../../shared/http/auth.middleware.js";
+import { validate } from "../../shared/http/validate.middleware.js";
+import { largeJsonBody } from "../../shared/http/json-body.middleware.js";
+import { publicSearchLimiter } from "../../shared/http/rate-limit.middleware.js";
 import {
   contentWriteLimiter,
   inviteWriteLimiter,
-} from "../../middleware/user-rate-limit.middleware.js";
+} from "../../shared/http/user-rate-limit.middleware.js";
 import {
   buyAgencyConnects,
   cancelAgencyInvitationHandler,
@@ -65,7 +65,7 @@ import {
   agencyUpdateResponses,
   agencyVerificationResponses,
 } from "./agency.responses.js";
-import { authRoleShape } from "../../utils/common-schemas.js";
+import { authRoleShape } from "../../shared/validation/common-schemas.js";
 import {
   agencyJobFeedQuerySchema,
   agencyTalentSearchQuerySchema,
@@ -79,7 +79,7 @@ import {
   respondInvitationBodySchema,
   updateAgencyBodySchema,
 } from "./agency.schemas.js";
-import { submitProposalBodySchema } from "../../utils/money-schemas.js";
+import { submitProposalBodySchema } from "../../shared/validation/money-schemas.js";
 
 export const agencyRouter = Router();
 

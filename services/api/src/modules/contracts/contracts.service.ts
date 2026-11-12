@@ -1,9 +1,9 @@
 import type Stripe from "stripe";
-import { clerk } from "../../config/clerk.js";
+import { clerk } from "../../infrastructure/clerk.js";
 import { and, asc, desc, eq, inArray, isNotNull, ne, sql } from "drizzle-orm";
 import { env } from "../../config/env.js";
 import { logger } from "../../config/logger.js";
-import { stripe } from "../../config/stripe.js";
+import { stripe } from "../../infrastructure/stripe.js";
 import { db } from "../../database/client.js";
 import {
   accounts,
@@ -22,9 +22,9 @@ import {
   proposals,
   reviews,
 } from "../../database/schema.js";
-import { ApiError } from "../../utils/api-error.js";
-import { splitFee } from "../../utils/money.js";
-import { sendNotification } from "../../events/publisher.js";
+import { ApiError } from "../../shared/http/api-error.js";
+import { splitFee } from "../../shared/money/money.js";
+import { sendNotification } from "../../infrastructure/events/publisher.js";
 import { emitConversationUpdate } from "../messaging/messaging.socket.js";
 import { getJSSContribution } from "../freelancer/freelancer.service.js";
 import { getAgencyOwnerId } from "../agency/agency.service.js";

@@ -19,16 +19,18 @@ const mocks = vi.hoisted(() => ({
   sendNotification: vi.fn(),
 }));
 
-vi.mock("../../config/stripe.js", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../../config/stripe.js")>()),
+vi.mock("../../infrastructure/stripe.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../infrastructure/stripe.js")>()),
   stripe: {
     transfers: { create: mocks.transfersCreate, list: mocks.transfersList },
     v2: { core: { accounts: { retrieve: mocks.accountsRetrieve } } },
   },
 }));
 
-vi.mock("../../events/publisher.js", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../../events/publisher.js")>()),
+vi.mock("../../infrastructure/events/publisher.js", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("../../infrastructure/events/publisher.js")
+  >()),
   sendNotification: mocks.sendNotification,
 }));
 
@@ -47,7 +49,7 @@ import {
   secondsUntilRetry,
   timeTravel,
 } from "../../test/factories.js";
-import { uuidV5 } from "../../utils/uuid-v5.js";
+import { uuidV5 } from "../../shared/utils/uuid-v5.js";
 import {
   getAdminOverviewTotals,
   getAdminTransactions,

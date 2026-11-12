@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { isoDateTime, ok } from "../utils/response-schemas.js";
+import { isoDateTime, ok } from "../shared/validation/response-schemas.js";
 
 export const healthResponses = {
   health: {

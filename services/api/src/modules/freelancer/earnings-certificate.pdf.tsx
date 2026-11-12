@@ -1,7 +1,7 @@
 import ReactPDFDefault, { renderToBuffer } from "@react-pdf/renderer";
 import { fileURLToPath } from "node:url";
 import type { EarningsCertificateData } from "./freelancer.service.js";
-import { formatUsdGrouped } from "../../utils/money.js";
+import { formatUsdGrouped } from "../../shared/money/money.js";
 
 const { Document, Page, View, Text, Image, StyleSheet } = ReactPDFDefault;
 

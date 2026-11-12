@@ -1,12 +1,12 @@
 import { RequestHandler } from "express";
-import { ApiError } from "../../utils/api-error.js";
+import { ApiError } from "../../shared/http/api-error.js";
 import { ApiResponse } from "../../types/common.types.js";
-import { asyncHandler } from "../../utils/async-handler.js";
+import { asyncHandler } from "../../shared/http/async-handler.js";
 import { receiveSignup } from "./auth.service.js";
 import {
   authenticateAccount,
   getBearerToken,
-} from "../../middleware/auth.middleware.js";
+} from "../../shared/http/auth.middleware.js";
 
 interface AuthStatusData {
   role: "client" | "freelancer";

@@ -1,10 +1,13 @@
 import { RequestHandler } from "express";
 import type { z } from "zod";
-import { asyncHandler } from "../../utils/async-handler.js";
-import { requireFreelancer } from "../freelancer/freelancer.controller.js";
+import { asyncHandler } from "../../shared/http/async-handler.js";
+import {
+  requireClient,
+  requireFreelancer,
+} from "../../shared/http/role-guards.js";
 import { requireText } from "../../config/constants.js";
-import { ApiError } from "../../utils/api-error.js";
-import type { submitProposalBodySchema } from "../../utils/money-schemas.js";
+import { ApiError } from "../../shared/http/api-error.js";
+import type { submitProposalBodySchema } from "../../shared/validation/money-schemas.js";
 import {
   getFreelancerProposalMetadata,
   getFreelancerProposals,
@@ -14,15 +17,7 @@ import {
   shortlistProposal,
   startProposalInterview,
 } from "./proposals.service.js";
-import { sendNotification } from "../../events/publisher.js";
-
-export const requireClient = (request: Parameters<RequestHandler>[0]) => {
-  if (!request.auth) throw new ApiError(401, "Authentication is required.");
-  if (request.auth.role !== "client") {
-    throw new ApiError(403, "A client account is required.");
-  }
-  return request.auth;
-};
+import { sendNotification } from "../../infrastructure/events/publisher.js";
 
 export const createProposal: RequestHandler = asyncHandler(
   async (request, response) => {

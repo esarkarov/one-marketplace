@@ -1,8 +1,8 @@
 import { Router } from "express";
 import { SERVICE_NAME } from "../config/constants.js";
-import { validate } from "../middleware/validate.middleware.js";
+import { validate } from "../shared/http/validate.middleware.js";
 import { ApiResponse } from "../types/common.types.js";
-import { errorLogAttributes } from "../utils/sanitize-log.js";
+import { errorLogAttributes } from "../shared/utils/sanitize-log.js";
 import { agencyRouter } from "../modules/agency/agency.route.js";
 import { authRouter } from "../modules/auth/auth.route.js";
 import { clientRouter } from "../modules/client/client.route.js";
@@ -16,8 +16,12 @@ import { contractsRouter } from "../modules/contracts/contracts.route.js";
 import { identityRouter } from "../modules/identity/identity.route.js";
 import { meetingsRouter } from "../modules/meetings/meetings.route.js";
 import { adminRouter } from "../modules/admin/admin.route.js";
+import { conversationMeetingsRouter } from "./conversation-meetings.route.js";
 import { healthResponses } from "./health.responses.js";
-import { checkReadiness, type ReadinessChecks } from "../utils/readiness.js";
+import {
+  checkReadiness,
+  type ReadinessChecks,
+} from "../bootstrap/readiness.js";
 
 export const apiRouter = Router();
 
@@ -29,6 +33,7 @@ apiRouter.use("/connects", connectsRouter);
 apiRouter.use("/notifications", notificationRouter);
 apiRouter.use("/proposals", proposalRouter);
 apiRouter.use("/conversations", messagingRouter);
+apiRouter.use("/conversations", conversationMeetingsRouter);
 apiRouter.use("/contracts", contractsRouter);
 apiRouter.use("/identity", identityRouter);
 apiRouter.use("/agency", agencyRouter);

@@ -1,4 +1,4 @@
-import { clerk } from "../../config/clerk.js";
+import { clerk } from "../../infrastructure/clerk.js";
 import {
   and,
   count,
@@ -27,12 +27,12 @@ import {
   messages,
   proposals,
 } from "../../database/schema.js";
-import { ApiError } from "../../utils/api-error.js";
-import type { DbExecutor } from "../../utils/db-executor.js";
+import { ApiError } from "../../shared/http/api-error.js";
+import type { DbExecutor } from "../../database/db-executor.js";
 import {
   deleteDocuments,
   uploadDocuments,
-} from "../../utils/upload-documents.js";
+} from "../../infrastructure/upload-documents.js";
 import { emitConversationUpdate } from "./messaging.socket.js";
 import {
   getAgencyIdForMember,

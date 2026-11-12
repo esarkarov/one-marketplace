@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ok } from "../../utils/response-schemas.js";
+import { ok } from "../../shared/validation/response-schemas.js";
 
 export const identityResponses = {
   session: {

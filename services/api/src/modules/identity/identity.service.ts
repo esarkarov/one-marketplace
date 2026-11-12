@@ -1,10 +1,10 @@
 import type Stripe from "stripe";
 import { and, eq } from "drizzle-orm";
 import { env } from "../../config/env.js";
-import { stripe } from "../../config/stripe.js";
+import { stripe } from "../../infrastructure/stripe.js";
 import { db } from "../../database/client.js";
 import { accounts } from "../../database/schema.js";
-import { ApiError } from "../../utils/api-error.js";
+import { ApiError } from "../../shared/http/api-error.js";
 
 export const createIdentitySession = async (
   accountId: string,

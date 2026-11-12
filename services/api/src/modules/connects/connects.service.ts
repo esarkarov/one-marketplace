@@ -15,10 +15,10 @@ import {
   connects_history,
   connects_purchase_history,
 } from "../../database/schema.js";
-import { ApiError } from "../../utils/api-error.js";
-import { redis } from "../../config/redis.js";
+import { ApiError } from "../../shared/http/api-error.js";
+import { redis } from "../../infrastructure/redis.js";
 import { env } from "../../config/env.js";
-import { stripe } from "../../config/stripe.js";
+import { stripe } from "../../infrastructure/stripe.js";
 
 const cacheBalance = (freelancerId: string, balance: number) =>
   redis.setEx(

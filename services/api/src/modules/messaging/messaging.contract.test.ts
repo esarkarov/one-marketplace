@@ -25,15 +25,15 @@ vi.mock("../../config/env.js", async (importOriginal) => {
   return { ...original, env: { ...original.env, clerkSecretKey: "sk_test" } };
 });
 
-vi.mock("../../config/clerk.js", () => ({
+vi.mock("../../infrastructure/clerk.js", () => ({
   clerk: { users: { getUser: mocks.getUser } },
 }));
 
-vi.mock("../../config/imageKit.js", () => ({
+vi.mock("../../infrastructure/image-kit.js", () => ({
   imageKit: { files: { upload: vi.fn(), delete: vi.fn() } },
 }));
 
-vi.mock("../../config/redis.js", () => ({
+vi.mock("../../infrastructure/redis.js", () => ({
   redis: {
     get: async (key: string) => mocks.store.get(key) ?? null,
     expire: async () => true,

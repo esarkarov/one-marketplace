@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { ErrorBody, isoDateTime, ok } from "../../utils/response-schemas.js";
+import {
+  ErrorBody,
+  isoDateTime,
+  ok,
+} from "../../shared/validation/response-schemas.js";
 
 export const meetingsResponses = {
   create: {

@@ -33,15 +33,15 @@ vi.mock("../../config/env.js", async (importOriginal) => {
   };
 });
 
-vi.mock("../../config/clerk.js", () => ({
+vi.mock("../../infrastructure/clerk.js", () => ({
   clerk: { users: { getUser: mocks.getUser } },
 }));
 
-vi.mock("../../config/imageKit.js", () => ({
+vi.mock("../../infrastructure/image-kit.js", () => ({
   imageKit: { files: { upload: mocks.upload, delete: mocks.remove } },
 }));
 
-vi.mock("../../config/redis.js", () => ({
+vi.mock("../../infrastructure/redis.js", () => ({
   redis: {
     get: async (key: string) => mocks.store.get(key) ?? null,
     expire: async () => true,

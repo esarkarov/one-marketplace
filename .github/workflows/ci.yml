@@ -151,7 +151,7 @@ jobs:
 
       - name: Verify RabbitMQ integration tests ran
         if: ${{ !cancelled() }}
-        run: node .github/scripts/verify-integration-junit.mjs services/api/test-results/junit.xml src/events/rabbitmq.integration.test.ts
+        run: node .github/scripts/verify-integration-junit.mjs services/api/test-results/junit.xml src/infrastructure/events/rabbitmq.integration.test.ts
 
       - name: Upload test results and coverage
         if: ${{ !cancelled() }}

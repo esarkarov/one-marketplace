@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { milestoneCheckoutBodySchema } from "../modules/contracts/contracts.schemas.js";
-import { withIgnoredKeys } from "../utils/common-schemas.js";
-import { centsQueryParam } from "../utils/money-schemas.js";
-import { searchOffsetParam } from "../utils/search-schemas.js";
+import { withIgnoredKeys } from "../shared/validation/common-schemas.js";
+import { centsQueryParam } from "../shared/validation/money-schemas.js";
+import { searchOffsetParam } from "../shared/validation/search-schemas.js";
 import {
   convertSchema,
   IGNORED_PROPERTY_DESCRIPTION,

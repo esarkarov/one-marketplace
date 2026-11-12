@@ -1,4 +1,4 @@
-import { ApiError } from "../utils/api-error.js";
+import { ApiError } from "../shared/http/api-error.js";
 
 export const API_PREFIX = "/api/v1";
 export const SERVICE_NAME = "onemarketplace-services";

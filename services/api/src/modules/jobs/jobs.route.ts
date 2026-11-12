@@ -3,11 +3,11 @@ import {
   isAuthenticated,
   resolveAccountRole,
   verifyBearerToken,
-} from "../../middleware/auth.middleware.js";
-import { largeJsonBody } from "../../middleware/json-body.middleware.js";
-import { contentWriteLimiter } from "../../middleware/user-rate-limit.middleware.js";
-import { validate } from "../../middleware/validate.middleware.js";
-import { authRoleShape } from "../../utils/common-schemas.js";
+} from "../../shared/http/auth.middleware.js";
+import { largeJsonBody } from "../../shared/http/json-body.middleware.js";
+import { contentWriteLimiter } from "../../shared/http/user-rate-limit.middleware.js";
+import { validate } from "../../shared/http/validate.middleware.js";
+import { authRoleShape } from "../../shared/validation/common-schemas.js";
 import {
   createClientJobPost,
   editClientJobPost,

@@ -1,10 +1,11 @@
 import { RequestHandler } from "express";
-import { ApiError } from "../../utils/api-error.js";
-import { asyncHandler } from "../../utils/async-handler.js";
+import { ApiError } from "../../shared/http/api-error.js";
+import { requireFreelancer } from "../../shared/http/role-guards.js";
+import { asyncHandler } from "../../shared/http/async-handler.js";
 import { ApiResponse } from "../../types/common.types.js";
 import { FreelancerProfileData, SaveFreelancerProfileInput } from "./@types.js";
 import { requireText } from "../../config/constants.js";
-import { parseLiveUrl } from "../../utils/portfolio-images.js";
+import { parseLiveUrl } from "../../shared/utils/portfolio-images.js";
 import {
   getFreelancerEarningsCertificateData,
   getFreelancerEarningsOverview,
@@ -20,14 +21,6 @@ import {
   searchPublicFreelancers,
 } from "./freelancer.service.js";
 import { renderEarningsCertificatePdf } from "./earnings-certificate.pdf.js";
-
-export const requireFreelancer = (request: Parameters<RequestHandler>[0]) => {
-  if (!request.auth) throw new ApiError(401, "Authentication is required.");
-  if (request.auth.role !== "freelancer") {
-    throw new ApiError(403, "A freelancer account is required.");
-  }
-  return request.auth;
-};
 
 export const getLoggedInFreelancerProfile: RequestHandler = asyncHandler(
   async (request, response) => {

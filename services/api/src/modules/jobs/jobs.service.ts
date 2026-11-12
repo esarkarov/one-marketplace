@@ -21,15 +21,15 @@ import {
   job_posts,
   proposals,
 } from "../../database/schema.js";
-import { ApiError } from "../../utils/api-error.js";
-import { imageKit } from "../../config/imageKit.js";
+import { ApiError } from "../../shared/http/api-error.js";
+import { imageKit } from "../../infrastructure/image-kit.js";
 import { env } from "../../config/env.js";
 import {
   deleteDocuments,
   uploadDocuments,
-} from "../../utils/upload-documents.js";
-import { reuseStoredAttachments } from "../../utils/attachments.js";
-import { clerk } from "../../config/clerk.js";
+} from "../../infrastructure/upload-documents.js";
+import { reuseStoredAttachments } from "../../shared/utils/attachments.js";
+import { clerk } from "../../infrastructure/clerk.js";
 
 type JobData = Omit<typeof job_posts.$inferInsert, "client_id">;
 

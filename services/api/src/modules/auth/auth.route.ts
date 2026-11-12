@@ -1,7 +1,7 @@
 import { Router } from "express";
-import { identifyAccount } from "../../middleware/auth.middleware.js";
-import { signUpLimiter } from "../../middleware/rate-limit.middleware.js";
-import { validate } from "../../middleware/validate.middleware.js";
+import { identifyAccount } from "../../shared/http/auth.middleware.js";
+import { signUpLimiter } from "../../shared/http/rate-limit.middleware.js";
+import { validate } from "../../shared/http/validate.middleware.js";
 import { authStatusQuerySchema, signUpBodySchema } from "./auth.schemas.js";
 import { authStatusResponses, signUpResponses } from "./auth.responses.js";
 import { getAuthStatus, signup } from "./auth.controller.js";

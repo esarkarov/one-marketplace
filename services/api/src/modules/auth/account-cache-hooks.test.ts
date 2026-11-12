@@ -20,8 +20,8 @@ vi.mock("../../config/logger.js", () => ({
   logger: { error: async () => undefined, warn: async () => undefined },
 }));
 
-vi.mock("../../config/stripe.js", () => ({ stripe: {} }));
-vi.mock("../../config/imageKit.js", () => ({ imageKit: {} }));
+vi.mock("../../infrastructure/stripe.js", () => ({ stripe: {} }));
+vi.mock("../../infrastructure/image-kit.js", () => ({ imageKit: {} }));
 vi.mock("../agency/agency.service.js", () => ({
   getAgencyIdentityForMember: vi.fn(),
 }));
@@ -29,7 +29,7 @@ vi.mock("../connects/connects.service.js", () => ({
   addConnects: vi.fn(),
 }));
 
-vi.mock("../../utils/account-auth-cache.js", () => ({
+vi.mock("../../infrastructure/account-auth-cache.js", () => ({
   invalidateAccountAuthCache: async (userId: string) => {
     mocks.events.push("invalidate");
     mocks.invalidate(userId);

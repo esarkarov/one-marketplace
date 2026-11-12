@@ -1,7 +1,7 @@
 import pino from "pino";
 import type { DestinationStream } from "pino";
 import { env } from "./env.js";
-import { sanitizeForLog } from "../utils/sanitize-log.js";
+import { sanitizeForLog } from "../shared/utils/sanitize-log.js";
 
 type AttributeValue = string | number | boolean | null;
 

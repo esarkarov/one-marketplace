@@ -7,7 +7,7 @@ import {
   ok,
   okNoData,
   BadRequestBody,
-} from "../../utils/response-schemas.js";
+} from "../../shared/validation/response-schemas.js";
 
 const jobPostFields = {
   id: z.uuid(),

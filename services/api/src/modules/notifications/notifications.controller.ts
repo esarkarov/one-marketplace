@@ -1,5 +1,5 @@
 import { RequestHandler } from "express";
-import { asyncHandler } from "../../utils/async-handler.js";
+import { asyncHandler } from "../../shared/http/async-handler.js";
 import { ApiResponse } from "../../types/common.types.js";
 import {
   getNotifications,
@@ -11,7 +11,7 @@ import {
   addAgencyNotificationClient,
   addNotificationClient,
 } from "./notification.sse.js";
-import { ApiError } from "../../utils/api-error.js";
+import { ApiError } from "../../shared/http/api-error.js";
 
 type Scope = "agency" | "default";
 

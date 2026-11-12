@@ -1,10 +1,10 @@
 import { RequestHandler } from "express";
-import { asyncHandler } from "../../utils/async-handler.js";
-import { ApiError } from "../../utils/api-error.js";
-import { isValidEmail } from "../../utils/email.js";
+import { asyncHandler } from "../../shared/http/async-handler.js";
+import { ApiError } from "../../shared/http/api-error.js";
+import { isValidEmail } from "../../shared/utils/email.js";
 import { ApiResponse } from "../../types/common.types.js";
 import { requireText } from "../../config/constants.js";
-import { parseLiveUrl } from "../../utils/portfolio-images.js";
+import { parseLiveUrl } from "../../shared/utils/portfolio-images.js";
 import {
   AgencyData,
   cancelAgencyInvitation,

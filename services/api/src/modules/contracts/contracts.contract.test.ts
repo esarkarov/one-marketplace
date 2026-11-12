@@ -35,11 +35,11 @@ vi.mock("../../config/env.js", async (importOriginal) => {
   };
 });
 
-vi.mock("../../config/clerk.js", () => ({
+vi.mock("../../infrastructure/clerk.js", () => ({
   clerk: { users: { getUser: mocks.getUser } },
 }));
 
-vi.mock("../../config/stripe.js", () => ({
+vi.mock("../../infrastructure/stripe.js", () => ({
   STRIPE_TIMEOUT_MS: 30_000,
   stripe: {
     customers: { create: mocks.customersCreate },
@@ -47,11 +47,11 @@ vi.mock("../../config/stripe.js", () => ({
   },
 }));
 
-vi.mock("../../config/imageKit.js", () => ({
+vi.mock("../../infrastructure/image-kit.js", () => ({
   imageKit: { files: { upload: vi.fn(), delete: vi.fn() } },
 }));
 
-vi.mock("../../config/redis.js", () => ({
+vi.mock("../../infrastructure/redis.js", () => ({
   redis: {
     get: async (key: string) => mocks.store.get(key) ?? null,
     expire: async () => true,
@@ -70,8 +70,10 @@ vi.mock("../../config/redis.js", () => ({
   disconnectRedis: async () => undefined,
 }));
 
-vi.mock("../../events/publisher.js", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../../events/publisher.js")>()),
+vi.mock("../../infrastructure/events/publisher.js", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("../../infrastructure/events/publisher.js")
+  >()),
   sendNotification: mocks.sendNotification,
 }));
 

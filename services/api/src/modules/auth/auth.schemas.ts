@@ -1,6 +1,9 @@
 import { z } from "zod";
 
-import { authRoleShape, roleField } from "../../utils/common-schemas.js";
+import {
+  authRoleShape,
+  roleField,
+} from "../../shared/validation/common-schemas.js";
 
 export const signUpBodySchema = z.strictObject({ role: roleField });
 

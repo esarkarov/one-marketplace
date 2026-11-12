@@ -16,8 +16,10 @@ const mocks = vi.hoisted(() => ({
   emitConversationUpdate: vi.fn(),
 }));
 
-vi.mock("../../events/publisher.js", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../../events/publisher.js")>()),
+vi.mock("../../infrastructure/events/publisher.js", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("../../infrastructure/events/publisher.js")
+  >()),
   sendNotification: mocks.sendNotification,
 }));
 
@@ -50,7 +52,7 @@ import {
   raceBlocked,
   waitForBlocked,
 } from "../../test/lock-holder.js";
-import { ApiError } from "../../utils/api-error.js";
+import { ApiError } from "../../shared/http/api-error.js";
 import {
   acceptContract,
   addContractMilestone,

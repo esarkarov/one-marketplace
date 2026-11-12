@@ -5,7 +5,7 @@ import {
   isoDateTime,
   ok,
   BadRequestBody,
-} from "../../utils/response-schemas.js";
+} from "../../shared/validation/response-schemas.js";
 
 const codedError = <const C extends readonly [string, ...string[]]>(
   codes: C,

@@ -2,8 +2,8 @@ import { readFileSync } from "node:fs";
 import { Router } from "express";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { withIgnoredKeys } from "../utils/common-schemas.js";
-import { validate } from "../middleware/validate.middleware.js";
+import { withIgnoredKeys } from "../shared/validation/common-schemas.js";
+import { validate } from "../shared/http/validate.middleware.js";
 import { apiRouter } from "./index.js";
 import { contractAllowlist } from "./contract-allowlist.js";
 import {

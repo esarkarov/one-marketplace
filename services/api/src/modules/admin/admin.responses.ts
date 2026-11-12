@@ -7,7 +7,7 @@ import {
   okNoData,
   offsetPage,
   BadRequestBody,
-} from "../../utils/response-schemas.js";
+} from "../../shared/validation/response-schemas.js";
 
 const nullableDateTime = isoDateTime.nullable();
 
