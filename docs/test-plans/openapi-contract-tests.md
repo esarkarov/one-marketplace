@@ -46,7 +46,7 @@ The full list is in ADR 0012, section "Unverified response schemas". Counts by s
 
 ## Test-isolation rules
 
-1. Each contract test owns a unique id prefix and purges only rows with that prefix. Never reuse another suite's prefix. The admin contract test once reused the payouts factories' `TEST_PREFIX` (`payout-it-`) and its purge deleted the payouts test's rows. `createTestData` and `purgeLeftovers` in `src/test/factories.ts` now take an optional prefix.
+1. Each contract test owns a unique id prefix and purges only rows with that prefix. Never reuse another suite's prefix. The admin contract test once reused the payouts factories' `TEST_PREFIX` (`payout-it-`) and its purge deleted the payouts test's rows. `createTestData` and `purgeLeftovers` in `src/test/support/factories.ts` now take an optional prefix.
 2. The payouts integration tests run a worker that sweeps all eligible earnings in the database (`earning_history` older than the hold period without a payout). Any other test seeding an old earning must either keep it inside the hold period (`ageMs: 0`) or insert it fresh, attach its payout, then backdate it. Done in the admin, agency and freelancer contract tests. New contract tests that need old earnings must follow the same pattern.
 3. Failure signature of a breach: payouts or contract tests fail intermittently only in the full run, passing alone.
 

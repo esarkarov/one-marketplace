@@ -41,7 +41,8 @@ vi.mock("../../database/client.js", () => {
 });
 
 const { updateJobPost } = await import("./jobs.service.js");
-const { errorHandler } = await import("../../shared/http/error.middleware.js");
+const { errorHandler } =
+  await import("../../app-middleware/error.middleware.js");
 
 const existingJob = { id: "job_1", attachments: [] };
 const newAttachment = {

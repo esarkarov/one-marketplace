@@ -38,8 +38,11 @@ import {
   freelancer_metadata,
   job_posts,
 } from "../../database/schema.js";
-import { assertTestDatabase } from "../../test/assert-test-database.js";
-import { createTestData, purgeLeftovers } from "../../test/factories.js";
+import { assertTestDatabase } from "../../test/setup/assert-test-database.js";
+import {
+  createTestData,
+  purgeLeftovers,
+} from "../../test/support/factories.js";
 import { adminResponses } from "./admin.responses.js";
 
 const { app } = await import("../../app.js");

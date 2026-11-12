@@ -9,7 +9,7 @@ import {
   markConversationRead,
   sendMessage,
 } from "./messaging.service.js";
-import { requireClient } from "../../shared/http/role-guards.js";
+import { requireClient } from "../../shared/http/auth/role-guards.js";
 import { ApiError } from "../../shared/http/api-error.js";
 import {
   assertAttachmentFileName,

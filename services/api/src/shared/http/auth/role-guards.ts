@@ -1,5 +1,5 @@
 import { RequestHandler } from "express";
-import { ApiError } from "./api-error.js";
+import { ApiError } from "../api-error.js";
 
 export const requireClient = (request: Parameters<RequestHandler>[0]) => {
   if (!request.auth) throw new ApiError(401, "Authentication is required.");

@@ -17,7 +17,7 @@ import {
 import {
   requireClient,
   requireFreelancer,
-} from "../../shared/http/role-guards.js";
+} from "../../shared/http/auth/role-guards.js";
 import { MAX_JOB_BUDGET_CENTS, type JobBody } from "./jobs.schemas.js";
 import {
   assertAttachmentFileName,

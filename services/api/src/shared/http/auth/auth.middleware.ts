@@ -1,17 +1,17 @@
 import type { Request, RequestHandler } from "express";
-import { asyncHandler } from "./async-handler.js";
-import { ApiError } from "./api-error.js";
-import { env } from "../../config/env.js";
-import { allowedOrigins } from "../../config/cors.js";
+import { asyncHandler } from "../async-handler.js";
+import { ApiError } from "../api-error.js";
+import { env } from "../../../config/env.js";
+import { allowedOrigins } from "../../../config/cors.js";
 import {
   ACCOUNT_AUTH_CACHE_TTL_SECONDS,
   ACCOUNT_AUTH_NEGATIVE_CACHE_TTL_SECONDS,
   getAccountAuthCacheKey,
-} from "../../config/constants.js";
-import { verifyToken } from "../../infrastructure/clerk.js";
-import { redis } from "../../infrastructure/redis.js";
-import { db } from "../../database/client.js";
-import { accounts } from "../../database/schema.js";
+} from "../../../config/constants.js";
+import { verifyToken } from "../../../infrastructure/clerk.js";
+import { redis } from "../../../infrastructure/redis.js";
+import { db } from "../../../database/client.js";
+import { accounts } from "../../../database/schema.js";
 import { and, eq } from "drizzle-orm";
 
 const accountRoles = ["client", "freelancer"] as const;

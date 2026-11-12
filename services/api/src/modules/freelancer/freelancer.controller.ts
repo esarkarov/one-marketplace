@@ -1,6 +1,6 @@
 import { RequestHandler } from "express";
 import { ApiError } from "../../shared/http/api-error.js";
-import { requireFreelancer } from "../../shared/http/role-guards.js";
+import { requireFreelancer } from "../../shared/http/auth/role-guards.js";
 import { asyncHandler } from "../../shared/http/async-handler.js";
 import { ApiResponse } from "../../types/common.types.js";
 import {

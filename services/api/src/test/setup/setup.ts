@@ -5,7 +5,7 @@ process.env.NODE_ENV = "test";
 
 try {
   process.loadEnvFile(
-    fileURLToPath(new URL("../../../../.env", import.meta.url)),
+    fileURLToPath(new URL("../../../../../.env", import.meta.url)),
   );
 } catch {}
 

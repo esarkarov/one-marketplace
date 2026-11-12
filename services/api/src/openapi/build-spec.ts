@@ -5,11 +5,11 @@ import {
   identifyAccount,
   isAuthenticated,
   verifyBearerToken,
-} from "../shared/http/auth.middleware.js";
+} from "../shared/http/auth/auth.middleware.js";
 import {
   requireAdminSession,
   requireAdminSessionAllowingQueryToken,
-} from "../shared/http/admin-session.middleware.js";
+} from "../shared/http/auth/admin-session.middleware.js";
 import { contractAllowlist } from "../routes/contract-allowlist.js";
 import {
   routeKey,

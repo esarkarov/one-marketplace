@@ -86,7 +86,7 @@ import {
   proposals,
   reviews,
 } from "../../database/schema.js";
-import { assertTestDatabase } from "../../test/assert-test-database.js";
+import { assertTestDatabase } from "../../test/setup/assert-test-database.js";
 import {
   freelancerEarningsCertificateResponses,
   freelancerEarningsOverviewResponses,

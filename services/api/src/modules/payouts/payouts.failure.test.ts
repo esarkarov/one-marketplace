@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fakeStripeKey } from "../../test/fake-secrets.js";
+import { fakeStripeKey } from "../../test/support/fake-secrets.js";
 import {
   bumpIdempotencyKey,
   classifyPayoutFailure,

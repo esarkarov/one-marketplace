@@ -47,7 +47,7 @@ Preconditions: Docker Desktop running, `pnpm infra:up`, root `.env` present (not
 | 2.8 | Docker missing / not running | Stop Docker, run create                                                                                      | Clear error, non-zero exit, no stack with credentials. Check whether a non-docker fallback exists and works | E    |
 | 2.9 | Only `DATABASE_URL` set      | Unset TEST_DATABASE_URL                                                                                      | Target derived as `<name>_test`; neither variable set gives "Set TEST_DATABASE_URL or DATABASE_URL."        | I    |
 
-Also: confirm `src/test/assert-test-database.ts` blocks tests when URL points at a non-test DB.
+Also: confirm `src/test/setup/assert-test-database.ts` blocks tests when URL points at a non-test DB.
 
 ## 3. Admin Redis routes against real Redis
 

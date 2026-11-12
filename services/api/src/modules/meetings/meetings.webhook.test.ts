@@ -48,7 +48,8 @@ vi.mock("./meetings.service.js", () => ({
 }));
 
 const { dailyWebhookHandler } = await import("./meetings.controller.js");
-const { errorHandler } = await import("../../shared/http/error.middleware.js");
+const { errorHandler } =
+  await import("../../app-middleware/error.middleware.js");
 
 const app = express();
 app.use((req, _res, next) => {

@@ -3,10 +3,10 @@ import {
   isAuthenticated,
   resolveAccountRole,
   verifyBearerToken,
-} from "../../shared/http/auth.middleware.js";
-import { largeJsonBody } from "../../shared/http/json-body.middleware.js";
-import { publicSearchLimiter } from "../../shared/http/rate-limit.middleware.js";
-import { contentWriteLimiter } from "../../shared/http/user-rate-limit.middleware.js";
+} from "../../shared/http/auth/auth.middleware.js";
+import { largeJsonBody } from "../../shared/http/limits/json-body.middleware.js";
+import { publicSearchLimiter } from "../../shared/http/limits/rate-limit.middleware.js";
+import { contentWriteLimiter } from "../../shared/http/limits/user-rate-limit.middleware.js";
 import {
   getFreelancerEarningsCertificate,
   getFreelancerEarningsOverviewHandler,

@@ -1,8 +1,8 @@
 import express from "express";
 import request from "supertest";
 import { describe, expect, it } from "vitest";
-import { createRootLogger } from "../../config/logger.js";
-import { captureLogs } from "../../test/capture-logs.js";
+import { createRootLogger } from "../config/logger.js";
+import { captureLogs } from "../test/support/capture-logs.js";
 import { createHttpLogger } from "./http-logger.middleware.js";
 import { requestIdMiddleware } from "./request-id.middleware.js";
 

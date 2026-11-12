@@ -37,8 +37,8 @@ vi.mock("../../infrastructure/events/publisher.js", async (importOriginal) => ({
 import { logger } from "../../config/logger.js";
 import { db, pool } from "../../database/client.js";
 import { accounts, payout_history } from "../../database/schema.js";
-import { assertTestDatabase } from "../../test/assert-test-database.js";
-import { fakeStripeKey } from "../../test/fake-secrets.js";
+import { assertTestDatabase } from "../../test/setup/assert-test-database.js";
+import { fakeStripeKey } from "../../test/support/fake-secrets.js";
 import {
   assertPayoutSchema,
   countLeftovers,
@@ -48,7 +48,7 @@ import {
   readPayout,
   secondsUntilRetry,
   timeTravel,
-} from "../../test/factories.js";
+} from "../../test/support/factories.js";
 import { uuidV5 } from "../../shared/utils/uuid-v5.js";
 import {
   getAdminOverviewTotals,

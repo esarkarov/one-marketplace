@@ -1,7 +1,7 @@
 import { ipKeyGenerator, rateLimit } from "express-rate-limit";
 import type { Options } from "express-rate-limit";
-import { env } from "../../config/env.js";
-import type { ApiResponse } from "../../types/common.types.js";
+import { env } from "../../../config/env.js";
+import type { ApiResponse } from "../../../types/common.types.js";
 
 const FIFTEEN_MINUTES = 15 * 60 * 1000;
 

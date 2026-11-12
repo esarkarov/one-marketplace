@@ -2,7 +2,7 @@ import express from "express";
 import request from "supertest";
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("../../config/env.js", () => ({ env: { nodeEnv: "production" } }));
+vi.mock("../../../config/env.js", () => ({ env: { nodeEnv: "production" } }));
 
 const { PUBLIC_SEARCH_LIMIT, PUBLIC_SEARCH_WINDOW_MS, publicSearchLimiter } =
   await import("./rate-limit.middleware.js");

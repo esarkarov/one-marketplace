@@ -1,5 +1,5 @@
 import { RequestHandler } from "express";
-import { requireFreelancer } from "../../shared/http/role-guards.js";
+import { requireFreelancer } from "../../shared/http/auth/role-guards.js";
 import { ApiResponse } from "../../types/common.types.js";
 import { asyncHandler } from "../../shared/http/async-handler.js";
 import {

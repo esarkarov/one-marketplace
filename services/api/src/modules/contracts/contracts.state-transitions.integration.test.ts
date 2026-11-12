@@ -44,14 +44,14 @@ import {
   proposals,
   reviews,
 } from "../../database/schema.js";
-import { assertTestDatabase } from "../../test/assert-test-database.js";
+import { assertTestDatabase } from "../../test/setup/assert-test-database.js";
 import {
   countBlocked,
   holdRowLock,
   openLockHolder,
   raceBlocked,
   waitForBlocked,
-} from "../../test/lock-holder.js";
+} from "../../test/support/lock-holder.js";
 import { ApiError } from "../../shared/http/api-error.js";
 import {
   acceptContract,

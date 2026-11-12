@@ -6,7 +6,7 @@ import { receiveSignup } from "./auth.service.js";
 import {
   authenticateAccount,
   getBearerToken,
-} from "../../shared/http/auth.middleware.js";
+} from "../../shared/http/auth/auth.middleware.js";
 
 interface AuthStatusData {
   role: "client" | "freelancer";

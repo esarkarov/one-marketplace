@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { createAppLogger, createRootLogger } from "./logger.js";
-import { captureLogs } from "../test/capture-logs.js";
-import { fakeStripeKey, fakeWebhookSecret } from "../test/fake-secrets.js";
+import { captureLogs } from "../test/support/capture-logs.js";
+import {
+  fakeStripeKey,
+  fakeWebhookSecret,
+} from "../test/support/fake-secrets.js";
 import { sanitizeForLog } from "../shared/utils/sanitize-log.js";
 
 describe("sanitizeForLog", () => {

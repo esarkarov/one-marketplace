@@ -1,8 +1,8 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { RequestHandler } from "express";
-import { asyncHandler } from "./async-handler.js";
-import { ApiError } from "./api-error.js";
-import { env } from "../../config/env.js";
+import { asyncHandler } from "../async-handler.js";
+import { ApiError } from "../api-error.js";
+import { env } from "../../../config/env.js";
 
 const verifyToken = (token: string | undefined, secret: string): boolean => {
   if (!token) return false;

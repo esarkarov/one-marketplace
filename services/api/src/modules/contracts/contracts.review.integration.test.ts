@@ -59,11 +59,11 @@ import {
   messages,
   proposals,
 } from "../../database/schema.js";
-import { errorHandler } from "../../shared/http/error.middleware.js";
-import { assertTestDatabase } from "../../test/assert-test-database.js";
+import { errorHandler } from "../../app-middleware/error.middleware.js";
+import { assertTestDatabase } from "../../test/setup/assert-test-database.js";
 import { ApiError } from "../../shared/http/api-error.js";
 import { splitFee } from "../../shared/money/money.js";
-import { holdRowLock, raceBlocked } from "../../test/lock-holder.js";
+import { holdRowLock, raceBlocked } from "../../test/support/lock-holder.js";
 import { reviewMilestoneWork } from "./contracts.controller.js";
 import {
   addContractMilestone,

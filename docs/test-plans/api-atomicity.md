@@ -6,7 +6,7 @@
 - `services/api/src/modules/meetings/meetings.controller.ts`: Daily webhook claim (`webhook:daily:<event id>`), claim released on error.
 - `services/api/src/modules/contracts/contracts.service.ts`: `reviewContractMilestone` now updates the milestone with `WHERE id AND status = 'ACTIVE' AND payment_requested_at IS NOT NULL RETURNING`; no row means 409 "This milestone is not awaiting review."; a `23505` on `earning_history_milestone_id_unique` (also found through `cause`) maps to the same 409 and rolls back.
 
-Use only the `_test` database (`src/test/setup.ts` guards) and Stripe/Daily test or mocked data. Never use or print the real `.env`. Do not run any `db:*` script or start the API against the dev database for the automated part. The manual scenarios in section 2 need a running API and must only be run against a dev database that the user has already migrated (migration `0001`, see `api-payouts.md`).
+Use only the `_test` database (`src/test/setup/setup.ts` guards) and Stripe/Daily test or mocked data. Never use or print the real `.env`. Do not run any `db:*` script or start the API against the dev database for the automated part. The manual scenarios in section 2 need a running API and must only be run against a dev database that the user has already migrated (migration `0001`, see `api-payouts.md`).
 
 Legend: U unit, I integration (real Postgres `_test`), E end to end / manual.
 

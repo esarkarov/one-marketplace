@@ -101,7 +101,7 @@ import {
   proposals,
   reviews,
 } from "../../database/schema.js";
-import { assertTestDatabase } from "../../test/assert-test-database.js";
+import { assertTestDatabase } from "../../test/setup/assert-test-database.js";
 import { AGENCY_PERMISSIONS } from "./agency.permissions.js";
 
 const { app } = await import("../../app.js");

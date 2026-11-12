@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@clerk/backend", () => ({ verifyToken: mocks.verifyToken }));
 
-vi.mock("../../config/env.js", () => ({
+vi.mock("../../../config/env.js", () => ({
   env: {
     clerkSecretKey: "sk_test",
     clientDashboard: "https://client.example.test/",
@@ -15,11 +15,11 @@ vi.mock("../../config/env.js", () => ({
   },
 }));
 
-vi.mock("../../infrastructure/redis.js", () => ({
+vi.mock("../../../infrastructure/redis.js", () => ({
   redis: { get: async () => null, setEx: async () => "OK" },
 }));
 
-vi.mock("../../database/client.js", () => {
+vi.mock("../../../database/client.js", () => {
   const chain = {
     from: () => chain,
     where: () => chain,
@@ -28,7 +28,7 @@ vi.mock("../../database/client.js", () => {
   return { db: { select: () => chain } };
 });
 
-const { allowedOrigins } = await import("../../config/cors.js");
+const { allowedOrigins } = await import("../../../config/cors.js");
 const { authenticateAccount, isAuthenticated } =
   await import("./auth.middleware.js");
 

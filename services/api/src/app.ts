@@ -7,12 +7,12 @@ import { ApiResponse } from "./types/common.types.js";
 import { API_PREFIX } from "./config/constants.js";
 import { WEBHOOK_PATHS } from "./config/webhooks.js";
 import { apiRouter } from "./routes/index.js";
-import { notFoundHandler } from "./shared/http/not-found.middleware.js";
-import { errorHandler } from "./shared/http/error.middleware.js";
-import { createHttpLogger } from "./shared/http/http-logger.middleware.js";
-import { requestIdMiddleware } from "./shared/http/request-id.middleware.js";
-import { jsonBody } from "./shared/http/json-body.middleware.js";
-import { globalLimiter } from "./shared/http/rate-limit.middleware.js";
+import { notFoundHandler } from "./app-middleware/not-found.middleware.js";
+import { errorHandler } from "./app-middleware/error.middleware.js";
+import { createHttpLogger } from "./app-middleware/http-logger.middleware.js";
+import { requestIdMiddleware } from "./app-middleware/request-id.middleware.js";
+import { jsonBody } from "./shared/http/limits/json-body.middleware.js";
+import { globalLimiter } from "./shared/http/limits/rate-limit.middleware.js";
 
 export const app = express();
 

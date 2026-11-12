@@ -27,12 +27,12 @@ vi.mock("../../database/client.js", () => ({
   pool: { end: async () => undefined },
 }));
 
-vi.mock("../../shared/http/rate-limit.middleware.js", () => ({
+vi.mock("../../shared/http/limits/rate-limit.middleware.js", () => ({
   adminLimiter: (_req: unknown, _res: unknown, next: () => void) => next(),
   adminLoginLimiter: (_req: unknown, _res: unknown, next: () => void) => next(),
 }));
 
-vi.mock("../../shared/http/admin-session.middleware.js", () => {
+vi.mock("../../shared/http/auth/admin-session.middleware.js", () => {
   const passThrough = (_req: unknown, _res: unknown, next: () => void) =>
     next();
   return {
@@ -42,7 +42,8 @@ vi.mock("../../shared/http/admin-session.middleware.js", () => {
 });
 
 const { adminRouter } = await import("./admin.route.js");
-const { errorHandler } = await import("../../shared/http/error.middleware.js");
+const { errorHandler } =
+  await import("../../app-middleware/error.middleware.js");
 
 const app = express();
 app.use("/admin", adminRouter);

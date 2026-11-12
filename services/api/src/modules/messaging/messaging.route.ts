@@ -10,9 +10,9 @@ import {
   isAuthenticated,
   resolveAccountRole,
   verifyBearerToken,
-} from "../../shared/http/auth.middleware.js";
-import { largeJsonBody } from "../../shared/http/json-body.middleware.js";
-import { messageWriteLimiter } from "../../shared/http/user-rate-limit.middleware.js";
+} from "../../shared/http/auth/auth.middleware.js";
+import { largeJsonBody } from "../../shared/http/limits/json-body.middleware.js";
+import { messageWriteLimiter } from "../../shared/http/limits/user-rate-limit.middleware.js";
 import { validate } from "../../shared/http/validate.middleware.js";
 import {
   conversationParamsSchema,

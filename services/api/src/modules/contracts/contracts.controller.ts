@@ -7,7 +7,7 @@ import { asyncHandler } from "../../shared/http/async-handler.js";
 import {
   requireClient,
   requireFreelancer,
-} from "../../shared/http/role-guards.js";
+} from "../../shared/http/auth/role-guards.js";
 import {
   getAgencyIdForMember,
   requireAgencyPermission,

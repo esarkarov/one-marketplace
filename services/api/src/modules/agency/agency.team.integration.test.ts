@@ -52,7 +52,7 @@ import {
   agency_invitations,
   agency_members,
 } from "../../database/schema.js";
-import { assertTestDatabase } from "../../test/assert-test-database.js";
+import { assertTestDatabase } from "../../test/setup/assert-test-database.js";
 
 const { app } = await import("../../app.js");
 

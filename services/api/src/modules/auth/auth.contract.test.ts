@@ -46,7 +46,7 @@ vi.mock("../../infrastructure/redis.js", () => ({
 }));
 
 import { pool } from "../../database/client.js";
-import { assertTestDatabase } from "../../test/assert-test-database.js";
+import { assertTestDatabase } from "../../test/setup/assert-test-database.js";
 import { authStatusResponses, signUpResponses } from "./auth.responses.js";
 
 const { app } = await import("../../app.js");

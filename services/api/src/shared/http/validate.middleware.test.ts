@@ -3,7 +3,7 @@ import request from "supertest";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { uuidParams, withIgnoredKeys } from "../validation/common-schemas.js";
-import { errorHandler } from "./error.middleware.js";
+import { errorHandler } from "../../app-middleware/error.middleware.js";
 import {
   VALIDATION_SCHEMAS,
   getValidationSchemas,

@@ -35,7 +35,7 @@ import {
   freelancer_metadata,
   freelancer_portfolios,
 } from "../../database/schema.js";
-import { assertTestDatabase } from "../../test/assert-test-database.js";
+import { assertTestDatabase } from "../../test/setup/assert-test-database.js";
 import { updateAgencyProfile } from "../../modules/agency/agency.service.js";
 import { saveFreelancerProfile } from "../../modules/freelancer/freelancer.service.js";
 

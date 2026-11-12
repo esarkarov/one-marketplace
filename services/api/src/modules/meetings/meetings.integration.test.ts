@@ -86,8 +86,8 @@ import {
   meetings,
   messages,
 } from "../../database/schema.js";
-import { errorHandler } from "../../shared/http/error.middleware.js";
-import { assertTestDatabase } from "../../test/assert-test-database.js";
+import { errorHandler } from "../../app-middleware/error.middleware.js";
+import { assertTestDatabase } from "../../test/setup/assert-test-database.js";
 import { dailyWebhookHandler } from "./meetings.controller.js";
 import { endMeetingByRoomName } from "./meetings.service.js";
 

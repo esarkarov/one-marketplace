@@ -4,7 +4,7 @@
 
 - `services/api/src/modules/contracts/contracts.service.ts`: `submitContractMilestone`, `acceptContract`, `addContractMilestone`, `finishContractWithReview` (design: `docs/decisions/0007-guarded-state-transitions.md`).
 - `services/api/src/modules/meetings/meetings.service.ts`: `startMeeting` with the partial unique index `meetings_one_active_per_conversation_unique` (migration `drizzle/0003_brave_legion.sql`).
-- `services/api/src/shared/http/api-error.ts` and `src/shared/http/error.middleware.ts`: optional `code` in 4xx bodies.
+- `services/api/src/shared/http/api-error.ts` and `src/app-middleware/error.middleware.ts`: optional `code` in 4xx bodies.
 
 Use only the `_test` database and mocked Stripe/Daily. Never use or print the real `.env`.
 
@@ -18,7 +18,7 @@ pnpm --filter @onemarketplace/api test:quiet src/modules/contracts src/modules/m
 
 ## Race technique
 
-`src/test/lock-holder.ts` opens a transaction that holds `SELECT ... FOR UPDATE` on one row (`holdRowLock`), starts the competing calls, and waits until `pg_stat_activity` shows them in a lock wait whose `pg_blocking_pids` lead to the holder (`waitForBlocked`, polling, no fixed sleeps). It then rolls the holder back and the calls proceed in a known state. `raceBlocked` with `ordered: true` starts them one at a time so the queue order is fixed.
+`src/test/support/lock-holder.ts` opens a transaction that holds `SELECT ... FOR UPDATE` on one row (`holdRowLock`), starts the competing calls, and waits until `pg_stat_activity` shows them in a lock wait whose `pg_blocking_pids` lead to the holder (`waitForBlocked`, polling, no fixed sleeps). It then rolls the holder back and the calls proceed in a known state. `raceBlocked` with `ordered: true` starts them one at a time so the queue order is fixed.
 
 ## Automated coverage
 
@@ -100,4 +100,4 @@ Test file: `modules/agency/agency.team.integration.test.ts` (real `_test` databa
 | M10 `createConversation` proposal agency counterpart check removed                              | caught                                                           |
 | M9 `createAgency` sequential pre-check removed alone                                            | equivalent mutant: same 409 through the 23505 mapping, not a gap |
 
-`resolveAccountRole` 403 was already covered by an existing test in `large-body-auth.test.ts`, so it needed no new mutation.
+`resolveAccountRole` 403 was already covered by an existing test in `auth.middleware.body-order.test.ts`, so it needed no new mutation.

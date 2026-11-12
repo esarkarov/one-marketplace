@@ -2,14 +2,10 @@ import express from "express";
 import type { Request, Response } from "express";
 import request from "supertest";
 import { describe, expect, it, vi } from "vitest";
-import {
-  createAppLogger,
-  createRootLogger,
-  logger,
-} from "../../config/logger.js";
-import { captureLogs } from "../../test/capture-logs.js";
-import { fakeStripeKey } from "../../test/fake-secrets.js";
-import { ApiError } from "./api-error.js";
+import { createAppLogger, createRootLogger, logger } from "../config/logger.js";
+import { captureLogs } from "../test/support/capture-logs.js";
+import { fakeStripeKey } from "../test/support/fake-secrets.js";
+import { ApiError } from "../shared/http/api-error.js";
 import { errorHandler } from "./error.middleware.js";
 import { requestIdMiddleware } from "./request-id.middleware.js";
 

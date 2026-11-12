@@ -1,8 +1,8 @@
 import { rateLimit } from "express-rate-limit";
 import type { Options } from "express-rate-limit";
-import { env } from "../../config/env.js";
-import { WEBHOOK_PATHS } from "../../config/webhooks.js";
-import type { ApiResponse } from "../../types/common.types.js";
+import { env } from "../../../config/env.js";
+import { WEBHOOK_PATHS } from "../../../config/webhooks.js";
+import type { ApiResponse } from "../../../types/common.types.js";
 
 const FIFTEEN_MINUTES = 15 * 60 * 1000;
 const ONE_HOUR = 60 * 60 * 1000;

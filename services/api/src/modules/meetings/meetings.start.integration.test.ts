@@ -62,12 +62,12 @@ import {
   meetings,
   messages,
 } from "../../database/schema.js";
-import { assertTestDatabase } from "../../test/assert-test-database.js";
+import { assertTestDatabase } from "../../test/setup/assert-test-database.js";
 import {
   raceBlocked,
   waitForBlocked,
   type LockHolder,
-} from "../../test/lock-holder.js";
+} from "../../test/support/lock-holder.js";
 import { startMeeting } from "./meetings.service.js";
 
 const PREFIX = "meeting-start-it-";

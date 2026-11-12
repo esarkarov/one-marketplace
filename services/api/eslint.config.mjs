@@ -69,6 +69,7 @@ export default defineConfig([
       "src/config/**/*.ts",
       "src/infrastructure/**/*.ts",
       "src/shared/**/*.ts",
+      "src/app-middleware/**/*.ts",
       "src/bootstrap/**/*.ts",
       "src/database/db-executor.ts",
       "src/routes/**/*.ts",

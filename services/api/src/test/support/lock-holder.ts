@@ -1,6 +1,6 @@
 import type { PoolClient } from "pg";
 import { expect } from "vitest";
-import { pool } from "../database/client.js";
+import { pool } from "../../database/client.js";
 
 const BLOCKED_QUERIES = `
   select count(*)::int as blocked

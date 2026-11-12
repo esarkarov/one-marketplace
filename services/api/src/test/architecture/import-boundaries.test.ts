@@ -13,6 +13,7 @@ const infrastructureDirs = [
   "config",
   "infrastructure",
   "shared",
+  "app-middleware",
   "database",
   "types",
   "openapi",
@@ -179,6 +180,19 @@ describe("import boundaries", () => {
       .filter((v) => v.rule === "infrastructure-direction")
       .map((v) => pairKey(v.edge))
       .filter((key) => !exceptionKeys.has(key));
+    expect([...new Set(offending)].join("\n")).toBe("");
+  });
+
+  it("app-middleware: only app.ts imports it", () => {
+    const offending = edges
+      .filter(
+        ({ importer, imported }) =>
+          topDirOf(imported) === "app-middleware" &&
+          topDirOf(importer) !== "app-middleware" &&
+          importer !== "app.ts" &&
+          !isTestFile(importer),
+      )
+      .map(pairKey);
     expect([...new Set(offending)].join("\n")).toBe("");
   });
 

@@ -4,7 +4,7 @@ import { asyncHandler } from "../../shared/http/async-handler.js";
 import {
   requireClient,
   requireFreelancer,
-} from "../../shared/http/role-guards.js";
+} from "../../shared/http/auth/role-guards.js";
 import { requireText } from "../../config/constants.js";
 import { ApiError } from "../../shared/http/api-error.js";
 import type { submitProposalBodySchema } from "../../shared/validation/money-schemas.js";

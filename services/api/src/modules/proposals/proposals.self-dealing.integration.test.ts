@@ -41,7 +41,7 @@ import {
   job_posts,
   proposals,
 } from "../../database/schema.js";
-import { assertTestDatabase } from "../../test/assert-test-database.js";
+import { assertTestDatabase } from "../../test/setup/assert-test-database.js";
 import { submitAgencyProposal, submitProposal } from "./proposals.service.js";
 
 const PREFIX = "self-deal-it-";

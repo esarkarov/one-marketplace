@@ -69,7 +69,7 @@ import {
   messages,
   proposals,
 } from "../../database/schema.js";
-import { assertTestDatabase } from "../../test/assert-test-database.js";
+import { assertTestDatabase } from "../../test/setup/assert-test-database.js";
 import { messagingResponses } from "./messaging.responses.js";
 
 const { app } = await import("../../app.js");

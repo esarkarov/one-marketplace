@@ -24,11 +24,11 @@ import { redisKeyParamsSchema, redisScanQuerySchema } from "./admin-redis.js";
 import {
   requireAdminSession,
   requireAdminSessionAllowingQueryToken,
-} from "../../shared/http/admin-session.middleware.js";
+} from "../../shared/http/auth/admin-session.middleware.js";
 import {
   adminLimiter,
   adminLoginLimiter,
-} from "../../shared/http/rate-limit.middleware.js";
+} from "../../shared/http/limits/rate-limit.middleware.js";
 
 export const adminRouter = Router();
 

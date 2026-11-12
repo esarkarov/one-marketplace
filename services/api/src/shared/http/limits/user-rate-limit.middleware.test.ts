@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({ nodeEnv: "production" }));
 
-vi.mock("../../config/env.js", () => ({
+vi.mock("../../../config/env.js", () => ({
   env: {
     get nodeEnv() {
       return mocks.nodeEnv;

@@ -1,6 +1,6 @@
 import express from "express";
 import type { RequestHandler } from "express";
-import { API_PREFIX } from "../../config/constants.js";
+import { API_PREFIX } from "../../../config/constants.js";
 
 const DEFAULT_JSON_LIMIT = "100kb";
 const LARGE_JSON_LIMIT = "20mb";

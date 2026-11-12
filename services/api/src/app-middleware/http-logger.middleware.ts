@@ -1,8 +1,8 @@
 import type { RequestHandler } from "express";
 import type { Logger } from "pino";
 import { pinoHttp } from "pino-http";
-import { createAppLogger, rootLogger } from "../../config/logger.js";
-import { API_PREFIX } from "../../config/constants.js";
+import { createAppLogger, rootLogger } from "../config/logger.js";
+import { API_PREFIX } from "../config/constants.js";
 
 const IGNORED_PATHS = new Set([`${API_PREFIX}/health`, `${API_PREFIX}/ready`]);
 
