@@ -16,7 +16,7 @@ On-demand checklist for `services/api`. Rules and rationale: `services/api/AGENT
 3. Add a contract test (`<name>.contract.test.ts`) that parses real responses with those schemas, and a validation test (`<name>.validation.test.ts`).
 4. Only raw-body webhooks and event streams may use `routes/validation-allowlist.ts` and `routes/contract-allowlist.ts`, each with a written reason.
 5. Run `pnpm --filter @onemarketplace/api openapi:generate` and commit the regenerated `docs/api/openapi.json`.
-6. Only when ADR 0014 thresholds are met, split the module as `modules/contracts/` does: `services/<name>.<use-case>.service.ts` files with no barrel (the controller imports each file), one leaf `<name>.helpers.ts` for code shared by several use cases that imports no sibling service, and tests in `tests/`. Otherwise stay flat.
+6. Only when ADR 0014 thresholds are met, split the module as `modules/contracts/` does: `services/<name>.<use-case>.service.ts` files with no barrel (the controller imports each file), one leaf `<name>.helpers.ts` for code shared by several use cases that imports no sibling service, and tests in `tests/`. Add `<name>.repository.ts` only past the ADR 0014 repository threshold: plain functions with a `DbExecutor` first parameter for repeated or long unguarded queries; `FOR UPDATE` locks, state-guarded updates and inserts, and transaction boundaries stay in the service, which passes its transaction handle. Otherwise stay flat.
 7. Authorization and object ownership are enforced in the service, not only the route.
 
 ## Rules that apply to both

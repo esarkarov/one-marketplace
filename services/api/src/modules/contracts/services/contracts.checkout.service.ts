@@ -1,5 +1,5 @@
 import type Stripe from "stripe";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { env } from "../../../config/env.js";
 import { stripe } from "../../../infrastructure/stripe.js";
 import { db } from "../../../database/client.js";
@@ -7,16 +7,20 @@ import {
   accounts,
   contract_milestones,
   contracts,
-  conversation_participants,
   conversations,
   job_posts,
-  messages,
   proposals,
 } from "../../../database/schema.js";
 import { ApiError } from "../../../shared/http/api-error.js";
 import { sendNotification } from "../../../infrastructure/events/publisher.js";
 import { emitConversationUpdate } from "../../messaging/messaging.public.js";
 import { getAgencyOwnerId } from "../../agency/agency.public.js";
+import {
+  findMilestoneForFunding,
+  incrementUnreadCount,
+  insertMessages,
+  setConversationLastMessage,
+} from "../contracts.repository.js";
 import { participantMatch } from "./contracts.helpers.js";
 
 export const createContractCheckout = async (
@@ -108,44 +112,12 @@ export const createMilestoneFundingCheckout = async (
     throw new ApiError(503, "Contract payments are not configured.");
   }
 
-  const [milestone] = await db
-    .select({
-      contractId: contracts.id,
-      contractTitle: contracts.title,
-      contractStatus: contracts.status,
-      milestoneId: contract_milestones.id,
-      milestoneTitle: contract_milestones.title,
-      milestoneAmountCents: contract_milestones.amount_cents,
-      milestonePosition: contract_milestones.position,
-      milestoneStatus: contract_milestones.status,
-      fundedAt: contract_milestones.funded_at,
-      customerId: accounts.stripe_customer_id,
-      incompletePrevious: sql<number>`(
-        select count(*)::int from contract_milestones previous
-        where previous.contract_id = ${contracts.id}
-          and previous.position < ${contract_milestones.position}
-          and previous.status <> 'COMPLETED'
-      )`,
-      activeMilestones: sql<number>`(
-        select count(*)::int from contract_milestones active
-        where active.contract_id = ${contracts.id}
-          and active.status = 'ACTIVE'
-      )`,
-    })
-    .from(contracts)
-    .innerJoin(
-      contract_milestones,
-      eq(contract_milestones.contract_id, contracts.id),
-    )
-    .innerJoin(accounts, eq(accounts.auth_id, contracts.client_id))
-    .where(
-      and(
-        eq(contracts.id, contractId),
-        eq(contracts.client_id, clientId),
-        eq(contract_milestones.id, milestoneId),
-      ),
-    )
-    .limit(1);
+  const [milestone] = await findMilestoneForFunding(
+    db,
+    clientId,
+    contractId,
+    milestoneId,
+  );
 
   if (!milestone) throw new ApiError(404, "Contract milestone not found.");
   if (
@@ -279,9 +251,8 @@ export const fundContractMilestoneFromPayment = async (
       .returning({ id: contract_milestones.id });
     if (!updated) return false;
 
-    const [message] = await transaction
-      .insert(messages)
-      .values({
+    const [message] = await insertMessages(transaction, [
+      {
         conversation_id: milestone.conversationId,
         sender_id: clientId,
         message_type: "SYSTEM_EVENT",
@@ -294,29 +265,21 @@ export const fundContractMilestoneFromPayment = async (
           amountCents: milestone.milestoneAmountCents,
           requirements: session.metadata?.requirements || null,
         },
-      })
-      .returning({ id: messages.id, createdAt: messages.created_at });
+      },
+    ]);
     if (!message) throw new ApiError(500, "Milestone funding message failed.");
-    await transaction
-      .update(conversations)
-      .set({
-        last_message_id: message.id,
-        last_message_at: message.createdAt,
-        updated_at: now,
-      })
-      .where(eq(conversations.id, milestone.conversationId));
-    await transaction
-      .update(conversation_participants)
-      .set({ unread_count: sql`${conversation_participants.unread_count} + 1` })
-      .where(
-        and(
-          eq(
-            conversation_participants.conversation_id,
-            milestone.conversationId,
-          ),
-          participantMatch(recipientId, milestone.agencyId),
-        ),
-      );
+    await setConversationLastMessage(
+      transaction,
+      milestone.conversationId,
+      message,
+      now,
+    );
+    await incrementUnreadCount(
+      transaction,
+      milestone.conversationId,
+      participantMatch(recipientId, milestone.agencyId),
+      1,
+    );
     return true;
   });
 

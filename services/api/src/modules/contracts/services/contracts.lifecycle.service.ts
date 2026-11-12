@@ -12,7 +12,6 @@ import {
   conversation_participants,
   conversations,
   job_posts,
-  messages,
   proposals,
   reviews,
 } from "../../../database/schema.js";
@@ -21,6 +20,12 @@ import { sendNotification } from "../../../infrastructure/events/publisher.js";
 import { emitConversationUpdate } from "../../messaging/messaging.public.js";
 import { getJSSContribution } from "../../freelancer/freelancer.public.js";
 import { getAgencyOwnerId } from "../../agency/agency.public.js";
+import {
+  findContractForReview,
+  incrementUnreadCount,
+  insertMessages,
+  setConversationLastMessage,
+} from "../contracts.repository.js";
 import { participantMatch } from "./contracts.helpers.js";
 
 const REVIEW_CONTRACT_REVIEWER_UNIQUE = "reviews_contract_reviewer_unique";
@@ -54,48 +59,13 @@ export const finishContractWithReview = async (
   comment: string,
   agencyId?: string | null,
 ) => {
-  const [contract] = await db
-    .select({
-      id: contracts.id,
-      title: contracts.title,
-      status: contracts.status,
-      clientId: contracts.client_id,
-      freelancerId: contracts.freelancer_id,
-      agencyId: contracts.agency_id,
-      conversationId: conversations.id,
-      // Same "agency as one entity" check as reviewedByCurrentUser above:
-      // once any teammate reviews on the agency's behalf, no other teammate
-      // should be able to submit a second review for the same contract.
-      existingReview:
-        role !== "client" && agencyId
-          ? sql<number>`(
-              select count(*)::int from reviews existing_review
-              where existing_review.contract_id = ${contracts.id}
-                and existing_review.agency_id = ${agencyId}
-                and existing_review.reviewee_id = ${contracts.client_id}
-            )`
-          : sql<number>`(
-              select count(*)::int from reviews existing_review
-              where existing_review.contract_id = ${contracts.id}
-                and existing_review.reviewer_id = ${reviewerId}
-            )`,
-    })
-    .from(contracts)
-    .leftJoin(
-      conversations,
-      eq(conversations.proposal_id, contracts.proposal_id),
-    )
-    .where(
-      and(
-        eq(contracts.id, contractId),
-        role === "client"
-          ? eq(contracts.client_id, reviewerId)
-          : agencyId
-            ? eq(contracts.agency_id, agencyId)
-            : eq(contracts.freelancer_id, reviewerId),
-      ),
-    )
-    .limit(1);
+  const [contract] = await findContractForReview(
+    db,
+    contractId,
+    reviewerId,
+    role,
+    agencyId,
+  );
 
   if (!contract) throw new ApiError(404, "Contract not found.");
   if (contract.status === "PENDING") {
@@ -253,9 +223,8 @@ export const finishContractWithReview = async (
         });
 
       if (contract.conversationId) {
-        const [message] = await transaction
-          .insert(messages)
-          .values({
+        const [message] = await insertMessages(transaction, [
+          {
             conversation_id: contract.conversationId,
             sender_id: reviewerId,
             message_type: "SYSTEM_EVENT",
@@ -263,34 +232,24 @@ export const finishContractWithReview = async (
             event_type: "CONTRACT_COMPLETED",
             event_payload: { contractId: contract.id, title: contract.title },
             created_at: now,
-          })
-          .returning({ id: messages.id, createdAt: messages.created_at });
+          },
+        ]);
         if (message) {
-          await transaction
-            .update(conversations)
-            .set({
-              last_message_id: message.id,
-              last_message_at: message.createdAt,
-              updated_at: now,
-            })
-            .where(eq(conversations.id, contract.conversationId));
-          await transaction
-            .update(conversation_participants)
-            .set({
-              unread_count: sql`${conversation_participants.unread_count} + 1`,
-            })
-            .where(
-              and(
-                eq(
-                  conversation_participants.conversation_id,
-                  contract.conversationId,
-                ),
-                participantMatch(
-                  revieweeId,
-                  role === "client" ? contract.agencyId : null,
-                ),
-              ),
-            );
+          await setConversationLastMessage(
+            transaction,
+            contract.conversationId,
+            message,
+            now,
+          );
+          await incrementUnreadCount(
+            transaction,
+            contract.conversationId,
+            participantMatch(
+              revieweeId,
+              role === "client" ? contract.agencyId : null,
+            ),
+            1,
+          );
         }
       }
     })
@@ -423,9 +382,8 @@ export const acceptContract = async (
         },
       });
 
-    const [message] = await transaction
-      .insert(messages)
-      .values({
+    const [message] = await insertMessages(transaction, [
+      {
         conversation_id: offer.conversationId,
         sender_id: freelancerId,
         message_type: "SYSTEM_EVENT",
@@ -434,31 +392,24 @@ export const acceptContract = async (
           : "The freelancer accepted the contract offer. The contract is now active.",
         event_type: "CONTRACT_ACCEPTED",
         event_payload: { contractId: offer.id, title: offer.title },
-      })
-      .returning({ id: messages.id, createdAt: messages.created_at });
+      },
+    ]);
     if (!message)
       throw new ApiError(500, "Contract message could not be sent.");
 
-    await transaction
-      .update(conversations)
-      .set({
-        last_message_id: message.id,
-        last_message_at: message.createdAt,
-        updated_at: now,
-      })
-      .where(eq(conversations.id, offer.conversationId));
+    await setConversationLastMessage(
+      transaction,
+      offer.conversationId,
+      message,
+      now,
+    );
 
-    await transaction
-      .update(conversation_participants)
-      .set({
-        unread_count: sql`${conversation_participants.unread_count} + 1`,
-      })
-      .where(
-        and(
-          eq(conversation_participants.conversation_id, offer.conversationId),
-          eq(conversation_participants.account_id, offer.clientId),
-        ),
-      );
+    await incrementUnreadCount(
+      transaction,
+      offer.conversationId,
+      eq(conversation_participants.account_id, offer.clientId),
+      1,
+    );
   });
 
   return { ...offer, freelancerId };
@@ -562,9 +513,8 @@ export const createContractFromPayment = async (
       .set({ paymentMethodVerified: true, updated_at: new Date() })
       .where(eq(accounts.auth_id, clientId));
 
-    const [message] = await transaction
-      .insert(messages)
-      .values({
+    const [message] = await insertMessages(transaction, [
+      {
         conversation_id: offer.conversationId,
         sender_id: clientId,
         message_type: "SYSTEM_EVENT",
@@ -579,32 +529,25 @@ export const createContractFromPayment = async (
             amountCents: amounts[0],
           },
         },
-      })
-      .returning({ id: messages.id, createdAt: messages.created_at });
+      },
+    ]);
 
     if (!message)
       throw new ApiError(500, "Contract message could not be sent.");
 
-    await transaction
-      .update(conversations)
-      .set({
-        last_message_id: message.id,
-        last_message_at: message.createdAt,
-        updated_at: new Date(),
-      })
-      .where(eq(conversations.id, offer.conversationId));
+    await setConversationLastMessage(
+      transaction,
+      offer.conversationId,
+      message,
+      new Date(),
+    );
 
-    await transaction
-      .update(conversation_participants)
-      .set({
-        unread_count: sql`${conversation_participants.unread_count} + 1`,
-      })
-      .where(
-        and(
-          eq(conversation_participants.conversation_id, offer.conversationId),
-          ne(conversation_participants.participant_type, "CLIENT"),
-        ),
-      );
+    await incrementUnreadCount(
+      transaction,
+      offer.conversationId,
+      ne(conversation_participants.participant_type, "CLIENT"),
+      1,
+    );
 
     return { contractId: contract.id };
   });

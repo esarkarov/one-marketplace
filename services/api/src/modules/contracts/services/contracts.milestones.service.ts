@@ -12,13 +12,19 @@ import {
   conversation_participants,
   conversations,
   job_posts,
-  messages,
 } from "../../../database/schema.js";
 import { ApiError } from "../../../shared/http/api-error.js";
 import { splitFee } from "../../../shared/money/money.js";
 import { sendNotification } from "../../../infrastructure/events/publisher.js";
 import { emitConversationUpdate } from "../../messaging/messaging.public.js";
 import { getAgencyOwnerId } from "../../agency/agency.public.js";
+import {
+  findContractForNewMilestone,
+  findMilestoneForSubmission,
+  incrementUnreadCount,
+  insertMessages,
+  setConversationLastMessage,
+} from "../contracts.repository.js";
 import { participantMatch } from "./contracts.helpers.js";
 
 const milestoneAddNotAllowed = () =>
@@ -43,36 +49,13 @@ export const submitContractMilestone = async (
   submissionDeliveryLink?: string,
   agencyId?: string | null,
 ) => {
-  const [milestone] = await db
-    .select({
-      contractId: contracts.id,
-      contractTitle: contracts.title,
-      contractStatus: contracts.status,
-      clientId: contracts.client_id,
-      milestoneId: contract_milestones.id,
-      milestoneTitle: contract_milestones.title,
-      milestoneAmountCents: contract_milestones.amount_cents,
-      conversationId: conversations.id,
-    })
-    .from(contracts)
-    .innerJoin(
-      contract_milestones,
-      eq(contract_milestones.contract_id, contracts.id),
-    )
-    .innerJoin(
-      conversations,
-      eq(conversations.proposal_id, contracts.proposal_id),
-    )
-    .where(
-      and(
-        eq(contracts.id, contractId),
-        agencyId
-          ? eq(contracts.agency_id, agencyId)
-          : eq(contracts.freelancer_id, freelancerId),
-        eq(contract_milestones.id, milestoneId),
-      ),
-    )
-    .limit(1);
+  const [milestone] = await findMilestoneForSubmission(
+    db,
+    contractId,
+    milestoneId,
+    freelancerId,
+    agencyId,
+  );
 
   if (!milestone) throw new ApiError(404, "Contract milestone not found.");
   if (milestone.contractStatus !== "ACTIVE") throw milestoneNotSubmittable();
@@ -97,9 +80,8 @@ export const submitContractMilestone = async (
       .returning({ id: contract_milestones.id });
     if (!submitted) throw milestoneNotSubmittable();
 
-    const [message] = await transaction
-      .insert(messages)
-      .values({
+    const [message] = await insertMessages(transaction, [
+      {
         conversation_id: milestone.conversationId,
         sender_id: freelancerId,
         message_type: "SYSTEM_EVENT",
@@ -114,31 +96,23 @@ export const submitContractMilestone = async (
           submissionMessage,
           submissionDeliveryLink: submissionDeliveryLink ?? null,
         },
-      })
-      .returning({ id: messages.id, createdAt: messages.created_at });
+      },
+    ]);
     if (!message)
       throw new ApiError(500, "Milestone submission could not be sent.");
 
-    await transaction
-      .update(conversations)
-      .set({
-        last_message_id: message.id,
-        last_message_at: message.createdAt,
-        updated_at: now,
-      })
-      .where(eq(conversations.id, milestone.conversationId));
-    await transaction
-      .update(conversation_participants)
-      .set({ unread_count: sql`${conversation_participants.unread_count} + 1` })
-      .where(
-        and(
-          eq(
-            conversation_participants.conversation_id,
-            milestone.conversationId,
-          ),
-          eq(conversation_participants.account_id, milestone.clientId),
-        ),
-      );
+    await setConversationLastMessage(
+      transaction,
+      milestone.conversationId,
+      message,
+      now,
+    );
+    await incrementUnreadCount(
+      transaction,
+      milestone.conversationId,
+      eq(conversation_participants.account_id, milestone.clientId),
+      1,
+    );
   });
 
   return milestone;
@@ -325,36 +299,26 @@ export const reviewContractMilestone = async (
               created_at: new Date(now.getTime() + 1),
             },
           ];
-      const insertedMessages = await transaction
-        .insert(messages)
-        .values(reviewMessages)
-        .returning({ id: messages.id, createdAt: messages.created_at });
+      const insertedMessages = await insertMessages(
+        transaction,
+        reviewMessages,
+      );
       const message = insertedMessages.at(-1);
       if (!message)
         throw new ApiError(500, "Milestone review could not be sent.");
 
-      await transaction
-        .update(conversations)
-        .set({
-          last_message_id: message.id,
-          last_message_at: message.createdAt,
-          updated_at: now,
-        })
-        .where(eq(conversations.id, milestone.conversationId));
-      await transaction
-        .update(conversation_participants)
-        .set({
-          unread_count: sql`${conversation_participants.unread_count} + ${insertedMessages.length}`,
-        })
-        .where(
-          and(
-            eq(
-              conversation_participants.conversation_id,
-              milestone.conversationId,
-            ),
-            participantMatch(freelancerAccountId, milestone.agencyId),
-          ),
-        );
+      await setConversationLastMessage(
+        transaction,
+        milestone.conversationId,
+        message,
+        now,
+      );
+      await incrementUnreadCount(
+        transaction,
+        milestone.conversationId,
+        participantMatch(freelancerAccountId, milestone.agencyId),
+        insertedMessages.length,
+      );
     })
     .catch(async (error: unknown) => {
       if (!isEarningMilestoneConflict(error)) throw error;
@@ -379,24 +343,11 @@ export const addContractMilestone = async (
   clientId: string,
   input: { title: string; amountCents: number; dueDate: string },
 ) => {
-  const [contract] = await db
-    .select({
-      id: contracts.id,
-      jobId: contracts.job_id,
-      freelancerId: contracts.freelancer_id,
-      agencyId: contracts.agency_id,
-      status: contracts.status,
-      jobMilestones: job_posts.milestones,
-      conversationId: conversations.id,
-    })
-    .from(contracts)
-    .innerJoin(job_posts, eq(job_posts.id, contracts.job_id))
-    .leftJoin(
-      conversations,
-      eq(conversations.proposal_id, contracts.proposal_id),
-    )
-    .where(and(eq(contracts.id, contractId), eq(contracts.client_id, clientId)))
-    .limit(1);
+  const [contract] = await findContractForNewMilestone(
+    db,
+    contractId,
+    clientId,
+  );
 
   if (!contract) throw new ApiError(404, "Contract not found.");
 
@@ -470,9 +421,8 @@ export const addContractMilestone = async (
     if (!contract.conversationId) {
       return { milestoneId: milestone.id, conversationId: null };
     }
-    const [message] = await transaction
-      .insert(messages)
-      .values({
+    const [message] = await insertMessages(transaction, [
+      {
         conversation_id: contract.conversationId,
         sender_id: clientId,
         message_type: "SYSTEM_EVENT",
@@ -485,29 +435,21 @@ export const addContractMilestone = async (
           amountCents: input.amountCents,
           dueDate: input.dueDate,
         },
-      })
-      .returning({ id: messages.id, createdAt: messages.created_at });
+      },
+    ]);
     if (!message) throw new ApiError(500, "Milestone event could not be sent.");
-    await transaction
-      .update(conversations)
-      .set({
-        last_message_id: message.id,
-        last_message_at: message.createdAt,
-        updated_at: now,
-      })
-      .where(eq(conversations.id, contract.conversationId));
-    await transaction
-      .update(conversation_participants)
-      .set({ unread_count: sql`${conversation_participants.unread_count} + 1` })
-      .where(
-        and(
-          eq(
-            conversation_participants.conversation_id,
-            contract.conversationId,
-          ),
-          participantMatch(freelancerAccountId, contract.agencyId),
-        ),
-      );
+    await setConversationLastMessage(
+      transaction,
+      contract.conversationId,
+      message,
+      now,
+    );
+    await incrementUnreadCount(
+      transaction,
+      contract.conversationId,
+      participantMatch(freelancerAccountId, contract.agencyId),
+      1,
+    );
     return {
       milestoneId: milestone.id,
       conversationId: contract.conversationId,

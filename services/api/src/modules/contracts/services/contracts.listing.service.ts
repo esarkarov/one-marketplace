@@ -1,83 +1,16 @@
-import { asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { inArray } from "drizzle-orm";
 import { clerk } from "../../../infrastructure/clerk.js";
 import { env } from "../../../config/env.js";
+import { listContractRows } from "../contracts.repository.js";
 import { db } from "../../../database/client.js";
-import {
-  agency_metadata,
-  client_metadata,
-  contract_milestones,
-  contracts,
-  conversations,
-  job_posts,
-} from "../../../database/schema.js";
+import { agency_metadata } from "../../../database/schema.js";
 
 export const getAccountContracts = async (
   userId: string,
   role: "client" | "freelancer" | "agency",
   agencyId?: string | null,
 ) => {
-  const rows = await db
-    .select({
-      id: contracts.id,
-      proposalId: contracts.proposal_id,
-      jobId: contracts.job_id,
-      clientId: contracts.client_id,
-      freelancerId: contracts.freelancer_id,
-      agencyId: contracts.agency_id,
-      title: contracts.title,
-      description: job_posts.description,
-      totalAmountCents: contracts.total_amount_cents,
-      status: contracts.status,
-      startedAt: contracts.started_at,
-      completedAt: contracts.completed_at,
-      createdAt: contracts.created_at,
-      conversationId: conversations.id,
-      clientCompanyName: client_metadata.company_name,
-      milestoneId: contract_milestones.id,
-      milestoneTitle: contract_milestones.title,
-      milestoneAmountCents: contract_milestones.amount_cents,
-      milestoneDueDate: contract_milestones.due_date,
-      milestonePosition: contract_milestones.position,
-      milestoneStatus: contract_milestones.status,
-      milestoneFundedAt: contract_milestones.funded_at,
-      milestonePaymentRequestedAt: contract_milestones.payment_requested_at,
-      milestoneSubmissionMessage: contract_milestones.submission_message,
-      milestoneSubmissionDeliveryLink:
-        contract_milestones.submission_delivery_link,
-      milestoneCompletedAt: contract_milestones.completed_at,
-      reviewedByCurrentUser:
-        role === "agency" && agencyId
-          ? sql<boolean>`exists(
-              select 1 from reviews account_review
-              where account_review.contract_id = ${contracts.id}
-                and account_review.agency_id = ${agencyId}
-                and account_review.reviewee_id = ${contracts.client_id}
-            )`
-          : sql<boolean>`exists(
-              select 1 from reviews account_review
-              where account_review.contract_id = ${contracts.id}
-                and account_review.reviewer_id = ${userId}
-            )`,
-    })
-    .from(contracts)
-    .innerJoin(job_posts, eq(contracts.job_id, job_posts.id))
-    .innerJoin(
-      contract_milestones,
-      eq(contract_milestones.contract_id, contracts.id),
-    )
-    .leftJoin(
-      conversations,
-      eq(conversations.proposal_id, contracts.proposal_id),
-    )
-    .leftJoin(client_metadata, eq(client_metadata.auth_id, contracts.client_id))
-    .where(
-      role === "client"
-        ? eq(contracts.client_id, userId)
-        : role === "agency"
-          ? eq(contracts.agency_id, agencyId!)
-          : eq(contracts.freelancer_id, userId),
-    )
-    .orderBy(desc(contracts.created_at), asc(contract_milestones.position));
+  const rows = await listContractRows(db, userId, role, agencyId);
 
   const counterpartyIds = [
     ...new Set(
