@@ -3,7 +3,10 @@ import { ApiError } from "../../shared/http/api-error.js";
 import { requireFreelancer } from "../../shared/http/role-guards.js";
 import { asyncHandler } from "../../shared/http/async-handler.js";
 import { ApiResponse } from "../../types/common.types.js";
-import { FreelancerProfileData, SaveFreelancerProfileInput } from "./@types.js";
+import {
+  FreelancerProfileData,
+  SaveFreelancerProfileInput,
+} from "./freelancer.types.js";
 import { requireText } from "../../config/constants.js";
 import { parseLiveUrl } from "../../shared/utils/portfolio-images.js";
 import {

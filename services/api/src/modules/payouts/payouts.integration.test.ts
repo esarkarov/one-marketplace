@@ -56,12 +56,12 @@ import {
 } from "../admin/admin.service.js";
 import { getAgencyEarningsOverview } from "../agency/agency.service.js";
 import { getFreelancerEarningsOverview } from "../freelancer/freelancer.service.js";
-import { RETRY_BACKOFF_SECONDS } from "./payout-failure.js";
+import { RETRY_BACKOFF_SECONDS } from "./payouts.failure.js";
 import {
   PayoutTransitionError,
   transitionPayout,
   type PayoutStatus,
-} from "./payout-state.js";
+} from "./payouts.state.js";
 import { processDuePayouts } from "./payouts.service.js";
 
 type LogEntry = {

@@ -34,7 +34,7 @@ vi.mock("../../database/client.js", () => ({
   },
 }));
 
-vi.mock("./notification.sse.js", () => ({
+vi.mock("./notifications.sse.js", () => ({
   emitNotification: mocks.emit,
   emitAgencyNotification: mocks.emitAgency,
 }));

@@ -14,7 +14,7 @@ const {
   buildTransitionGuard,
   claimableCondition,
   transitionPayout,
-} = await import("./payout-state.js");
+} = await import("./payouts.state.js");
 
 const dialect = new PgDialect();
 const id = "7f2b8c1e-9a4d-4e7f-8b21-5c6d7e8f9a0b";

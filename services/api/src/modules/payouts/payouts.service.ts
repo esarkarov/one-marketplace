@@ -18,13 +18,13 @@ import {
   PAYOUT_MAX_ATTEMPTS,
   retryDelaySeconds,
   type PayoutFailure,
-} from "./payout-failure.js";
+} from "./payouts.failure.js";
 import {
   claimableCondition,
   claimPayout,
   transitionPayout,
   type PayoutRecord,
-} from "./payout-state.js";
+} from "./payouts.state.js";
 
 const NOTIFICATION_SWEEP_LIMIT = 300;
 const TRANSFER_LIST_LIMIT = 10;

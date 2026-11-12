@@ -19,7 +19,7 @@ import {
   FreelancerProfileData,
   PortfolioData,
   SaveFreelancerProfileInput,
-} from "./@types.js";
+} from "./freelancer.types.js";
 import { getAgencyIdentityForMember } from "../../shared/utils/agency-identity.js";
 import { env } from "../../config/env.js";
 import { logger } from "../../config/logger.js";

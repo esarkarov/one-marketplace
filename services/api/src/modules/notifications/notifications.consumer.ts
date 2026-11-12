@@ -8,7 +8,7 @@ import { notifications } from "../../database/schema.js";
 import {
   emitAgencyNotification,
   emitNotification,
-} from "./notification.sse.js";
+} from "./notifications.sse.js";
 import {
   errorCodeForLog,
   errorLogAttributes,

@@ -10,7 +10,7 @@ import { getAgencyIdForMember } from "../agency/agency.public.js";
 import {
   addAgencyNotificationClient,
   addNotificationClient,
-} from "./notification.sse.js";
+} from "./notifications.sse.js";
 import { ApiError } from "../../shared/http/api-error.js";
 
 type Scope = "agency" | "default";

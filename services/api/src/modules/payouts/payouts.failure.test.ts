@@ -4,7 +4,7 @@ import {
   bumpIdempotencyKey,
   classifyPayoutFailure,
   retryDelaySeconds,
-} from "./payout-failure.js";
+} from "./payouts.failure.js";
 
 const stripeError = (type: string, statusCode?: number, code?: string) =>
   Object.assign(

@@ -42,7 +42,7 @@ vi.mock("../../database/client.js", () => ({
   },
 }));
 
-vi.mock("../../modules/notifications/notification.sse.js", () => ({
+vi.mock("../../modules/notifications/notifications.sse.js", () => ({
   emitNotification: state.emit,
   emitAgencyNotification: state.emitAgency,
 }));
