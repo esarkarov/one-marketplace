@@ -22,7 +22,7 @@ On-demand checklist for `services/api`. Rules and rationale: `services/api/AGENT
 ## Rules that apply to both
 
 - Money is integer cents: `*_cents` columns, `*Cents` fields, helpers from `shared/money/money.ts`.
-- Tables: write only tables your module owns (ADR 0013 section 4). Read other tables only when documented; otherwise go through the owner's `<name>.public.ts` or an event.
+- Tables: touch another module's tables only through an edge in `services/api/src/test/architecture/table-access-allowlist.ts` (a write needs a written reason); otherwise go through the owner's `<name>.public.ts` or an event. New edges need review. Register new tables in `table-ownership.ts`. `<name>.schema.ts` (drizzle tables, planned) is different from `<name>.schemas.ts` (zod).
 - Events: publish through `infrastructure/events`. Consumers live in the module that owns the data they write. RabbitMQ stays optional.
 - Third-party clients (Stripe, Clerk, Daily, ImageKit, Redis, RabbitMQ) exist only in `infrastructure/`; modules import them from there. Config comes from `config/`.
 - Schema changes go only through `/db-change`; never edit `database/` or `drizzle/` by hand.

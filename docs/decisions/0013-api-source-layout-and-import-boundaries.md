@@ -89,15 +89,7 @@ Rule: one owner per table. Other modules may read a table they do not own but ne
 | payouts       | `payout_history`                                                                                                          |
 | agency        | `agency_metadata`, `agency_portfolios`, `agency_members`, `agency_invitations`                                            |
 
-Cross-module writes that exist today, verified by Grep on `.insert`, `.update` and `.delete`. They are debt, not enforced automatically:
-
-- proposals writes `connects`, `connects_history`, `conversations`, `conversation_participants` and `messages`.
-- contracts writes `messages`, `conversations`, `conversation_participants` and `accounts`.
-- freelancer, client, identity and connects write `accounts` (owner auth).
-- the events consumer writes `notifications` (owner notifications).
-- `payouts` writes only `payout_history`; its reads of other tables are the ADR 0005 exception.
-
-Each should move behind the owning module's public surface or an event. Do that per module, with a test, never as part of the layout move.
+Cross-module table access, reads and writes, is no longer listed here. Superseded by ADR 0014 section 9: the list is `services/api/src/test/architecture/table-access-allowlist.ts` (owners in `table-ownership.ts`), enforced by `table-access.test.ts`. Each write carries a reason and is known debt; it should move behind the owning module's public surface or an event, per module and with a test, never as part of the layout move. `payouts` reads other tables by design (ADR 0005).
 
 ### 5. Naming
 

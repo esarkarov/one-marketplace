@@ -86,6 +86,12 @@ The notifications consumer is exactly-once for the database write (redelivery in
 
 Every stage that applies this ADR keeps `docs/api/openapi.json` byte-identical, the full suite at 0 failed and 0 skipped with per-file test counts unchanged, `boundary-exceptions.ts` empty, no cycles, "No schema changes" from drizzle-kit, and no migration files. Docs, vitest and eslint globs, the CI junit path and agent or command files that name paths are updated in the same stage as the move.
 
+### 9. Table files and table access
+
+Decided, to be executed in stages; none of the rules below is in place until the stage that introduces it. Table definitions (drizzle tables, enums and relations) will move into their owning module as `modules/<name>/<name>.schema.ts`. This is a different file from `<name>.schemas.ts`, which holds the zod request and response schemas; tooling that targets table files matches the exact suffix `.schema.ts`. `accounts` and `accountRole` belong to auth. The central `database/schema/` folder from section 3 is an intermediate step and is deleted at the end of the move.
+
+Stage 0 adds only a safety net, with no file moves: `table-ownership.ts` maps every table and enum to its owner, `table-access-allowlist.ts` lists every cross-module table access (read or write) with a reason on each write, and `table-access.test.ts` fails on an unlisted access and on a stale entry. It supersedes the prose list in ADR 0013 section 4. The test is keyed on table names and owners, not file paths, so it covers the central folder now and the `.schema.ts` files later.
+
 ## Consequences
 
 - Moves are mechanical and reviewable per stage; no behaviour changes.

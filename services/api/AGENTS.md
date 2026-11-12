@@ -17,6 +17,7 @@ Source layout and import rules: `docs/decisions/0013-api-source-layout-and-impor
 
 ## Rules
 
+- A module may not read or write another module's tables unless the edge is in `src/test/architecture/table-access-allowlist.ts`; a write needs a reason there. Prefer the owner's `<name>.public.ts`. New edges need review; `table-access.test.ts` enforces this. `<name>.schema.ts` (drizzle tables, planned in ADR 0014 section 9) is not `<name>.schemas.ts` (zod request and response schemas).
 - Third-party clients are created only in `src/infrastructure/` (eslint enforces it). Modules import them from there.
 - A module imports only `config`, `infrastructure`, `shared`, `database` and lower-layer modules, and only through the other module's `<name>.public.ts`, never its controller or internals. Do not write tables you do not own (ADR 0013). `src/test/architecture/import-boundaries.test.ts` enforces this; its exception list stays empty and cycles are never allowed.
 - Validate every body, query and param with zod at the route boundary (ADR 0011):
