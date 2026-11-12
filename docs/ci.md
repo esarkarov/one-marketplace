@@ -21,6 +21,8 @@ Require one check in the branch ruleset: `ci-pass`. It depends on every blocking
 | `compose-validate`  | `infra/docker/docker-compose.yml` is valid with placeholder values and fails when any required credential is unset.                                                                                                   |
 | `ci-pass`           | Aggregates the blocking jobs into one status.                                                                                                                                                                         |
 
+`api-test` also keeps `docs/api/openapi.json` in sync with the code. After the coverage step, "Regenerate OpenAPI spec" runs `pnpm --filter @onemarketplace/api openapi:generate` and "Fail if the OpenAPI spec is stale" runs `git diff --exit-code -- docs/api/openapi.json`, so a pull request that changes routes or schemas without committing the regenerated spec fails. The steps live in `api-test` because it already has checkout, Node, pnpm and installed dependencies; a separate job would repeat that setup. The generator needs no secrets, database or extra env entries: it sets its own dummy environment. `.gitattributes` enforces LF (`* text=auto eol=lf`), so line endings do not cause false drift.
+
 `api-test` uploads `services/api/coverage` and `services/api/test-results/junit.xml` as the `api-test-results` artifact (kept 7 days) and writes test, failure and skipped counts to the job summary.
 
 CodeQL is configured in the workflow. Do not also enable GitHub's CodeQL default setup in the repository settings; the two conflict.
@@ -42,6 +44,15 @@ pnpm --filter @onemarketplace/api db:test:setup
 pnpm --filter @onemarketplace/api exec vitest run --coverage --coverage.reporter=text-summary --coverage.reporter=lcov --coverage.reporter=json-summary --reporter=verbose --reporter=junit --outputFile.junit=test-results/junit.xml
 node .github/scripts/verify-integration-junit.mjs services/api/test-results/junit.xml src/events/rabbitmq.integration.test.ts
 ```
+
+OpenAPI spec drift (no infrastructure needed):
+
+```bash
+pnpm --filter @onemarketplace/api openapi:generate
+git diff docs/api/openapi.json
+```
+
+Commit the regenerated file if the diff is expected.
 
 Other checks:
 

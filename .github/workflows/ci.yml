@@ -143,6 +143,12 @@ jobs:
           --reporter=junit
           --outputFile.junit=test-results/junit.xml
 
+      - name: Regenerate OpenAPI spec
+        run: pnpm --filter @onemarketplace/api openapi:generate
+
+      - name: Fail if the OpenAPI spec is stale
+        run: git diff --exit-code -- docs/api/openapi.json
+
       - name: Verify RabbitMQ integration tests ran
         if: ${{ !cancelled() }}
         run: node .github/scripts/verify-integration-junit.mjs services/api/test-results/junit.xml src/events/rabbitmq.integration.test.ts
