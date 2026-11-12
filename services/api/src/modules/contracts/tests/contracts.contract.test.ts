@@ -304,6 +304,49 @@ const purge = async () => {
   await pool.query("delete from accounts where auth_id like $1", [like]);
 };
 
+type Fixture = Awaited<ReturnType<typeof seed>>;
+
+const snapshot = async (fixture: Fixture) => {
+  const rows = async (text: string, params: unknown[]) =>
+    (await pool.query(text, params)).rows;
+  return JSON.stringify({
+    contract: await rows("select * from contracts where id = $1", [
+      fixture.contractId,
+    ]),
+    milestones: await rows(
+      "select * from contract_milestones where contract_id = $1 order by position",
+      [fixture.contractId],
+    ),
+    reviews: await rows("select * from reviews where contract_id = $1", [
+      fixture.contractId,
+    ]),
+    earningHistory: await rows(
+      "select * from earning_history where contract_id = $1",
+      [fixture.contractId],
+    ),
+    freelancerEarning: await rows(
+      "select * from freelancer_earning where freelancer_id = $1",
+      [fixture.ownerId],
+    ),
+    clientSpents: await rows(
+      "select * from client_spents where client_id = $1",
+      [fixture.clientId],
+    ),
+    messages: await rows(
+      "select m.* from messages m join conversations c on c.id = m.conversation_id where c.proposal_id = $1 order by m.created_at, m.id",
+      [fixture.proposalId],
+    ),
+    participants: await rows(
+      "select p.* from conversation_participants p join conversations c on c.id = p.conversation_id where c.proposal_id = $1 order by p.id",
+      [fixture.proposalId],
+    ),
+    job: await rows(
+      "select * from job_posts where id = (select job_id from contracts where id = $1)",
+      [fixture.contractId],
+    ),
+  });
+};
+
 beforeAll(async () => {
   assertTestDatabase(process.env.DATABASE_URL, process.env.POSTGRES_DB);
   await purge();
@@ -377,6 +420,135 @@ describe("GET /contracts/client", () => {
       .set(as(fixture.ownerId));
     expect(response.status).toBe(403);
     contractsResponses.client[403].parse(response.body);
+  });
+});
+
+describe("contract listing order and scope", () => {
+  const listContracts = async (
+    path: "client" | "freelancer",
+    userId: string,
+    query: Record<string, string>,
+  ) => {
+    const response = await request(app)
+      .get(`${API}/${path}`)
+      .query(query)
+      .set(as(userId));
+    expect(response.status).toBe(200);
+    return response.body.data as {
+      id: string;
+      milestones: { id: string; position: number }[];
+    }[];
+  };
+
+  it("lists milestones by position even when their rows were written out of order", async () => {
+    const fixture = await seed({
+      milestones: [
+        { status: "COMPLETED", funded: true },
+        { status: "ACTIVE", funded: true },
+        { status: "PENDING" },
+      ],
+    });
+    await pool.query(
+      "with moved as (delete from contract_milestones where contract_id = $1 returning *) insert into contract_milestones select * from moved order by position desc",
+      [fixture.contractId],
+    );
+    const data = await listContracts("client", fixture.clientId, {
+      role: "client",
+    });
+    expect(data.map((contract) => contract.id)).toEqual([fixture.contractId]);
+    expect(data[0]?.milestones.map((milestone) => milestone.position)).toEqual([
+      0, 1, 2,
+    ]);
+    expect(data[0]?.milestones.map((milestone) => milestone.id)).toEqual(
+      fixture.milestoneIds,
+    );
+  });
+
+  it("lists a client's contracts newest first", async () => {
+    const fixture = await seed();
+    const [job] = await db
+      .insert(job_posts)
+      .values({
+        client_id: fixture.clientId,
+        title: "Second contract job",
+        description: "Second contract test job",
+        expertise_level: "INTERMEDIATE",
+        expected_duration: "1 week",
+        total_budget_cents: AMOUNT,
+        milestones: [],
+      })
+      .returning({ id: job_posts.id });
+    const [proposal] = await db
+      .insert(proposals)
+      .values({
+        job_id: job!.id,
+        sender_id: fixture.ownerId,
+        sender_type: "FREELANCER",
+        cover_letter: "second contract",
+        bid_amount_cents: AMOUNT,
+        duration: "1 week",
+      })
+      .returning({ id: proposals.id });
+    const [second] = await db
+      .insert(contracts)
+      .values({
+        proposal_id: proposal!.id,
+        job_id: job!.id,
+        client_id: fixture.clientId,
+        freelancer_id: fixture.ownerId,
+        title: "Second contract title",
+        total_amount_cents: AMOUNT,
+        status: "ACTIVE",
+        started_at: new Date(),
+        created_at: new Date(Date.now() + 60_000),
+      })
+      .returning({ id: contracts.id });
+    await db.insert(contract_milestones).values({
+      contract_id: second!.id,
+      title: "Only milestone",
+      amount_cents: AMOUNT,
+      due_date: "2026-12-01",
+      position: 0,
+      status: "ACTIVE",
+      funded_at: new Date(),
+    });
+    const data = await listContracts("client", fixture.clientId, {
+      role: "client",
+    });
+    expect(data.map((contract) => contract.id)).toEqual([
+      second!.id,
+      fixture.contractId,
+    ]);
+  });
+
+  it("scopes each listing to the caller's own contracts", async () => {
+    const first = await seed();
+    await seed();
+    expect(
+      (await listContracts("client", first.clientId, { role: "client" })).map(
+        (contract) => contract.id,
+      ),
+    ).toEqual([first.contractId]);
+    expect(
+      (
+        await listContracts("freelancer", first.ownerId, {
+          role: "freelancer",
+        })
+      ).map((contract) => contract.id),
+    ).toEqual([first.contractId]);
+
+    const firstAgency = await seed({ agency: true });
+    const secondAgency = await seed({ agency: true });
+    for (const agency of [firstAgency, secondAgency]) {
+      expect(
+        (
+          await listContracts("freelancer", agency.ownerId, {
+            role: "freelancer",
+            scope: "agency",
+          })
+        ).map((contract) => contract.id),
+      ).toEqual([agency.contractId]);
+    }
   });
 });
 
@@ -671,6 +843,39 @@ describe("POST /contracts/:contractId/milestones/:milestoneId/checkout", () => {
     expect(missing.status).toBe(404);
     contractsResponses.milestoneCheckout[404].parse(missing.body);
   });
+
+  it("answers 404 to a client who does not own the contract and changes nothing", async () => {
+    const fixture = await seed({
+      milestones: [
+        { status: "COMPLETED", funded: true },
+        { status: "PENDING" },
+      ],
+    });
+    const intruder = await insertAccount("CLIENT", { customer: true });
+    const before = await snapshot(fixture);
+
+    const denied = await checkout(
+      fixture.contractId,
+      fixture.milestoneIds[1]!,
+      intruder,
+    );
+    expect(denied.status).toBe(404);
+    expect(denied.body).toEqual({
+      success: false,
+      message: "Contract milestone not found.",
+    });
+    expect(mocks.customersCreate).not.toHaveBeenCalled();
+    expect(mocks.sessionsCreate).not.toHaveBeenCalled();
+    expect(await snapshot(fixture)).toBe(before);
+
+    const owner = await checkout(
+      fixture.contractId,
+      fixture.milestoneIds[1]!,
+      fixture.clientId,
+    );
+    expect(owner.status).toBe(200);
+    expect(mocks.sessionsCreate).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("POST /contracts/:contractId/milestones", () => {
@@ -711,6 +916,26 @@ describe("POST /contracts/:contractId/milestones", () => {
     const missing = await add(missingId(), fixture.clientId);
     expect(missing.status).toBe(404);
     contractsResponses.addMilestone[404].parse(missing.body);
+  });
+
+  it("answers 404 to a client who does not own the contract and changes nothing", async () => {
+    const fixture = await seed({
+      milestones: [{ status: "COMPLETED", funded: true }],
+    });
+    const intruder = await insertAccount("CLIENT");
+    const before = await snapshot(fixture);
+
+    const denied = await add(fixture.contractId, intruder);
+    expect(denied.status).toBe(404);
+    expect(denied.body).toEqual({
+      success: false,
+      message: "Contract not found.",
+    });
+    expect(mocks.sendNotification).not.toHaveBeenCalled();
+    expect(await snapshot(fixture)).toBe(before);
+
+    const owner = await add(fixture.contractId, fixture.clientId);
+    expect(owner.status).toBe(201);
   });
 });
 
@@ -766,5 +991,25 @@ describe("POST /contracts/:contractId/finish", () => {
     const response = await finish(missingId(), fixture.clientId);
     expect(response.status).toBe(404);
     contractsResponses.finish[404].parse(response.body);
+  });
+
+  it("answers 404 to a client who does not own the contract and changes nothing", async () => {
+    const fixture = await seed({
+      milestones: [{ status: "COMPLETED", funded: true }],
+    });
+    const intruder = await insertAccount("CLIENT");
+    const before = await snapshot(fixture);
+
+    const denied = await finish(fixture.contractId, intruder);
+    expect(denied.status).toBe(404);
+    expect(denied.body).toEqual({
+      success: false,
+      message: "Contract not found.",
+    });
+    expect(mocks.sendNotification).not.toHaveBeenCalled();
+    expect(await snapshot(fixture)).toBe(before);
+
+    const owner = await finish(fixture.contractId, fixture.clientId);
+    expect(owner.status).toBe(200);
   });
 });
