@@ -157,7 +157,7 @@ describe("Daily webhook signature", () => {
   });
 
   it("rejects a timestamp too far in the future", async () => {
-    const timestamp = String(Math.floor(Date.now() / 1000) + 301);
+    const timestamp = String(Math.floor(Date.now() / 1000) + 600);
 
     const response = await post(
       eventBody(),

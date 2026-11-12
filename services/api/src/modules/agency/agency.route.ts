@@ -39,6 +39,32 @@ import {
   updateAgencyInvitationRoleHandler,
   updateAgencyMemberRoleHandler,
 } from "./agency.controller.js";
+import {
+  agencyConnectsCheckoutResponses,
+  agencyConnectsHistoryResponses,
+  agencyConnectsResponses,
+  agencyCreateResponses,
+  agencyEarningsOverviewResponses,
+  agencyEarningsSummaryResponses,
+  agencyInvitationMutationResponses,
+  agencyInviteResponses,
+  agencyJobFeedResponses,
+  agencyMemberMutationResponses,
+  agencyMembershipResponses,
+  agencyMineResponses,
+  agencyMyInvitationsResponses,
+  agencyPayoutLinkResponses,
+  agencyProposalMetadataResponses,
+  agencyProposalsResponses,
+  agencyPublicProfileResponses,
+  agencyRespondResponses,
+  agencyResendInvitationResponses,
+  agencySearchResponses,
+  agencySubmitProposalResponses,
+  agencyTeamInvitationsResponses,
+  agencyUpdateResponses,
+  agencyVerificationResponses,
+} from "./agency.responses.js";
 import { authRoleShape } from "../../utils/common-schemas.js";
 import {
   agencyJobFeedQuerySchema,
@@ -62,36 +88,47 @@ const agencyWriteLimiter = contentWriteLimiter();
 agencyRouter.get(
   "/search",
   publicSearchLimiter,
-  validate({ query: agencyTalentSearchQuerySchema }),
+  validate({
+    query: agencyTalentSearchQuerySchema,
+    responses: agencySearchResponses,
+  }),
   searchPublicAgenciesHandler,
 );
 agencyRouter.get(
   "/profile/:id",
-  validate({ params: publicAgencyParamsSchema, query: {} }),
+  validate({
+    params: publicAgencyParamsSchema,
+    query: {},
+    responses: agencyPublicProfileResponses,
+  }),
   getPublicAgencyHandler,
 );
 agencyRouter.get(
   "/mine",
   isAuthenticated,
-  validate({ query: authRoleShape }),
+  validate({ query: authRoleShape, responses: agencyMineResponses }),
   getLoggedInAgency,
 );
 agencyRouter.get(
   "/membership",
   isAuthenticated,
-  validate({ query: authRoleShape }),
+  validate({ query: authRoleShape, responses: agencyMembershipResponses }),
   getAgencyMembershipHandler,
 );
 agencyRouter.get(
   "/verification",
   isAuthenticated,
-  validate({ query: authRoleShape }),
+  validate({ query: authRoleShape, responses: agencyVerificationResponses }),
   getAgencyVerificationHandler,
 );
 agencyRouter.post(
   "/",
   isAuthenticated,
-  validate({ query: authRoleShape, body: createAgencyBodySchema }),
+  validate({
+    query: authRoleShape,
+    body: createAgencyBodySchema,
+    responses: agencyCreateResponses,
+  }),
   createAgencyHandler,
 );
 agencyRouter.put(
@@ -100,87 +137,116 @@ agencyRouter.put(
   agencyWriteLimiter,
   largeJsonBody,
   resolveAccountRole,
-  validate({ query: authRoleShape, body: updateAgencyBodySchema }),
+  validate({
+    query: authRoleShape,
+    body: updateAgencyBodySchema,
+    responses: agencyUpdateResponses,
+  }),
   updateAgencyHandler,
 );
 agencyRouter.get(
   "/jobs",
   isAuthenticated,
-  validate({ query: agencyJobFeedQuerySchema }),
+  validate({
+    query: agencyJobFeedQuerySchema,
+    responses: agencyJobFeedResponses,
+  }),
   getAgencyJobFeed,
 );
 agencyRouter.get(
   "/connects",
   isAuthenticated,
-  validate({ query: authRoleShape }),
+  validate({ query: authRoleShape, responses: agencyConnectsResponses }),
   getAgencyConnects,
 );
 agencyRouter.get(
   "/connects/history",
   isAuthenticated,
-  validate({ query: authRoleShape }),
+  validate({ query: authRoleShape, responses: agencyConnectsHistoryResponses }),
   getAgencyConnectsHistoryHandler,
 );
 agencyRouter.post(
   "/connects/checkout",
   isAuthenticated,
-  validate({ query: authRoleShape, body: connectsCheckoutBodySchema }),
+  validate({
+    query: authRoleShape,
+    body: connectsCheckoutBodySchema,
+    responses: agencyConnectsCheckoutResponses,
+  }),
   buyAgencyConnects,
 );
 agencyRouter.get(
   "/proposals",
   isAuthenticated,
-  validate({ query: authRoleShape }),
+  validate({ query: authRoleShape, responses: agencyProposalsResponses }),
   getAgencyProposalsHandler,
 );
 agencyRouter.post(
   "/proposals",
   isAuthenticated,
-  validate({ query: authRoleShape, body: submitProposalBodySchema }),
+  validate({
+    query: authRoleShape,
+    body: submitProposalBodySchema,
+    responses: agencySubmitProposalResponses,
+  }),
   submitAgencyProposalHandler,
 );
 agencyRouter.get(
   "/proposals/metadata",
   isAuthenticated,
-  validate({ query: authRoleShape }),
+  validate({
+    query: authRoleShape,
+    responses: agencyProposalMetadataResponses,
+  }),
   getAgencyProposalMetadataHandler,
 );
 agencyRouter.get(
   "/earnings/summary",
   isAuthenticated,
-  validate({ query: authRoleShape }),
+  validate({ query: authRoleShape, responses: agencyEarningsSummaryResponses }),
   getAgencyEarningsSummaryHandler,
 );
 agencyRouter.get(
   "/earnings/overview",
   isAuthenticated,
-  validate({ query: authRoleShape }),
+  validate({
+    query: authRoleShape,
+    responses: agencyEarningsOverviewResponses,
+  }),
   getAgencyEarningsOverviewHandler,
 );
 agencyRouter.get(
   "/payouts/connect-link",
   isAuthenticated,
-  validate({ query: authRoleShape }),
+  validate({ query: authRoleShape, responses: agencyPayoutLinkResponses }),
   getAgencyPayoutManagementLinkHandler,
 );
 agencyRouter.get(
   "/team/invitations",
   isAuthenticated,
-  validate({ query: authRoleShape }),
+  validate({ query: authRoleShape, responses: agencyTeamInvitationsResponses }),
   getAgencyTeamInvitationsHandler,
 );
 agencyRouter.post(
   "/team/invitations",
   isAuthenticated,
   inviteWriteLimiter,
-  validate({ query: authRoleShape, body: inviteMemberBodySchema }),
+  validate({
+    query: authRoleShape,
+    body: inviteMemberBodySchema,
+    responses: agencyInviteResponses,
+  }),
   inviteAgencyMemberHandler,
 );
 agencyRouter.delete(
   "/team/invitations/:invitationId",
   isAuthenticated,
   inviteWriteLimiter,
-  validate({ params: invitationParamsSchema, query: authRoleShape }),
+  validate({
+    params: invitationParamsSchema,
+    query: authRoleShape,
+    responses: agencyInvitationMutationResponses,
+  }),
   cancelAgencyInvitationHandler,
 );
 agencyRouter.patch(
@@ -190,6 +256,7 @@ agencyRouter.patch(
     params: invitationParamsSchema,
     query: authRoleShape,
     body: memberRoleBodySchema,
+    responses: agencyInvitationMutationResponses,
   }),
   updateAgencyInvitationRoleHandler,
 );
@@ -197,7 +264,11 @@ agencyRouter.post(
   "/team/invitations/:invitationId/resend",
   isAuthenticated,
   inviteWriteLimiter,
-  validate({ params: invitationParamsSchema, query: authRoleShape }),
+  validate({
+    params: invitationParamsSchema,
+    query: authRoleShape,
+    responses: agencyResendInvitationResponses,
+  }),
   resendAgencyInvitationHandler,
 );
 agencyRouter.patch(
@@ -207,19 +278,24 @@ agencyRouter.patch(
     params: memberParamsSchema,
     query: authRoleShape,
     body: memberRoleBodySchema,
+    responses: agencyMemberMutationResponses,
   }),
   updateAgencyMemberRoleHandler,
 );
 agencyRouter.delete(
   "/team/members/:memberId",
   isAuthenticated,
-  validate({ params: memberParamsSchema, query: authRoleShape }),
+  validate({
+    params: memberParamsSchema,
+    query: authRoleShape,
+    responses: agencyMemberMutationResponses,
+  }),
   removeAgencyMemberHandler,
 );
 agencyRouter.get(
   "/invitations/mine",
   isAuthenticated,
-  validate({ query: authRoleShape }),
+  validate({ query: authRoleShape, responses: agencyMyInvitationsResponses }),
   getMyAgencyInvitationsHandler,
 );
 agencyRouter.patch(
@@ -229,6 +305,7 @@ agencyRouter.patch(
     params: invitationParamsSchema,
     query: authRoleShape,
     body: respondInvitationBodySchema,
+    responses: agencyRespondResponses,
   }),
   respondToAgencyInvitationHandler,
 );

@@ -10,12 +10,16 @@ export interface ValidationInput {
   body?: SchemaInput;
   params?: SchemaInput;
   query?: SchemaInput;
+  responses?: ResponseSchemas;
 }
+
+export type ResponseSchemas = Partial<Record<number, z.ZodType>>;
 
 export interface ValidationSchemas {
   body?: z.ZodType;
   params?: z.ZodType;
   query?: z.ZodType;
+  responses?: ResponseSchemas;
 }
 
 export const VALIDATION_SCHEMAS = Symbol("onemarketplace.validation-schemas");
@@ -90,6 +94,7 @@ export const validate = (input: ValidationInput): RequestHandler => {
   if (input.params) schemas.params = toSchema(input.params);
   if (input.query) schemas.query = toSchema(input.query);
   if (input.body) schemas.body = toSchema(input.body);
+  if (input.responses) schemas.responses = input.responses;
 
   const handler: RequestHandler = (request, _response, next) => {
     try {

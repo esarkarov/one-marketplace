@@ -31,15 +31,11 @@ const booleanParam = z
   .enum(["true", "false"], { error: "Filter must be true or false." })
   .optional();
 
-const shortParam = (label: string) =>
-  z
-    .string()
-    .max(JOB_LIMITS.feedSortMax, { error: `${label} is invalid.` })
-    .optional();
-
 export const agencyJobFeedQuerySchema = z.strictObject({
   ...authRoleShape,
-  filter: shortParam("Filter"),
+  filter: z
+    .enum(["best-match", "recent"], { error: "Filter is invalid." })
+    .optional(),
   levels: listParam,
   durations: listParam,
   paymentVerified: booleanParam,
@@ -51,7 +47,11 @@ export const agencyJobFeedQuerySchema = z.strictObject({
 
 export const agencyTalentSearchQuerySchema = z.strictObject({
   ...searchPagingShape,
-  sort: shortParam("Sort"),
+  sort: z
+    .enum(["recommended", "rating", "projects", "rate-low"], {
+      error: "Sort is invalid.",
+    })
+    .optional(),
   sizes: listParam,
   specialty: z
     .string()
@@ -71,7 +71,7 @@ const websiteField = z
   .nullish();
 
 export const createAgencyBodySchema = optionalBody(
-  z.strictObject(
+  withIgnoredKeys(
     {
       ...authRoleShape,
       name: optionalBoundedText("Agency name", AGENCY_LIMITS.nameMax).nullish(),
@@ -86,7 +86,7 @@ export const createAgencyBodySchema = optionalBody(
         AGENCY_LIMITS.overviewMax,
       ).nullish(),
     },
-    { error: "Request body must be an object." },
+    IGNORED_KEYS,
   ),
 );
 
@@ -156,9 +156,9 @@ export const connectsCheckoutBodySchema = z.strictObject({
   connects: z.number({ error: "Select a valid Connects package." }),
 });
 
-const memberRoleField = z
-  .string({ error: "Member role must be text." })
-  .max(AGENCY_LIMITS.memberRoleMax, { error: "Member role is too long." });
+const memberRoleField = z.enum(["Agency member", "Business manager"], {
+  error: "Member role is invalid.",
+});
 
 export const inviteMemberBodySchema = z.strictObject({
   ...authRoleShape,

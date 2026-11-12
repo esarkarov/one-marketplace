@@ -58,7 +58,6 @@ export const JOB_LIMITS = {
   milestoneDueDateMax: 32,
   milestoneIdMax: 64,
   feedLevelsMax: 256,
-  feedSortMax: 32,
   expertiseLevelMax: 50,
   expectedDurationMax: 50,
   statusMax: 50,
@@ -115,7 +114,6 @@ export const AGENCY_LIMITS = {
   professionalTitleMax: 100,
   specialtyMax: 100,
   sizeMax: 50,
-  memberRoleMax: 50,
   overviewMax: 5000,
   tagsMaxItems: 15,
   tagMaxLength: 20,
@@ -127,7 +125,6 @@ export const AGENCY_LIMITS = {
 } as const;
 
 export const CLIENT_LIMITS = {
-  searchTypeMax: 32,
   professionalRoleMax: 100,
   companyNameMax: 100,
   industryMax: 100,

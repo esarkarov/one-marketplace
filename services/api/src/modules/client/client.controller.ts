@@ -190,10 +190,8 @@ export const searchMarketplaceHandler: RequestHandler = asyncHandler(
 
     const query =
       typeof request.query.query === "string" ? request.query.query : "";
-    const type =
-      request.query.type === "freelancer" || request.query.type === "agency"
-        ? request.query.type
-        : "all";
+    const type = (request.query.type ?? "all") as
+      "all" | "freelancer" | "agency";
     const offset = Math.max(0, Number(request.query.offset) || 0);
 
     const page = await searchMarketplace(query, type, { offset });

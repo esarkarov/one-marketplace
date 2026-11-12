@@ -440,17 +440,12 @@ export const getPublicAgencyHandler: RequestHandler = asyncHandler(
   },
 );
 
-const AGENCY_SORT_VALUES = ["recommended", "rating", "projects", "rate-low"];
-
 export const searchPublicAgenciesHandler: RequestHandler = asyncHandler(
   async (request, response) => {
     const query =
       typeof request.query.query === "string" ? request.query.query : "";
-    const sort =
-      typeof request.query.sort === "string" &&
-      AGENCY_SORT_VALUES.includes(request.query.sort)
-        ? (request.query.sort as PublicAgencyFilters["sort"])
-        : "recommended";
+    const sort = (request.query.sort ??
+      "recommended") as PublicAgencyFilters["sort"];
     const offset = Math.max(0, Number(request.query.offset) || 0);
     const sizes =
       typeof request.query.sizes === "string" && request.query.sizes
@@ -553,8 +548,8 @@ export const getAgencyEarningsSummaryHandler: RequestHandler = asyncHandler(
       ? await getAgencyMonthlyEarnings(agencyId)
       : {
           hasEarnings: false,
-          currentMonthTotal: 0,
-          previousMonthTotal: 0,
+          currentMonthTotalCents: 0,
+          previousMonthTotalCents: 0,
           series: [],
         };
 
@@ -594,10 +589,11 @@ export const getAgencyEarningsOverviewHandler: RequestHandler = asyncHandler(
     const overview = agencyId
       ? await getAgencyEarningsOverview(agencyId)
       : {
-          available: 0,
-          pending: 0,
-          lifetime: 0,
-          totalFees: 0,
+          availableCents: 0,
+          pendingCents: 0,
+          withdrawnCents: 0,
+          lifetimeCents: 0,
+          totalFeesCents: 0,
           recentEarnings: [],
         };
 
@@ -655,10 +651,7 @@ export const inviteAgencyMemberHandler: RequestHandler = asyncHandler(
     const agency = await requireAgencyOwner(auth.userId);
 
     const email = requireText(request.body?.email, "Email").toLowerCase();
-    const role =
-      request.body?.memberRole === "Business manager"
-        ? "Business manager"
-        : "Agency member";
+    const role = request.body?.memberRole ?? "Agency member";
     if (!isValidEmail(email)) {
       throw new ApiError(400, "Enter a valid email address.");
     }
@@ -704,10 +697,7 @@ export const updateAgencyInvitationRoleHandler: RequestHandler = asyncHandler(
     const auth = requireAgencyAuth(request);
     const agency = await requireAgencyOwner(auth.userId);
 
-    const role =
-      request.body?.memberRole === "Business manager"
-        ? "Business manager"
-        : "Agency member";
+    const role = request.body?.memberRole ?? "Agency member";
 
     await updateAgencyInvitationRole(
       agency.id,
@@ -747,10 +737,7 @@ export const updateAgencyMemberRoleHandler: RequestHandler = asyncHandler(
     const auth = requireAgencyAuth(request);
     const agency = await requireAgencyOwner(auth.userId);
 
-    const role =
-      request.body?.memberRole === "Business manager"
-        ? "Business manager"
-        : "Agency member";
+    const role = request.body?.memberRole ?? "Agency member";
 
     await updateAgencyMemberRole(
       agency.id,

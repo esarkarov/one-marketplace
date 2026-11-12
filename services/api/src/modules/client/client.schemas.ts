@@ -12,8 +12,7 @@ export const marketplaceSearchQuerySchema = z.strictObject({
   ...authRoleShape,
   ...searchPagingShape,
   type: z
-    .string()
-    .max(CLIENT_LIMITS.searchTypeMax, { error: "Type is invalid." })
+    .enum(["all", "freelancer", "agency"], { error: "Type is invalid." })
     .optional(),
 });
 

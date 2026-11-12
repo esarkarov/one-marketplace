@@ -89,6 +89,7 @@ describe("client query validation", () => {
     ["an oversized query", { query: "a".repeat(101) }],
     ["a bad offset", { offset: "-1" }],
     ["an oversized type", { type: "a".repeat(33) }],
+    ["an invalid type", { type: "company" }],
   ])("GET /marketplace/search answers 400 for %s", async (_name, query) => {
     const response = await authed(
       "get",
@@ -105,6 +106,14 @@ describe("client query validation", () => {
       query: "a",
       type: "agency",
       offset: "0",
+    });
+
+    expect(response.status).not.toBe(400);
+  });
+
+  it("GET /marketplace/search accepts type all", async () => {
+    const response = await authed("get", "/api/v1/client/marketplace/search", {
+      type: "all",
     });
 
     expect(response.status).not.toBe(400);

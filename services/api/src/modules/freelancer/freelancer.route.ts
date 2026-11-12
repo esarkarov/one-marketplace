@@ -23,6 +23,18 @@ import {
 import { validate } from "../../middleware/validate.middleware.js";
 import { authRoleShape } from "../../utils/common-schemas.js";
 import {
+  freelancerEarningsCertificateResponses,
+  freelancerEarningsOverviewResponses,
+  freelancerEarningsSummaryResponses,
+  freelancerJobDetailResponses,
+  freelancerJobFeedResponses,
+  freelancerPayoutLinkResponses,
+  freelancerProfileGetResponses,
+  freelancerProfilePutResponses,
+  freelancerPublicProfileResponses,
+  freelancerSearchResponses,
+} from "./freelancer.responses.js";
+import {
   idParamsSchema,
   jobFeedQuerySchema,
   talentSearchQuerySchema,
@@ -36,18 +48,25 @@ const profileWriteLimiter = contentWriteLimiter();
 freelancerRouter.get(
   "/profile",
   isAuthenticated,
-  validate({ query: authRoleShape }),
+  validate({ query: authRoleShape, responses: freelancerProfileGetResponses }),
   getLoggedInFreelancerProfile,
 );
 freelancerRouter.get(
   "/search",
   publicSearchLimiter,
-  validate({ query: talentSearchQuerySchema }),
+  validate({
+    query: talentSearchQuerySchema,
+    responses: freelancerSearchResponses,
+  }),
   searchPublicFreelancersHandler,
 );
 freelancerRouter.get(
   "/profile/:id",
-  validate({ params: idParamsSchema, query: {} }),
+  validate({
+    params: idParamsSchema,
+    query: {},
+    responses: freelancerPublicProfileResponses,
+  }),
   getPublicFreelancer,
 );
 freelancerRouter.put(
@@ -56,42 +75,65 @@ freelancerRouter.put(
   profileWriteLimiter,
   largeJsonBody,
   resolveAccountRole,
-  validate({ body: upsertProfileBodySchema, query: authRoleShape }),
+  validate({
+    body: upsertProfileBodySchema,
+    query: authRoleShape,
+    responses: freelancerProfilePutResponses,
+  }),
   upsertFreelanceProfile,
 );
 freelancerRouter.get(
   "/earnings/summary",
   isAuthenticated,
-  validate({ query: authRoleShape }),
+  validate({
+    query: authRoleShape,
+    responses: freelancerEarningsSummaryResponses,
+  }),
   getFreelancerEarningsSummary,
 );
 freelancerRouter.get(
   "/earnings/overview",
   isAuthenticated,
-  validate({ query: authRoleShape }),
+  validate({
+    query: authRoleShape,
+    responses: freelancerEarningsOverviewResponses,
+  }),
   getFreelancerEarningsOverviewHandler,
 );
 freelancerRouter.get(
   "/earnings/certificate",
   isAuthenticated,
-  validate({ query: authRoleShape }),
+  validate({
+    query: authRoleShape,
+    responses: freelancerEarningsCertificateResponses,
+  }),
   getFreelancerEarningsCertificate,
 );
 freelancerRouter.get(
   "/payouts/connect-link",
   isAuthenticated,
-  validate({ query: authRoleShape }),
+  validate({
+    query: authRoleShape,
+    responses: freelancerPayoutLinkResponses,
+  }),
   getFreelancerPayoutManagementLink,
 );
 freelancerRouter.get(
   "/jobs",
   isAuthenticated,
-  validate({ query: jobFeedQuerySchema }),
+  validate({
+    query: jobFeedQuerySchema,
+    responses: freelancerJobFeedResponses,
+  }),
   getFreelancerJobFeed,
 );
 freelancerRouter.get(
   "/jobs/:id",
   isAuthenticated,
-  validate({ params: idParamsSchema, query: authRoleShape }),
+  validate({
+    params: idParamsSchema,
+    query: authRoleShape,
+    responses: freelancerJobDetailResponses,
+  }),
   getFreelancerJobDetails,
 );

@@ -129,6 +129,7 @@ describe("freelancer params and query validation", () => {
     ["a bad rating", "minRating=abc"],
     ["a bad flag", "verifiedOnly=yes"],
     ["an array value", "sort[]=x"],
+    ["an invalid sort", "sort=popular"],
   ])("GET /search answers 400 for %s", async (_name, query) => {
     const response = await request(app).get(
       `/api/v1/freelancer/search?${query}`,
@@ -151,6 +152,7 @@ describe("freelancer params and query validation", () => {
     ["a bad proposals count", { minProposals: "-1" }],
     ["a bad flag", { paymentVerified: "yes" }],
     ["an oversized filter", { levels: "a".repeat(300) }],
+    ["an invalid filter", { filter: "popular" }],
   ])("GET /jobs answers 400 for %s", async (_name, query) => {
     const response = await authed("get", "/api/v1/freelancer/jobs", query);
 

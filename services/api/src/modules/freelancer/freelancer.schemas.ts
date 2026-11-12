@@ -160,8 +160,7 @@ const decimalParam = (label: string) =>
 export const jobFeedQuerySchema = z.strictObject({
   ...authRoleShape,
   filter: z
-    .string()
-    .max(JOB_LIMITS.feedSortMax, { error: "Filter is invalid." })
+    .enum(["best-match", "recent"], { error: "Filter is invalid." })
     .optional(),
   levels: listParam,
   durations: listParam,
@@ -175,8 +174,9 @@ export const jobFeedQuerySchema = z.strictObject({
 export const talentSearchQuerySchema = z.strictObject({
   ...searchPagingShape,
   sort: z
-    .string()
-    .max(JOB_LIMITS.feedSortMax, { error: "Sort is invalid." })
+    .enum(["recommended", "rating", "success", "projects", "rate-low"], {
+      error: "Sort is invalid.",
+    })
     .optional(),
   verifiedOnly: booleanParam,
   availableOnly: booleanParam,

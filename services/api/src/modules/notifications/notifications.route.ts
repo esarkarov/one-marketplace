@@ -12,23 +12,34 @@ import {
   roleOnlyQuerySchema,
   scopeQuerySchema,
 } from "./notifications.schemas.js";
+import { notificationsResponses } from "./notifications.responses.js";
 
 export const notificationRouter = Router();
 
 notificationRouter.use(isAuthenticated);
 notificationRouter.get(
   "/",
-  validate({ query: scopeQuerySchema }),
+  validate({
+    query: scopeQuerySchema,
+    responses: notificationsResponses.list,
+  }),
   listNotifications,
 );
 notificationRouter.patch(
   "/read-all",
-  validate({ query: scopeQuerySchema }),
+  validate({
+    query: scopeQuerySchema,
+    responses: notificationsResponses.readAll,
+  }),
   markAllNotificationsRead,
 );
 notificationRouter.patch(
   "/:notificationId/read",
-  validate({ params: notificationIdParamsSchema, query: roleOnlyQuerySchema }),
+  validate({
+    params: notificationIdParamsSchema,
+    query: roleOnlyQuerySchema,
+    responses: notificationsResponses.read,
+  }),
   markNotificationRead,
 );
 notificationRouter.get(

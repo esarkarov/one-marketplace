@@ -253,17 +253,11 @@ export const getFreelancerSavedJobPosts: RequestHandler = asyncHandler(
   },
 );
 
-const JOB_SORT_VALUES = ["newest", "budget", "rating", "proposals"];
-
 export const getPublicJobFeedHandler: RequestHandler = asyncHandler(
   async (request, response) => {
     const query =
       typeof request.query.query === "string" ? request.query.query : "";
-    const sort =
-      typeof request.query.sort === "string" &&
-      JOB_SORT_VALUES.includes(request.query.sort)
-        ? (request.query.sort as PublicJobFilters["sort"])
-        : "newest";
+    const sort = (request.query.sort ?? "newest") as PublicJobFilters["sort"];
     const offset = Math.max(0, Number(request.query.offset) || 0);
     const numberParam = (key: string) => {
       const value = Number(request.query[key]);

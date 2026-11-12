@@ -12,6 +12,7 @@ import {
   buyConnectsBodySchema,
   roleOnlyQuerySchema,
 } from "./connects.schemas.js";
+import { connectsResponses } from "./connects.responses.js";
 
 export const connectsRouter = Router();
 
@@ -19,16 +20,26 @@ connectsRouter.post("/webhook", connectsWebhook);
 connectsRouter.use(isAuthenticated, availableConnects);
 connectsRouter.get(
   "/",
-  validate({ query: roleOnlyQuerySchema }),
+  validate({
+    query: roleOnlyQuerySchema,
+    responses: connectsResponses.balance,
+  }),
   getAvailableConnects,
 );
 connectsRouter.get(
   "/history",
-  validate({ query: roleOnlyQuerySchema }),
+  validate({
+    query: roleOnlyQuerySchema,
+    responses: connectsResponses.history,
+  }),
   getLoggedInFreelancerConnectsHistory,
 );
 connectsRouter.post(
   "/checkout",
-  validate({ query: roleOnlyQuerySchema, body: buyConnectsBodySchema }),
+  validate({
+    query: roleOnlyQuerySchema,
+    body: buyConnectsBodySchema,
+    responses: connectsResponses.checkout,
+  }),
   buyConnects,
 );

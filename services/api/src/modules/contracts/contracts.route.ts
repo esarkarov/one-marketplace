@@ -25,6 +25,7 @@ import {
   scopeQuerySchema,
   submitMilestoneBodySchema,
 } from "./contracts.schemas.js";
+import { contractsResponses } from "./contracts.responses.js";
 
 export const contractsRouter = Router();
 
@@ -32,19 +33,29 @@ contractsRouter.post("/webhook", contractWebhook);
 contractsRouter.get(
   "/client",
   isAuthenticated,
-  validate({ query: roleOnlyQuerySchema }),
+  validate({
+    query: roleOnlyQuerySchema,
+    responses: contractsResponses.client,
+  }),
   getClientContracts,
 );
 contractsRouter.get(
   "/freelancer",
   isAuthenticated,
-  validate({ query: scopeQuerySchema }),
+  validate({
+    query: scopeQuerySchema,
+    responses: contractsResponses.freelancer,
+  }),
   getFreelancerContracts,
 );
 contractsRouter.patch(
   "/:contractId/accept",
   isAuthenticated,
-  validate({ params: contractIdParamsSchema, query: scopeQuerySchema }),
+  validate({
+    params: contractIdParamsSchema,
+    query: scopeQuerySchema,
+    responses: contractsResponses.accept,
+  }),
   acceptContractOffer,
 );
 contractsRouter.patch(
@@ -54,6 +65,7 @@ contractsRouter.patch(
     params: milestoneParamsSchema,
     query: scopeQuerySchema,
     body: submitMilestoneBodySchema,
+    responses: contractsResponses.submit,
   }),
   submitMilestoneWork,
 );
@@ -64,13 +76,18 @@ contractsRouter.patch(
     params: milestoneParamsSchema,
     query: roleOnlyQuerySchema,
     body: reviewMilestoneBodySchema,
+    responses: contractsResponses.review,
   }),
   reviewMilestoneWork,
 );
 contractsRouter.post(
   "/checkout",
   isAuthenticated,
-  validate({ query: roleOnlyQuerySchema, body: contractCheckoutBodySchema }),
+  validate({
+    query: roleOnlyQuerySchema,
+    body: contractCheckoutBodySchema,
+    responses: contractsResponses.checkout,
+  }),
   startContractCheckout,
 );
 contractsRouter.post(
@@ -80,6 +97,7 @@ contractsRouter.post(
     params: milestoneParamsSchema,
     query: roleOnlyQuerySchema,
     body: milestoneCheckoutBodySchema,
+    responses: contractsResponses.milestoneCheckout,
   }),
   startMilestoneFundingCheckout,
 );
@@ -90,6 +108,7 @@ contractsRouter.post(
     params: contractIdParamsSchema,
     query: roleOnlyQuerySchema,
     body: addMilestoneBodySchema,
+    responses: contractsResponses.addMilestone,
   }),
   createAdditionalMilestone,
 );
@@ -100,6 +119,7 @@ contractsRouter.post(
     params: contractIdParamsSchema,
     query: scopeQuerySchema,
     body: finishContractBodySchema,
+    responses: contractsResponses.finish,
   }),
   finishContract,
 );

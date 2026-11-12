@@ -53,4 +53,22 @@ describe("agency body nulls", () => {
       updateAgencyBodySchema.safeParse({ avatarImage: { url: null } }).success,
     ).toBe(true);
   });
+
+  it("strips id, imageId, createdAt and updatedAt on create", () => {
+    const parsed = createAgencyBodySchema.parse({
+      name: "Acme",
+      id: "x",
+      imageId: "x",
+      createdAt: "x",
+      updatedAt: "x",
+    });
+
+    expect(parsed).toEqual({ name: "Acme" });
+  });
+
+  it("rejects other unknown keys on create", () => {
+    expect(
+      createAgencyBodySchema.safeParse({ name: "Acme", extra: 1 }).success,
+    ).toBe(false);
+  });
 });

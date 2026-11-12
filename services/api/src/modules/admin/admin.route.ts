@@ -19,6 +19,7 @@ import {
   adminLogStreamQuerySchema,
   adminLoginBodySchema,
 } from "./admin.schemas.js";
+import { adminResponses } from "./admin.responses.js";
 import { redisKeyParamsSchema, redisScanQuerySchema } from "./admin-redis.js";
 import {
   requireAdminSession,
@@ -34,7 +35,11 @@ export const adminRouter = Router();
 adminRouter.post(
   "/auth/login",
   adminLoginLimiter,
-  validate({ body: adminLoginBodySchema, query: {} }),
+  validate({
+    body: adminLoginBodySchema,
+    query: {},
+    responses: adminResponses.login,
+  }),
   loginAdminHandler,
 );
 
@@ -42,53 +47,85 @@ adminRouter.use(adminLimiter);
 adminRouter.get(
   "/logs/stream",
   requireAdminSessionAllowingQueryToken,
-  validate({ query: adminLogStreamQuerySchema }),
+  validate({
+    query: adminLogStreamQuerySchema,
+    responses: adminResponses.logsStream,
+  }),
   streamLogsHandler,
 );
 adminRouter.use(requireAdminSession);
-adminRouter.get("/overview", validate({ query: {} }), getOverviewHandler);
+adminRouter.get(
+  "/overview",
+  validate({ query: {}, responses: adminResponses.overview }),
+  getOverviewHandler,
+);
 adminRouter.get(
   "/overview/activity",
-  validate({ query: adminListQuerySchema }),
+  validate({
+    query: adminListQuerySchema,
+    responses: adminResponses.activity,
+  }),
   getOverviewActivityHandler,
 );
 adminRouter.get(
   "/accounts",
-  validate({ query: adminListQuerySchema }),
+  validate({
+    query: adminListQuerySchema,
+    responses: adminResponses.accounts,
+  }),
   getAccountsHandler,
 );
 adminRouter.get(
   "/job-posts",
-  validate({ query: adminListQuerySchema }),
+  validate({
+    query: adminListQuerySchema,
+    responses: adminResponses.jobPosts,
+  }),
   getJobPostsHandler,
 );
 adminRouter.get(
   "/proposals",
-  validate({ query: adminListQuerySchema }),
+  validate({
+    query: adminListQuerySchema,
+    responses: adminResponses.proposals,
+  }),
   getProposalsHandler,
 );
 adminRouter.get(
   "/contracts",
-  validate({ query: adminListQuerySchema }),
+  validate({
+    query: adminListQuerySchema,
+    responses: adminResponses.contracts,
+  }),
   getContractsHandler,
 );
 adminRouter.get(
   "/transactions",
-  validate({ query: adminListQuerySchema }),
+  validate({
+    query: adminListQuerySchema,
+    responses: adminResponses.transactions,
+  }),
   getTransactionsHandler,
 );
 adminRouter.get(
   "/system/health",
-  validate({ query: {} }),
+  validate({ query: {}, responses: adminResponses.systemHealth }),
   getSystemHealthHandler,
 );
 adminRouter.get(
   "/system/redis/keys",
-  validate({ query: redisScanQuerySchema }),
+  validate({
+    query: redisScanQuerySchema,
+    responses: adminResponses.redisKeys,
+  }),
   scanRedisKeysHandler,
 );
 adminRouter.get(
   "/system/redis/keys/:key",
-  validate({ params: redisKeyParamsSchema, query: {} }),
+  validate({
+    params: redisKeyParamsSchema,
+    query: {},
+    responses: adminResponses.redisKey,
+  }),
   getRedisKeyHandler,
 );

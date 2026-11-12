@@ -16,6 +16,7 @@ import { contractsRouter } from "../modules/contracts/contracts.route.js";
 import { identityRouter } from "../modules/identity/identity.route.js";
 import { meetingsRouter } from "../modules/meetings/meetings.route.js";
 import { adminRouter } from "../modules/admin/admin.route.js";
+import { healthResponses } from "./health.responses.js";
 import { checkReadiness, type ReadinessChecks } from "../utils/readiness.js";
 
 export const apiRouter = Router();
@@ -34,55 +35,63 @@ apiRouter.use("/agency", agencyRouter);
 apiRouter.use("/meetings", meetingsRouter);
 apiRouter.use("/admin", adminRouter);
 
-apiRouter.get("/health", validate({ query: {} }), (_request, response) => {
-  const body: ApiResponse<{
-    service: string;
-    status: "healthy";
-    timestamp: string;
-  }> = {
-    success: true,
-    message: "Service is healthy",
-    data: {
-      service: SERVICE_NAME,
-      status: "healthy",
-      timestamp: new Date().toISOString(),
-    },
-  };
+apiRouter.get(
+  "/health",
+  validate({ query: {}, responses: healthResponses.health }),
+  (_request, response) => {
+    const body: ApiResponse<{
+      service: string;
+      status: "healthy";
+      timestamp: string;
+    }> = {
+      success: true,
+      message: "Service is healthy",
+      data: {
+        service: SERVICE_NAME,
+        status: "healthy",
+        timestamp: new Date().toISOString(),
+      },
+    };
 
-  response.status(200).json(body);
-});
+    response.status(200).json(body);
+  },
+);
 
-apiRouter.get("/ready", validate({ query: {} }), async (request, response) => {
-  const failures: {
-    check: string;
-    attributes: ReturnType<typeof errorLogAttributes>;
-  }[] = [];
-  const checks = await checkReadiness((check, error) => {
-    failures.push({ check, attributes: errorLogAttributes(error) });
-  });
-  const ready = checks.postgres === "ok" && checks.redis === "ok";
+apiRouter.get(
+  "/ready",
+  validate({ query: {}, responses: healthResponses.ready }),
+  async (request, response) => {
+    const failures: {
+      check: string;
+      attributes: ReturnType<typeof errorLogAttributes>;
+    }[] = [];
+    const checks = await checkReadiness((check, error) => {
+      failures.push({ check, attributes: errorLogAttributes(error) });
+    });
+    const ready = checks.postgres === "ok" && checks.redis === "ok";
 
-  for (const failure of failures) {
-    try {
-      await request.logger.warn({
-        message: "Readiness check failed",
-        eventName: "system.readiness.failed",
-        attributes: {
-          "readiness.check": failure.check,
-          ...failure.attributes,
-        },
-      });
-    } catch {}
-  }
+    for (const failure of failures) {
+      try {
+        await request.logger.warn({
+          message: "Readiness check failed",
+          eventName: "system.readiness.failed",
+          attributes: {
+            "readiness.check": failure.check,
+            ...failure.attributes,
+          },
+        });
+      } catch {}
+    }
 
-  const body: ApiResponse<{
-    status: "ready" | "not_ready";
-    checks: ReadinessChecks;
-  }> = {
-    success: ready,
-    message: ready ? "Service is ready" : "Service is not ready",
-    data: { status: ready ? "ready" : "not_ready", checks },
-  };
+    const body: ApiResponse<{
+      status: "ready" | "not_ready";
+      checks: ReadinessChecks;
+    }> = {
+      success: ready,
+      message: ready ? "Service is ready" : "Service is not ready",
+      data: { status: ready ? "ready" : "not_ready", checks },
+    };
 
-  response.status(ready ? 200 : 503).json(body);
-});
+    response.status(ready ? 200 : 503).json(body);
+  },
+);

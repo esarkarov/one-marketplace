@@ -111,6 +111,7 @@ describe("jobs params and query validation", () => {
     ["an oversized search", `query=${"a".repeat(101)}`],
     ["an invalid budget", "minBudgetCents=1.5"],
     ["an array value", "sort[]=x"],
+    ["an invalid sort", "sort=popular"],
   ])("GET /jobs/public answers 400 for %s", async (_name, query) => {
     const response = await request(app).get(`/api/v1/jobs/public?${query}`);
 

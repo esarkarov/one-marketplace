@@ -150,6 +150,8 @@ describe("agency query and params validation", () => {
     ["a bad rate", "maxRateCents=1.5"],
     ["a bad flag", "verifiedOnly=yes"],
     ["an array value", "sizes[]=x"],
+    ["an invalid sort", "sort=popular"],
+    ["a freelancer-only sort", "sort=success"],
   ])("GET /search answers 400 for %s", async (_name, query) => {
     const response = await request(app).get(`/api/v1/agency/search?${query}`);
 
@@ -169,6 +171,7 @@ describe("agency query and params validation", () => {
     ["a bad budget", { minBudgetCents: "1.5" }],
     ["a bad proposals count", { maxProposals: "-1" }],
     ["a bad flag", { paymentVerified: "yes" }],
+    ["an invalid filter", { filter: "popular" }],
   ])("GET /jobs answers 400 for %s", async (_name, query) => {
     const response = await authed("get", "/api/v1/agency/jobs", query);
 
@@ -261,6 +264,21 @@ describe("agency body validation", () => {
     expect(response.body.code).toBe("VALIDATION_ERROR");
   });
 
+  it("POST / passes validation with ignored keys", async () => {
+    const response = await authed("post", "/api/v1/agency").send({
+      name: "Acme",
+      size: "2-10",
+      specialty: "Design",
+      overview: "We design",
+      id,
+      imageId: "x",
+      createdAt: "x",
+      updatedAt: "x",
+    });
+
+    expect(response.status).not.toBe(400);
+  });
+
   it("POST / passes validation for a valid body", async () => {
     const response = await authed("post", "/api/v1/agency").send({
       name: "Acme",
@@ -329,6 +347,7 @@ describe("agency body validation", () => {
     ["an unknown key", { email: "a@b.test", extra: 1 }],
     ["an oversized email", { email: `${"a".repeat(250)}@b.test` }],
     ["a wrong type role", { email: "a@b.test", memberRole: 5 }],
+    ["an unknown role", { email: "a@b.test", memberRole: "Owner" }],
   ])("POST /team/invitations answers 400 for %s", async (_name, body) => {
     const response = await authed(
       "post",
@@ -353,12 +372,16 @@ describe("agency body validation", () => {
     ["patch", `/api/v1/agency/team/members/${id}`],
   ] as const)("%s %s validates the role body", async (method, path) => {
     const invalid = await authed(method, path).send({ memberRole: 5 });
+    const unknownRole = await authed(method, path).send({
+      memberRole: "Owner",
+    });
     const unknown = await authed(method, path).send({ extra: 1 });
     const valid = await authed(method, path).send({
       memberRole: "Business manager",
     });
 
     expect(invalid.status).toBe(400);
+    expect(unknownRole.status).toBe(400);
     expect(unknown.status).toBe(400);
     expect(valid.status).not.toBe(400);
   });

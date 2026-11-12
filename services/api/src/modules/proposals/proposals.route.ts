@@ -10,6 +10,13 @@ import {
   updateProposalStatus,
 } from "./proposals.controller.js";
 import {
+  proposalsCreateResponses,
+  proposalsInterviewResponses,
+  proposalsListResponses,
+  proposalsMetadataResponses,
+  proposalsStatusResponses,
+} from "./proposals.responses.js";
+import {
   interviewProposalBodySchema,
   listProposalsQuerySchema,
   proposalIdParamsSchema,
@@ -22,19 +29,29 @@ export const proposalRouter = Router();
 proposalRouter.get(
   "/",
   isAuthenticated,
-  validate({ query: listProposalsQuerySchema }),
+  validate({
+    query: listProposalsQuerySchema,
+    responses: proposalsListResponses,
+  }),
   getProposals,
 );
 proposalRouter.get(
   "/metadata",
   isAuthenticated,
-  validate({ query: roleOnlyQuerySchema }),
+  validate({
+    query: roleOnlyQuerySchema,
+    responses: proposalsMetadataResponses,
+  }),
   getProposalMetadata,
 );
 proposalRouter.post(
   "/",
   isAuthenticated,
-  validate({ query: roleOnlyQuerySchema, body: submitProposalBodySchema }),
+  validate({
+    query: roleOnlyQuerySchema,
+    body: submitProposalBodySchema,
+    responses: proposalsCreateResponses,
+  }),
   createProposal,
 );
 proposalRouter.patch(
@@ -44,6 +61,7 @@ proposalRouter.patch(
     params: proposalIdParamsSchema,
     query: roleOnlyQuerySchema,
     body: updateProposalStatusBodySchema,
+    responses: proposalsStatusResponses,
   }),
   updateProposalStatus,
 );
@@ -54,6 +72,7 @@ proposalRouter.post(
     params: proposalIdParamsSchema,
     query: roleOnlyQuerySchema,
     body: interviewProposalBodySchema,
+    responses: proposalsInterviewResponses,
   }),
   interviewProposal,
 );

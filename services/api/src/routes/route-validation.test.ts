@@ -5,8 +5,11 @@ import { z } from "zod";
 import { withIgnoredKeys } from "../utils/common-schemas.js";
 import { validate } from "../middleware/validate.middleware.js";
 import { apiRouter } from "./index.js";
+import { contractAllowlist } from "./contract-allowlist.js";
 import {
   collectRoutes,
+  findContractAllowlistProblems,
+  findContractViolations,
   findStaleEntries,
   findViolations,
   readMountPaths,
@@ -87,6 +90,16 @@ describe("route validation coverage", () => {
       "GET /items/:id: missing params schema",
       "PUT /nested/x: missing body schema",
     ]);
+  });
+
+  it("declares a 2xx response on every route or allowlists it", () => {
+    expect(findContractViolations(routes, contractAllowlist)).toEqual([]);
+  });
+
+  it("has a valid contract allowlist", () => {
+    expect(findContractAllowlistProblems(routes, contractAllowlist)).toEqual(
+      [],
+    );
   });
 
   it("reports stale allowlist entries", () => {

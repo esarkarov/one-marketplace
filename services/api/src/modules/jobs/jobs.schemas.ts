@@ -160,8 +160,9 @@ export const publicJobFeedQuerySchema = z.strictObject({
     })
     .optional(),
   sort: z
-    .string()
-    .max(JOB_LIMITS.feedSortMax, { error: "Sort is invalid." })
+    .enum(["newest", "budget", "rating", "proposals"], {
+      error: "Sort is invalid.",
+    })
     .optional(),
   offset: pagingDigits("Offset").optional(),
   levels: z

@@ -4,6 +4,7 @@ import {
   getValidationSchemas,
   type ValidationSchemas,
 } from "../middleware/validate.middleware.js";
+import { type ContractAllowlist } from "./contract-allowlist.js";
 import type { ValidationAllowlistEntry } from "./validation-allowlist.js";
 
 export interface RouteInfo {
@@ -175,6 +176,73 @@ export const findViolations = (
   }
 
   return violations;
+};
+
+const declaresSuccess = (route: RouteInfo) => {
+  const responses = schemasOf(route)?.responses;
+  return (
+    responses !== undefined &&
+    Object.entries(responses).some(
+      ([status, schema]) =>
+        schema !== undefined && Number(status) >= 200 && Number(status) < 300,
+    )
+  );
+};
+
+export const findContractViolations = (
+  routes: readonly RouteInfo[],
+  allowlist: ContractAllowlist,
+): string[] => {
+  const exempt = new Set(
+    [...allowlist.rawBodyWebhooks, ...allowlist.eventStreams].map((e) =>
+      routeKey(e.method, e.path),
+    ),
+  );
+  const violations: string[] = [];
+
+  for (const route of routes) {
+    const key = routeKey(route.method, route.path);
+    if (exempt.has(key)) continue;
+    if (!declaresSuccess(route)) {
+      violations.push(`${key}: missing responses with a 2xx schema`);
+    }
+  }
+
+  return violations;
+};
+
+export const findContractAllowlistProblems = (
+  routes: readonly RouteInfo[],
+  allowlist: ContractAllowlist,
+): string[] => {
+  const byKey = new Map(
+    routes.map((r) => [routeKey(r.method, r.path), r] as const),
+  );
+  const problems: string[] = [];
+  const groups = [
+    ["rawBodyWebhooks", allowlist.rawBodyWebhooks, true],
+    ["eventStreams", allowlist.eventStreams, true],
+    ["untestedRoutes", allowlist.untestedRoutes, false],
+  ] as const;
+
+  for (const [name, entries, rejectDeclared] of groups) {
+    for (const entry of entries) {
+      const key = routeKey(entry.method, entry.path);
+      const route = byKey.get(key);
+      if (!route) {
+        problems.push(`${name}: ${key} does not exist`);
+        continue;
+      }
+      if (entry.reason.trim() === "") {
+        problems.push(`${name}: ${key} has no reason`);
+      }
+      if (rejectDeclared && declaresSuccess(route)) {
+        problems.push(`${name}: ${key} declares responses, remove the entry`);
+      }
+    }
+  }
+
+  return problems;
 };
 
 export const findStaleEntries = (

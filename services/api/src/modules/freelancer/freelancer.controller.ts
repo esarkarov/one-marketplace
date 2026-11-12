@@ -288,23 +288,12 @@ export const getPublicFreelancer: RequestHandler = asyncHandler(
   },
 );
 
-const SORT_VALUES = [
-  "recommended",
-  "rating",
-  "success",
-  "projects",
-  "rate-low",
-];
-
 export const searchPublicFreelancersHandler: RequestHandler = asyncHandler(
   async (request, response) => {
     const query =
       typeof request.query.query === "string" ? request.query.query : "";
-    const sort =
-      typeof request.query.sort === "string" &&
-      SORT_VALUES.includes(request.query.sort)
-        ? (request.query.sort as PublicTalentSearchFilters["sort"])
-        : "recommended";
+    const sort = (request.query.sort ??
+      "recommended") as PublicTalentSearchFilters["sort"];
     const offset = Math.max(0, Number(request.query.offset) || 0);
     const numberParam = (key: string) => {
       const value = Number(request.query[key]);

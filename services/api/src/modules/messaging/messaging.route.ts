@@ -28,6 +28,8 @@ import {
   readConversationBodySchema,
   roleOnlyQuerySchema,
 } from "./messaging.schemas.js";
+import { messagingResponses } from "./messaging.responses.js";
+import { meetingsResponses } from "../meetings/meetings.responses.js";
 
 export const messagingRouter = Router();
 
@@ -36,7 +38,10 @@ const sendMessageLimiter = messageWriteLimiter();
 messagingRouter.get(
   "/",
   isAuthenticated,
-  validate({ query: listConversationsQuerySchema }),
+  validate({
+    query: listConversationsQuerySchema,
+    responses: messagingResponses.list,
+  }),
   listConversations,
 );
 messagingRouter.post(
@@ -45,6 +50,7 @@ messagingRouter.post(
   validate({
     query: roleOnlyQuerySchema,
     body: openConversationBodySchema,
+    responses: messagingResponses.open,
   }),
   openConversation,
 );
@@ -58,6 +64,7 @@ messagingRouter.post(
     params: conversationParamsSchema,
     query: roleOnlyQuerySchema,
     body: createMessageBodySchema,
+    responses: messagingResponses.send,
   }),
   createMessage,
 );
@@ -67,6 +74,7 @@ messagingRouter.get(
   validate({
     params: conversationParamsSchema,
     query: listMessagesQuerySchema,
+    responses: messagingResponses.messages,
   }),
   listMessages,
 );
@@ -77,6 +85,7 @@ messagingRouter.post(
     params: conversationParamsSchema,
     query: roleOnlyQuerySchema,
     body: readConversationBodySchema,
+    responses: messagingResponses.read,
   }),
   readConversation,
 );
@@ -86,6 +95,7 @@ messagingRouter.post(
   validate({
     params: createMeetingParamsSchema,
     query: createMeetingQuerySchema,
+    responses: meetingsResponses.create,
   }),
   createMeetingHandler,
 );

@@ -103,8 +103,8 @@ export const countLeftovers = async () => {
   return Number(result.rows[0]?.total ?? 0);
 };
 
-export const purgeLeftovers = async () => {
-  const like = `${TEST_PREFIX}%`;
+export const purgeLeftovers = async (prefix: string = TEST_PREFIX) => {
+  const like = `${prefix}%`;
   await pool.query("delete from contracts where client_id like $1", [like]);
   await pool.query("delete from proposals where sender_id like $1", [like]);
   await pool.query("delete from job_posts where client_id like $1", [like]);
@@ -114,7 +114,7 @@ export const purgeLeftovers = async () => {
   await pool.query("delete from accounts where auth_id like $1", [like]);
 };
 
-export const createTestData = () => {
+export const createTestData = (prefix: string = TEST_PREFIX) => {
   assertTestDatabase(process.env.DATABASE_URL, process.env.POSTGRES_DB);
 
   const created = {
@@ -131,7 +131,7 @@ export const createTestData = () => {
     role: "FREELANCER" | "CLIENT",
     connectAccountId: string | null,
   ) => {
-    const authId = `${TEST_PREFIX}${randomUUID()}`;
+    const authId = `${prefix}${randomUUID()}`;
     await db.insert(accounts).values({
       auth_id: authId,
       email: `${authId}@example.test`,
@@ -166,7 +166,7 @@ export const createTestData = () => {
       .insert(agency_metadata)
       .values({
         owner_id: ownerAuthId,
-        name: `${TEST_PREFIX}agency-${randomUUID()}`,
+        name: `${prefix}agency-${randomUUID()}`,
         size: "1-10",
         specialty: "testing",
         overview: "integration test agency",
@@ -204,7 +204,7 @@ export const createTestData = () => {
       .insert(proposals)
       .values({
         job_id: job!.id,
-        sender_id: owner.freelancerId ?? `${TEST_PREFIX}${owner.agencyId}`,
+        sender_id: owner.freelancerId ?? `${prefix}${owner.agencyId}`,
         sender_type: owner.freelancerId ? "FREELANCER" : "AGENCY",
         cover_letter: "integration",
         bid_amount_cents: amountCents,
