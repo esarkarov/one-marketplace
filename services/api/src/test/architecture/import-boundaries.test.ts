@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { boundaryExceptions } from "./boundary-exceptions.js";
+import { isTableFile, isTemporaryBarrelEdge } from "./table-files.js";
 
 const srcDir = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -110,6 +111,12 @@ function violationRules(edge: Edge): Rule[] {
   if (isTestFile(edge.importer)) return [];
   const importedModule = moduleOf(edge.imported);
   if (!importedModule) return [];
+  if (
+    isTableFile(edge.imported) &&
+    (importerModule || isTemporaryBarrelEdge(edge))
+  ) {
+    return [];
+  }
   if (importerModule && importerModule !== importedModule) {
     const rules: Rule[] = [];
     if (
@@ -228,6 +235,7 @@ describe("import boundaries", () => {
     const edgeFiles = new Map<string, Set<string>>();
     for (const { importer, imported } of edges) {
       if (isTestFile(importer)) continue;
+      if (isTableFile(imported) || isTableFile(importer)) continue;
       const from = moduleOf(importer);
       const to = moduleOf(imported);
       if (!from || !to || from === to) continue;

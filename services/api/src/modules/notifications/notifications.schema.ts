@@ -8,7 +8,7 @@ import {
   timestamp,
   uuid,
 } from "drizzle-orm/pg-core";
-import { agency_metadata } from "./agency.js";
+import { agency_metadata } from "../agency/agency.schema.js";
 
 export const notifications = pgTable(
   "notifications",

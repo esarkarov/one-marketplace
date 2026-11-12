@@ -38,7 +38,7 @@ Zod-inferred types stay in `*.schemas.ts`. Small modules (auth, identity, notifi
 
 ### 3. Schema split
 
-`src/database/schema.ts` stays as a file that re-exports `src/database/schema/<domain>.ts` files (enums and accounts at the bottom of the import direction, other domains import downward). `drizzle.config.ts` and every importer stay unchanged. Gate: `drizzle-kit generate` prints "No schema changes" and no file appears under `drizzle/`. This supersedes ADR 0013 section 1 on `schema.ts` staying one file.
+`src/database/schema.ts` stays as a file that re-exports `src/database/schema/<domain>.ts` files (enums and accounts at the bottom of the import direction, other domains import downward). `drizzle.config.ts` and every importer stay unchanged. Gate: `drizzle-kit generate` prints "No schema changes" and no file appears under `drizzle/`. Where the table definitions live is superseded by section 9. This supersedes ADR 0013 section 1 on `schema.ts` staying one file.
 
 ### 4. Test layout and suffix vocabulary
 
@@ -88,7 +88,7 @@ Every stage that applies this ADR keeps `docs/api/openapi.json` byte-identical, 
 
 ### 9. Table files and table access
 
-Decided, to be executed in stages; none of the rules below is in place until the stage that introduces it. Table definitions (drizzle tables, enums and relations) will move into their owning module as `modules/<name>/<name>.schema.ts`. This is a different file from `<name>.schemas.ts`, which holds the zod request and response schemas; tooling that targets table files matches the exact suffix `.schema.ts`. `accounts` and `accountRole` belong to auth. The central `database/schema/` folder from section 3 is an intermediate step and is deleted at the end of the move.
+Decided, to be executed in stages; a rule is in place only once its stage has run. Status: table placement is executed. The table definitions live in `modules/<name>/<name>.schema.ts`, `database/schema.ts` is a temporary barrel that re-exports them under one named temporary rule in the boundary test, and `database/schema/` is deleted. Consumers and `drizzle.config.ts` follow in the next stage, which also removes the barrel and its rule. Table definitions (drizzle tables, enums and relations) will move into their owning module as `modules/<name>/<name>.schema.ts`. This is a different file from `<name>.schemas.ts`, which holds the zod request and response schemas; tooling that targets table files matches the exact suffix `.schema.ts`. `accounts` and `accountRole` belong to auth. The central `database/schema/` folder from section 3 is an intermediate step and is deleted at the end of the move.
 
 Stage 0 adds only a safety net, with no file moves: `table-ownership.ts` maps every table and enum to its owner, `table-access-allowlist.ts` lists every cross-module table access (read or write) with a reason on each write, and `table-access.test.ts` fails on an unlisted access and on a stale entry. It supersedes the prose list in ADR 0013 section 4. The test is keyed on table names and owners, not file paths, so it covers the central folder now and the `.schema.ts` files later.
 

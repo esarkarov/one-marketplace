@@ -4,7 +4,7 @@ On-demand checklist for `services/api`. Rules and rationale: `services/api/AGENT
 
 ## New module
 
-1. Create `modules/<name>/` (kebab-case) with role-suffixed files: `<name>.route.ts`, `<name>.controller.ts`, `<name>.service.ts`, `<name>.schemas.ts`, `<name>.responses.ts`, and `<name>.types.ts` when needed. Use `.middleware`, `.cron`, `.socket` or `.sse` suffixes for those roles.
+1. Create `modules/<name>/` (kebab-case) with role-suffixed files: `<name>.route.ts`, `<name>.controller.ts`, `<name>.service.ts`, `<name>.schemas.ts`, `<name>.responses.ts`, `<name>.types.ts` when needed, and `<name>.schema.ts` when the module owns tables (drizzle tables, enums and relations; different from `<name>.schemas.ts`, which is zod). Use `.middleware`, `.cron`, `.socket` or `.sse` suffixes for those roles.
 2. Mount the router in `routes/index.ts`. Routes that must combine two modules are wired in `routes/`, not by one module importing another's controller.
 3. Add the module to `moduleLayers` in `test/architecture/import-boundaries.test.ts`, and to the layer table in ADR 0013 in the same PR. A module may import only a strictly lower layer. Never add an entry to `test/architecture/boundary-exceptions.ts`.
 4. Create `<name>.public.ts` only when another module needs something from this one (today `agency`, `connects`, `freelancer`, `messaging`). Export the minimum, as plain re-exports of functions.

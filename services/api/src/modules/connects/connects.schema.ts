@@ -8,8 +8,8 @@ import {
   timestamp,
   uuid,
 } from "drizzle-orm/pg-core";
-import { agency_metadata } from "./agency.js";
-import { freelancer_metadata } from "./freelancer.js";
+import { freelancer_metadata } from "../freelancer/freelancer.schema.js";
+import { agency_metadata } from "../agency/agency.schema.js";
 
 export const connects = pgTable(
   "connects",

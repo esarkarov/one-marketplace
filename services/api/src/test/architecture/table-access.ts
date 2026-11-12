@@ -31,17 +31,17 @@ export interface TableDefinition {
   file: string;
 }
 
-const toKey = (file: string) =>
-  path.relative(srcDir, file).split(path.sep).join("/");
+export const toKey = (root: string, file: string) =>
+  path.relative(root, file).split(path.sep).join("/");
 
-const listTsFiles = (dir: string): string[] =>
+export const listTsFiles = (dir: string): string[] =>
   readdirSync(dir).flatMap((entry) => {
     const full = path.join(dir, entry);
     if (statSync(full).isDirectory()) return listTsFiles(full);
     return entry.endsWith(".ts") ? [full] : [];
   });
 
-const parse = (file: string) =>
+export const parse = (file: string) =>
   ts.createSourceFile(
     file,
     readFileSync(file, "utf8"),
@@ -49,18 +49,19 @@ const parse = (file: string) =>
     true,
   );
 
-const isModuleTableFile = (key: string) =>
+export const isLooseTableFile = (key: string) =>
   /^modules\/[^/]+\/[^/]+\.schema\.ts$/.test(key);
 
 const isTableSource = (key: string) =>
-  key === "database/schema.ts" ||
-  key.startsWith("database/schema/") ||
-  isModuleTableFile(key);
+  key === "database/schema.ts" || isLooseTableFile(key);
 
-const isTestKey = (key: string) =>
+export const isTestKey = (key: string) =>
   key.endsWith(".test.ts") || key.startsWith("test/");
 
-const resolveImport = (from: string, specifier: string): string | null => {
+export const resolveImport = (
+  from: string,
+  specifier: string,
+): string | null => {
   if (!specifier.startsWith(".")) return null;
   const base = path.resolve(path.dirname(from), specifier);
   for (const candidate of [
@@ -73,16 +74,15 @@ const resolveImport = (from: string, specifier: string): string | null => {
   return null;
 };
 
-export const moduleNames = (): string[] =>
-  readdirSync(path.join(srcDir, "modules")).filter((entry) =>
-    statSync(path.join(srcDir, "modules", entry)).isDirectory(),
+export const moduleNames = (root = srcDir): string[] =>
+  readdirSync(path.join(root, "modules")).filter((entry) =>
+    statSync(path.join(root, "modules", entry)).isDirectory(),
   );
 
-export const discoverTableDefinitions = (): TableDefinition[] => {
-  const files = listTsFiles(srcDir).filter((file) => {
-    const key = toKey(file);
-    return key.startsWith("database/schema/") || isModuleTableFile(key);
-  });
+export const discoverTableDefinitions = (root = srcDir): TableDefinition[] => {
+  const files = listTsFiles(root).filter(
+    (file) => !isTestKey(toKey(root, file)),
+  );
   const definitions: TableDefinition[] = [];
   for (const file of files) {
     for (const statement of parse(file).statements) {
@@ -106,7 +106,7 @@ export const discoverTableDefinitions = (): TableDefinition[] => {
           definitions.push({
             name: declaration.name.text,
             kind: callee === "pgTable" ? "table" : "enum",
-            file: toKey(file),
+            file: toKey(root, file),
           });
         }
       }
@@ -221,19 +221,20 @@ const classifyUse = (node: ts.Identifier): Classified | null => {
 
 export const analyzeTableAccess = (
   ownerOf: (name: string) => string | undefined,
+  root = srcDir,
 ) => {
   const violations: string[] = [];
   const sites: (Site & { importer: string })[] = [];
 
-  const files = listTsFiles(srcDir).filter((file) => {
-    const key = toKey(file);
+  const files = listTsFiles(root).filter((file) => {
+    const key = toKey(root, file);
     return (
-      !isTestKey(key) && !key.startsWith("database/") && !isModuleTableFile(key)
+      !isTestKey(key) && !key.startsWith("database/") && !isLooseTableFile(key)
     );
   });
 
   for (const file of files) {
-    const key = toKey(file);
+    const key = toKey(root, file);
     const importer = importerKeyOf(key);
     const source = parse(file);
     const locals = new Map<string, string>();
@@ -243,7 +244,7 @@ export const analyzeTableAccess = (
     const targetOf = (specifier: ts.Expression | undefined) => {
       if (!specifier || !ts.isStringLiteralLike(specifier)) return null;
       const resolved = resolveImport(file, specifier.text);
-      return resolved && isTableSource(toKey(resolved)) ? resolved : null;
+      return resolved && isTableSource(toKey(root, resolved)) ? resolved : null;
     };
 
     const visitImports = (node: ts.Node) => {
