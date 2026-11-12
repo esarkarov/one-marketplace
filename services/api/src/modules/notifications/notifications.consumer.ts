@@ -1,20 +1,23 @@
 import type { ChannelWrapper } from "amqp-connection-manager";
 import type { ConsumeMessage } from "amqplib";
 import { sql } from "drizzle-orm";
-import { getRabbitConsumerChannel } from "../rabbitmq.js";
+import { getRabbitConsumerChannel } from "../../infrastructure/rabbitmq.js";
 import { logger } from "../../config/logger.js";
 import { db } from "../../database/client.js";
 import { notifications } from "../../database/schema.js";
 import {
   emitAgencyNotification,
   emitNotification,
-} from "../../modules/notifications/notification.sse.js";
+} from "./notification.sse.js";
 import {
   errorCodeForLog,
   errorLogAttributes,
 } from "../../shared/utils/sanitize-log.js";
-import { notificationEnvelopeSchema } from "./envelope.js";
-import { DEFAULT_DELIVERY_LIMIT, topologyNames } from "./topology.js";
+import { notificationEnvelopeSchema } from "../../infrastructure/events/envelope.js";
+import {
+  DEFAULT_DELIVERY_LIMIT,
+  topologyNames,
+} from "../../infrastructure/events/topology.js";
 
 const PREFETCH = 10;
 const MIN_BACKOFF_MS = 1_000;

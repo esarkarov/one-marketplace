@@ -37,7 +37,7 @@ import { emitConversationUpdate } from "./messaging.socket.js";
 import {
   getAgencyIdForMember,
   getAgencyTeamMemberIds,
-} from "../agency/agency.service.js";
+} from "../agency/agency.public.js";
 
 export interface AttachmentInput {
   fileId: string;

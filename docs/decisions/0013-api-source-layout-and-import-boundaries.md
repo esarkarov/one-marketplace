@@ -19,7 +19,7 @@ Constraints: this stays a modular monolith (ADR 0001), not microservices. No who
 - `server.ts` (entry) and `app.ts` (express factory).
 - `bootstrap/`: ordered start and stop of infrastructure and of the module-owned workers, and readiness. `payouts.cron.ts` and `messaging.socket.ts` stay in their modules; bootstrap only runs their lifecycle. No `workers/` or `realtime/` folders.
 - `config/`: validated env, constants, cors, logger, webhooks.
-- `infrastructure/`: one file per third-party client or adapter: redis, rabbitmq, `events/` (envelope, topology, publisher, consumer), stripe, clerk, daily, image-kit, upload-documents, account-auth-cache.
+- `infrastructure/`: one file per third-party client or adapter: redis, rabbitmq, `events/` (envelope, topology, publisher, legacy-v1; the consumer lives in `modules/notifications/notifications.consumer.ts`), stripe, clerk, daily, image-kit, upload-documents, account-auth-cache.
 - `shared/`:
   - `http/`: api-error, async-handler, generic middleware, and the auth and role guards (`requireClient`, `requireFreelancer`).
   - `validation/`: common, response, money and search schemas, and `validation-limits.ts`.
@@ -43,21 +43,21 @@ One file per third-party client under `src/infrastructure/`, none created anywhe
 
 Cuts that remove today's edges (derived from the real import graph in `src/modules`):
 
-| Edge today                                                                                              | Resolution                                                              |
-| ------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| `requireClient` (from proposals), `requireFreelancer` (from freelancer) in 5 controllers                | move code down: `shared/http`                                           |
-| `messaging.route` imports meetings controller, schemas, responses                                       | move code up: meetings routes wired in `routes/` assembly               |
-| `openapi/build-spec` imports the admin session middleware                                               | move code down: `shared/http`                                           |
-| `events/consumer` imports the notifications SSE hub                                                     | move code down: the hub goes to `infrastructure`                        |
-| agency, freelancer, messaging, contracts, notifications, proposals read `agency.service` member lookups | public surface: `agency.public.ts` (`getAgencyIdForMember` and similar) |
-| agency and contracts read `freelancer.service` (`getJSSContribution`, `getMatchedJobPostsBySkills`)     | public surface: `freelancer.public.ts`                                  |
-| agency, freelancer read `connects.service` (`addAgencyConnects`, `addConnects`)                         | public surface: `connects.public.ts`                                    |
-| contracts and proposals call `emitConversationUpdate` from `messaging.socket`; meetings uses messaging  | public surface: `messaging.public.ts`                                   |
-| `freelancer.service` reads agency identity for a member                                                 | move code down: member lookup reads `agency_members`, goes to `shared`  |
-| `agency.controller` calls `proposals.service`; `proposals.service` calls agency                         | invert the reverse edge: agency proposal handlers go behind `proposals` |
-| `agency.controller` calls `connects` and `freelancer` services                                          | public surface (above)                                                  |
+| Edge today                                                                                              | Resolution                                                                                                                                                 |
+| ------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `requireClient` (from proposals), `requireFreelancer` (from freelancer) in 5 controllers                | move code down: `shared/http`                                                                                                                              |
+| `messaging.route` imports meetings controller, schemas, responses                                       | move code up: meetings routes wired in `routes/` assembly                                                                                                  |
+| `openapi/build-spec` imports the admin session middleware                                               | move code down: `shared/http`                                                                                                                              |
+| `events/consumer` imports the notifications SSE hub                                                     | move code down: the hub goes to `infrastructure`                                                                                                           |
+| agency, freelancer, messaging, contracts, notifications, proposals read `agency.service` member lookups | public surface: `agency.public.ts` (`getAgencyIdForMember` and similar)                                                                                    |
+| agency and contracts read `freelancer.service` (`getJSSContribution`, `getMatchedJobPostsBySkills`)     | public surface: `freelancer.public.ts`                                                                                                                     |
+| agency, freelancer read `connects.service` (`addAgencyConnects`, `addConnects`)                         | public surface: `connects.public.ts`                                                                                                                       |
+| contracts and proposals call `emitConversationUpdate` from `messaging.socket`; meetings uses messaging  | public surface: `messaging.public.ts`                                                                                                                      |
+| `freelancer.service` reads agency identity for a member                                                 | move code down: `getAgencyIdentityForMember` is in `shared/utils/agency-identity.ts`                                                                       |
+| `agency.controller` calls `proposals.service`; `proposals.service` calls agency                         | invert the reverse edge: the three agency proposal handlers live in `proposals.controller` and `routes/agency-proposals.route.ts` mounts them at `/agency` |
+| `agency.controller` calls `connects` and `freelancer` services                                          | public surface (above)                                                                                                                                     |
 
-Module layers (target; Phase C enforces it in the test). A module may import only a strictly lower layer, and never one in its own layer.
+Module layers (enforced by the architecture test). A module may import only a strictly lower layer, never one in its own layer, and only through the other module's `<name>.public.ts`.
 
 | Layer | Modules                                                | May import                    |
 | ----- | ------------------------------------------------------ | ----------------------------- |
@@ -68,7 +68,7 @@ Module layers (target; Phase C enforces it in the test). A module may import onl
 | 4     | meetings, notifications, proposals                     | agency, messaging, connects   |
 | 5     | contracts                                              | agency, freelancer, messaging |
 
-Layer 0 modules import no module today. Assigning `agency` above `freelancer` requires the member lookup in `freelancer.service` to move down first. If a later cut shows a different order is cheaper, change this table in the same PR as the code and the test.
+Layer 0 modules import no module. The table matched the real graph, so it did not change in Phase C. To change an order, change this table in the same PR as the code and the test.
 
 ### 4. Table ownership
 
@@ -120,13 +120,13 @@ Outliers renamed in Phase D:
 
 - The architecture test `src/test/architecture/import-boundaries.test.ts` checks module boundaries, shared-to-module direction, controller-to-database, stale exceptions and cycles. It is extended with the layer table and the new directory names.
 - eslint `no-restricted-imports` for third-party clients (section 2) and for deep imports into another module's files.
-- The exception list lives in `src/test/architecture/boundary-exceptions.ts` and is not copied here. Its categories: controller reuse of guards and schemas (Phase B), service-to-service reads (Phase C), realtime emits (Phase C), consumer to SSE hub (Phase B), spec builder to admin middleware (Phase B). Expected end state: only documented table-read exceptions remain, and `it.fails` on the cycle test becomes a normal `it`.
+- The exception list lives in `src/test/architecture/boundary-exceptions.ts` and is not copied here. It is empty after Phase C: no import exceptions remain and the cycle test is a normal `it`. Table reads of another module's tables (section 4) are not import edges and are not listed there.
 
 ### Phases
 
 - A: this ADR, living docs, and the architecture test as a measuring tool (done).
 - B: move guards, SSE hub, admin session middleware and meetings wiring; create `shared/`, `infrastructure/`, `bootstrap/`; add the eslint rule.
-- C: add the four `*.public.ts` files, move service reads down, invert reverse edges, enforce the layer table and no cycles.
+- C: add the four `*.public.ts` files, move service reads down, invert reverse edges, enforce the layer table and no cycles (done).
 - D: naming renames.
 - E: delete resolved exceptions, update `AGENTS.md`, `docs/architecture.md` and the READMEs to the new paths.
 
@@ -149,7 +149,7 @@ The `AGENTS.md` wording on RabbitMQ (optional, enabled by `RABBITMQ_URL`) is cor
 - `bootstrap/` makes the startup and shutdown order visible and testable, which Stage 11 needs.
 - Moving files breaks every import path in one pass; it is mechanical but touches most of the tree. Phases B to D are separate PRs so each diff stays reviewable.
 - Moving files must not change generated artifacts: `docs/api/openapi.json` stays identical, and `document.ts` reads `src/routes/index.ts` as text, so the route assembly path must be handled in Phase B.
-- Public surfaces add small indirection. They stay minimal and are created only for modules that others import.
+- Public surfaces add small indirection (plain re-exports of the functions other modules call). They stay minimal and are created only for modules that others import.
 - Table-write ownership is documented but not enforced; cross-module writes remain debt until each is moved.
 - The layer table is a proposal derived from today's graph. Phase C may adjust it, in the same PR as the code.
 - Dependency direction on `database/` and `types/` is checked, but a shared-table read is still allowed; it is not a boundary violation under this ADR.

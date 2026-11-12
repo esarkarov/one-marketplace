@@ -25,9 +25,9 @@ import {
 import { ApiError } from "../../shared/http/api-error.js";
 import { splitFee } from "../../shared/money/money.js";
 import { sendNotification } from "../../infrastructure/events/publisher.js";
-import { emitConversationUpdate } from "../messaging/messaging.socket.js";
-import { getJSSContribution } from "../freelancer/freelancer.service.js";
-import { getAgencyOwnerId } from "../agency/agency.service.js";
+import { emitConversationUpdate } from "../messaging/messaging.public.js";
+import { getJSSContribution } from "../freelancer/freelancer.public.js";
+import { getAgencyOwnerId } from "../agency/agency.public.js";
 
 const participantMatch = (accountId: string, agencyId?: string | null) =>
   agencyId

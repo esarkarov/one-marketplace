@@ -30,9 +30,9 @@ import { clerk } from "../../infrastructure/clerk.js";
 import {
   getAgencyOwnerId,
   getAgencyTeamMemberIds,
-} from "../agency/agency.service.js";
+} from "../agency/agency.public.js";
 import { sendNotification } from "../../infrastructure/events/publisher.js";
-import { emitConversationUpdate } from "../messaging/messaging.socket.js";
+import { emitConversationUpdate } from "../messaging/messaging.public.js";
 
 export const submitProposal = async (
   freelancerId: string,

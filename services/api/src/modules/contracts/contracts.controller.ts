@@ -11,7 +11,7 @@ import {
 import {
   getAgencyIdForMember,
   requireAgencyPermission,
-} from "../agency/agency.service.js";
+} from "../agency/agency.public.js";
 import {
   acceptContract,
   createContractCheckout,
@@ -25,7 +25,7 @@ import {
   finishContractWithReview,
 } from "./contracts.service.js";
 import { sendNotification } from "../../infrastructure/events/publisher.js";
-import { emitConversationUpdate } from "../messaging/messaging.socket.js";
+import { emitConversationUpdate } from "../messaging/messaging.public.js";
 
 export const startContractCheckout: RequestHandler = asyncHandler(
   async (request, response) => {

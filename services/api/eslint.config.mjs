@@ -54,7 +54,7 @@ export default defineConfig([
           ),
           patterns: [
             {
-              group: ["@imagekit/*"],
+              group: ["@imagekit/*", "@clerk/*"],
               allowTypeImports: true,
               message: "Third-party clients live only in src/infrastructure.",
             },
@@ -71,7 +71,6 @@ export default defineConfig([
       "src/shared/**/*.ts",
       "src/bootstrap/**/*.ts",
       "src/database/db-executor.ts",
-      "src/middleware/**/*.ts",
       "src/routes/**/*.ts",
       "src/types/**/*.ts",
       "src/*.ts",

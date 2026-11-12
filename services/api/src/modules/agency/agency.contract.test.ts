@@ -22,8 +22,6 @@ const mocks = vi.hoisted(() => ({
   loginLink: vi.fn(),
 }));
 
-vi.mock("@clerk/backend", () => ({ verifyToken: mocks.verifyToken }));
-
 vi.mock("../../config/env.js", async (importOriginal) => {
   const original = await importOriginal<typeof import("../../config/env.js")>();
   return {
@@ -40,6 +38,7 @@ vi.mock("../../config/env.js", async (importOriginal) => {
 
 vi.mock("../../infrastructure/clerk.js", () => ({
   clerk: { users: { getUser: mocks.getUser } },
+  verifyToken: mocks.verifyToken,
 }));
 
 vi.mock("../../infrastructure/stripe.js", () => ({

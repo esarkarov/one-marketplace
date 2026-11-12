@@ -9,7 +9,7 @@ import { createDailyRoom } from "../../infrastructure/daily.js";
 import {
   postSystemEventMessage,
   requireMember,
-} from "../messaging/messaging.service.js";
+} from "../messaging/messaging.public.js";
 
 const ACTIVE_MEETING_UNIQUE = "meetings_one_active_per_conversation_unique";
 

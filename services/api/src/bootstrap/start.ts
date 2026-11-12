@@ -6,7 +6,7 @@ import { app } from "../app.js";
 import { errorLogAttributes } from "../shared/utils/sanitize-log.js";
 import { connectRedis, disconnectRedis } from "../infrastructure/redis.js";
 import { closeRabbit, isRabbitEnabled } from "../infrastructure/rabbitmq.js";
-import { startNotificationConsumer } from "../infrastructure/events/consumer.js";
+import { startNotificationConsumer } from "../modules/notifications/notifications.consumer.js";
 import { initializeMessagingSocket } from "../modules/messaging/messaging.socket.js";
 import { startPayoutCron } from "../modules/payouts/payouts.cron.js";
 import { setHttpServer } from "./http-server.js";

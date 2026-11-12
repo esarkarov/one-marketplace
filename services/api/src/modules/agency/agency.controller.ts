@@ -34,18 +34,13 @@ import {
   updateAgencyProfile,
   UpdateAgencyPortfolioInput,
 } from "./agency.service.js";
-import { getMatchedJobPostsBySkills } from "../freelancer/freelancer.service.js";
+import { getMatchedJobPostsBySkills } from "../freelancer/freelancer.public.js";
 import {
   createAgencyConnectsCheckout,
   getAgencyConnectsBalance,
   getAgencyConnectsHistory,
-} from "../connects/connects.service.js";
+} from "../connects/connects.public.js";
 import { CONNECTS_PLANS, ConnectsPlan } from "../../config/constants.js";
-import {
-  getAgencyProposalMetadata,
-  getAgencyProposals,
-  submitAgencyProposal,
-} from "../proposals/proposals.service.js";
 
 const requireAgencyWebsite = (
   value: string | undefined,
@@ -373,56 +368,6 @@ export const buyAgencyConnects: RequestHandler = asyncHandler(
   },
 );
 
-export const submitAgencyProposalHandler: RequestHandler = asyncHandler(
-  async (request, response) => {
-    if (!request.auth) {
-      throw new ApiError(401, "Authentication is required.");
-    }
-
-    if (request.auth.role !== "freelancer") {
-      throw new ApiError(403, "A freelancer account is required.");
-    }
-
-    const { agencyId } = await requireAgencyPermission(
-      request.auth.userId,
-      "proposal.send",
-    );
-    if (!agencyId) {
-      throw new ApiError(
-        404,
-        "No agency workspace was found for this account.",
-      );
-    }
-
-    const coverLetter = requireText(request.body?.coverLetter, "Cover letter");
-    const bidAmountCents = request.body.bidAmountCents as number;
-    const screeningAnswers = Array.isArray(request.body?.screeningAnswers)
-      ? request.body.screeningAnswers.map((answer: unknown) =>
-          typeof answer === "string" ? answer.trim() : "",
-        )
-      : [];
-    if (coverLetter.length < 80) {
-      throw new ApiError(400, "Cover letter must be at least 80 characters.");
-    }
-
-    const result = await submitAgencyProposal(agencyId, {
-      jobId: requireText(request.body?.jobId, "Job post"),
-      coverLetter,
-      bidAmountCents,
-      duration: requireText(request.body?.duration, "Delivery duration"),
-      screeningAnswers,
-    });
-
-    const body: ApiResponse<typeof result> = {
-      success: true,
-      message: "Proposal submitted.",
-      data: result,
-    };
-
-    response.status(201).json(body);
-  },
-);
-
 export const getPublicAgencyHandler: RequestHandler = asyncHandler(
   async (request, response) => {
     const profile = await getPublicAgencyProfile(
@@ -476,57 +421,6 @@ export const searchPublicAgenciesHandler: RequestHandler = asyncHandler(
     };
 
     response.status(200).json(responseBody);
-  },
-);
-
-export const getAgencyProposalMetadataHandler: RequestHandler = asyncHandler(
-  async (request, response) => {
-    if (!request.auth) {
-      throw new ApiError(401, "Authentication is required.");
-    }
-
-    if (request.auth.role !== "freelancer") {
-      throw new ApiError(403, "A freelancer account is required.");
-    }
-
-    const agencyId = await getAgencyIdForMember(request.auth.userId);
-    const metadata = agencyId
-      ? await getAgencyProposalMetadata(agencyId)
-      : {
-          proposals: [],
-          counts: { total: 0, active: 0, viewed: 0, interviewed: 0 },
-        };
-
-    const body: ApiResponse<typeof metadata> = {
-      success: true,
-      message: "Proposal metadata retrieved.",
-      data: metadata,
-    };
-
-    response.status(200).json(body);
-  },
-);
-
-export const getAgencyProposalsHandler: RequestHandler = asyncHandler(
-  async (request, response) => {
-    if (!request.auth) {
-      throw new ApiError(401, "Authentication is required.");
-    }
-
-    if (request.auth.role !== "freelancer") {
-      throw new ApiError(403, "A freelancer account is required.");
-    }
-
-    const agencyId = await getAgencyIdForMember(request.auth.userId);
-    const proposals = agencyId ? await getAgencyProposals(agencyId) : [];
-
-    const body: ApiResponse<typeof proposals> = {
-      success: true,
-      message: "Proposals retrieved.",
-      data: proposals,
-    };
-
-    response.status(200).json(body);
   },
 );
 

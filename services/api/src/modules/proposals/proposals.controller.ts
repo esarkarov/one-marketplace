@@ -9,14 +9,22 @@ import { requireText } from "../../config/constants.js";
 import { ApiError } from "../../shared/http/api-error.js";
 import type { submitProposalBodySchema } from "../../shared/validation/money-schemas.js";
 import {
+  getAgencyProposalMetadata,
+  getAgencyProposals,
   getFreelancerProposalMetadata,
   getFreelancerProposals,
   getClientJobProposals,
+  submitAgencyProposal,
   submitProposal,
   updateProposal,
   shortlistProposal,
   startProposalInterview,
 } from "./proposals.service.js";
+import {
+  getAgencyIdForMember,
+  requireAgencyPermission,
+} from "../agency/agency.public.js";
+import type { ApiResponse } from "../../types/common.types.js";
 import { sendNotification } from "../../infrastructure/events/publisher.js";
 
 export const createProposal: RequestHandler = asyncHandler(
@@ -166,5 +174,106 @@ export const interviewProposal: RequestHandler = asyncHandler(
       message: "Interview started.",
       data: result,
     });
+  },
+);
+
+export const submitAgencyProposalHandler: RequestHandler = asyncHandler(
+  async (request, response) => {
+    if (!request.auth) {
+      throw new ApiError(401, "Authentication is required.");
+    }
+
+    if (request.auth.role !== "freelancer") {
+      throw new ApiError(403, "A freelancer account is required.");
+    }
+
+    const { agencyId } = await requireAgencyPermission(
+      request.auth.userId,
+      "proposal.send",
+    );
+    if (!agencyId) {
+      throw new ApiError(
+        404,
+        "No agency workspace was found for this account.",
+      );
+    }
+
+    const coverLetter = requireText(request.body?.coverLetter, "Cover letter");
+    const bidAmountCents = request.body.bidAmountCents as number;
+    const screeningAnswers = Array.isArray(request.body?.screeningAnswers)
+      ? request.body.screeningAnswers.map((answer: unknown) =>
+          typeof answer === "string" ? answer.trim() : "",
+        )
+      : [];
+    if (coverLetter.length < 80) {
+      throw new ApiError(400, "Cover letter must be at least 80 characters.");
+    }
+
+    const result = await submitAgencyProposal(agencyId, {
+      jobId: requireText(request.body?.jobId, "Job post"),
+      coverLetter,
+      bidAmountCents,
+      duration: requireText(request.body?.duration, "Delivery duration"),
+      screeningAnswers,
+    });
+
+    const body: ApiResponse<typeof result> = {
+      success: true,
+      message: "Proposal submitted.",
+      data: result,
+    };
+
+    response.status(201).json(body);
+  },
+);
+
+export const getAgencyProposalMetadataHandler: RequestHandler = asyncHandler(
+  async (request, response) => {
+    if (!request.auth) {
+      throw new ApiError(401, "Authentication is required.");
+    }
+
+    if (request.auth.role !== "freelancer") {
+      throw new ApiError(403, "A freelancer account is required.");
+    }
+
+    const agencyId = await getAgencyIdForMember(request.auth.userId);
+    const metadata = agencyId
+      ? await getAgencyProposalMetadata(agencyId)
+      : {
+          proposals: [],
+          counts: { total: 0, active: 0, viewed: 0, interviewed: 0 },
+        };
+
+    const body: ApiResponse<typeof metadata> = {
+      success: true,
+      message: "Proposal metadata retrieved.",
+      data: metadata,
+    };
+
+    response.status(200).json(body);
+  },
+);
+
+export const getAgencyProposalsHandler: RequestHandler = asyncHandler(
+  async (request, response) => {
+    if (!request.auth) {
+      throw new ApiError(401, "Authentication is required.");
+    }
+
+    if (request.auth.role !== "freelancer") {
+      throw new ApiError(403, "A freelancer account is required.");
+    }
+
+    const agencyId = await getAgencyIdForMember(request.auth.userId);
+    const proposals = agencyId ? await getAgencyProposals(agencyId) : [];
+
+    const body: ApiResponse<typeof proposals> = {
+      success: true,
+      message: "Proposals retrieved.",
+      data: proposals,
+    };
+
+    response.status(200).json(body);
   },
 );

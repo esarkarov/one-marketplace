@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ConsumeMessage } from "amqplib";
-import { createNotificationEnvelope } from "./envelope.js";
+import { createNotificationEnvelope } from "../../infrastructure/events/envelope.js";
 
 const mocks = vi.hoisted(() => ({
   returning: vi.fn(),
@@ -16,7 +16,7 @@ vi.mock("../../config/logger.js", () => ({
   logger: { error: mocks.logError, info: mocks.logInfo },
 }));
 
-vi.mock("../rabbitmq.js", () => ({
+vi.mock("../../infrastructure/rabbitmq.js", () => ({
   getRabbitConsumerChannel: vi.fn(),
 }));
 
@@ -34,12 +34,13 @@ vi.mock("../../database/client.js", () => ({
   },
 }));
 
-vi.mock("../../modules/notifications/notification.sse.js", () => ({
+vi.mock("./notification.sse.js", () => ({
   emitNotification: mocks.emit,
   emitAgencyNotification: mocks.emitAgency,
 }));
 
-const { createNotificationConsumer } = await import("./consumer.js");
+const { createNotificationConsumer } =
+  await import("./notifications.consumer.js");
 
 type Handler = (message: ConsumeMessage) => void;
 

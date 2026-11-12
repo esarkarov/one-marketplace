@@ -16,6 +16,7 @@ import { contractsRouter } from "../modules/contracts/contracts.route.js";
 import { identityRouter } from "../modules/identity/identity.route.js";
 import { meetingsRouter } from "../modules/meetings/meetings.route.js";
 import { adminRouter } from "../modules/admin/admin.route.js";
+import { agencyProposalsRouter } from "./agency-proposals.route.js";
 import { conversationMeetingsRouter } from "./conversation-meetings.route.js";
 import { healthResponses } from "./health.responses.js";
 import {
@@ -36,6 +37,7 @@ apiRouter.use("/conversations", messagingRouter);
 apiRouter.use("/conversations", conversationMeetingsRouter);
 apiRouter.use("/contracts", contractsRouter);
 apiRouter.use("/identity", identityRouter);
+apiRouter.use("/agency", agencyProposalsRouter);
 apiRouter.use("/agency", agencyRouter);
 apiRouter.use("/meetings", meetingsRouter);
 apiRouter.use("/admin", adminRouter);

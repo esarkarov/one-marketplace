@@ -6,7 +6,7 @@ import {
   readAllNotifications,
   readNotification,
 } from "./notifications.service.js";
-import { getAgencyIdForMember } from "../agency/agency.service.js";
+import { getAgencyIdForMember } from "../agency/agency.public.js";
 import {
   addAgencyNotificationClient,
   addNotificationClient,

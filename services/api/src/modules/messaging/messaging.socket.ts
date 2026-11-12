@@ -6,7 +6,7 @@ import { db } from "../../database/client.js";
 import { conversation_participants, messages } from "../../database/schema.js";
 import { authenticateAccount } from "../../shared/http/auth.middleware.js";
 import { ApiError } from "../../shared/http/api-error.js";
-import { getAgencyIdForMember } from "../agency/agency.service.js";
+import { getAgencyIdForMember } from "../agency/agency.public.js";
 
 type ConversationScope = "default" | "agency";
 

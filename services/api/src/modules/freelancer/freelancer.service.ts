@@ -20,7 +20,7 @@ import {
   PortfolioData,
   SaveFreelancerProfileInput,
 } from "./@types.js";
-import { getAgencyIdentityForMember } from "../agency/agency.service.js";
+import { getAgencyIdentityForMember } from "../../shared/utils/agency-identity.js";
 import { env } from "../../config/env.js";
 import { logger } from "../../config/logger.js";
 import { errorLogAttributes } from "../../shared/utils/sanitize-log.js";
@@ -34,7 +34,7 @@ import {
   STRIPE_PAYOUT_ELIGIBLE_COUNTRIES,
 } from "../../config/constants.js";
 import { invalidateAccountAuthCache } from "../../infrastructure/account-auth-cache.js";
-import { addConnects } from "../connects/connects.service.js";
+import { addConnects } from "../connects/connects.public.js";
 import { clerk } from "../../infrastructure/clerk.js";
 import {
   isImageDataUrl,

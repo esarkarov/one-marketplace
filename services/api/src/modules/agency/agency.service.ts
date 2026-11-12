@@ -25,7 +25,7 @@ import { env } from "../../config/env.js";
 import { logger } from "../../config/logger.js";
 import { errorLogAttributes } from "../../shared/utils/sanitize-log.js";
 import { stripe } from "../../infrastructure/stripe.js";
-import { addAgencyConnects } from "../connects/connects.service.js";
+import { addAgencyConnects } from "../connects/connects.public.js";
 import {
   isAgencyRoleAllowed,
   type AgencyPermission,
@@ -36,7 +36,7 @@ import {
   INITIAL_CONNECTS,
   STRIPE_PAYOUT_ELIGIBLE_COUNTRIES,
 } from "../../config/constants.js";
-import { getJSSContribution } from "../freelancer/freelancer.service.js";
+import { getJSSContribution } from "../freelancer/freelancer.public.js";
 import {
   isImageDataUrl,
   reuseStoredImage,
@@ -1086,35 +1086,6 @@ export const getAgencyOwnerVerification = async (
   return owner
     ? { ...owner, identityVerified: owner.identityVerified === true }
     : null;
-};
-
-export const getAgencyIdentityForMember = async (
-  freelancerId: string,
-): Promise<{
-  id: string;
-  name: string;
-  avatarUrl: string | null;
-} | null> => {
-  const [agency] = await db
-    .select({
-      id: agency_metadata.id,
-      name: agency_metadata.name,
-      avatarImage: agency_metadata.avatar_image,
-    })
-    .from(agency_members)
-    .innerJoin(
-      agency_metadata,
-      eq(agency_metadata.id, agency_members.agency_id),
-    )
-    .where(eq(agency_members.freelancer_id, freelancerId))
-    .limit(1);
-
-  if (!agency) return null;
-  return {
-    id: agency.id,
-    name: agency.name,
-    avatarUrl: agency.avatarImage?.url ?? null,
-  };
 };
 
 export const getAgencyOwnerId = async (

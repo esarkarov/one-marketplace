@@ -1,13 +1,13 @@
 import { RequestHandler } from "express";
-import { asyncHandler } from "../shared/http/async-handler.js";
-import { ApiError } from "../shared/http/api-error.js";
+import { asyncHandler } from "../../shared/http/async-handler.js";
+import { ApiError } from "../../shared/http/api-error.js";
 import {
   CONNECTS_CACHE_TTL_SECONDS,
   getConnectsCacheKey,
-} from "../config/constants.js";
-import { redis } from "../infrastructure/redis.js";
-import { db } from "../database/client.js";
-import { connects } from "../database/schema.js";
+} from "../../config/constants.js";
+import { redis } from "../../infrastructure/redis.js";
+import { db } from "../../database/client.js";
+import { connects } from "../../database/schema.js";
 import { eq } from "drizzle-orm";
 
 export const availableConnects: RequestHandler = asyncHandler(

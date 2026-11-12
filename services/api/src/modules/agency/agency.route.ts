@@ -23,8 +23,6 @@ import {
   getAgencyMembershipHandler,
   getAgencyVerificationHandler,
   getAgencyPayoutManagementLinkHandler,
-  getAgencyProposalMetadataHandler,
-  getAgencyProposalsHandler,
   getAgencyTeamInvitationsHandler,
   getLoggedInAgency,
   getMyAgencyInvitationsHandler,
@@ -34,7 +32,6 @@ import {
   resendAgencyInvitationHandler,
   respondToAgencyInvitationHandler,
   searchPublicAgenciesHandler,
-  submitAgencyProposalHandler,
   updateAgencyHandler,
   updateAgencyInvitationRoleHandler,
   updateAgencyMemberRoleHandler,
@@ -54,13 +51,10 @@ import {
   agencyMineResponses,
   agencyMyInvitationsResponses,
   agencyPayoutLinkResponses,
-  agencyProposalMetadataResponses,
-  agencyProposalsResponses,
   agencyPublicProfileResponses,
   agencyRespondResponses,
   agencyResendInvitationResponses,
   agencySearchResponses,
-  agencySubmitProposalResponses,
   agencyTeamInvitationsResponses,
   agencyUpdateResponses,
   agencyVerificationResponses,
@@ -79,7 +73,6 @@ import {
   respondInvitationBodySchema,
   updateAgencyBodySchema,
 } from "./agency.schemas.js";
-import { submitProposalBodySchema } from "../../shared/validation/money-schemas.js";
 
 export const agencyRouter = Router();
 
@@ -174,31 +167,6 @@ agencyRouter.post(
     responses: agencyConnectsCheckoutResponses,
   }),
   buyAgencyConnects,
-);
-agencyRouter.get(
-  "/proposals",
-  isAuthenticated,
-  validate({ query: authRoleShape, responses: agencyProposalsResponses }),
-  getAgencyProposalsHandler,
-);
-agencyRouter.post(
-  "/proposals",
-  isAuthenticated,
-  validate({
-    query: authRoleShape,
-    body: submitProposalBodySchema,
-    responses: agencySubmitProposalResponses,
-  }),
-  submitAgencyProposalHandler,
-);
-agencyRouter.get(
-  "/proposals/metadata",
-  isAuthenticated,
-  validate({
-    query: authRoleShape,
-    responses: agencyProposalMetadataResponses,
-  }),
-  getAgencyProposalMetadataHandler,
 );
 agencyRouter.get(
   "/earnings/summary",

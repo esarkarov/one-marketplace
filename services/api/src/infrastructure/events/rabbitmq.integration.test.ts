@@ -59,7 +59,8 @@ const isLocal = (() => {
 
 const { createRabbitChannel, createRabbitConnection } =
   await import("../rabbitmq.js");
-const { createNotificationConsumer } = await import("./consumer.js");
+const { createNotificationConsumer } =
+  await import("../../modules/notifications/notifications.consumer.js");
 const { createNotificationEnvelope } = await import("./envelope.js");
 const { publishNotificationEnvelope } = await import("./publisher.js");
 const { NOTIFICATIONS_CREATED_ROUTING_KEY, topologyNames } =

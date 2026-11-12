@@ -18,6 +18,23 @@ const infrastructureDirs = [
   "openapi",
 ];
 
+const moduleLayers: Record<string, number> = {
+  admin: 0,
+  auth: 0,
+  client: 0,
+  identity: 0,
+  jobs: 0,
+  payouts: 0,
+  connects: 0,
+  freelancer: 1,
+  agency: 2,
+  messaging: 3,
+  meetings: 4,
+  notifications: 4,
+  proposals: 4,
+  contracts: 5,
+};
+
 interface Edge {
   importer: string;
   imported: string;
@@ -85,28 +102,43 @@ function isTestFile(key: string): boolean {
   return key.endsWith(".test.ts") || key.startsWith("test/");
 }
 
-type Rule = "module-boundary" | "infrastructure-direction";
+type Rule = "module-boundary" | "module-layer" | "infrastructure-direction";
 
-function violationRule(edge: Edge): Rule | null {
+function violationRules(edge: Edge): Rule[] {
   const importerModule = moduleOf(edge.importer);
-  if (isTestFile(edge.importer)) return null;
+  if (isTestFile(edge.importer)) return [];
   const importedModule = moduleOf(edge.imported);
-  if (!importedModule) return null;
+  if (!importedModule) return [];
   if (importerModule && importerModule !== importedModule) {
-    return "module-boundary";
+    const rules: Rule[] = [];
+    if (
+      edge.imported !== `modules/${importedModule}/${importedModule}.public.ts`
+    ) {
+      rules.push("module-boundary");
+    }
+    const importerLayer = moduleLayers[importerModule];
+    const importedLayer = moduleLayers[importedModule];
+    if (
+      importerLayer === undefined ||
+      importedLayer === undefined ||
+      importedLayer >= importerLayer
+    ) {
+      rules.push("module-layer");
+    }
+    return rules;
   }
   if (!importerModule && infrastructureDirs.includes(topDirOf(edge.importer))) {
-    return "infrastructure-direction";
+    return ["infrastructure-direction"];
   }
-  return null;
+  return [];
 }
 
 const pairKey = (edge: Edge) => `${edge.importer} -> ${edge.imported}`;
 
 const edges = collectEdges();
-const violations = edges
-  .map((edge) => ({ edge, rule: violationRule(edge) }))
-  .filter((v): v is { edge: Edge; rule: Rule } => v.rule !== null);
+const violations = edges.flatMap((edge) =>
+  violationRules(edge).map((rule) => ({ edge, rule })),
+);
 const exceptionKeys = new Set(boundaryExceptions.map(pairKey));
 
 function findCycles(graph: Map<string, Set<string>>): string[][] {
@@ -177,7 +209,7 @@ describe("import boundaries", () => {
     );
   });
 
-  it.fails("module-cycles: the module dependency graph has no cycles", () => {
+  it("module-cycles: the module dependency graph has no cycles", () => {
     const graph = new Map<string, Set<string>>();
     const edgeFiles = new Map<string, Set<string>>();
     for (const { importer, imported } of edges) {

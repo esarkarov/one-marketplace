@@ -14,22 +14,15 @@ import {
   saveJobPost,
   updateJobPost,
 } from "./jobs.service.js";
-import { requireFreelancer } from "../../shared/http/role-guards.js";
+import {
+  requireClient,
+  requireFreelancer,
+} from "../../shared/http/role-guards.js";
 import { MAX_JOB_BUDGET_CENTS, type JobBody } from "./jobs.schemas.js";
 import {
   assertAttachmentFileName,
   validateAttachmentBatch,
 } from "../../shared/utils/attachments.js";
-
-const requireClient = (request: Parameters<RequestHandler>[0]) => {
-  const auth = request.auth!;
-
-  if (auth.role !== "client") {
-    throw new ApiError(403, "A client account is required.");
-  }
-
-  return auth;
-};
 
 const requireText = (value: string | string[] | undefined, name: string) => {
   if (typeof value !== "string" || !value.trim()) {

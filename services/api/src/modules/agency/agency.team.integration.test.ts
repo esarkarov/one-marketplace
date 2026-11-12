@@ -17,8 +17,6 @@ const mocks = vi.hoisted(() => ({
   getUser: vi.fn(),
 }));
 
-vi.mock("@clerk/backend", () => ({ verifyToken: mocks.verifyToken }));
-
 vi.mock("../../config/env.js", async (importOriginal) => {
   const original = await importOriginal<typeof import("../../config/env.js")>();
   return { ...original, env: { ...original.env, clerkSecretKey: "sk_test" } };
@@ -26,6 +24,7 @@ vi.mock("../../config/env.js", async (importOriginal) => {
 
 vi.mock("../../infrastructure/clerk.js", () => ({
   clerk: { users: { getUser: mocks.getUser } },
+  verifyToken: mocks.verifyToken,
 }));
 
 vi.mock("../../infrastructure/redis.js", () => ({

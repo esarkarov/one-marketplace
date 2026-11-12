@@ -1,4 +1,3 @@
-import { verifyToken } from "@clerk/backend";
 import type { Request, RequestHandler } from "express";
 import { asyncHandler } from "./async-handler.js";
 import { ApiError } from "./api-error.js";
@@ -9,6 +8,7 @@ import {
   ACCOUNT_AUTH_NEGATIVE_CACHE_TTL_SECONDS,
   getAccountAuthCacheKey,
 } from "../../config/constants.js";
+import { verifyToken } from "../../infrastructure/clerk.js";
 import { redis } from "../../infrastructure/redis.js";
 import { db } from "../../database/client.js";
 import { accounts } from "../../database/schema.js";
