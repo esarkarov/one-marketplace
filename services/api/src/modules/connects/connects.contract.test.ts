@@ -65,7 +65,7 @@ import {
   connects,
   connects_history,
   freelancer_metadata,
-} from "../../database/schema.js";
+} from "../../test/support/tables.js";
 import { assertTestDatabase } from "../../test/setup/assert-test-database.js";
 import { connectsResponses } from "./connects.responses.js";
 

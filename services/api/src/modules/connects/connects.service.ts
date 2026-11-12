@@ -9,12 +9,12 @@ import {
   PROPOSAL_CONNECTS,
 } from "../../config/constants.js";
 import { db } from "../../database/client.js";
+import { accounts } from "../auth/auth.schema.js";
 import {
-  accounts,
   connects,
   connects_history,
   connects_purchase_history,
-} from "../../database/schema.js";
+} from "./connects.schema.js";
 import { ApiError } from "../../shared/http/api-error.js";
 import { redis } from "../../infrastructure/redis.js";
 import { env } from "../../config/env.js";

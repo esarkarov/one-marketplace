@@ -1,7 +1,7 @@
 import { and, eq, or, sql, type SQL } from "drizzle-orm";
 import type { PgUpdateSetSource } from "drizzle-orm/pg-core";
 import { db } from "../../database/client.js";
-import { payout_history } from "../../database/schema.js";
+import { payout_history } from "./payouts.schema.js";
 
 export const PAYOUT_STATUSES = [
   "PENDING",

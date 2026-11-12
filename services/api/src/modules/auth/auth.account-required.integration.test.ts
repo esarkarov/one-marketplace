@@ -46,7 +46,7 @@ vi.mock("../../infrastructure/redis.js", () => ({
 }));
 
 import { db, pool } from "../../database/client.js";
-import { accounts } from "../../database/schema.js";
+import { accounts } from "../../test/support/tables.js";
 import { assertTestDatabase } from "../../test/setup/assert-test-database.js";
 import { authenticateHandshake } from "../messaging/messaging.socket.js";
 

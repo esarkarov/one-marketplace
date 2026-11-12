@@ -70,11 +70,11 @@ import {
   contract_milestones,
   contracts,
   freelancer_earning,
+  reviews,
   freelancer_metadata,
   job_posts,
   proposals,
-  reviews,
-} from "../../database/schema.js";
+} from "../../test/support/tables.js";
 import { assertTestDatabase } from "../../test/setup/assert-test-database.js";
 import {
   clientCompletedContractsResponses,

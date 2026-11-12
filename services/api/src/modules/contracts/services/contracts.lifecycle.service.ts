@@ -2,19 +2,21 @@ import type Stripe from "stripe";
 import { and, eq, isNotNull, ne, sql } from "drizzle-orm";
 import { db } from "../../../database/client.js";
 import { isUniqueViolation } from "../../../database/pg-errors.js";
+import { accounts } from "../../auth/auth.schema.js";
 import {
-  accounts,
   agency_earning,
   client_spents,
   contract_milestones,
   contracts,
   freelancer_earning,
+  reviews,
+} from "../contracts.schema.js";
+import {
   conversation_participants,
   conversations,
-  job_posts,
-  proposals,
-  reviews,
-} from "../../../database/schema.js";
+} from "../../messaging/messaging.schema.js";
+import { job_posts } from "../../jobs/jobs.schema.js";
+import { proposals } from "../../proposals/proposals.schema.js";
 import { ApiError } from "../../../shared/http/api-error.js";
 import { sendNotification } from "../../../infrastructure/events/publisher.js";
 import { emitConversationUpdate } from "../../messaging/messaging.public.js";

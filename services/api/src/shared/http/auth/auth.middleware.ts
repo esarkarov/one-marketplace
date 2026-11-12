@@ -11,7 +11,7 @@ import {
 import { verifyToken } from "../../../infrastructure/clerk.js";
 import { redis } from "../../../infrastructure/redis.js";
 import { db } from "../../../database/client.js";
-import { accounts } from "../../../database/schema.js";
+import { accounts } from "../../../modules/auth/auth.schema.js";
 import { and, eq } from "drizzle-orm";
 
 const accountRoles = ["client", "freelancer"] as const;

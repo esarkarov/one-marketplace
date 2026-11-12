@@ -19,7 +19,7 @@ import {
   conversation_participants,
   conversations,
   freelancer_metadata,
-} from "../../database/schema.js";
+} from "../../test/support/tables.js";
 import { assertTestDatabase } from "../../test/setup/assert-test-database.js";
 import { createConversation, getConversations } from "./messaging.service.js";
 

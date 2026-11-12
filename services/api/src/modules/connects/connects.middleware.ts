@@ -7,7 +7,7 @@ import {
 } from "../../config/constants.js";
 import { redis } from "../../infrastructure/redis.js";
 import { db } from "../../database/client.js";
-import { connects } from "../../database/schema.js";
+import { connects } from "./connects.schema.js";
 import { eq } from "drizzle-orm";
 
 export const availableConnects: RequestHandler = asyncHandler(

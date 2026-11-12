@@ -11,7 +11,7 @@ import {
   job_posts,
   payout_history,
   proposals,
-} from "../../database/schema.js";
+} from "./tables.js";
 import { assertTestDatabase } from "../setup/assert-test-database.js";
 
 export const TEST_PREFIX = "payout-it-";

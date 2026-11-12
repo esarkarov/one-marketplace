@@ -13,20 +13,20 @@ import {
 } from "drizzle-orm";
 import { env } from "../../config/env.js";
 import { db } from "../../database/client.js";
+import { accounts } from "../auth/auth.schema.js";
+import { agency_metadata } from "../agency/agency.schema.js";
+import { client_metadata } from "../client/client.schema.js";
 import {
-  accounts,
-  agency_metadata,
-  client_metadata,
   conversation_participants,
   conversations,
-  contracts,
-  freelancer_metadata,
-  job_posts,
-  meetings,
   message_attachments,
   messages,
-  proposals,
-} from "../../database/schema.js";
+} from "./messaging.schema.js";
+import { contracts } from "../contracts/contracts.schema.js";
+import { freelancer_metadata } from "../freelancer/freelancer.schema.js";
+import { job_posts } from "../jobs/jobs.schema.js";
+import { meetings } from "../meetings/meetings.schema.js";
+import { proposals } from "../proposals/proposals.schema.js";
 import { ApiError } from "../../shared/http/api-error.js";
 import type { DbExecutor } from "../../database/db-executor.js";
 import {

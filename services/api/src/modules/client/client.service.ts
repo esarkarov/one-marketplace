@@ -2,22 +2,24 @@ import { clerk } from "../../infrastructure/clerk.js";
 import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../../database/client.js";
 import { toSafeCents } from "../../shared/money/money.js";
+import { accounts } from "../auth/auth.schema.js";
 import {
-  accounts,
   agency_earning,
-  agency_metadata,
-  client_metadata,
   client_spents,
   contract_milestones,
   contracts,
-  conversation_participants,
   freelancer_earning,
-  freelancer_metadata,
-  job_posts,
-  messages,
-  proposals,
   reviews,
-} from "../../database/schema.js";
+} from "../contracts/contracts.schema.js";
+import { agency_metadata } from "../agency/agency.schema.js";
+import { client_metadata } from "./client.schema.js";
+import {
+  conversation_participants,
+  messages,
+} from "../messaging/messaging.schema.js";
+import { freelancer_metadata } from "../freelancer/freelancer.schema.js";
+import { job_posts } from "../jobs/jobs.schema.js";
+import { proposals } from "../proposals/proposals.schema.js";
 import { ApiError } from "../../shared/http/api-error.js";
 import { env } from "../../config/env.js";
 import { stripe } from "../../infrastructure/stripe.js";

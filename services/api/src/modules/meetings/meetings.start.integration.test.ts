@@ -59,9 +59,9 @@ import {
   accounts,
   conversation_participants,
   conversations,
-  meetings,
   messages,
-} from "../../database/schema.js";
+  meetings,
+} from "../../test/support/tables.js";
 import { assertTestDatabase } from "../../test/setup/assert-test-database.js";
 import {
   raceBlocked,

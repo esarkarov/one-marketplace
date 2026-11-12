@@ -66,7 +66,7 @@ import {
   client_spents,
   freelancer_metadata,
   proposals,
-} from "../../database/schema.js";
+} from "../../test/support/tables.js";
 import { assertTestDatabase } from "../../test/setup/assert-test-database.js";
 import {
   jobsCreateResponses,

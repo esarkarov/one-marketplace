@@ -94,13 +94,13 @@ import {
   connects_history,
   contract_milestones,
   contracts,
+  earning_history,
+  reviews,
   conversation_participants,
   conversations,
-  earning_history,
   job_posts,
   proposals,
-  reviews,
-} from "../../database/schema.js";
+} from "../../test/support/tables.js";
 import { assertTestDatabase } from "../../test/setup/assert-test-database.js";
 import { AGENCY_PERMISSIONS } from "./agency.permissions.js";
 

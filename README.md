@@ -99,7 +99,7 @@ Postgres and Redis are the only services needed to start. Clerk, Stripe, ImageKi
 ### Database commands
 
 ```bash
-pnpm --filter @onemarketplace/api db:generate    # create a migration from src/database/schema.ts
+pnpm --filter @onemarketplace/api db:generate    # create a migration from the modules' .schema.ts files
 pnpm --filter @onemarketplace/api db:migrate     # apply migrations to the database in DATABASE_URL
 ```
 

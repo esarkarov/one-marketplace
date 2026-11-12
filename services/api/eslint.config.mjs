@@ -33,6 +33,11 @@ export default defineConfig([
               message:
                 "Controllers and routes go through the service layer, not the database.",
             },
+            {
+              regex: "\\.schema(\\.js)?$",
+              message:
+                "Controllers and routes go through the service layer, not table files.",
+            },
           ],
         },
       ],

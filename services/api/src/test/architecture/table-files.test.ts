@@ -1,23 +1,16 @@
-import {
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import {
   analyzeTableAccess,
   discoverTableDefinitions,
-  srcDir,
 } from "./table-access.js";
 import {
   checkTableFiles,
+  findDatabaseModuleImports,
   findTableFileCycles,
   isTableFile,
-  isTemporaryBarrelEdge,
   tableFileOf,
 } from "./table-files.js";
 import { tableOwners } from "./table-ownership.js";
@@ -173,42 +166,19 @@ describe("table access across table files", () => {
   });
 });
 
-describe("temporary database barrel", () => {
-  it("allows only database/schema.ts to import table files", () => {
-    expect(
-      isTemporaryBarrelEdge({
-        importer: "database/schema.ts",
-        imported: "modules/auth/auth.schema.ts",
-      }),
-    ).toBe(true);
-    expect(
-      isTemporaryBarrelEdge({
-        importer: "database/client.ts",
-        imported: "modules/auth/auth.schema.ts",
-      }),
-    ).toBe(false);
-    expect(
-      isTemporaryBarrelEdge({
-        importer: "database/schema.ts",
-        imported: "modules/auth/auth.service.ts",
-      }),
-    ).toBe(false);
+describe("database imports", () => {
+  it("flags a database file that imports a module file", () => {
+    const root = tree({
+      "modules/a/a.schema.ts": table("a_table"),
+      "database/client.ts": "export const db = 1;\n",
+      "database/aggregate.ts": `export * from "../modules/a/a.schema.js";\n`,
+    });
+    expect(findDatabaseModuleImports(root)).toEqual([
+      "database/aggregate.ts imports modules/a/a.schema.ts; database/ imports no module files",
+    ]);
   });
 
-  it("re-exports every table file and nothing else", () => {
-    const barrel = readFileSync(
-      path.join(srcDir, "database/schema.ts"),
-      "utf8",
-    );
-    const exported = [
-      ...barrel.matchAll(
-        /export \* from "\.\.\/modules\/([^/]+)\/\1\.schema\.js";/g,
-      ),
-    ].map((match) => match[1]!);
-    const owners = [...new Set(Object.values(tableOwners))];
-    expect([...exported].sort()).toEqual([...owners].sort());
-    expect(
-      barrel.split("\n").filter((line) => line.trim() !== ""),
-    ).toHaveLength(owners.length);
+  it("has no database file importing a module file", () => {
+    expect(findDatabaseModuleImports()).toEqual([]);
   });
 });

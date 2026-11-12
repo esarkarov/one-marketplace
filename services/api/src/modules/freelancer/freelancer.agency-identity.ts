@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { db } from "../../database/client.js";
-import { agency_members, agency_metadata } from "../../database/schema.js";
+import { agency_members, agency_metadata } from "../agency/agency.schema.js";
 
 export const getAgencyIdentityForMember = async (
   freelancerId: string,

@@ -39,14 +39,14 @@ import {
   client_spents,
   contract_milestones,
   contracts,
+  freelancer_earning,
+  reviews,
   conversation_participants,
   conversations,
-  freelancer_earning,
-  job_posts,
   messages,
+  job_posts,
   proposals,
-  reviews,
-} from "../../../database/schema.js";
+} from "../../../test/support/tables.js";
 import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
 import {
   countBlocked,

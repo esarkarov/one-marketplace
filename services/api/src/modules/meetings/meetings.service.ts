@@ -2,7 +2,7 @@ import { randomUUID } from "crypto";
 import { and, eq } from "drizzle-orm";
 import { db } from "../../database/client.js";
 import { isUniqueViolation } from "../../database/pg-errors.js";
-import { meetings } from "../../database/schema.js";
+import { meetings } from "./meetings.schema.js";
 import { ApiError } from "../../shared/http/api-error.js";
 import { errorLogAttributes } from "../../shared/logging/sanitize-log.js";
 import { logger } from "../../config/logger.js";

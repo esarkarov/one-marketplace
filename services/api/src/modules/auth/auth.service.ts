@@ -1,7 +1,7 @@
 import { clerk } from "../../infrastructure/clerk.js";
 import { ApiError } from "../../shared/http/api-error.js";
 import { db } from "../../database/client.js";
-import { accounts } from "../../database/schema.js";
+import { accounts } from "./auth.schema.js";
 import { invalidateAccountAuthCache } from "../../infrastructure/account-auth-cache.js";
 
 export interface SignupInput {

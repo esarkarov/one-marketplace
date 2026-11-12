@@ -2,11 +2,9 @@ import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { EARNINGS_HOLD_PERIOD_MS } from "../../config/constants.js";
 import { stripe } from "../../infrastructure/stripe.js";
 import { db } from "../../database/client.js";
-import {
-  accounts,
-  agency_metadata,
-  payout_history,
-} from "../../database/schema.js";
+import { accounts } from "../auth/auth.schema.js";
+import { agency_metadata } from "../agency/agency.schema.js";
+import { payout_history } from "./payouts.schema.js";
 import { sendNotification } from "../../infrastructure/events/publisher.js";
 import { logger } from "../../config/logger.js";
 import { formatUsd } from "../../shared/money/money.js";

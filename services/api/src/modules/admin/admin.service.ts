@@ -13,19 +13,21 @@ import {
   REDIS_REDACTED_PREFIX,
   REDIS_REDACTED_VALUE,
 } from "./admin-redis.js";
+import { accounts } from "../auth/auth.schema.js";
+import { agency_metadata } from "../agency/agency.schema.js";
+import { client_metadata } from "../client/client.schema.js";
 import {
-  accounts,
-  agency_metadata,
-  client_metadata,
   connects,
   connects_purchase_history,
+} from "../connects/connects.schema.js";
+import {
   contract_milestones,
   contracts,
   earning_history,
-  job_posts,
-  payout_history,
-  proposals,
-} from "../../database/schema.js";
+} from "../contracts/contracts.schema.js";
+import { job_posts } from "../jobs/jobs.schema.js";
+import { payout_history } from "../payouts/payouts.schema.js";
+import { proposals } from "../proposals/proposals.schema.js";
 
 export interface Pagination {
   limit: number;

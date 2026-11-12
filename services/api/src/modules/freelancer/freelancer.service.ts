@@ -1,20 +1,22 @@
 import { and, asc, count, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { db } from "../../database/client.js";
 import { toSafeCents } from "../../shared/money/money.js";
+import { accounts } from "../auth/auth.schema.js";
+import { client_metadata } from "../client/client.schema.js";
 import {
-  accounts,
-  client_metadata,
   client_spents,
   contracts,
   earning_history,
   freelancer_earning,
+  reviews,
+} from "../contracts/contracts.schema.js";
+import {
   freelancer_metadata,
   freelancer_portfolios,
-  job_posts,
-  payout_history,
-  proposals,
-  reviews,
-} from "../../database/schema.js";
+} from "./freelancer.schema.js";
+import { job_posts } from "../jobs/jobs.schema.js";
+import { payout_history } from "../payouts/payouts.schema.js";
+import { proposals } from "../proposals/proposals.schema.js";
 import {
   FreelancerProfileData,
   PortfolioData,

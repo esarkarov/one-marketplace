@@ -17,7 +17,7 @@ import {
   agency_metadata,
   job_posts,
   proposals,
-} from "../../database/schema.js";
+} from "../../test/support/tables.js";
 import { assertTestDatabase } from "../../test/setup/assert-test-database.js";
 import { createConversation } from "./messaging.service.js";
 

@@ -37,7 +37,7 @@ import {
   contract_milestones,
   freelancer_metadata,
   job_posts,
-} from "../../database/schema.js";
+} from "../../test/support/tables.js";
 import { assertTestDatabase } from "../../test/setup/assert-test-database.js";
 import {
   createTestData,

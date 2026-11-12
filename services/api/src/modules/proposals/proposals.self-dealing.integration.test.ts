@@ -40,7 +40,7 @@ import {
   freelancer_metadata,
   job_posts,
   proposals,
-} from "../../database/schema.js";
+} from "../../test/support/tables.js";
 import { assertTestDatabase } from "../../test/setup/assert-test-database.js";
 import { submitAgencyProposal, submitProposal } from "./proposals.service.js";
 

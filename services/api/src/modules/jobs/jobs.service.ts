@@ -12,15 +12,11 @@ import {
   sql,
 } from "drizzle-orm";
 import { db } from "../../database/client.js";
-import {
-  accounts,
-  client_metadata,
-  client_spents,
-  contracts,
-  freelancer_saved_job_posts,
-  job_posts,
-  proposals,
-} from "../../database/schema.js";
+import { accounts } from "../auth/auth.schema.js";
+import { client_metadata } from "../client/client.schema.js";
+import { client_spents, contracts } from "../contracts/contracts.schema.js";
+import { freelancer_saved_job_posts, job_posts } from "./jobs.schema.js";
+import { proposals } from "../proposals/proposals.schema.js";
 import { ApiError } from "../../shared/http/api-error.js";
 import { imageKit } from "../../infrastructure/image-kit.js";
 import { env } from "../../config/env.js";

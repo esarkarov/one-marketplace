@@ -52,8 +52,7 @@ export const parse = (file: string) =>
 export const isLooseTableFile = (key: string) =>
   /^modules\/[^/]+\/[^/]+\.schema\.ts$/.test(key);
 
-const isTableSource = (key: string) =>
-  key === "database/schema.ts" || isLooseTableFile(key);
+const isTableSource = (key: string) => isLooseTableFile(key);
 
 export const isTestKey = (key: string) =>
   key.endsWith(".test.ts") || key.startsWith("test/");

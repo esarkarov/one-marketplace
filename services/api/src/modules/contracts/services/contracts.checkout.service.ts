@@ -3,14 +3,11 @@ import { and, eq } from "drizzle-orm";
 import { env } from "../../../config/env.js";
 import { stripe } from "../../../infrastructure/stripe.js";
 import { db } from "../../../database/client.js";
-import {
-  accounts,
-  contract_milestones,
-  contracts,
-  conversations,
-  job_posts,
-  proposals,
-} from "../../../database/schema.js";
+import { accounts } from "../../auth/auth.schema.js";
+import { contract_milestones, contracts } from "../contracts.schema.js";
+import { conversations } from "../../messaging/messaging.schema.js";
+import { job_posts } from "../../jobs/jobs.schema.js";
+import { proposals } from "../../proposals/proposals.schema.js";
 import { ApiError } from "../../../shared/http/api-error.js";
 import { sendNotification } from "../../../infrastructure/events/publisher.js";
 import { emitConversationUpdate } from "../../messaging/messaging.public.js";

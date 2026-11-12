@@ -59,7 +59,7 @@ import {
   accounts,
   conversation_participants,
   conversations,
-} from "../../database/schema.js";
+} from "../../test/support/tables.js";
 import { assertTestDatabase } from "../../test/setup/assert-test-database.js";
 import { meetingsResponses } from "./meetings.responses.js";
 

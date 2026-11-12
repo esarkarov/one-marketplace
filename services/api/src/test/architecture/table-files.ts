@@ -9,23 +9,12 @@ import {
   toKey,
 } from "./table-access.js";
 
-export interface FileEdge {
-  importer: string;
-  imported: string;
-}
-
 const TABLE_FILE = /^modules\/([^/]+)\/\1\.schema\.ts$/;
 
 export const isTableFile = (key: string) => TABLE_FILE.test(key);
 
 export const tableFileOf = (owner: string) =>
   `modules/${owner}/${owner}.schema.ts`;
-
-export const isTemporaryBarrelEdge = (edge: FileEdge) =>
-  edge.importer === "database/schema.ts" && isTableFile(edge.imported);
-
-export const isTableFileEdge = (edge: FileEdge) =>
-  isTableFile(edge.imported) || isTableFile(edge.importer);
 
 const isDrizzlePackage = (specifier: string) =>
   specifier === "drizzle-orm" || specifier.startsWith("drizzle-orm/");
@@ -121,3 +110,16 @@ export const findTableFileCycles = (root = srcDir): string[] => {
   }
   return cycles;
 };
+
+export const findDatabaseModuleImports = (root = srcDir): string[] =>
+  listTsFiles(root).flatMap((file) => {
+    const key = toKey(root, file);
+    if (!key.startsWith("database/")) return [];
+    return importSpecifiers(parse(file)).flatMap(({ specifier }) => {
+      const resolved = resolveImport(file, specifier);
+      const target = resolved ? toKey(root, resolved) : null;
+      return target?.startsWith("modules/")
+        ? [`${key} imports ${target}; database/ imports no module files`]
+        : [];
+    });
+  });

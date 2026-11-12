@@ -4,21 +4,23 @@ import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { db } from "../../database/client.js";
 import { isUniqueViolation } from "../../database/pg-errors.js";
 import { toSafeCents } from "../../shared/money/money.js";
+import { accounts } from "../auth/auth.schema.js";
 import {
-  accounts,
   agency_earning,
+  contracts,
+  earning_history,
+  freelancer_earning,
+  reviews,
+} from "../contracts/contracts.schema.js";
+import {
   agency_invitations,
   agency_members,
   agency_metadata,
   agency_portfolios,
-  client_metadata,
-  contracts,
-  earning_history,
-  freelancer_earning,
-  freelancer_metadata,
-  payout_history,
-  reviews,
-} from "../../database/schema.js";
+} from "./agency.schema.js";
+import { client_metadata } from "../client/client.schema.js";
+import { freelancer_metadata } from "../freelancer/freelancer.schema.js";
+import { payout_history } from "../payouts/payouts.schema.js";
 import { ApiError } from "../../shared/http/api-error.js";
 import type { DbExecutor } from "../../database/db-executor.js";
 import { imageKit } from "../../infrastructure/image-kit.js";

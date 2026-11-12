@@ -62,13 +62,13 @@ import {
   client_metadata,
   conversation_participants,
   conversations,
+  message_attachments,
+  messages,
   freelancer_metadata,
   job_posts,
   meetings,
-  message_attachments,
-  messages,
   proposals,
-} from "../../database/schema.js";
+} from "../../test/support/tables.js";
 import { assertTestDatabase } from "../../test/setup/assert-test-database.js";
 import { messagingResponses } from "./messaging.responses.js";
 

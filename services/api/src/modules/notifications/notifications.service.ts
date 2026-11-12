@@ -1,6 +1,6 @@
 import { and, desc, eq, or } from "drizzle-orm";
 import { db } from "../../database/client.js";
-import { notifications } from "../../database/schema.js";
+import { notifications } from "./notifications.schema.js";
 
 export const getNotifications = (userId: string, agencyId: string | null) =>
   db

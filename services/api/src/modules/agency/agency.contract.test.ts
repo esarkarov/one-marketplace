@@ -78,23 +78,23 @@ import { db, pool } from "../../database/client.js";
 import {
   accounts,
   agency_earning,
-  agency_invitations,
-  agency_members,
-  agency_metadata,
-  client_metadata,
   client_spents,
-  connects,
-  connects_history,
   contract_milestones,
   contracts,
   earning_history,
   freelancer_earning,
+  reviews,
+  agency_invitations,
+  agency_members,
+  agency_metadata,
+  client_metadata,
+  connects,
+  connects_history,
   freelancer_metadata,
   job_posts,
   payout_history,
   proposals,
-  reviews,
-} from "../../database/schema.js";
+} from "../../test/support/tables.js";
 import { assertTestDatabase } from "../../test/setup/assert-test-database.js";
 import {
   agencyConnectsCheckoutResponses,

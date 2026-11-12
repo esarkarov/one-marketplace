@@ -9,10 +9,12 @@ import {
   contracts,
   earning_history,
   freelancer_earning,
+} from "../contracts.schema.js";
+import {
   conversation_participants,
   conversations,
-  job_posts,
-} from "../../../database/schema.js";
+} from "../../messaging/messaging.schema.js";
+import { job_posts } from "../../jobs/jobs.schema.js";
 import { ApiError } from "../../../shared/http/api-error.js";
 import { splitFee } from "../../../shared/money/money.js";
 import { sendNotification } from "../../../infrastructure/events/publisher.js";

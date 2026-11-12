@@ -50,18 +50,18 @@ import { db, pool } from "../../../database/client.js";
 import {
   accounts,
   agency_earning,
-  agency_metadata,
   client_spents,
   contract_milestones,
   contracts,
-  conversation_participants,
-  conversations,
   earning_history,
   freelancer_earning,
-  job_posts,
+  agency_metadata,
+  conversation_participants,
+  conversations,
   messages,
+  job_posts,
   proposals,
-} from "../../../database/schema.js";
+} from "../../../test/support/tables.js";
 import { errorHandler } from "../../../app-middleware/error.middleware.js";
 import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
 import { ApiError } from "../../../shared/http/api-error.js";

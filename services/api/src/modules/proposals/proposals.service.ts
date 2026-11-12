@@ -1,23 +1,23 @@
 import { and, desc, eq, gte, inArray, ne, sql } from "drizzle-orm";
 import { db } from "../../database/client.js";
+import { accounts } from "../auth/auth.schema.js";
 import {
-  accounts,
   agency_earning,
-  agency_members,
-  agency_metadata,
-  client_metadata,
   client_spents,
-  connects,
-  connects_history,
   contracts,
+  freelancer_earning,
+} from "../contracts/contracts.schema.js";
+import { agency_members, agency_metadata } from "../agency/agency.schema.js";
+import { client_metadata } from "../client/client.schema.js";
+import { connects, connects_history } from "../connects/connects.schema.js";
+import {
   conversation_participants,
   conversations,
-  freelancer_earning,
-  freelancer_metadata,
-  job_posts,
   messages,
-  proposals,
-} from "../../database/schema.js";
+} from "../messaging/messaging.schema.js";
+import { freelancer_metadata } from "../freelancer/freelancer.schema.js";
+import { job_posts } from "../jobs/jobs.schema.js";
+import { proposals } from "./proposals.schema.js";
 import { ApiError } from "../../shared/http/api-error.js";
 import {
   CONNECTS_CACHE_TTL_SECONDS,

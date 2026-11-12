@@ -1,15 +1,14 @@
 import { and, asc, desc, eq, sql, type SQL } from "drizzle-orm";
 import type { DbExecutor } from "../../database/db-executor.js";
+import { accounts } from "../auth/auth.schema.js";
+import { client_metadata } from "../client/client.schema.js";
+import { contract_milestones, contracts } from "./contracts.schema.js";
 import {
-  accounts,
-  client_metadata,
-  contract_milestones,
-  contracts,
   conversation_participants,
   conversations,
-  job_posts,
   messages,
-} from "../../database/schema.js";
+} from "../messaging/messaging.schema.js";
+import { job_posts } from "../jobs/jobs.schema.js";
 
 export const insertMessages = (
   executor: DbExecutor,

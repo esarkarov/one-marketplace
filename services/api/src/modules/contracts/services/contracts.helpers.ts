@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { conversation_participants } from "../../../database/schema.js";
+import { conversation_participants } from "../../messaging/messaging.schema.js";
 
 export const participantMatch = (
   accountId: string,

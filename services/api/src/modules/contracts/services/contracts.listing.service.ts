@@ -3,7 +3,7 @@ import { clerk } from "../../../infrastructure/clerk.js";
 import { env } from "../../../config/env.js";
 import { listContractRows } from "../contracts.repository.js";
 import { db } from "../../../database/client.js";
-import { agency_metadata } from "../../../database/schema.js";
+import { agency_metadata } from "../../agency/agency.schema.js";
 
 export const getAccountContracts = async (
   userId: string,

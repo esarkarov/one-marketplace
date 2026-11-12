@@ -65,16 +65,16 @@ import { db, pool } from "../../database/client.js";
 import {
   accounts,
   agency_earning,
+  client_spents,
+  freelancer_earning,
   agency_members,
   agency_metadata,
   client_metadata,
-  client_spents,
   connects,
-  freelancer_earning,
   freelancer_metadata,
   job_posts,
   proposals,
-} from "../../database/schema.js";
+} from "../../test/support/tables.js";
 import { assertTestDatabase } from "../../test/setup/assert-test-database.js";
 import {
   proposalsCreateResponses,

@@ -81,11 +81,11 @@ import {
   contracts,
   earning_history,
   freelancer_earning,
+  reviews,
   job_posts,
   payout_history,
   proposals,
-  reviews,
-} from "../../database/schema.js";
+} from "../../test/support/tables.js";
 import { assertTestDatabase } from "../../test/setup/assert-test-database.js";
 import {
   freelancerEarningsCertificateResponses,

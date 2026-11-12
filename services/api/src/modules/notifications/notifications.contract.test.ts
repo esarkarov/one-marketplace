@@ -42,7 +42,7 @@ vi.mock("../../infrastructure/redis.js", () => ({
 }));
 
 import { db, pool } from "../../database/client.js";
-import { accounts, notifications } from "../../database/schema.js";
+import { accounts, notifications } from "../../test/support/tables.js";
 import { assertTestDatabase } from "../../test/setup/assert-test-database.js";
 import { notificationsResponses } from "./notifications.responses.js";
 

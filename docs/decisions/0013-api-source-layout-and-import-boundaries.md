@@ -25,7 +25,7 @@ Constraints: this stays a modular monolith (ADR 0001), not microservices. No who
   - `validation/`: common, response, money and search schemas, and `validation-limits.ts`.
   - `money/`: `money.ts`.
   - `utils/`: uuid-v5, sanitize-log, email, attachments, portfolio-images. Superseded by ADR 0014.
-- `database/`: Drizzle schema, client, db-executor. It stays outside `infrastructure/` because `/db-change`, the database agent, `drizzle.config.ts` and the README target `src/database`, and because the schema is the persistence contract owned by all modules, not a client. `schema.ts` stays one file (1283 lines, 28 tables): splitting it risks the drizzle-kit "No schema changes" result and has no boundary benefit. Superseded by ADR 0014: the schema is split by domain behind a re-export.
+- `database/`: Drizzle schema, client, db-executor. It stays outside `infrastructure/` because `/db-change`, the database agent, `drizzle.config.ts` and the README target `src/database`, and because the schema is the persistence contract owned by all modules, not a client. `schema.ts` stays one file (1283 lines, 28 tables): splitting it risks the drizzle-kit "No schema changes" result and has no boundary benefit. Superseded by ADR 0014 section 9: tables live in the owning modules as `<name>.schema.ts`, and `database/` keeps the client, db-executor and `pg-errors.ts`.
 - `modules/<name>/`: `route`, `controller`, `service`, `schemas`, `responses`, `types`, and optionally `<name>.public.ts`.
 - `routes/` (assembly and the route registries), `openapi/`, `types/`, `test/` (helpers and the architecture test). `test/` layout superseded by ADR 0014.
 

@@ -3,7 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { env } from "../../config/env.js";
 import { stripe } from "../../infrastructure/stripe.js";
 import { db } from "../../database/client.js";
-import { accounts } from "../../database/schema.js";
+import { accounts } from "../auth/auth.schema.js";
 import { ApiError } from "../../shared/http/api-error.js";
 
 export const createIdentitySession = async (

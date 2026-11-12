@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { boundaryExceptions } from "./boundary-exceptions.js";
-import { isTableFile, isTemporaryBarrelEdge } from "./table-files.js";
+import { isTableFile } from "./table-files.js";
 
 const srcDir = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -113,7 +113,7 @@ function violationRules(edge: Edge): Rule[] {
   if (!importedModule) return [];
   if (
     isTableFile(edge.imported) &&
-    (importerModule || isTemporaryBarrelEdge(edge))
+    (importerModule || topDirOf(edge.importer) !== "database")
   ) {
     return [];
   }
@@ -203,12 +203,12 @@ describe("import boundaries", () => {
     expect([...new Set(offending)].join("\n")).toBe("");
   });
 
-  it("controller-database: controllers and routes do not import the database", () => {
+  it("controller-database: controllers and routes do not import the database or table files", () => {
     const offending = edges
       .filter(
         ({ importer, imported }) =>
           /^modules\/[^/]+\/[^/]+\.(controller|route)\.ts$/.test(importer) &&
-          topDirOf(imported) === "database",
+          (topDirOf(imported) === "database" || isTableFile(imported)),
       )
       .map(pairKey);
     expect(offending).toEqual([]);

@@ -83,9 +83,9 @@ import {
   accounts,
   conversation_participants,
   conversations,
-  meetings,
   messages,
-} from "../../database/schema.js";
+  meetings,
+} from "../../test/support/tables.js";
 import { errorHandler } from "../../app-middleware/error.middleware.js";
 import { assertTestDatabase } from "../../test/setup/assert-test-database.js";
 import { dailyWebhookHandler } from "./meetings.controller.js";

@@ -88,9 +88,15 @@ Every stage that applies this ADR keeps `docs/api/openapi.json` byte-identical, 
 
 ### 9. Table files and table access
 
-Decided, to be executed in stages; a rule is in place only once its stage has run. Status: table placement is executed. The table definitions live in `modules/<name>/<name>.schema.ts`, `database/schema.ts` is a temporary barrel that re-exports them under one named temporary rule in the boundary test, and `database/schema/` is deleted. Consumers and `drizzle.config.ts` follow in the next stage, which also removes the barrel and its rule. Table definitions (drizzle tables, enums and relations) will move into their owning module as `modules/<name>/<name>.schema.ts`. This is a different file from `<name>.schemas.ts`, which holds the zod request and response schemas; tooling that targets table files matches the exact suffix `.schema.ts`. `accounts` and `accountRole` belong to auth. The central `database/schema/` folder from section 3 is an intermediate step and is deleted at the end of the move.
+Tables, enums and relations live in the module that owns them, in `modules/<name>/<name>.schema.ts`. The suffix is exactly `.schema.ts`: it is the drizzle file and is different from `<name>.schemas.ts`, the zod request and response schemas. There is no central schema anywhere: `database/` keeps `client.ts`, `db-executor.ts` and `pg-errors.ts`, imports no module file, and `database/schema.ts` no longer exists.
 
-Stage 0 adds only a safety net, with no file moves: `table-ownership.ts` maps every table and enum to its owner, `table-access-allowlist.ts` lists every cross-module table access (read or write) with a reason on each write, and `table-access.test.ts` fails on an unlisted access and on a stale entry. It supersedes the prose list in ADR 0013 section 4. The test is keyed on table names and owners, not file paths, so it covers the central folder now and the `.schema.ts` files later.
+- A table file imports only drizzle-orm packages and other table files, so it is acyclic among table files and independent of config, shared and the db client. It is exempt from the layer order and the `.public.ts` rule, and so is any file that imports one; controllers and routes may not import a table file at all (eslint and the boundary test).
+- Ownership is `src/test/architecture/table-ownership.ts`, the single map for every table and enum. `accounts` and `accountRole` belong to auth; `shared/http/auth` reading `accounts` is a non-module edge in the allowlist.
+- Every cross-module table access, read or write, is an entry in `table-access-allowlist.ts`, enforced by `table-access.test.ts`: an unlisted access fails, a stale entry fails, and each write carries a reason as known debt. This supersedes the prose list in ADR 0013 section 4.
+- Consumers import tables from the owning module's `.schema.js`. Tests import them through `src/test/support/tables.ts`.
+- `drizzle.config.ts` reads `./src/modules/*/*.schema.ts`; a new module with tables is picked up without a config change. A test checks that the glob matches exactly the owners' table files.
+- The db client is created without a schema (`drizzle(pool)`). The relational API (`db.query`) has no use, so only its typing is gone. The 21 `relations()` declarations stay in the table files, unused, and are slated for removal.
+- Each stage kept `drizzle-kit generate` at "No schema changes" and a structural dump of the schema (export names, columns, indexes, constraints, enums, relations) identical.
 
 ## Consequences
 

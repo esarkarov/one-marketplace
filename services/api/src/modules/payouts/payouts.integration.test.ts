@@ -36,7 +36,7 @@ vi.mock("../../infrastructure/events/publisher.js", async (importOriginal) => ({
 
 import { logger } from "../../config/logger.js";
 import { db, pool } from "../../database/client.js";
-import { accounts, payout_history } from "../../database/schema.js";
+import { accounts, payout_history } from "../../test/support/tables.js";
 import { assertTestDatabase } from "../../test/setup/assert-test-database.js";
 import { fakeStripeKey } from "../../test/support/fake-secrets.js";
 import {

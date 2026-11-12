@@ -3,7 +3,7 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { Server } from "socket.io";
 import { socketCorsOptions } from "../../config/cors.js";
 import { db } from "../../database/client.js";
-import { conversation_participants, messages } from "../../database/schema.js";
+import { conversation_participants, messages } from "./messaging.schema.js";
 import { authenticateAccount } from "../../shared/http/auth/auth.middleware.js";
 import { ApiError } from "../../shared/http/api-error.js";
 import { getAgencyIdForMember } from "../agency/agency.public.js";

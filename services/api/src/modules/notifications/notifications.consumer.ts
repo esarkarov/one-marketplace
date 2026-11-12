@@ -4,7 +4,7 @@ import { sql } from "drizzle-orm";
 import { getRabbitConsumerChannel } from "../../infrastructure/rabbitmq.js";
 import { logger } from "../../config/logger.js";
 import { db } from "../../database/client.js";
-import { notifications } from "../../database/schema.js";
+import { notifications } from "./notifications.schema.js";
 import {
   emitAgencyNotification,
   emitNotification,
