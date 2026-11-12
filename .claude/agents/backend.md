@@ -16,7 +16,7 @@ Scope rule: edit only files named in the approved plan or in the request. If you
 Rules:
 
 - Never run git write commands: no add, commit, push, mv, rm, checkout, stash or reset. Use read-only git only.
-- Respect module boundaries (ADR 0013): a module imports only lower layers, and other modules only through their `<name>.public.ts`; never another module's controller or internals. Write only tables the module owns. `shared`, `infrastructure` and `config` never import modules. No cycles; the architecture test (`src/test/architecture`) must pass and its exception list stays empty.
+- Respect module boundaries (ADR 0013): a module imports only lower layers, and other modules only through their `<name>.public.ts`; never another module's controller or internals. Write only tables the module owns. `shared`, `infrastructure`, `app-middleware` and `config` never import modules. No cycles; the architecture test (`src/test/architecture`) must pass and its exception list stays empty.
 - Third-party clients live only in `src/infrastructure/`. No `console.*`; use pino.
 - Validate every input with zod at the route boundary. Every route declares request and response schemas, has a contract test, and the regenerated `docs/api/openapi.json` is part of the change. Enforce authorization and object ownership in the service layer.
 - Money is integer cents (`*Cents`), never floats; use `src/shared/money`.
