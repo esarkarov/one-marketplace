@@ -20,10 +20,10 @@ import {
   PortfolioData,
   SaveFreelancerProfileInput,
 } from "./freelancer.types.js";
-import { getAgencyIdentityForMember } from "../../shared/utils/agency-identity.js";
+import { getAgencyIdentityForMember } from "./freelancer.agency-identity.js";
 import { env } from "../../config/env.js";
 import { logger } from "../../config/logger.js";
-import { errorLogAttributes } from "../../shared/utils/sanitize-log.js";
+import { errorLogAttributes } from "../../shared/logging/sanitize-log.js";
 import { stripe } from "../../infrastructure/stripe.js";
 import { ApiError } from "../../shared/http/api-error.js";
 import { imageKit } from "../../infrastructure/image-kit.js";
@@ -39,7 +39,7 @@ import { clerk } from "../../infrastructure/clerk.js";
 import {
   isImageDataUrl,
   reuseStoredImage,
-} from "../../shared/utils/portfolio-images.js";
+} from "../../shared/uploads/portfolio-images.js";
 
 const getClientCountry = async (clientId: string) => {
   if (!env.clerkSecretKey) {

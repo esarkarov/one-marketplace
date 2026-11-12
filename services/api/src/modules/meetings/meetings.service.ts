@@ -3,7 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "../../database/client.js";
 import { meetings } from "../../database/schema.js";
 import { ApiError } from "../../shared/http/api-error.js";
-import { errorLogAttributes } from "../../shared/utils/sanitize-log.js";
+import { errorLogAttributes } from "../../shared/logging/sanitize-log.js";
 import { logger } from "../../config/logger.js";
 import { createDailyRoom } from "../../infrastructure/daily.js";
 import {

@@ -5,7 +5,7 @@ import { closeRabbit } from "../infrastructure/rabbitmq.js";
 import { stopNotificationConsumer } from "../modules/notifications/notifications.consumer.js";
 import { closeMessagingSocket } from "../modules/messaging/messaging.socket.js";
 import { stopPayoutCron } from "../modules/payouts/payouts.cron.js";
-import { errorLogAttributes } from "../shared/utils/sanitize-log.js";
+import { errorLogAttributes } from "../shared/logging/sanitize-log.js";
 import { getHttpServer } from "./http-server.js";
 
 let isShuttingDown = false;

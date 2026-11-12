@@ -22,7 +22,7 @@ import { MAX_JOB_BUDGET_CENTS, type JobBody } from "./jobs.schemas.js";
 import {
   assertAttachmentFileName,
   validateAttachmentBatch,
-} from "../../shared/utils/attachments.js";
+} from "../../shared/uploads/attachments.js";
 
 const requireText = (value: string | string[] | undefined, name: string) => {
   if (typeof value !== "string" || !value.trim()) {

@@ -6,7 +6,7 @@ import { redis } from "../../infrastructure/redis.js";
 import { getRabbitStatus } from "../../infrastructure/rabbitmq.js";
 import { env } from "../../config/env.js";
 import { logger } from "../../config/logger.js";
-import { errorLogAttributes } from "../../shared/utils/sanitize-log.js";
+import { errorLogAttributes } from "../../shared/logging/sanitize-log.js";
 import { ApiError } from "../../shared/http/api-error.js";
 import {
   isAllowedRedisKey,

@@ -14,7 +14,7 @@ import { ApiError } from "../../shared/http/api-error.js";
 import {
   assertAttachmentFileName,
   validateAttachmentBatch,
-} from "../../shared/utils/attachments.js";
+} from "../../shared/uploads/attachments.js";
 
 export interface AttachmentInput {
   fileId: string;

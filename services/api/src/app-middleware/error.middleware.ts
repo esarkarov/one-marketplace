@@ -5,7 +5,7 @@ import { ApiResponse } from "../types/common.types.js";
 import {
   errorLogAttributes,
   sanitizeForLog,
-} from "../shared/utils/sanitize-log.js";
+} from "../shared/logging/sanitize-log.js";
 
 const STACK_LIMIT = 2000;
 

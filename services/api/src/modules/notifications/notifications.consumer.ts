@@ -12,7 +12,7 @@ import {
 import {
   errorCodeForLog,
   errorLogAttributes,
-} from "../../shared/utils/sanitize-log.js";
+} from "../../shared/logging/sanitize-log.js";
 import { notificationEnvelopeSchema } from "../../infrastructure/events/envelope.js";
 import {
   DEFAULT_DELIVERY_LIMIT,

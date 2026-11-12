@@ -1,7 +1,7 @@
 import cron from "node-cron";
 import { processDuePayouts } from "./payouts.service.js";
 import { logger } from "../../config/logger.js";
-import { errorLogAttributes } from "../../shared/utils/sanitize-log.js";
+import { errorLogAttributes } from "../../shared/logging/sanitize-log.js";
 
 const PAYOUT_CRON_EXPRESSION = "0 * * * *";
 

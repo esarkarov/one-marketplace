@@ -5,7 +5,7 @@ import {
   isRabbitEnabled,
 } from "../rabbitmq.js";
 import { logger } from "../../config/logger.js";
-import { errorLogAttributes } from "../../shared/utils/sanitize-log.js";
+import { errorLogAttributes } from "../../shared/logging/sanitize-log.js";
 import {
   createNotificationEnvelope,
   NOTIFICATION_CREATED_TYPE,

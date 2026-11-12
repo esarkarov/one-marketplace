@@ -2,7 +2,7 @@ import { Router } from "express";
 import { SERVICE_NAME } from "../config/constants.js";
 import { validate } from "../shared/http/validate.middleware.js";
 import { ApiResponse } from "../types/common.types.js";
-import { errorLogAttributes } from "../shared/utils/sanitize-log.js";
+import { errorLogAttributes } from "../shared/logging/sanitize-log.js";
 import { agencyRouter } from "../modules/agency/agency.route.js";
 import { authRouter } from "../modules/auth/auth.route.js";
 import { clientRouter } from "../modules/client/client.route.js";

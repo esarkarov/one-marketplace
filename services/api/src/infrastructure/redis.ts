@@ -1,7 +1,7 @@
 import { createClient } from "redis";
 import { env } from "../config/env.js";
 import { logger } from "../config/logger.js";
-import { errorLogAttributes } from "../shared/utils/sanitize-log.js";
+import { errorLogAttributes } from "../shared/logging/sanitize-log.js";
 
 export const redis = createClient({
   url: env.redisUrl,

@@ -5,7 +5,7 @@ import amqp, {
 import { env } from "../config/env.js";
 import { logger } from "../config/logger.js";
 import { assertTopology, type TopologyOptions } from "./events/topology.js";
-import { errorLogAttributes } from "../shared/utils/sanitize-log.js";
+import { errorLogAttributes } from "../shared/logging/sanitize-log.js";
 
 let connection: AmqpConnectionManager | undefined;
 let publishChannel: ChannelWrapper | undefined;

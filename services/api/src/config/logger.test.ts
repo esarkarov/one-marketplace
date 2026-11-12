@@ -5,7 +5,7 @@ import {
   fakeStripeKey,
   fakeWebhookSecret,
 } from "../test/support/fake-secrets.js";
-import { sanitizeForLog } from "../shared/utils/sanitize-log.js";
+import { sanitizeForLog } from "../shared/logging/sanitize-log.js";
 
 describe("sanitizeForLog", () => {
   it("masks stripe keys, webhook secrets, bearer tokens and url credentials", () => {

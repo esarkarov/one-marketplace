@@ -23,7 +23,7 @@ import type { DbExecutor } from "../../database/db-executor.js";
 import { imageKit } from "../../infrastructure/image-kit.js";
 import { env } from "../../config/env.js";
 import { logger } from "../../config/logger.js";
-import { errorLogAttributes } from "../../shared/utils/sanitize-log.js";
+import { errorLogAttributes } from "../../shared/logging/sanitize-log.js";
 import { stripe } from "../../infrastructure/stripe.js";
 import { addAgencyConnects } from "../connects/connects.public.js";
 import {
@@ -41,7 +41,7 @@ import {
   isImageDataUrl,
   reuseStoredImage,
   type StoredImage,
-} from "../../shared/utils/portfolio-images.js";
+} from "../../shared/uploads/portfolio-images.js";
 
 const regionNames = new Intl.DisplayNames(["en"], { type: "region" });
 

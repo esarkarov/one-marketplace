@@ -34,7 +34,7 @@ Zod-inferred types stay in `*.schemas.ts`. Small modules (auth, identity, notifi
 - `src/app-middleware/`: middleware composed only by `app.ts` (`error`, `http-logger`, `not-found`, `request-id`). It is an infrastructure-level directory: it cannot import modules.
 - `shared/http/`: `api-error`, `async-handler`, `validate.middleware`; `auth/` (`auth.middleware`, `admin-session.middleware`, `role-guards`); `limits/` (`json-body`, `rate-limit`, `user-rate-limit`). `auth.middleware` stays in `shared/http/auth`: it cuts across every module and only reads `accounts`.
 - `shared/logging/` (`sanitize-log`), `shared/uploads/` (`attachments`, `portfolio-images`), `shared/ids/` (`uuid-v5`), `shared/validation/` (adds `email`), `shared/money/` unchanged. `shared/utils/` is removed.
-- `agency-identity` moves into `modules/freelancer`, its only user.
+- `agency-identity` moves into `modules/freelancer` as `freelancer.agency-identity.ts`, its only user. It reads `agency_members` and `agency_metadata`, tables owned by agency. ADR 0013 section 4 allows reads of tables a module does not own but did not list this one; it is recorded here as a read-only cross-module access, and the boundary test needs no exception because it imports only `database`.
 
 ### 3. Schema split
 

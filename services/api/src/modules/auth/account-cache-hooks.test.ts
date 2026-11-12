@@ -22,7 +22,7 @@ vi.mock("../../config/logger.js", () => ({
 
 vi.mock("../../infrastructure/stripe.js", () => ({ stripe: {} }));
 vi.mock("../../infrastructure/image-kit.js", () => ({ imageKit: {} }));
-vi.mock("../../shared/utils/agency-identity.js", () => ({
+vi.mock("../freelancer/freelancer.agency-identity.js", () => ({
   getAgencyIdentityForMember: vi.fn(),
 }));
 vi.mock("../connects/connects.service.js", () => ({

@@ -6,8 +6,8 @@ import {
   MAX_DATA_URL_HEADER_LENGTH,
   MAX_ENCODED_LENGTH,
   MAX_TOTAL_ATTACHMENT_BYTES,
-} from "../utils/attachments.js";
-import { MAX_LIVE_URL_LENGTH } from "../utils/portfolio-images.js";
+} from "../uploads/attachments.js";
+import { MAX_LIVE_URL_LENGTH } from "../uploads/portfolio-images.js";
 import {
   SEARCH_OFFSET_MAX,
   SEARCH_QUERY_MAX_LENGTH,

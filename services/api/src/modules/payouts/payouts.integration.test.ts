@@ -49,7 +49,7 @@ import {
   secondsUntilRetry,
   timeTravel,
 } from "../../test/support/factories.js";
-import { uuidV5 } from "../../shared/utils/uuid-v5.js";
+import { uuidV5 } from "../../shared/ids/uuid-v5.js";
 import {
   getAdminOverviewTotals,
   getAdminTransactions,

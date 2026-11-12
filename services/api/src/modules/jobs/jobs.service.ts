@@ -28,7 +28,7 @@ import {
   deleteDocuments,
   uploadDocuments,
 } from "../../infrastructure/upload-documents.js";
-import { reuseStoredAttachments } from "../../shared/utils/attachments.js";
+import { reuseStoredAttachments } from "../../shared/uploads/attachments.js";
 import { clerk } from "../../infrastructure/clerk.js";
 
 type JobData = Omit<typeof job_posts.$inferInsert, "client_id">;

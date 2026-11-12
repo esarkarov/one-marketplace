@@ -8,7 +8,7 @@ import {
   SaveFreelancerProfileInput,
 } from "./freelancer.types.js";
 import { requireText } from "../../config/constants.js";
-import { parseLiveUrl } from "../../shared/utils/portfolio-images.js";
+import { parseLiveUrl } from "../../shared/uploads/portfolio-images.js";
 import {
   getFreelancerEarningsCertificateData,
   getFreelancerEarningsOverview,

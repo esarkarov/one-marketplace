@@ -66,6 +66,7 @@ export default defineConfig([
   {
     files: [
       "src/modules/jobs/**/*.ts",
+      "src/modules/freelancer/freelancer.agency-identity.ts",
       "src/config/**/*.ts",
       "src/infrastructure/**/*.ts",
       "src/shared/**/*.ts",

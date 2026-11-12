@@ -10,7 +10,7 @@ import {
 import { sendNotification } from "../../infrastructure/events/publisher.js";
 import { logger } from "../../config/logger.js";
 import { formatUsd } from "../../shared/money/money.js";
-import { uuidV5 } from "../../shared/utils/uuid-v5.js";
+import { uuidV5 } from "../../shared/ids/uuid-v5.js";
 import {
   bumpIdempotencyKey,
   classifyPayoutFailure,
