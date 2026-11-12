@@ -4,7 +4,7 @@
 
 - `services/api/src/modules/contracts/contracts.service.ts`: `submitContractMilestone`, `acceptContract`, `addContractMilestone`, `finishContractWithReview` (design: `docs/decisions/0007-guarded-state-transitions.md`).
 - `services/api/src/modules/meetings/meetings.service.ts`: `startMeeting` with the partial unique index `meetings_one_active_per_conversation_unique` (migration `drizzle/0003_brave_legion.sql`).
-- `services/api/src/utils/api-error.ts` and `src/middleware/error.middleware.ts`: optional `code` in 4xx bodies.
+- `services/api/src/shared/http/api-error.ts` and `src/shared/http/error.middleware.ts`: optional `code` in 4xx bodies.
 
 Use only the `_test` database and mocked Stripe/Daily. Never use or print the real `.env`.
 

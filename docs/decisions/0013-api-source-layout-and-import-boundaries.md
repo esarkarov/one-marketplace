@@ -127,7 +127,7 @@ Outliers renamed in Phase D:
 - A: this ADR, living docs, and the architecture test as a measuring tool (done).
 - B: move guards, SSE hub, admin session middleware and meetings wiring; create `shared/`, `infrastructure/`, `bootstrap/`; add the eslint rule.
 - C: add the four `*.public.ts` files, move service reads down, invert reverse edges, enforce the layer table and no cycles (done).
-- D: naming renames.
+- D: naming renames (done).
 - E: delete resolved exceptions, update `AGENTS.md`, `docs/architecture.md` and the READMEs to the new paths.
 
 ## Findings reported, not fixed here

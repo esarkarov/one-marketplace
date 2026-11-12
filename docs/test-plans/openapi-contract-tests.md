@@ -2,7 +2,7 @@
 
 ## Scope
 
-- Response schemas in `services/api/src/modules/<module>/<module>.responses.ts` and `src/routes/health.responses.ts`, the central schemas in `src/utils/response-schemas.ts`, the generator in `src/openapi/` and the committed spec `docs/api/openapi.json`. Design and the unverified list: `docs/decisions/0012-openapi-contract-from-zod.md`.
+- Response schemas in `services/api/src/modules/<module>/<module>.responses.ts` and `src/routes/health.responses.ts`, the central schemas in `src/shared/validation/response-schemas.ts`, the generator in `src/openapi/` and the committed spec `docs/api/openapi.json`. Design and the unverified list: `docs/decisions/0012-openapi-contract-from-zod.md`.
 - Use only the `_test` database with Stripe, ImageKit, Clerk and Daily mocked. Never use or print the real `.env`.
 
 ## Test files
@@ -13,14 +13,14 @@
 | `src/routes/route-contract-check.test.ts`                                                       | Registry: every route declares a 2xx response or is in `src/routes/contract-allowlist.ts` (4 webhooks, 2 event streams, each with a reason); no stale allowlist entries; synthetic routers prove each check fails                                                                                   |
 | `src/openapi/openapi-spec.test.ts`                                                              | Structural: committed spec equals generated; every `$ref` resolves; operationIds unique; security and responses on every operation; every path param declared; no empty schemas; `*Cents` fields are integers; money-name guard (fields named like money but not `*Cents` must be in its allowlist) |
 | `src/openapi/convert-schema.test.ts`                                                            | Unit: zod to JSON Schema converter fixtures (strict objects, nullable, optional, enums, coercion, unions, bigint cents)                                                                                                                                                                             |
-| `src/utils/response-schemas.test.ts`                                                            | Unit: central 400, 401, 429 and 500 schemas against hand-written samples only                                                                                                                                                                                                                       |
+| `src/shared/validation/response-schemas.test.ts`                                                | Unit: central 400, 401, 429 and 500 schemas against hand-written samples only                                                                                                                                                                                                                       |
 
 ## How to run
 
 ```
 pnpm --filter @onemarketplace/api test:quiet src/openapi
 pnpm --filter @onemarketplace/api test:quiet src/routes
-pnpm --filter @onemarketplace/api test:quiet src/utils
+pnpm --filter @onemarketplace/api test:quiet src/shared
 pnpm --filter @onemarketplace/api test:quiet src/modules/<module>/<module>.contract
 pnpm --filter @onemarketplace/api db:test:setup
 pnpm --filter @onemarketplace/api test:quiet

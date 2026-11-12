@@ -2,7 +2,7 @@
 
 ## Scope
 
-`services/api/src/modules/payouts` (state machine in `payout-state.ts`, failure classification in `payout-failure.ts`, `payouts.service.ts`, hourly `payouts.cron.ts`), the `payout_history` columns added by migration `0001_thin_iron_fist.sql`, and every reader of `payout_history` (admin, agency, freelancer services). Design: `docs/decisions/0005-payout-state-machine-and-idempotent-transfers.md`.
+`services/api/src/modules/payouts` (state machine in `payouts.state.ts`, failure classification in `payouts.failure.ts`, `payouts.service.ts`, hourly `payouts.cron.ts`), the `payout_history` columns added by migration `0001_thin_iron_fist.sql`, and every reader of `payout_history` (admin, agency, freelancer services). Design: `docs/decisions/0005-payout-state-machine-and-idempotent-transfers.md`.
 
 Use Stripe test keys and throwaway data only. Never use or print the real `.env`.
 
@@ -16,7 +16,7 @@ Legend: U unit, I integration (real Postgres `_test`, Stripe mocked), E end to e
 
 ## 1. Automated coverage
 
-Files in `services/api/src/modules/payouts/`: `payouts.integration.test.ts` (PI, suite "payout flow against real Postgres"), `payout-state.test.ts` (PS) and `payout-failure.test.ts` (PF).
+Files in `services/api/src/modules/payouts/`: `payouts.integration.test.ts` (PI, suite "payout flow against real Postgres"), `payouts.state.test.ts` (PS) and `payouts.failure.test.ts` (PF).
 
 | Requirement                                  | Tests                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | Type |
 | -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |

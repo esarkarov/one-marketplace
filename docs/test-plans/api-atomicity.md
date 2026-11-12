@@ -2,7 +2,7 @@
 
 ## Scope
 
-- `services/api/src/modules/meetings/meetings.service.ts`: `endMeetingByRoomName` now ends the meeting with one guarded `UPDATE ... WHERE provider_room_name = $room AND status = 'ACTIVE' RETURNING`, posts the `MEETING_ENDED` system message in the same transaction (via `postSystemEventMessage` with `{ executor: transaction }`, `src/utils/db-executor.ts`), and emits the socket/SSE event only after commit. An emit failure is logged (`task.meeting.emit_failed`) and does not fail the end.
+- `services/api/src/modules/meetings/meetings.service.ts`: `endMeetingByRoomName` now ends the meeting with one guarded `UPDATE ... WHERE provider_room_name = $room AND status = 'ACTIVE' RETURNING`, posts the `MEETING_ENDED` system message in the same transaction (via `postSystemEventMessage` with `{ executor: transaction }`, `src/database/db-executor.ts`), and emits the socket/SSE event only after commit. An emit failure is logged (`task.meeting.emit_failed`) and does not fail the end.
 - `services/api/src/modules/meetings/meetings.controller.ts`: Daily webhook claim (`webhook:daily:<event id>`), claim released on error.
 - `services/api/src/modules/contracts/contracts.service.ts`: `reviewContractMilestone` now updates the milestone with `WHERE id AND status = 'ACTIVE' AND payment_requested_at IS NOT NULL RETURNING`; no row means 409 "This milestone is not awaiting review."; a `23505` on `earning_history_milestone_id_unique` (also found through `cause`) maps to the same 409 and rolls back.
 

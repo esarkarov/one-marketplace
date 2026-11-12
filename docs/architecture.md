@@ -7,7 +7,7 @@ Status key: **exists** is in the repository today, **migrating** is tutorial cod
 - Frontend (exists): five Next.js apps in `apps/*`, one per audience. Data is mock and hardcoded; no app calls the API yet.
 - Backend (migrating): one Express 5 service, `services/api`, built as a modular monolith. The tutorial code is currently flat under `services/` and is being moved into `services/api` (ADR 0003).
 - Database (migrating): PostgreSQL with Drizzle ORM through `pg`. Schema, migrations and `drizzle.config.ts` live in `services/api`.
-- Events (exists): RabbitMQ notifications in `services/api/src/events` (ADR 0004). RabbitMQ is optional; the API runs with only Postgres and Redis. The envelope is version 2 (`metadata.amountCents`); version 1 is still accepted and upgraded (ADR 0006).
+- Events (exists): RabbitMQ notifications: envelope, topology and publisher in `services/api/src/infrastructure/events`, consumer in `src/modules/notifications/notifications.consumer.ts` (ADR 0004). RabbitMQ is optional; the API runs with only Postgres and Redis. The envelope is version 2 (`metadata.amountCents`); version 1 is still accepted and upgraded (ADR 0006).
 - API contract (exists): `docs/api/openapi.json`, OpenAPI 3.1 generated from the route zod schemas and committed; CI fails on drift (ADR 0012). No runtime endpoint serves it.
 - Local infrastructure (exists): Docker Compose in `infra/docker/docker-compose.yml` with Postgres, Redis and RabbitMQ.
 
@@ -27,26 +27,29 @@ Workspace packages are scoped `@onemarketplace/<folder-name>`.
 
 ## Modular monolith
 
-- One deployable process, `services/api`, split into modules under `src/modules/<name>/` with `route`, `controller` and `service` files. Modules today: admin, agency, auth, client, connects, contracts, freelancer, identity, jobs, meetings, messaging, notifications, payouts, proposals.
-- Each module owns its routes, services and validation. A module does not import another module's controller or read its tables directly; it uses a public interface or events.
-- Third-party clients (Stripe, Clerk, Daily, ImageKit, Redis, RabbitMQ) are created only in `src/config/`.
+- One deployable process, `services/api`, split into modules under `src/modules/<name>/` with `route`, `controller`, `service`, `schemas`, `responses` and `types` files. Modules today: admin, agency, auth, client, connects, contracts, freelancer, identity, jobs, meetings, messaging, notifications, payouts, proposals.
+- Layout under `src/` (ADR 0013): `server.ts` and `app.ts`; `bootstrap/` (ordered start, shutdown, readiness); `config/` (validated env, constants, cors, logger, webhooks); `infrastructure/` (one file per third-party client or adapter, and `events/`); `shared/` (`http`, `validation`, `money`, `utils`); `database/` (Drizzle schema, client, executor); `routes/` (route assembly and registries); `openapi/`; `types/`; `test/`.
+- Each module owns its routes, services and validation. A module imports only `config`, `infrastructure`, `shared` and `database`, and only a strictly lower module layer, through that module's `<name>.public.ts` (today agency, connects, freelancer and messaging), never its controller or internals. No cycles.
+- Module layers: 0 admin, auth, client, identity, jobs, payouts, connects; 1 freelancer; 2 agency; 3 messaging; 4 meetings, notifications, proposals; 5 contracts. The layer table, the module boundary, the infrastructure-to-module direction and cycles are enforced by `src/test/architecture/import-boundaries.test.ts`; its exception list (`boundary-exceptions.ts`) is empty.
+- Table ownership: one owner per table (list in ADR 0013 section 4). Other modules may read a table they do not own, never write it. The cross-module writes that exist today (proposals and contracts writing messaging and connects tables, freelancer, client, identity and connects writing `accounts`) are documented debt, not enforced.
+- Third-party clients (Stripe, Clerk, Daily, ImageKit, Redis, RabbitMQ) are created only in `src/infrastructure/`; eslint forbids importing their packages elsewhere. This amends the earlier `src/config/` rule (ADR 0013). `config/` holds configuration only.
 - A module may later be extracted into its own service without changing its public interface. See `docs/decisions/0001-modular-monolith.md`.
 
 ## API conventions
 
 - ESM with `.js` import suffixes, `@onemarketplace/tsconfig/node.json`, `@onemarketplace/eslint-config/node`.
-- Every route is validated at the route layer by `validate` (`src/middleware/validate.middleware.ts`). Schemas live in `src/modules/<module>/<module>.schemas.ts`, limits in `src/utils/validation-limits.ts`. A registry test and `src/routes/validation-allowlist.ts` enforce it (ADR 0011).
-- Every route also declares response schemas through `validate({ ..., responses })` with a 2xx entry (`<module>.responses.ts`, shared pieces in `src/utils/response-schemas.ts`) and has a contract test; only raw-body webhooks and event streams are exempt (`src/routes/contract-allowlist.ts`). `pnpm --filter @onemarketplace/api openapi:generate` writes `docs/api/openapi.json`, which is committed (ADR 0012).
+- Every route is validated at the route layer by `validate` (`src/shared/http/validate.middleware.ts`). Schemas live in `src/modules/<module>/<module>.schemas.ts`, limits in `src/shared/validation/validation-limits.ts`. A registry test and `src/routes/validation-allowlist.ts` enforce it (ADR 0011).
+- Every route also declares response schemas through `validate({ ..., responses })` with a 2xx entry (`<module>.responses.ts`, shared pieces in `src/shared/validation/response-schemas.ts`) and has a contract test; only raw-body webhooks and event streams are exempt (`src/routes/contract-allowlist.ts`). `pnpm --filter @onemarketplace/api openapi:generate` writes `docs/api/openapi.json`, which is committed (ADR 0012).
 - zod validates every request at the route boundary. Logging uses pino. Responses use one shape, `{ success, message, data? }`.
 - Webhook routes (Stripe, Daily) receive the raw body, registered before `express.json`.
 - Tests: vitest and supertest, added after the baseline compiles and runs.
-- Money is always integer cents (`bigint` columns named `*_cents`, JS numbers within the safe-integer range, API and JSON fields named `*Cents`), never floats. Fees use `splitFee` in `src/utils/money.ts` (half-up on cents). See `docs/decisions/0006-money-in-integer-cents.md`, which also lists every renamed API field.
+- Money is always integer cents (`bigint` columns named `*_cents`, JS numbers within the safe-integer range, API and JSON fields named `*Cents`), never floats. Fees use `splitFee` in `src/shared/money/money.ts` (half-up on cents). See `docs/decisions/0006-money-in-integer-cents.md`, which also lists every renamed API field.
 - Status transitions are single guarded conditional `UPDATE`s; a lost race answers a coded 409 (`docs/decisions/0007-guarded-state-transitions.md`).
 
 ## Database
 
 - PostgreSQL 18 through Drizzle ORM with `drizzle-orm/node-postgres`. Neon is not used.
-- Schema in `services/api/src/database/`, generated migrations in `services/api/drizzle/`. Migrations are committed and never edited after merge.
+- Schema (one `schema.ts`), client and executor in `services/api/src/database/`, which stays outside `infrastructure/` (ADR 0013); generated migrations in `services/api/drizzle/`. Migrations are committed and never edited after merge.
 - Connection settings come from `DATABASE_URL`. Migrations run only against local Docker, through `/db-change`.
 - Tests use a separate database ending in `_test` (default `<dev database>_test`, or `TEST_DATABASE_URL`). With Docker running, `pnpm --filter @onemarketplace/api db:test:setup` creates it through `docker exec` on the Compose Postgres container and applies the migrations; it works the same in cmd, PowerShell and bash. `db:test:create` and `db:test:migrate` run the two steps alone. The script is `infra/scripts/test-db.mjs`; it refuses names that do not match `^[a-z][a-z0-9_]*_test$`, the dev database name and non-localhost hosts.
 - In CI the Postgres service container is created with the test database already, so the workflow only runs `db:test:migrate` with `TEST_DATABASE_URL` set. Set `CREATE_TEST_DB_ADMIN_URL` to create the database through `pg` instead of Docker.
