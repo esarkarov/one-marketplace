@@ -8,6 +8,7 @@ Status key: **exists** is in the repository today, **migrating** is tutorial cod
 - Backend (migrating): one Express 5 service, `services/api`, built as a modular monolith. The tutorial code is currently flat under `services/` and is being moved into `services/api` (ADR 0003).
 - Database (migrating): PostgreSQL with Drizzle ORM through `pg`. Schema, migrations and `drizzle.config.ts` live in `services/api`.
 - Events (exists): RabbitMQ notifications in `services/api/src/events` (ADR 0004). RabbitMQ is optional; the API runs with only Postgres and Redis. The envelope is version 2 (`metadata.amountCents`); version 1 is still accepted and upgraded (ADR 0006).
+- API contract (exists): `docs/api/openapi.json`, OpenAPI 3.1 generated from the route zod schemas and committed; CI fails on drift (ADR 0012). No runtime endpoint serves it.
 - Local infrastructure (exists): Docker Compose in `infra/docker/docker-compose.yml` with Postgres, Redis and RabbitMQ.
 
 ## Repository layout
@@ -16,6 +17,7 @@ Status key: **exists** is in the repository today, **migrating** is tutorial cod
 | ------------------------ | ------------------------------------------------ | --------- |
 | `apps/*`                 | Next.js dashboards and landing page              | exists    |
 | `services/api`           | Express modular monolith, schema and migrations  | migrating |
+| `docs/api/openapi.json`  | OpenAPI 3.1 contract generated from the API      | exists    |
 | `packages/tsconfig`      | Shared TypeScript configs                        | exists    |
 | `packages/eslint-config` | Shared ESLint flat configs                       | exists    |
 | `packages/ui`            | Shared UI components (placeholder)               | exists    |
@@ -34,6 +36,7 @@ Workspace packages are scoped `@onemarketplace/<folder-name>`.
 
 - ESM with `.js` import suffixes, `@onemarketplace/tsconfig/node.json`, `@onemarketplace/eslint-config/node`.
 - Every route is validated at the route layer by `validate` (`src/middleware/validate.middleware.ts`). Schemas live in `src/modules/<module>/<module>.schemas.ts`, limits in `src/utils/validation-limits.ts`. A registry test and `src/routes/validation-allowlist.ts` enforce it (ADR 0011).
+- Every route also declares response schemas through `validate({ ..., responses })` with a 2xx entry (`<module>.responses.ts`, shared pieces in `src/utils/response-schemas.ts`) and has a contract test; only raw-body webhooks and event streams are exempt (`src/routes/contract-allowlist.ts`). `pnpm --filter @onemarketplace/api openapi:generate` writes `docs/api/openapi.json`, which is committed (ADR 0012).
 - zod validates every request at the route boundary. Logging uses pino. Responses use one shape, `{ success, message, data? }`.
 - Webhook routes (Stripe, Daily) receive the raw body, registered before `express.json`.
 - Tests: vitest and supertest, added after the baseline compiles and runs.

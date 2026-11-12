@@ -86,7 +86,7 @@ Every endpoint below now answers 400 where it used to accept or coerce the input
 - Decided: the ignore lists are not extended per resource. Only `id`, `imageId`, `createdAt` and `updatedAt` are stripped.
 - The GET response shapes are inconsistent (camelCase and snake_case) and will be reviewed in the OpenAPI stage (9b).
 - Socket.io events are out of scope for this ADR. Inbound `typing:set` and `conversation:read`, and outbound `presence:snapshot`, `presence:update`, `typing:update` and `conversation:update`, are not validated by `validate`. They need their own decision.
-- `sort`, `filter`, `type` and `memberRole` are still bounded strings with a controller fallback. They are candidates for enums.
-- Agency `POST /` (create) does not use `withIgnoredKeys`, so it does not strip the four keys in item 6.
+- Done: `sort`, `filter`, `type` and `memberRole` are zod enums. An omitted value keeps the controller default and an invalid value is a 400 `VALIDATION_ERROR`. `memberRole` accepts only `Agency member` and `Business manager`.
+- Done: agency `POST /` (create) uses `withIgnoredKeys` and strips the four keys in item 6.
 - Rows stored above a new cap cannot be saved again until they are shortened. No migration is made for them.
 - No app calls the API yet, so client compatibility is not verified. The new limits stay provisional until the frontends are wired.
