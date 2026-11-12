@@ -13,6 +13,8 @@ If the feature description is empty, ask the user what to build and stop.
 
 3. After approval, run only the steps the approved plan assigns, one agent at a time and in this order: `database`, `backend`, `frontend`. Give each agent the approved plan and the exact files or folders it may edit. If an agent returns questions or proposes changes outside its area, relay them to the user and wait.
 
+   For a new API module or route, give `backend` the checklist in `docs/adding-an-api-module.md`: layer and public surface, route request and response schemas, contract test, regenerated `docs/api/openapi.json`, integer-cents money, owned tables only, no third-party client outside `src/infrastructure/`.
+
 4. Delegate to the `qa` agent to run `pnpm check` and the builds and to write a test plan under `docs/test-plans/`.
 
 5. Delegate to the `reviewer` agent to review the full diff against `AGENTS.md`, the approved plan's ownership, and the security checklist.

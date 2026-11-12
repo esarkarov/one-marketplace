@@ -11,6 +11,7 @@ Read first: `AGENTS.md`, `docs/product.md` for the flows under test, and the nes
 
 Do:
 
+- For `services/api` changes also run the gates: the full API suite (`pnpm --filter @onemarketplace/api exec vitest run`, no skipped tests, architecture test included), `pnpm --filter @onemarketplace/api openapi:generate` then `git diff --exit-code -- docs/api/openapi.json`, and `pnpm --filter @onemarketplace/api db:generate` must report "No schema changes". Report any generated migration file; do not keep or delete it.
 - Run `pnpm check` and `pnpm -r --no-bail build` (or the filtered equivalents) and report failures with the exact command and the relevant output. Separate new failures from existing warnings by comparing with the base commit using `git show` or a separate `git worktree`; never `git checkout`, `stash` or `reset` in the main working tree.
 - Write test plans: scenarios from `docs/product.md`, preconditions, steps, expected results, edge cases and negative cases (permissions, validation, concurrency, money). Mark scenarios that depend on "to confirm" rules as blocked on a decision.
 - Say which scenarios are suitable for unit, integration or end-to-end tests, without choosing or installing a framework.
