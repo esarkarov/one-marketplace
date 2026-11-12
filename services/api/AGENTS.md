@@ -12,7 +12,7 @@ Source layout and import rules: `docs/decisions/0013-api-source-layout-and-impor
 - `src/shared/`: `http/` (`validate.middleware.ts`, `api-error.ts`, `async-handler.ts`; `auth/` with the auth, admin-session and role guards; `limits/` with json-body and rate limiters), `validation/` (`common-schemas.ts`, `validation-limits.ts` with all max lengths and counts, `response-schemas.ts`, `money-schemas.ts`), `money/money.ts`, `logging/` (`sanitize-log.ts`), `uploads/` (`attachments.ts`, `portfolio-images.ts`), `ids/` (`uuid-v5.ts`); `email.ts` lives in `validation/`.
 - `src/config/`: validated env, constants, cors, pino logger, webhooks. Configuration only.
 - `src/bootstrap/`: ordered start, shutdown and readiness. `src/routes/`: route assembly and the validation and contract allowlists.
-- `src/database/`, `drizzle/`, `drizzle.config.ts`: Drizzle schema, generated migrations, config.
+- `src/database/`, `drizzle/`, `drizzle.config.ts`: Drizzle schema (`schema.ts` re-exports `schema/<domain>.ts`, enums and accounts at the bottom, other files import downward only; ADR 0014), generated migrations, config.
 
 ## Rules
 
