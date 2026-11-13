@@ -1,9 +1,8 @@
 import type Stripe from "stripe";
-import { eq } from "drizzle-orm";
 import { env } from "../../config/env.js";
 import { stripe } from "../../infrastructure/stripe.js";
 import { db } from "../../database/client.js";
-import { accounts } from "../auth/auth.schema.js";
+import { findAccountIdentityStatus } from "./identity.repository.js";
 import { markIdentityVerified } from "../auth/auth.public.js";
 import { ApiError } from "../../shared/http/api-error.js";
 
@@ -22,11 +21,7 @@ export const createIdentitySession = async (
     throw new ApiError(503, "Identity verification is not configured.");
   }
 
-  const [account] = await db
-    .select({ identityVerified: accounts.identityVerified })
-    .from(accounts)
-    .where(eq(accounts.auth_id, accountId))
-    .limit(1);
+  const account = await findAccountIdentityStatus(db, accountId);
 
   if (!account) throw new ApiError(404, "Account not found.");
   if (account.identityVerified) {

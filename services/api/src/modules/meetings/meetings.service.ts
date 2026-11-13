@@ -1,8 +1,12 @@
 import { randomUUID } from "crypto";
-import { and, eq } from "drizzle-orm";
 import { db } from "../../database/client.js";
 import { isUniqueViolation } from "../../database/pg-errors.js";
-import { meetings } from "./meetings.schema.js";
+import {
+  endActiveMeetingByRoomName,
+  findActiveMeetingByConversation,
+  insertActiveMeeting,
+  setMeetingMessageId,
+} from "./meetings.repository.js";
 import { ApiError } from "../../shared/http/api-error.js";
 import { errorLogAttributes } from "../../shared/logging/sanitize-log.js";
 import { logger } from "../../config/logger.js";
@@ -35,16 +39,7 @@ const logOrphanedRoom = async (
 export const startMeeting = async (conversationId: string, actorId: string) => {
   await requireMember(conversationId, actorId);
 
-  const [existing] = await db
-    .select()
-    .from(meetings)
-    .where(
-      and(
-        eq(meetings.conversation_id, conversationId),
-        eq(meetings.status, "ACTIVE"),
-      ),
-    )
-    .limit(1);
+  const existing = await findActiveMeetingByConversation(db, conversationId);
   if (existing) {
     return {
       id: existing.id,
@@ -59,17 +54,12 @@ export const startMeeting = async (conversationId: string, actorId: string) => {
   let result;
   try {
     result = await db.transaction(async (transaction) => {
-      const [created] = await transaction
-        .insert(meetings)
-        .values({
-          conversation_id: conversationId,
-          provider: "daily",
-          provider_room_name: room.name,
-          join_url: room.url,
-          started_by_account_id: actorId,
-          status: "ACTIVE",
-        })
-        .returning();
+      const created = await insertActiveMeeting(transaction, {
+        conversationId,
+        roomName: room.name,
+        joinUrl: room.url,
+        startedByAccountId: actorId,
+      });
       if (!created) throw new ApiError(500, "Meeting could not be created.");
 
       const { message, emit } = await postSystemEventMessage(
@@ -84,10 +74,7 @@ export const startMeeting = async (conversationId: string, actorId: string) => {
         { actorId, executor: transaction },
       );
 
-      await transaction
-        .update(meetings)
-        .set({ message_id: message.id })
-        .where(eq(meetings.id, created.id));
+      await setMeetingMessageId(transaction, created.id, message.id);
 
       return {
         summary: {
@@ -102,16 +89,7 @@ export const startMeeting = async (conversationId: string, actorId: string) => {
     await logOrphanedRoom(room.name, conversationId, error);
     if (!isUniqueViolation(error, ACTIVE_MEETING_UNIQUE)) throw error;
 
-    const [active] = await db
-      .select()
-      .from(meetings)
-      .where(
-        and(
-          eq(meetings.conversation_id, conversationId),
-          eq(meetings.status, "ACTIVE"),
-        ),
-      )
-      .limit(1);
+    const active = await findActiveMeetingByConversation(db, conversationId);
     if (!active) throw error;
     return {
       id: active.id,
@@ -141,16 +119,11 @@ export const startMeeting = async (conversationId: string, actorId: string) => {
 export const endMeetingByRoomName = async (roomName: string) => {
   const result = await db.transaction(async (transaction) => {
     const endedAt = new Date();
-    const [ended] = await transaction
-      .update(meetings)
-      .set({ status: "ENDED", ended_at: endedAt, updated_at: endedAt })
-      .where(
-        and(
-          eq(meetings.provider_room_name, roomName),
-          eq(meetings.status, "ACTIVE"),
-        ),
-      )
-      .returning();
+    const ended = await endActiveMeetingByRoomName(
+      transaction,
+      roomName,
+      endedAt,
+    );
 
     if (!ended) return null;
 

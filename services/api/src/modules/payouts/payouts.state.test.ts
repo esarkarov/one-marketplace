@@ -11,10 +11,10 @@ const {
   PayoutTransitionError,
   assertTransition,
   allowedFrom,
-  buildTransitionGuard,
-  claimableCondition,
-  transitionPayout,
 } = await import("./payouts.state.js");
+const { buildTransitionGuard, claimableCondition, transitionPayoutIfAllowed } =
+  await import("./payouts.repository.js");
+const { db } = await import("../../database/client.js");
 
 const dialect = new PgDialect();
 const id = "7f2b8c1e-9a4d-4e7f-8b21-5c6d7e8f9a0b";
@@ -123,7 +123,7 @@ describe("buildTransitionGuard", () => {
 describe("transitionPayout", () => {
   it("throws before touching the database for a disallowed pair", async () => {
     await expect(
-      transitionPayout({ id, to: "PAID", from: "PAID" }),
+      transitionPayoutIfAllowed(db, { id, to: "PAID", from: "PAID" }),
     ).rejects.toBeInstanceOf(PayoutTransitionError);
     expect(dbMocks.update).not.toHaveBeenCalled();
   });
@@ -135,11 +135,17 @@ describe("transitionPayout", () => {
     dbMocks.update.mockReturnValue({ set });
 
     await expect(
-      transitionPayout({ id, to: "PAID", set: { last_error: null } }),
+      transitionPayoutIfAllowed(db, {
+        id,
+        to: "PAID",
+        set: { last_error: null },
+      }),
     ).resolves.toEqual({ id, status: "PAID" });
     expect(set).toHaveBeenCalledWith({ last_error: null, status: "PAID" });
 
     returning.mockResolvedValue([]);
-    await expect(transitionPayout({ id, to: "PAID" })).resolves.toBeUndefined();
+    await expect(
+      transitionPayoutIfAllowed(db, { id, to: "PAID" }),
+    ).resolves.toBeUndefined();
   });
 });

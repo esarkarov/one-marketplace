@@ -1,7 +1,7 @@
 import { clerk } from "../../infrastructure/clerk.js";
 import { ApiError } from "../../shared/http/api-error.js";
 import { db } from "../../database/client.js";
-import { accounts } from "./auth.schema.js";
+import { insertAccountIfAbsent } from "./auth.repository.js";
 import { invalidateAccountAuthCache } from "../../infrastructure/account-auth-cache.js";
 
 export interface SignupInput {
@@ -45,20 +45,12 @@ export const receiveSignup = async (input: SignupInput): Promise<void> => {
 
   const now = new Date();
 
-  await db
-    .insert(accounts)
-    .values({
-      auth_id: input.userId,
-      email,
-      role: toDatabaseRole(input.role),
-      identityVerified: false,
-      isOnboardingComplete: false,
-      created_at: now,
-      updated_at: now,
-    })
-    .onConflictDoNothing({
-      target: accounts.auth_id,
-    });
+  await insertAccountIfAbsent(db, {
+    userId: input.userId,
+    email,
+    role: toDatabaseRole(input.role),
+    now,
+  });
 
   await invalidateAccountAuthCache(input.userId);
 };

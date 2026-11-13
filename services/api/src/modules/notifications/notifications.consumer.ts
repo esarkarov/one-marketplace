@@ -1,10 +1,12 @@
 import type { ChannelWrapper } from "amqp-connection-manager";
 import type { ConsumeMessage } from "amqplib";
-import { sql } from "drizzle-orm";
 import { getRabbitConsumerChannel } from "../../infrastructure/rabbitmq.js";
 import { logger } from "../../config/logger.js";
 import { db } from "../../database/client.js";
-import { notifications } from "./notifications.schema.js";
+import {
+  insertNotificationIfNew,
+  pingDatabase,
+} from "./notifications.repository.js";
 import {
   emitAgencyNotification,
   emitNotification,
@@ -105,7 +107,7 @@ export const createNotificationConsumer = (options: {
     resumeTimer = setTimeout(async () => {
       if (stopped) return;
       try {
-        await db.execute(sql`select 1`);
+        await pingDatabase(db);
         await subscribe();
         if (stopped) {
           const tag = consumerTag;
@@ -156,21 +158,17 @@ export const createNotificationConsumer = (options: {
 
     let inserted;
     try {
-      inserted = await db
-        .insert(notifications)
-        .values({
-          event_id: id,
-          recipient_id: payload.recipientId ?? null,
-          agency_id: payload.agencyId ?? null,
-          type: payload.type,
-          title: payload.title,
-          message: payload.message,
-          link: payload.link,
-          metadata: payload.metadata,
-          created_at: new Date(occurredAt),
-        })
-        .onConflictDoNothing({ target: notifications.event_id })
-        .returning();
+      inserted = await insertNotificationIfNew(db, {
+        eventId: id,
+        recipientId: payload.recipientId ?? null,
+        agencyId: payload.agencyId ?? null,
+        type: payload.type,
+        title: payload.title,
+        message: payload.message,
+        link: payload.link,
+        metadata: payload.metadata,
+        createdAt: new Date(occurredAt),
+      });
     } catch (error) {
       await logFailure(
         "Message processing failed",

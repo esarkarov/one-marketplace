@@ -57,11 +57,8 @@ import {
 import { getAgencyEarningsOverview } from "../agency/agency.service.js";
 import { getFreelancerEarningsOverview } from "../freelancer/freelancer.service.js";
 import { RETRY_BACKOFF_SECONDS } from "./payouts.failure.js";
-import {
-  PayoutTransitionError,
-  transitionPayout,
-  type PayoutStatus,
-} from "./payouts.state.js";
+import { PayoutTransitionError, type PayoutStatus } from "./payouts.state.js";
+import { transitionPayoutIfAllowed } from "./payouts.repository.js";
 import { processDuePayouts } from "./payouts.service.js";
 
 type LogEntry = {
@@ -268,10 +265,12 @@ describe("payout flow against real Postgres", () => {
 
     const results = await Promise.all(
       fixtures.flatMap((fixture) => [
-        transitionPayout(
+        transitionPayoutIfAllowed(
+          db,
           claimInput(fixture.payoutId!, fixture.connectAccountId!),
         ),
-        transitionPayout(
+        transitionPayoutIfAllowed(
+          db,
           claimInput(fixture.payoutId!, fixture.connectAccountId!),
         ),
       ]),
@@ -1022,6 +1021,278 @@ describe("payout flow against real Postgres", () => {
     });
   });
 
+  describe("notification sweep details", () => {
+    const setPaidAt = (id: string, minutesAgo: number) =>
+      pool.query(
+        "update payout_history set paid_at = now() - $2::int * interval '1 minute' where id = $1",
+        [id, minutesAgo],
+      );
+
+    it("stamps notified_at only on the row whose publish succeeded", async () => {
+      const first = await data.createPayoutFixture({
+        payout: { status: "PAID", attempts: 1 },
+      });
+      const second = await data.createPayoutFixture({
+        payout: { status: "PAID", attempts: 1 },
+      });
+      mocks.sendNotification.mockImplementation(
+        async (input: { eventId: string }) =>
+          input.eventId === uuidV5(second.payoutId!) ? "failed" : "published",
+      );
+
+      await processDuePayouts();
+
+      expect((await readPayout(first.payoutId!))!.notified_at).not.toBeNull();
+      expect((await readPayout(second.payoutId!))!.notified_at).toBeNull();
+    });
+
+    it("notifies every unnotified PAID row in one run", async () => {
+      const first = await data.createPayoutFixture({
+        payout: { status: "PAID", attempts: 1 },
+      });
+      const second = await data.createPayoutFixture({
+        payout: { status: "PAID", attempts: 1 },
+      });
+
+      await processDuePayouts();
+
+      expect((await readPayout(first.payoutId!))!.notified_at).not.toBeNull();
+      expect((await readPayout(second.payoutId!))!.notified_at).not.toBeNull();
+    });
+
+    it("does not overwrite a notified_at that was set while publishing", async () => {
+      const fixture = await data.createPayoutFixture({
+        payout: { status: "PAID", attempts: 1 },
+      });
+      const id = fixture.payoutId!;
+      const earlier = "2020-01-01T00:00:00.000Z";
+      mocks.sendNotification.mockImplementation(async () => {
+        await pool.query(
+          "update payout_history set notified_at = $2 where id = $1",
+          [id, earlier],
+        );
+        return "published";
+      });
+
+      await processDuePayouts();
+
+      expect((await readPayout(id))!.notified_at?.toISOString()).toBe(earlier);
+    });
+
+    it("sweeps the oldest paid_at first", async () => {
+      const fixtures = [
+        await data.createPayoutFixture({
+          payout: { status: "PAID", attempts: 1 },
+        }),
+        await data.createPayoutFixture({
+          payout: { status: "PAID", attempts: 1 },
+        }),
+        await data.createPayoutFixture({
+          payout: { status: "PAID", attempts: 1 },
+        }),
+      ];
+      const ids = fixtures.map((fixture) => fixture.payoutId!);
+      await setPaidAt(ids[0]!, 60);
+      await setPaidAt(ids[1]!, 120);
+      await setPaidAt(ids[2]!, 180);
+
+      await processDuePayouts();
+
+      expect(
+        mocks.sendNotification.mock.calls.map(([input]) => input.eventId),
+      ).toEqual([ids[2]!, ids[1]!, ids[0]!].map((id) => uuidV5(id)));
+    });
+  });
+
+  describe("outcome writes after a concurrent change", () => {
+    const bumpAttempts = (id: string) =>
+      pool.query(
+        "update payout_history set attempts = attempts + 1 where id = $1",
+        [id],
+      );
+    const scheduleRetryLater = (id: string) =>
+      pool.query(
+        "update payout_history set next_retry_at = now() + interval '1 hour' where id = $1",
+        [id],
+      );
+    const parkFixture = () =>
+      data.createPayoutFixture({
+        payout: {
+          status: "PROCESSING",
+          attempts: 1,
+          claimedMinutesAgo: 20,
+          idempotencyKey: "placeholder",
+          destinationAccountId: `acct_it_old_${randomUUID()}`,
+        },
+      });
+
+    it("does not mark PAID when the attempt counter moved during the transfer", async () => {
+      const fixture = await data.createPayoutFixture();
+      const id = fixture.payoutId!;
+      mocks.transfersCreate.mockImplementationOnce(async () => {
+        await bumpAttempts(id);
+        return { id: `tr_it_${randomUUID()}` };
+      });
+
+      await processDuePayouts();
+
+      expect(await readPayout(id)).toMatchObject({
+        status: "PROCESSING",
+        attempts: 2,
+        stripe_transfer_id: null,
+        paid_at: null,
+      });
+      expect(
+        eventsFor(id, "payout.transition_lost")[0]?.attributes?.["payout.to"],
+      ).toBe("PAID");
+      expect(notificationsFor(id)).toHaveLength(0);
+    });
+
+    it("clears next_retry_at when marking PAID", async () => {
+      const fixture = await data.createPayoutFixture();
+      const id = fixture.payoutId!;
+      mocks.transfersCreate.mockImplementationOnce(async () => {
+        await scheduleRetryLater(id);
+        return { id: `tr_it_${randomUUID()}` };
+      });
+
+      await processDuePayouts();
+
+      expect(await readPayout(id)).toMatchObject({
+        status: "PAID",
+        next_retry_at: null,
+      });
+    });
+
+    it("does not mark FAILED when the attempt counter moved during a failing transfer", async () => {
+      const fixture = await data.createPayoutFixture();
+      const id = fixture.payoutId!;
+      mocks.transfersCreate.mockImplementationOnce(async () => {
+        await bumpAttempts(id);
+        throw stripeError(
+          "StripeInvalidRequestError",
+          "parameter_invalid",
+          400,
+        );
+      });
+
+      await processDuePayouts();
+
+      expect(await readPayout(id)).toMatchObject({
+        status: "PROCESSING",
+        attempts: 2,
+        last_error: null,
+      });
+      expect(
+        eventsFor(id, "payout.transition_lost")[0]?.attributes?.["payout.to"],
+      ).toBe("FAILED");
+    });
+
+    it("does not park for review when the attempt counter moved during the lookup", async () => {
+      const fixture = await parkFixture();
+      const id = fixture.payoutId!;
+      mocks.transfersList.mockImplementationOnce(async () => {
+        await bumpAttempts(id);
+        return { data: [] };
+      });
+
+      await processDuePayouts();
+
+      expect(await readPayout(id)).toMatchObject({
+        status: "PROCESSING",
+        attempts: 3,
+        last_error: null,
+      });
+      expect(
+        eventsFor(id, "payout.transition_lost")[0]?.attributes?.["payout.to"],
+      ).toBe("FAILED");
+    });
+
+    it("clears next_retry_at when parking for review", async () => {
+      const fixture = await parkFixture();
+      const id = fixture.payoutId!;
+      mocks.transfersList.mockImplementationOnce(async () => {
+        await scheduleRetryLater(id);
+        return { data: [] };
+      });
+
+      await processDuePayouts();
+
+      expect(await readPayout(id)).toMatchObject({
+        status: "FAILED",
+        last_error: "destination_changed",
+        next_retry_at: null,
+      });
+    });
+  });
+
+  describe("claim details", () => {
+    it("processes candidates in created_at order", async () => {
+      const fixtures = [
+        await data.createPayoutFixture(),
+        await data.createPayoutFixture(),
+        await data.createPayoutFixture(),
+      ];
+      await timeTravel(fixtures[0]!.payoutId!, { createdMinutesAgo: 10 });
+      await timeTravel(fixtures[1]!.payoutId!, { createdMinutesAgo: 30 });
+      await timeTravel(fixtures[2]!.payoutId!, { createdMinutesAgo: 20 });
+
+      await processDuePayouts();
+
+      expect(mocks.accountsRetrieve.mock.calls.map(([id]) => id)).toEqual([
+        fixtures[1]!.connectAccountId,
+        fixtures[2]!.connectAccountId,
+        fixtures[0]!.connectAccountId,
+      ]);
+    });
+
+    it("refreshes claimed_at and clears next_retry_at when a failed payout is claimed", async () => {
+      const fixture = await data.createPayoutFixture({
+        payout: {
+          status: "FAILED",
+          attempts: 1,
+          claimedMinutesAgo: 120,
+          nextRetryInSeconds: -60,
+          idempotencyKey: "payout:claim-details:1",
+        },
+      });
+      const id = fixture.payoutId!;
+      let duringTransfer: Awaited<ReturnType<typeof readPayout>>;
+      mocks.transfersCreate.mockImplementationOnce(async () => {
+        duringTransfer = await readPayout(id);
+        return { id: `tr_it_${randomUUID()}` };
+      });
+
+      await processDuePayouts();
+
+      expect(duringTransfer!.status).toBe("PROCESSING");
+      expect(duringTransfer!.next_retry_at).toBeNull();
+      expect(Date.now() - duringTransfer!.claimed_at!.getTime()).toBeLessThan(
+        60_000,
+      );
+    });
+
+    it("lists before creating when only the idempotency key marks the previous claim", async () => {
+      const fixture = await data.createPayoutFixture({
+        payout: {
+          status: "FAILED",
+          attempts: 0,
+          nextRetryInSeconds: -60,
+          idempotencyKey: "payout:key-only:1",
+        },
+      });
+      const id = fixture.payoutId!;
+      expect((await readPayout(id))!.claimed_at).toBeNull();
+
+      await processDuePayouts();
+
+      expect(listCallsFor(id)).toHaveLength(1);
+      expect(createCallsFor(id)).toHaveLength(1);
+      expect(listOrdersFor(id)[0]).toBeLessThan(createOrdersFor(id)[0]!);
+      expect(keysFor(id)).toEqual(["payout:key-only:1"]);
+    });
+  });
+
   describe("database constraints", () => {
     it("rejects a second payout row for the same earning with 23505", async () => {
       const fixture = await data.createPayoutFixture();
@@ -1093,11 +1364,16 @@ describe("payout flow against real Postgres", () => {
         const before = await readPayout(id);
 
         await expect(
-          transitionPayout({ id, from, to, set: { last_error: "tampered" } }),
+          transitionPayoutIfAllowed(db, {
+            id,
+            from,
+            to,
+            set: { last_error: "tampered" },
+          }),
         ).rejects.toBeInstanceOf(PayoutTransitionError);
         expect(await readPayout(id)).toEqual(before);
 
-        const implicit = await transitionPayout({
+        const implicit = await transitionPayoutIfAllowed(db, {
           id,
           to,
           set: { last_error: "tampered" },
@@ -1113,7 +1389,7 @@ describe("payout flow against real Postgres", () => {
       });
       const id = fixture.payoutId!;
 
-      const stale = await transitionPayout({
+      const stale = await transitionPayoutIfAllowed(db, {
         id,
         from: "PROCESSING",
         to: "PAID",
@@ -1123,7 +1399,7 @@ describe("payout flow against real Postgres", () => {
       expect(stale).toBeUndefined();
       expect((await readPayout(id))!.status).toBe("PROCESSING");
 
-      const current = await transitionPayout({
+      const current = await transitionPayoutIfAllowed(db, {
         id,
         from: "PROCESSING",
         to: "PAID",

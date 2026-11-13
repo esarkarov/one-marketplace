@@ -1,3 +1,6 @@
 import type { db } from "./client.js";
 
-export type DbExecutor = Pick<typeof db, "select" | "insert" | "update">;
+export type DbExecutor = Pick<
+  typeof db,
+  "select" | "insert" | "update" | "delete" | "execute"
+>;

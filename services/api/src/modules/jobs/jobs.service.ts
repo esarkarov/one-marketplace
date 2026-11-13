@@ -1,22 +1,20 @@
-import {
-  and,
-  asc,
-  count,
-  desc,
-  eq,
-  getTableColumns,
-  gte,
-  inArray,
-  lte,
-  ne,
-  sql,
-} from "drizzle-orm";
 import { db } from "../../database/client.js";
-import { accounts } from "../auth/auth.schema.js";
-import { client_metadata } from "../client/client.schema.js";
-import { client_spents, contracts } from "../contracts/contracts.schema.js";
-import { freelancer_saved_job_posts, job_posts } from "./jobs.schema.js";
-import { proposals } from "../proposals/proposals.schema.js";
+import {
+  deleteJobPostIfEditable,
+  deleteSavedJob,
+  findEditableJobPost,
+  findJobPostsWithCounts,
+  findPublishedJobFeedRows,
+  findPublishedJobId,
+  findSavedJob,
+  findSavedJobRows,
+  insertJobPost,
+  insertSavedJobIfAbsent,
+  updateJobPostIfEditable,
+  type JobData,
+  type JobUpdate,
+  type PublicJobFilters,
+} from "./jobs.repository.js";
 import { ApiError } from "../../shared/http/api-error.js";
 import { imageKit } from "../../infrastructure/image-kit.js";
 import { env } from "../../config/env.js";
@@ -27,7 +25,7 @@ import {
 import { reuseStoredAttachments } from "../../shared/uploads/attachments.js";
 import { clerk } from "../../infrastructure/clerk.js";
 
-type JobData = Omit<typeof job_posts.$inferInsert, "client_id">;
+export type { PublicJobFilters } from "./jobs.repository.js";
 
 export const createJobPost = async (userId: string, data: JobData) => {
   const { documents: attachments, uploadedIds } = await uploadDocuments(
@@ -36,15 +34,11 @@ export const createJobPost = async (userId: string, data: JobData) => {
   );
 
   try {
-    const [job] = await db
-      .insert(job_posts)
-      .values({
-        ...data,
-        attachments,
-        client_id: userId,
-      })
-      .returning();
-    return job;
+    return await insertJobPost(db, {
+      ...data,
+      attachments,
+      client_id: userId,
+    });
   } catch (error) {
     await Promise.allSettled(
       uploadedIds.map((fileId) => imageKit.files.delete(fileId)),
@@ -54,48 +48,15 @@ export const createJobPost = async (userId: string, data: JobData) => {
 };
 
 export const getJobPosts = async (userId: string, jobId?: string) => {
-  return db
-    .select({
-      ...getTableColumns(job_posts),
-      milestones: job_posts.milestones,
-      proposalCount: count(proposals.id).mapWith(Number),
-      shortlistCount: count(
-        sql`nullif(${proposals.is_shortlisted}, false)`,
-      ).mapWith(Number),
-      hireCount: sql<number>`(
-        SELECT count(*)
-        FROM ${contracts}
-        WHERE ${contracts.job_id} = ${job_posts.id}
-          AND ${contracts.status} IN ('ACTIVE', 'COMPLETED')
-      )`.mapWith(Number),
-    })
-    .from(job_posts)
-    .leftJoin(proposals, eq(proposals.job_id, job_posts.id))
-    .where(
-      jobId
-        ? and(eq(job_posts.client_id, userId), eq(job_posts.id, jobId))
-        : eq(job_posts.client_id, userId),
-    )
-    .groupBy(job_posts.id)
-    .orderBy(desc(job_posts.created_at));
+  return findJobPostsWithCounts(db, userId, jobId);
 };
 
 export const updateJobPost = async (
   userId: string,
   jobId: string,
-  data: Partial<typeof job_posts.$inferInsert>,
+  data: JobUpdate,
 ) => {
-  const [existingJob] = await db
-    .select()
-    .from(job_posts)
-    .where(
-      and(
-        eq(job_posts.id, jobId),
-        eq(job_posts.client_id, userId),
-        ne(job_posts.status, "HIRED"),
-      ),
-    )
-    .limit(1);
+  const existingJob = await findEditableJobPost(db, userId, jobId);
 
   if (!existingJob) throw new ApiError(404, "Editable job post not found.");
 
@@ -115,17 +76,7 @@ export const updateJobPost = async (
   let job;
 
   try {
-    [job] = await db
-      .update(job_posts)
-      .set({ ...data, attachments, updated_at: new Date() })
-      .where(
-        and(
-          eq(job_posts.id, jobId),
-          eq(job_posts.client_id, userId),
-          ne(job_posts.status, "HIRED"),
-        ),
-      )
-      .returning();
+    job = await updateJobPostIfEditable(db, userId, jobId, data, attachments);
   } catch (error) {
     await cleanupUploads();
     throw error;
@@ -145,16 +96,7 @@ export const updateJobPost = async (
 };
 
 export const deleteJobPost = async (userId: string, jobId: string) => {
-  const [job] = await db
-    .delete(job_posts)
-    .where(
-      and(
-        eq(job_posts.id, jobId),
-        eq(job_posts.client_id, userId),
-        ne(job_posts.status, "HIRED"),
-      ),
-    )
-    .returning();
+  const job = await deleteJobPostIfEditable(db, userId, jobId);
 
   if (!job) throw new ApiError(404, "Deleteable job post not found.");
 
@@ -163,57 +105,18 @@ export const deleteJobPost = async (userId: string, jobId: string) => {
 };
 
 export const saveJobPost = async (freelancerId: string, jobId: string) => {
-  const [job] = await db
-    .select({ id: job_posts.id })
-    .from(job_posts)
-    .where(and(eq(job_posts.id, jobId), eq(job_posts.status, "PUBLISHED")))
-    .limit(1);
+  const job = await findPublishedJobId(db, jobId);
   if (!job) throw new ApiError(404, "Job post not found.");
 
-  const [savedJob] = await db
-    .insert(freelancer_saved_job_posts)
-    .values({
-      freelancer_id: freelancerId,
-      job_id: jobId,
-    })
-    .onConflictDoNothing()
-    .returning();
+  const savedJob = await insertSavedJobIfAbsent(db, freelancerId, jobId);
 
   if (savedJob) return savedJob;
-  const [existingSavedJob] = await db
-    .select()
-    .from(freelancer_saved_job_posts)
-    .where(
-      and(
-        eq(freelancer_saved_job_posts.freelancer_id, freelancerId),
-        eq(freelancer_saved_job_posts.job_id, jobId),
-      ),
-    )
-    .limit(1);
+  const existingSavedJob = await findSavedJob(db, freelancerId, jobId);
   return existingSavedJob!;
 };
 
 export const getSavedJobPosts = async (freelancerId: string) => {
-  const rows = await db
-    .select({
-      job: job_posts,
-      savedAt: freelancer_saved_job_posts.created_at,
-      companyName: client_metadata.company_name,
-      paymentVerified: accounts.paymentMethodVerified,
-      proposalCount: sql<number>`(
-        SELECT count(*) FROM ${proposals}
-        WHERE ${proposals.job_id} = ${job_posts.id}
-      )`.mapWith(Number),
-    })
-    .from(freelancer_saved_job_posts)
-    .innerJoin(job_posts, eq(freelancer_saved_job_posts.job_id, job_posts.id))
-    .innerJoin(accounts, eq(job_posts.client_id, accounts.auth_id))
-    .innerJoin(
-      client_metadata,
-      eq(job_posts.client_id, client_metadata.auth_id),
-    )
-    .where(eq(freelancer_saved_job_posts.freelancer_id, freelancerId))
-    .orderBy(desc(freelancer_saved_job_posts.created_at));
+  const rows = await findSavedJobRows(db, freelancerId);
 
   return rows.map(
     ({ job, savedAt, companyName, paymentVerified, proposalCount }) => ({
@@ -230,28 +133,10 @@ export const removeSavedJobPost = async (
   freelancerId: string,
   jobId: string,
 ) => {
-  const [savedJob] = await db
-    .delete(freelancer_saved_job_posts)
-    .where(
-      and(
-        eq(freelancer_saved_job_posts.freelancer_id, freelancerId),
-        eq(freelancer_saved_job_posts.job_id, jobId),
-      ),
-    )
-    .returning();
+  const savedJob = await deleteSavedJob(db, freelancerId, jobId);
   if (!savedJob) throw new ApiError(404, "Saved job post not found.");
   return savedJob;
 };
-
-export interface PublicJobFilters {
-  query?: string;
-  levels?: string[];
-  minBudgetCents?: number;
-  maxBudgetCents?: number;
-  maxProposals?: number;
-  paymentVerified?: boolean;
-  sort?: "newest" | "budget" | "rating" | "proposals";
-}
 
 export interface PublicJobSummary {
   id: string;
@@ -286,60 +171,7 @@ export const getPublicJobFeed = async (
   const offset = pagination.offset ?? 0;
   const normalizedQuery = (filters.query ?? "").trim().toLowerCase();
 
-  const proposalCountExpr = sql<number>`(
-    SELECT count(*) FROM ${proposals} WHERE ${proposals.job_id} = ${job_posts.id}
-  )`;
-
-  const conditions = [eq(job_posts.status, "PUBLISHED")];
-  if (filters.levels?.length) {
-    conditions.push(inArray(job_posts.expertise_level, filters.levels));
-  }
-  if (filters.minBudgetCents) {
-    conditions.push(gte(job_posts.total_budget_cents, filters.minBudgetCents));
-  }
-  if (filters.maxBudgetCents) {
-    conditions.push(lte(job_posts.total_budget_cents, filters.maxBudgetCents));
-  }
-  if (filters.paymentVerified) {
-    conditions.push(eq(accounts.paymentMethodVerified, true));
-  }
-  if (filters.maxProposals !== undefined) {
-    conditions.push(lte(proposalCountExpr, filters.maxProposals));
-  }
-
-  const orderBy = (() => {
-    switch (filters.sort) {
-      case "budget":
-        return desc(job_posts.total_budget_cents);
-      case "rating":
-        return desc(client_spents.rating);
-      case "proposals":
-        return asc(proposalCountExpr);
-      default:
-        return desc(job_posts.published_at);
-    }
-  })();
-
-  const rows = await db
-    .select({
-      job: job_posts,
-      companyName: client_metadata.company_name,
-      paymentVerified: accounts.paymentMethodVerified,
-      totalSpentCents: client_spents.total_spent_cents,
-      clientRating: client_spents.rating,
-      proposalCount: proposalCountExpr,
-    })
-    .from(job_posts)
-    .innerJoin(accounts, eq(job_posts.client_id, accounts.auth_id))
-    .innerJoin(
-      client_metadata,
-      eq(job_posts.client_id, client_metadata.auth_id),
-    )
-    .leftJoin(client_spents, eq(job_posts.client_id, client_spents.client_id))
-    .where(and(...conditions))
-    .orderBy(orderBy)
-    .limit(limit)
-    .offset(offset);
+  const rows = await findPublishedJobFeedRows(db, filters, { limit, offset });
 
   const hasMore = rows.length === limit;
   if (!rows.length) return { results: [], hasMore: false };

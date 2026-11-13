@@ -1,10 +1,6 @@
-import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { EARNINGS_HOLD_PERIOD_MS } from "../../config/constants.js";
 import { stripe } from "../../infrastructure/stripe.js";
 import { db } from "../../database/client.js";
-import { accounts } from "../auth/auth.schema.js";
-import { agency_metadata } from "../agency/agency.schema.js";
-import { payout_history } from "./payouts.schema.js";
 import { sendNotification } from "../../infrastructure/events/publisher.js";
 import { logger } from "../../config/logger.js";
 import { formatUsd } from "../../shared/money/money.js";
@@ -18,13 +14,17 @@ import {
   type PayoutFailure,
 } from "./payouts.failure.js";
 import {
-  claimableCondition,
-  claimPayout,
-  transitionPayout,
+  claimPayoutIfClaimableSkipLocked,
+  failProcessingPayoutIfAttemptsMatch,
+  findClaimableCandidates,
+  findUnnotifiedPaidPayouts,
+  insertPendingPayoutsForDueEarnings,
+  markPayoutNotifiedIfUnnotified,
+  markProcessingPayoutPaidIfAttemptsMatch,
+  parkProcessingPayoutIfAttemptsMatch,
   type PayoutRecord,
-} from "./payouts.state.js";
+} from "./payouts.repository.js";
 
-const NOTIFICATION_SWEEP_LIMIT = 300;
 const TRANSFER_LIST_LIMIT = 10;
 
 export type PayoutRunSummary = {
@@ -109,12 +109,7 @@ const notifyPaid = async (row: PayoutRecord): Promise<void> => {
     return;
   }
 
-  await db
-    .update(payout_history)
-    .set({ notified_at: sql`now()` })
-    .where(
-      and(eq(payout_history.id, row.id), isNull(payout_history.notified_at)),
-    );
+  await markPayoutNotifiedIfUnnotified(db, row.id);
 };
 
 const notifySafely = async (row: PayoutRecord): Promise<void> => {
@@ -130,17 +125,7 @@ const notifySafely = async (row: PayoutRecord): Promise<void> => {
 };
 
 const sweepUnnotified = async (): Promise<void> => {
-  const rows = await db
-    .select()
-    .from(payout_history)
-    .where(
-      and(
-        eq(payout_history.status, "PAID"),
-        isNull(payout_history.notified_at),
-      ),
-    )
-    .orderBy(asc(payout_history.paid_at))
-    .limit(NOTIFICATION_SWEEP_LIMIT);
+  const rows = await findUnnotifiedPaidPayouts(db);
 
   for (const row of rows) {
     await notifySafely(row);
@@ -150,50 +135,21 @@ const sweepUnnotified = async (): Promise<void> => {
 const createDueRows = async (): Promise<void> => {
   const cutoff = new Date(Date.now() - EARNINGS_HOLD_PERIOD_MS);
 
-  await db.execute(sql`
-    INSERT INTO payout_history
-      (freelancer_id, agency_id, earning_history_id, amount_cents, status)
-    SELECT e.freelancer_id, e.agency_id, e.id,
-      (e.amount_cents - e.platform_fee_cents), 'PENDING'
-    FROM earning_history e
-    WHERE e.created_at <= ${cutoff.toISOString()}::timestamptz
-      AND NOT EXISTS (
-        SELECT 1 FROM payout_history p WHERE p.earning_history_id = e.id
-      )
-    ON CONFLICT (earning_history_id) DO NOTHING
-  `);
+  await insertPendingPayoutsForDueEarnings(db, cutoff);
 };
 
 const selectCandidates = async (): Promise<Candidate[]> =>
-  db
-    .select({
-      id: payout_history.id,
-      earningHistoryId: payout_history.earning_history_id,
-      amountCents: payout_history.amount_cents,
-      status: payout_history.status,
-      freelancerId: payout_history.freelancer_id,
-      agencyId: payout_history.agency_id,
-      freelancerAccountId: accounts.stripe_connect_account_id,
-      agencyAccountId: agency_metadata.stripe_connect_account_id,
-    })
-    .from(payout_history)
-    .leftJoin(accounts, eq(accounts.auth_id, payout_history.freelancer_id))
-    .leftJoin(agency_metadata, eq(agency_metadata.id, payout_history.agency_id))
-    .where(claimableCondition())
-    .orderBy(asc(payout_history.created_at))
-    .then((rows) =>
-      rows.map((row) => ({
-        id: row.id,
-        earningHistoryId: row.earningHistoryId,
-        amountCents: row.amountCents,
-        status: row.status,
-        freelancerId: row.freelancerId,
-        agencyId: row.agencyId,
-        stripeConnectAccountId: row.freelancerId
-          ? row.freelancerAccountId
-          : row.agencyAccountId,
-      })),
-    );
+  (await findClaimableCandidates(db)).map((row) => ({
+    id: row.id,
+    earningHistoryId: row.earningHistoryId,
+    amountCents: row.amountCents,
+    status: row.status,
+    freelancerId: row.freelancerId,
+    agencyId: row.agencyId,
+    stripeConnectAccountId: row.freelancerId
+      ? row.freelancerAccountId
+      : row.agencyAccountId,
+  }));
 
 const isTransfersActive = async (
   candidate: Candidate,
@@ -229,26 +185,15 @@ const failClaimed = async (
   const delay = retryDelaySeconds(claimed.attempts);
   const exhausted = claimed.attempts >= PAYOUT_MAX_ATTEMPTS;
 
-  const failed = await transitionPayout({
+  const failed = await failProcessingPayoutIfAttemptsMatch(db, {
     id: claimed.id,
-    from: "PROCESSING",
-    to: "FAILED",
-    expectedAttempts: claimed.attempts,
-    set: {
-      last_error: failure.code,
-      next_retry_at:
-        delay === null
-          ? null
-          : sql`now() + (${delay}::int * interval '1 second')`,
-      ...(failure.kind === "definitive"
-        ? {
-            idempotency_key: bumpIdempotencyKey(
-              claimed.id,
-              claimed.idempotency_key,
-            ),
-          }
-        : {}),
-    },
+    attempts: claimed.attempts,
+    lastError: failure.code,
+    retryDelaySeconds: delay,
+    idempotencyKey:
+      failure.kind === "definitive"
+        ? bumpIdempotencyKey(claimed.id, claimed.idempotency_key)
+        : undefined,
   });
 
   if (!failed) {
@@ -292,12 +237,10 @@ const parkForReview = async (
   claimed: PayoutRecord,
   code: string,
 ): Promise<Outcome> => {
-  const parked = await transitionPayout({
+  const parked = await parkProcessingPayoutIfAttemptsMatch(db, {
     id: claimed.id,
-    from: "PROCESSING",
-    to: "FAILED",
-    expectedAttempts: claimed.attempts,
-    set: { last_error: code, next_retry_at: null },
+    attempts: claimed.attempts,
+    lastError: code,
   });
 
   if (!parked) {
@@ -384,7 +327,10 @@ const processCandidate = async (candidate: Candidate): Promise<Outcome> => {
 
   if (!(await isTransfersActive(candidate, destination))) return "skipped";
 
-  const claimed = await claimPayout({ id: candidate.id, destination });
+  const claimed = await claimPayoutIfClaimableSkipLocked(db, {
+    id: candidate.id,
+    destination,
+  });
   if (!claimed) return "skipped";
   const priorClaim =
     claimed.prev_claimed_at !== null || claimed.prev_idempotency_key !== null;
@@ -453,17 +399,10 @@ const processCandidate = async (candidate: Candidate): Promise<Outcome> => {
     }
   }
 
-  const paid = await transitionPayout({
+  const paid = await markProcessingPayoutPaidIfAttemptsMatch(db, {
     id: claimed.id,
-    from: "PROCESSING",
-    to: "PAID",
-    expectedAttempts: claimed.attempts,
-    set: {
-      stripe_transfer_id: transferId,
-      paid_at: sql`now()`,
-      last_error: null,
-      next_retry_at: null,
-    },
+    attempts: claimed.attempts,
+    transferId,
   });
 
   if (!paid) {
