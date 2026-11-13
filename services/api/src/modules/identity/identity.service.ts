@@ -1,9 +1,10 @@
 import type Stripe from "stripe";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { env } from "../../config/env.js";
 import { stripe } from "../../infrastructure/stripe.js";
 import { db } from "../../database/client.js";
 import { accounts } from "../auth/auth.schema.js";
+import { markIdentityVerified } from "../auth/auth.public.js";
 import { ApiError } from "../../shared/http/api-error.js";
 
 export const createIdentitySession = async (
@@ -57,16 +58,11 @@ export const completeIdentityVerification = async (
     throw new ApiError(400, "Identity verification metadata is invalid.");
   }
 
-  const [account] = await db
-    .update(accounts)
-    .set({ identityVerified: true, updated_at: new Date() })
-    .where(
-      and(
-        eq(accounts.auth_id, accountId),
-        eq(accounts.role, role === "client" ? "CLIENT" : "FREELANCER"),
-      ),
-    )
-    .returning({ id: accounts.id });
+  const updated = await markIdentityVerified(
+    db,
+    accountId,
+    role === "client" ? "CLIENT" : "FREELANCER",
+  );
 
-  if (!account) throw new ApiError(404, "Identity account not found.");
+  if (!updated) throw new ApiError(404, "Identity account not found.");
 };

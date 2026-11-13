@@ -38,7 +38,7 @@ One file per third-party client under `src/infrastructure/`, none created anywhe
 - `config`, `infrastructure`, `shared`, `database` and `types` never import `modules` (documented exceptions only).
 - Modules import `config`, `infrastructure`, `shared` and `database`.
 - `bootstrap`, `routes` and `openapi` may import modules.
-- Modules talk to each other only through a small `<name>.public.ts`, never controllers or internals. A public file exists only for a module other modules import: today `agency`, `connects`, `freelancer` and `messaging`. Extend one only when a real caller needs it.
+- Modules talk to each other only through a small `<name>.public.ts`, never controllers or internals. A public file exists only for a module other modules import: today `agency`, `auth`, `connects`, `freelancer`, `jobs` and `messaging`. Extend one only when a real caller needs it.
 - No cycles, ever. A cycle is never an entry in the exception list.
 
 Cuts that remove today's edges (derived from the real import graph in `src/modules`):
@@ -59,14 +59,17 @@ Cuts that remove today's edges (derived from the real import graph in `src/modul
 
 Module layers (enforced by the architecture test). A module may import only a strictly lower layer, never one in its own layer, and only through the other module's `<name>.public.ts`.
 
-| Layer | Modules                                                | May import                    |
-| ----- | ------------------------------------------------------ | ----------------------------- |
-| 0     | admin, auth, client, identity, jobs, payouts, connects | no module                     |
-| 1     | freelancer                                             | connects                      |
-| 2     | agency                                                 | connects, freelancer          |
-| 3     | messaging                                              | agency                        |
-| 4     | meetings, notifications, proposals                     | agency, messaging, connects   |
-| 5     | contracts                                              | agency, freelancer, messaging |
+| Layer | Modules                                          | May import                          |
+| ----- | ------------------------------------------------ | ----------------------------------- |
+| 0     | auth                                             | no module                           |
+| 1     | admin, client, identity, jobs, payouts, connects | auth                                |
+| 2     | freelancer                                       | auth, connects                      |
+| 3     | agency                                           | auth, connects, freelancer          |
+| 4     | messaging                                        | auth, agency                        |
+| 5     | meetings, notifications, proposals               | auth, agency, messaging, connects   |
+| 6     | contracts                                        | auth, agency, freelancer, messaging |
+
+Renumbered by ADR 0014 section 10: auth became its own bottom layer and every other module moved up by one, so client, connects and identity can call `auth.public.ts`. Client, connects, identity, freelancer and contracts import `auth.public.ts`; the "May import" column lists what a layer is allowed to import.
 
 Layer 0 modules import no module. The table matched the real graph, so it did not change in Phase C. To change an order, change this table in the same PR as the code and the test.
 
@@ -142,6 +145,6 @@ The `AGENTS.md` wording on RabbitMQ (optional, enabled by `RABBITMQ_URL`) is cor
 - Moving files breaks every import path in one pass; it is mechanical but touches most of the tree. Phases B to D are separate PRs so each diff stays reviewable.
 - Moving files must not change generated artifacts: `docs/api/openapi.json` stays identical, and `document.ts` reads `src/routes/index.ts` as text, so the route assembly path must be handled in Phase B.
 - Public surfaces add small indirection (plain re-exports of the functions other modules call). They stay minimal and are created only for modules that others import.
-- Table-write ownership is documented but not enforced; cross-module writes remain debt until each is moved.
+- Table-write ownership is enforced (ADR 0014 sections 9 and 11); cross-module writes moved to owner functions and the allowlist has no writes.
 - The layer table is a proposal derived from today's graph. Phase C may adjust it, in the same PR as the code.
 - Dependency direction on `database/` and `types/` is checked, but a shared-table read is still allowed; it is not a boundary violation under this ADR.

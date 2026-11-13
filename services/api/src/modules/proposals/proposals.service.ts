@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, inArray, ne, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../../database/client.js";
 import { accounts } from "../auth/auth.schema.js";
 import {
@@ -9,12 +9,12 @@ import {
 } from "../contracts/contracts.schema.js";
 import { agency_members, agency_metadata } from "../agency/agency.schema.js";
 import { client_metadata } from "../client/client.schema.js";
-import { connects, connects_history } from "../connects/connects.schema.js";
 import {
-  conversation_participants,
-  conversations,
-  messages,
-} from "../messaging/messaging.schema.js";
+  creditConnects,
+  debitConnects,
+  recordConnectsHistory,
+} from "../connects/connects.public.js";
+import { conversations } from "../messaging/messaging.schema.js";
 import { freelancer_metadata } from "../freelancer/freelancer.schema.js";
 import { job_posts } from "../jobs/jobs.schema.js";
 import { proposals } from "./proposals.schema.js";
@@ -32,7 +32,10 @@ import {
   getAgencyTeamMemberIds,
 } from "../agency/agency.public.js";
 import { sendNotification } from "../../infrastructure/events/publisher.js";
-import { emitConversationUpdate } from "../messaging/messaging.public.js";
+import {
+  emitConversationUpdate,
+  openInterviewConversation,
+} from "../messaging/messaging.public.js";
 
 export const submitProposal = async (
   freelancerId: string,
@@ -69,19 +72,11 @@ export const submitProposal = async (
       throw new ApiError(400, "Answer every screening question.");
     }
 
-    const [balance] = await transaction
-      .update(connects)
-      .set({
-        connects: sql`${connects.connects} - ${PROPOSAL_CONNECTS}`,
-        updated_at: new Date(),
-      })
-      .where(
-        and(
-          eq(connects.freelancer_id, freelancerId),
-          gte(connects.connects, PROPOSAL_CONNECTS),
-        ),
-      )
-      .returning();
+    const balance = await debitConnects(
+      transaction,
+      { freelancerId },
+      PROPOSAL_CONNECTS,
+    );
 
     if (!balance) throw new ApiError(400, "Not enough Connects.");
 
@@ -104,8 +99,8 @@ export const submitProposal = async (
     if (!proposal)
       throw new ApiError(409, "You already submitted a proposal for this job.");
 
-    await transaction.insert(connects_history).values({
-      connects_id: balance.id,
+    await recordConnectsHistory(transaction, {
+      connectsId: balance.id,
       type: "Proposal submitted",
       description: job.title,
       amount: -PROPOSAL_CONNECTS,
@@ -181,19 +176,11 @@ export const submitAgencyProposal = async (
       .limit(1);
     if (!agency) throw new ApiError(404, "Agency workspace not found.");
 
-    const [balance] = await transaction
-      .update(connects)
-      .set({
-        connects: sql`${connects.connects} - ${PROPOSAL_CONNECTS}`,
-        updated_at: new Date(),
-      })
-      .where(
-        and(
-          eq(connects.agency_id, agencyId),
-          gte(connects.connects, PROPOSAL_CONNECTS),
-        ),
-      )
-      .returning();
+    const balance = await debitConnects(
+      transaction,
+      { agencyId },
+      PROPOSAL_CONNECTS,
+    );
 
     if (!balance) throw new ApiError(400, "Not enough Connects.");
 
@@ -220,8 +207,8 @@ export const submitAgencyProposal = async (
       );
     }
 
-    await transaction.insert(connects_history).values({
-      connects_id: balance.id,
+    await recordConnectsHistory(transaction, {
+      connectsId: balance.id,
       type: "Proposal submitted",
       description: job.title,
       amount: -PROPOSAL_CONNECTS,
@@ -642,141 +629,37 @@ export const startProposalInterview = async (
     const contextKey = isAgency
       ? `job:${proposal.jobId}:client:${clientId}:agency:${proposal.freelancerId}`
       : `job:${proposal.jobId}:client:${clientId}:talent:${proposal.freelancerId}`;
-    const [createdConversation] = await transaction
-      .insert(conversations)
-      .values({
-        job_id: proposal.jobId,
-        proposal_id: proposal.id,
-        context_key: contextKey,
-      })
-      .onConflictDoNothing({ target: conversations.context_key })
-      .returning({ id: conversations.id });
+    const { conversationId } = await openInterviewConversation(transaction, {
+      proposalId: proposal.id,
+      jobId: proposal.jobId,
+      contextKey,
+      clientId,
+      senderAccountId: accountId,
+      counterparty: isAgency
+        ? { agencyId: proposal.freelancerId }
+        : { accountId },
+      coverLetter: proposal.coverLetter,
+      openingMessage,
+    });
 
-    const conversation =
-      createdConversation ??
-      (
-        await transaction
-          .select({ id: conversations.id })
-          .from(conversations)
-          .where(eq(conversations.context_key, contextKey))
-          .limit(1)
-      )[0];
-
-    if (!conversation) {
-      throw new ApiError(500, "Conversation could not be created.");
-    }
-
-    await transaction
-      .insert(conversation_participants)
-      .values([
-        {
-          conversation_id: conversation.id,
-          account_id: clientId,
-          participant_type: "CLIENT",
-        },
-        isAgency
-          ? {
-              conversation_id: conversation.id,
-              agency_id: proposal.freelancerId,
-              participant_type: "AGENCY",
-            }
-          : {
-              conversation_id: conversation.id,
-              account_id: accountId,
-              participant_type: "FREELANCER",
-            },
-      ])
-      .onConflictDoNothing();
-
-    const now = new Date();
-
-    const [proposalMessage] = await transaction
-      .insert(messages)
-      .values({
-        conversation_id: conversation.id,
-        sender_id: accountId,
-        body: proposal.coverLetter,
-        created_at: now,
-      })
-      .returning({ id: messages.id, createdAt: messages.created_at });
-    if (!proposalMessage) {
-      throw new ApiError(500, "Interview messages could not be created.");
-    }
-
-    const [clientMessage] = await transaction
-      .insert(messages)
-      .values({
-        conversation_id: conversation.id,
-        sender_id: clientId,
-        body: openingMessage,
-        reply_to_message_id: proposalMessage.id,
-        created_at: new Date(now.getTime() + 1),
-      })
-      .returning({ id: messages.id, createdAt: messages.created_at });
-
-    if (!clientMessage) {
-      throw new ApiError(500, "Interview messages could not be created.");
-    }
-
-    await transaction
-      .update(conversations)
-      .set({
-        proposal_id: proposal.id,
-        last_message_id: clientMessage.id,
-        last_message_at: clientMessage.createdAt,
-        updated_at: new Date(),
-      })
-      .where(eq(conversations.id, conversation.id));
-
-    await transaction
-      .update(conversation_participants)
-      .set({
-        last_read_message_id: clientMessage.id,
-        last_read_at: new Date(),
-        unread_count: 0,
-      })
-      .where(
-        and(
-          eq(conversation_participants.conversation_id, conversation.id),
-          eq(conversation_participants.account_id, clientId),
-        ),
-      );
-
-    await transaction
-      .update(conversation_participants)
-      .set({
-        unread_count: sql`${conversation_participants.unread_count} + 1`,
-      })
-      .where(
-        and(
-          eq(conversation_participants.conversation_id, conversation.id),
-          ne(conversation_participants.participant_type, "CLIENT"),
-        ),
-      );
-
-    const [balance] = await transaction
-      .update(connects)
-      .set({
-        connects: sql`${connects.connects} + ${PROPOSAL_CONNECTS}`,
-        updated_at: new Date(),
-      })
-      .where(
-        isAgency
-          ? eq(connects.agency_id, proposal.freelancerId)
-          : eq(connects.freelancer_id, proposal.freelancerId),
-      )
-      .returning();
+    const balance = await creditConnects(
+      transaction,
+      isAgency
+        ? { agencyId: proposal.freelancerId }
+        : { freelancerId: proposal.freelancerId },
+      PROPOSAL_CONNECTS,
+    );
     if (!balance) throw new ApiError(404, "Connects balance not found.");
 
-    await transaction.insert(connects_history).values({
-      connects_id: balance.id,
+    await recordConnectsHistory(transaction, {
+      connectsId: balance.id,
       type: "Interview started refund",
       description: proposal.jobTitle,
       amount: PROPOSAL_CONNECTS,
     });
 
     return {
-      conversationId: conversation.id,
+      conversationId,
       proposalId: proposal.id,
       senderType: proposal.senderType,
       freelancerId: accountId,

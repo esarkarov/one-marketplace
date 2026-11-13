@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, sql } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import {
   CONNECTS_CACHE_TTL_SECONDS,
   CONNECTS_PLANS,
@@ -6,10 +6,10 @@ import {
   getAgencyConnectsCacheKey,
   getConnectsCacheKey,
   INITIAL_CONNECTS,
-  PROPOSAL_CONNECTS,
 } from "../../config/constants.js";
 import { db } from "../../database/client.js";
 import { accounts } from "../auth/auth.schema.js";
+import { setStripeCustomerId } from "../auth/auth.public.js";
 import {
   connects,
   connects_history,
@@ -124,70 +124,6 @@ export const getAgencyConnectsHistory = async (agencyId: string) =>
     .orderBy(desc(connects_history.created_at))
     .limit(10);
 
-export const chargeConnects = async (
-  freelancerId: string,
-  description: string,
-) => {
-  const balance = await db.transaction(async (transcation) => {
-    const [balance] = await transcation
-      .update(connects)
-      .set({
-        connects: sql`${connects.connects} - ${PROPOSAL_CONNECTS}`,
-        updated_at: new Date(),
-      })
-      .where(
-        and(
-          eq(connects.freelancer_id, freelancerId),
-          gte(connects.connects, PROPOSAL_CONNECTS),
-        ),
-      )
-      .returning();
-
-    if (!balance) throw new ApiError(400, "Not enough Connects.");
-
-    await transcation.insert(connects_history).values({
-      connects_id: balance.id,
-      type: "Proposal submitted",
-      description,
-      amount: -PROPOSAL_CONNECTS,
-    });
-    return balance;
-  });
-
-  await cacheBalance(freelancerId, balance.connects);
-  return balance;
-};
-
-export const returnConnects = async (
-  freelancerId: string,
-  description: string,
-) => {
-  const balance = await db.transaction(async (transaction) => {
-    const [balance] = await transaction
-      .update(connects)
-      .set({
-        connects: sql`${connects.connects} + ${PROPOSAL_CONNECTS}`,
-        updated_at: new Date(),
-      })
-      .where(eq(connects.freelancer_id, freelancerId))
-      .returning();
-
-    if (!balance) throw new ApiError(404, "Connects balance not found.");
-
-    await transaction.insert(connects_history).values({
-      connects_id: balance.id,
-      type: "Proposal withdrawn refund",
-      description,
-      amount: PROPOSAL_CONNECTS,
-    });
-
-    return balance;
-  });
-
-  await cacheBalance(freelancerId, balance.connects);
-  return balance;
-};
-
 export const getConnectsHistory = async (freelancerId: string) =>
   await db
     .select({
@@ -228,10 +164,7 @@ export const createConnectsCheckout = async (
     });
     customerId = customer.id;
 
-    await db
-      .update(accounts)
-      .set({ stripe_customer_id: customerId, updated_at: new Date() })
-      .where(eq(accounts.auth_id, freelancerId));
+    await setStripeCustomerId(db, freelancerId, customerId);
   }
 
   const session = await stripe.checkout.sessions.create({
@@ -327,10 +260,7 @@ export const createAgencyConnectsCheckout = async (
     });
     customerId = customer.id;
 
-    await db
-      .update(accounts)
-      .set({ stripe_customer_id: customerId, updated_at: new Date() })
-      .where(eq(accounts.auth_id, ownerId));
+    await setStripeCustomerId(db, ownerId, customerId);
   }
 
   const session = await stripe.checkout.sessions.create({

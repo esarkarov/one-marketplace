@@ -2,6 +2,10 @@ import { and, asc, count, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { db } from "../../database/client.js";
 import { toSafeCents } from "../../shared/money/money.js";
 import { accounts } from "../auth/auth.schema.js";
+import {
+  markFreelancerOnboardingComplete,
+  setStripeConnectAccountId,
+} from "../auth/auth.public.js";
 import { client_metadata } from "../client/client.schema.js";
 import {
   client_spents,
@@ -525,13 +529,7 @@ export const getFreelancerPayoutManagementUrl = async (userId: string) => {
       connectAccount.requirements,
     );
 
-    await db
-      .update(accounts)
-      .set({
-        stripe_connect_account_id: connectAccountId,
-        updated_at: new Date(),
-      })
-      .where(eq(accounts.auth_id, userId));
+    await setStripeConnectAccountId(db, userId, connectAccountId);
   } else {
     const existingAccount = await stripe.v2.core.accounts.retrieve(
       connectAccountId,
@@ -638,16 +636,10 @@ export const saveFreelancerProfile = async (
 
   try {
     profile = await db.transaction(async (transaction) => {
-      const [account] = await transaction
-        .update(accounts)
-        .set({ isOnboardingComplete: true })
-        .where(
-          and(
-            eq(accounts.auth_id, input.userId),
-            eq(accounts.role, "FREELANCER"),
-          ),
-        )
-        .returning();
+      const account = await markFreelancerOnboardingComplete(
+        transaction,
+        input.userId,
+      );
 
       if (!account) throw new ApiError(404, "Freelancer account not found.");
 

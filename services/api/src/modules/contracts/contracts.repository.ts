@@ -1,56 +1,10 @@
-import { and, asc, desc, eq, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import type { DbExecutor } from "../../database/db-executor.js";
 import { accounts } from "../auth/auth.schema.js";
 import { client_metadata } from "../client/client.schema.js";
 import { contract_milestones, contracts } from "./contracts.schema.js";
-import {
-  conversation_participants,
-  conversations,
-  messages,
-} from "../messaging/messaging.schema.js";
+import { conversations } from "../messaging/messaging.schema.js";
 import { job_posts } from "../jobs/jobs.schema.js";
-
-export const insertMessages = (
-  executor: DbExecutor,
-  values: (typeof messages.$inferInsert)[],
-) =>
-  executor
-    .insert(messages)
-    .values(values)
-    .returning({ id: messages.id, createdAt: messages.created_at });
-
-export const setConversationLastMessage = (
-  executor: DbExecutor,
-  conversationId: string,
-  message: { id: string; createdAt: Date },
-  updatedAt: Date,
-) =>
-  executor
-    .update(conversations)
-    .set({
-      last_message_id: message.id,
-      last_message_at: message.createdAt,
-      updated_at: updatedAt,
-    })
-    .where(eq(conversations.id, conversationId));
-
-export const incrementUnreadCount = (
-  executor: DbExecutor,
-  conversationId: string,
-  recipient: SQL,
-  amount: number,
-) =>
-  executor
-    .update(conversation_participants)
-    .set({
-      unread_count: sql`${conversation_participants.unread_count} + ${amount}`,
-    })
-    .where(
-      and(
-        eq(conversation_participants.conversation_id, conversationId),
-        recipient,
-      ),
-    );
 
 export const findMilestoneForFunding = (
   executor: DbExecutor,

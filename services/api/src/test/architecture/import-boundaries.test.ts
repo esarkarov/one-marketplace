@@ -21,20 +21,20 @@ const infrastructureDirs = [
 ];
 
 const moduleLayers: Record<string, number> = {
-  admin: 0,
   auth: 0,
-  client: 0,
-  identity: 0,
-  jobs: 0,
-  payouts: 0,
-  connects: 0,
-  freelancer: 1,
-  agency: 2,
-  messaging: 3,
-  meetings: 4,
-  notifications: 4,
-  proposals: 4,
-  contracts: 5,
+  admin: 1,
+  client: 1,
+  identity: 1,
+  jobs: 1,
+  payouts: 1,
+  connects: 1,
+  freelancer: 2,
+  agency: 3,
+  messaging: 4,
+  meetings: 5,
+  notifications: 5,
+  proposals: 5,
+  contracts: 6,
 };
 
 interface Edge {
@@ -177,6 +177,14 @@ describe("import boundaries", () => {
   it("module-boundary: modules do not import other modules", () => {
     const offending = violations
       .filter((v) => v.rule === "module-boundary")
+      .map((v) => pairKey(v.edge))
+      .filter((key) => !exceptionKeys.has(key));
+    expect([...new Set(offending)].join("\n")).toBe("");
+  });
+
+  it("module-layer: modules import only a strictly lower layer", () => {
+    const offending = violations
+      .filter((v) => v.rule === "module-layer")
       .map((v) => pairKey(v.edge))
       .filter((key) => !exceptionKeys.has(key));
     expect([...new Set(offending)].join("\n")).toBe("");

@@ -3,6 +3,7 @@ import { and, eq, isNotNull, ne, sql } from "drizzle-orm";
 import { db } from "../../../database/client.js";
 import { isUniqueViolation } from "../../../database/pg-errors.js";
 import { accounts } from "../../auth/auth.schema.js";
+import { markPaymentMethodVerified } from "../../auth/auth.public.js";
 import {
   agency_earning,
   client_spents,
@@ -11,24 +12,18 @@ import {
   freelancer_earning,
   reviews,
 } from "../contracts.schema.js";
-import {
-  conversation_participants,
-  conversations,
-} from "../../messaging/messaging.schema.js";
+import { conversations } from "../../messaging/messaging.schema.js";
 import { job_posts } from "../../jobs/jobs.schema.js";
 import { proposals } from "../../proposals/proposals.schema.js";
 import { ApiError } from "../../../shared/http/api-error.js";
 import { sendNotification } from "../../../infrastructure/events/publisher.js";
-import { emitConversationUpdate } from "../../messaging/messaging.public.js";
+import {
+  appendConversationMessages,
+  emitConversationUpdate,
+} from "../../messaging/messaging.public.js";
 import { getJSSContribution } from "../../freelancer/freelancer.public.js";
 import { getAgencyOwnerId } from "../../agency/agency.public.js";
-import {
-  findContractForReview,
-  incrementUnreadCount,
-  insertMessages,
-  setConversationLastMessage,
-} from "../contracts.repository.js";
-import { participantMatch } from "./contracts.helpers.js";
+import { findContractForReview } from "../contracts.repository.js";
 
 const REVIEW_CONTRACT_REVIEWER_UNIQUE = "reviews_contract_reviewer_unique";
 
@@ -225,34 +220,24 @@ export const finishContractWithReview = async (
         });
 
       if (contract.conversationId) {
-        const [message] = await insertMessages(transaction, [
-          {
-            conversation_id: contract.conversationId,
-            sender_id: reviewerId,
-            message_type: "SYSTEM_EVENT",
-            body: `The contract “${contract.title}” was completed.`,
-            event_type: "CONTRACT_COMPLETED",
-            event_payload: { contractId: contract.id, title: contract.title },
-            created_at: now,
+        await appendConversationMessages(transaction, {
+          conversationId: contract.conversationId,
+          messages: [
+            {
+              sender_id: reviewerId,
+              message_type: "SYSTEM_EVENT",
+              body: `The contract “${contract.title}” was completed.`,
+              event_type: "CONTRACT_COMPLETED",
+              event_payload: { contractId: contract.id, title: contract.title },
+              created_at: now,
+            },
+          ],
+          updatedAt: now,
+          unread: {
+            account: revieweeId,
+            agency: role === "client" ? contract.agencyId : null,
           },
-        ]);
-        if (message) {
-          await setConversationLastMessage(
-            transaction,
-            contract.conversationId,
-            message,
-            now,
-          );
-          await incrementUnreadCount(
-            transaction,
-            contract.conversationId,
-            participantMatch(
-              revieweeId,
-              role === "client" ? contract.agencyId : null,
-            ),
-            1,
-          );
-        }
+        });
       }
     })
     .catch((error: unknown) => {
@@ -384,34 +369,24 @@ export const acceptContract = async (
         },
       });
 
-    const [message] = await insertMessages(transaction, [
-      {
-        conversation_id: offer.conversationId,
-        sender_id: freelancerId,
-        message_type: "SYSTEM_EVENT",
-        body: agencyId
-          ? "The agency accepted the contract offer. The contract is now active."
-          : "The freelancer accepted the contract offer. The contract is now active.",
-        event_type: "CONTRACT_ACCEPTED",
-        event_payload: { contractId: offer.id, title: offer.title },
-      },
-    ]);
+    const [message] = await appendConversationMessages(transaction, {
+      conversationId: offer.conversationId,
+      messages: [
+        {
+          sender_id: freelancerId,
+          message_type: "SYSTEM_EVENT",
+          body: agencyId
+            ? "The agency accepted the contract offer. The contract is now active."
+            : "The freelancer accepted the contract offer. The contract is now active.",
+          event_type: "CONTRACT_ACCEPTED",
+          event_payload: { contractId: offer.id, title: offer.title },
+        },
+      ],
+      updatedAt: now,
+      unread: { account: offer.clientId },
+    });
     if (!message)
       throw new ApiError(500, "Contract message could not be sent.");
-
-    await setConversationLastMessage(
-      transaction,
-      offer.conversationId,
-      message,
-      now,
-    );
-
-    await incrementUnreadCount(
-      transaction,
-      offer.conversationId,
-      eq(conversation_participants.account_id, offer.clientId),
-      1,
-    );
   });
 
   return { ...offer, freelancerId };
@@ -510,46 +485,32 @@ export const createContractFromPayment = async (
       })),
     );
 
-    await transaction
-      .update(accounts)
-      .set({ paymentMethodVerified: true, updated_at: new Date() })
-      .where(eq(accounts.auth_id, clientId));
+    await markPaymentMethodVerified(transaction, clientId);
 
-    const [message] = await insertMessages(transaction, [
-      {
-        conversation_id: offer.conversationId,
-        sender_id: clientId,
-        message_type: "SYSTEM_EVENT",
-        body: "Contract offer sent",
-        event_type: "CONTRACT_OFFER",
-        event_payload: {
-          contractId: contract.id,
-          proposalId: offer.proposal.id,
-          title: offer.job.title,
-          firstMilestone: {
-            title: milestones[0]!.title,
-            amountCents: amounts[0],
+    const [message] = await appendConversationMessages(transaction, {
+      conversationId: offer.conversationId,
+      messages: [
+        {
+          sender_id: clientId,
+          message_type: "SYSTEM_EVENT",
+          body: "Contract offer sent",
+          event_type: "CONTRACT_OFFER",
+          event_payload: {
+            contractId: contract.id,
+            proposalId: offer.proposal.id,
+            title: offer.job.title,
+            firstMilestone: {
+              title: milestones[0]!.title,
+              amountCents: amounts[0],
+            },
           },
         },
-      },
-    ]);
-
+      ],
+      updatedAt: new Date(),
+      unread: { allExceptType: "CLIENT" },
+    });
     if (!message)
       throw new ApiError(500, "Contract message could not be sent.");
-
-    await setConversationLastMessage(
-      transaction,
-      offer.conversationId,
-      message,
-      new Date(),
-    );
-
-    await incrementUnreadCount(
-      transaction,
-      offer.conversationId,
-      ne(conversation_participants.participant_type, "CLIENT"),
-      1,
-    );
 
     return { contractId: contract.id };
   });

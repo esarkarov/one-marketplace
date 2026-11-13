@@ -4,6 +4,10 @@ import { db } from "../../database/client.js";
 import { toSafeCents } from "../../shared/money/money.js";
 import { accounts } from "../auth/auth.schema.js";
 import {
+  markClientOnboardingComplete,
+  setStripeCustomerId,
+} from "../auth/auth.public.js";
+import {
   agency_earning,
   client_spents,
   contract_milestones,
@@ -92,20 +96,11 @@ export const saveClientProfile = async (
   const now = new Date();
 
   const profile: any = await db.transaction(async (transaction) => {
-    const [account] = await transaction
-      .update(accounts)
-      .set({
-        isOnboardingComplete: true,
-        updated_at: now,
-      })
-      .where(
-        and(eq(accounts.auth_id, input.userId), eq(accounts.role, "CLIENT")),
-      )
-      .returning({
-        id: accounts.id,
-        identityVerified: accounts.identityVerified,
-        paymentMethodVerified: accounts.paymentMethodVerified,
-      });
+    const account = await markClientOnboardingComplete(
+      transaction,
+      input.userId,
+      now,
+    );
 
     if (!account) {
       throw new ApiError(404, "Client account not found.");
@@ -513,10 +508,7 @@ export const getClientFinanceManagementUrl = async (
       metadata: { accountId: clientId, role: "CLIENT" },
     });
     customerId = customer.id;
-    await db
-      .update(accounts)
-      .set({ stripe_customer_id: customerId, updated_at: new Date() })
-      .where(eq(accounts.auth_id, clientId));
+    await setStripeCustomerId(db, clientId, customerId);
   }
 
   const session = await stripe.billingPortal.sessions.create({

@@ -4,21 +4,19 @@ import { env } from "../../../config/env.js";
 import { stripe } from "../../../infrastructure/stripe.js";
 import { db } from "../../../database/client.js";
 import { accounts } from "../../auth/auth.schema.js";
+import { setStripeCustomerId } from "../../auth/auth.public.js";
 import { contract_milestones, contracts } from "../contracts.schema.js";
 import { conversations } from "../../messaging/messaging.schema.js";
 import { job_posts } from "../../jobs/jobs.schema.js";
 import { proposals } from "../../proposals/proposals.schema.js";
 import { ApiError } from "../../../shared/http/api-error.js";
 import { sendNotification } from "../../../infrastructure/events/publisher.js";
-import { emitConversationUpdate } from "../../messaging/messaging.public.js";
-import { getAgencyOwnerId } from "../../agency/agency.public.js";
 import {
-  findMilestoneForFunding,
-  incrementUnreadCount,
-  insertMessages,
-  setConversationLastMessage,
-} from "../contracts.repository.js";
-import { participantMatch } from "./contracts.helpers.js";
+  appendConversationMessages,
+  emitConversationUpdate,
+} from "../../messaging/messaging.public.js";
+import { getAgencyOwnerId } from "../../agency/agency.public.js";
+import { findMilestoneForFunding } from "../contracts.repository.js";
 
 export const createContractCheckout = async (
   clientId: string,
@@ -65,10 +63,7 @@ export const createContractCheckout = async (
       metadata: { accountId: clientId, role: "CLIENT" },
     });
     customerId = customer.id;
-    await db
-      .update(accounts)
-      .set({ stripe_customer_id: customerId, updated_at: new Date() })
-      .where(eq(accounts.auth_id, clientId));
+    await setStripeCustomerId(db, clientId, customerId);
   }
 
   const session = await stripe.checkout.sessions.create({
@@ -248,35 +243,27 @@ export const fundContractMilestoneFromPayment = async (
       .returning({ id: contract_milestones.id });
     if (!updated) return false;
 
-    const [message] = await insertMessages(transaction, [
-      {
-        conversation_id: milestone.conversationId,
-        sender_id: clientId,
-        message_type: "SYSTEM_EVENT",
-        body: `Milestone funded: “${milestone.milestoneTitle}”.`,
-        event_type: "MILESTONE_FUNDED",
-        event_payload: {
-          contractId: milestone.contractId,
-          milestoneId: milestone.milestoneId,
-          milestoneTitle: milestone.milestoneTitle,
-          amountCents: milestone.milestoneAmountCents,
-          requirements: session.metadata?.requirements || null,
+    const [message] = await appendConversationMessages(transaction, {
+      conversationId: milestone.conversationId,
+      messages: [
+        {
+          sender_id: clientId,
+          message_type: "SYSTEM_EVENT",
+          body: `Milestone funded: “${milestone.milestoneTitle}”.`,
+          event_type: "MILESTONE_FUNDED",
+          event_payload: {
+            contractId: milestone.contractId,
+            milestoneId: milestone.milestoneId,
+            milestoneTitle: milestone.milestoneTitle,
+            amountCents: milestone.milestoneAmountCents,
+            requirements: session.metadata?.requirements || null,
+          },
         },
-      },
-    ]);
+      ],
+      updatedAt: now,
+      unread: { account: recipientId, agency: milestone.agencyId },
+    });
     if (!message) throw new ApiError(500, "Milestone funding message failed.");
-    await setConversationLastMessage(
-      transaction,
-      milestone.conversationId,
-      message,
-      now,
-    );
-    await incrementUnreadCount(
-      transaction,
-      milestone.conversationId,
-      participantMatch(recipientId, milestone.agencyId),
-      1,
-    );
     return true;
   });
 
