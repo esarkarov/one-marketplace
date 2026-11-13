@@ -11,6 +11,7 @@ import {
 } from "vitest";
 
 const mocks = vi.hoisted(() => ({
+  onDel: vi.fn(async (_keys: string | string[]) => undefined),
   store: new Map<string, string>(),
   verifyToken: vi.fn(),
   getUser: vi.fn(),
@@ -52,6 +53,7 @@ vi.mock("../../infrastructure/redis.js", () => ({
       return "OK";
     },
     del: async (keys: string | string[]) => {
+      await mocks.onDel(keys);
       for (const key of Array.isArray(keys) ? keys : [keys]) {
         mocks.store.delete(key);
       }
@@ -76,6 +78,8 @@ import {
   proposals,
 } from "../../test/support/tables.js";
 import { assertTestDatabase } from "../../test/setup/assert-test-database.js";
+import { getAccountAuthCacheKey } from "../../config/constants.js";
+import { saveClientProfile } from "./client.service.js";
 import {
   clientCompletedContractsResponses,
   clientDashboardOverviewResponses,
@@ -298,6 +302,8 @@ afterAll(async () => {
 beforeEach(() => {
   assertTestDatabase(process.env.DATABASE_URL, process.env.POSTGRES_DB);
   mocks.store.clear();
+  mocks.onDel.mockReset();
+  mocks.onDel.mockResolvedValue(undefined);
   mocks.verifyToken.mockReset();
   mocks.getUser.mockReset();
   mocks.customersCreate.mockReset();
@@ -446,5 +452,143 @@ describe("client contract", () => {
 
     expect(response.status).toBe(200);
     clientFinanceLinkResponses[200].parse(response.body);
+  });
+});
+
+describe("client account writes", () => {
+  const OLD = new Date("2000-01-01T00:00:00.000Z");
+
+  const accountRow = async (authId: string) =>
+    (await pool.query("select * from accounts where auth_id = $1", [authId]))
+      .rows[0] as {
+      stripe_customer_id: string | null;
+      updated_at: Date;
+      isOnboardingComplete: boolean;
+      role: string;
+    };
+
+  it("creates a Stripe customer once and stores its id with a fresh updated_at", async () => {
+    const clientId = await insertAccount(newAuthId(), "CLIENT", {
+      updated_at: OLD,
+    });
+    const bystander = await insertAccount(newAuthId(), "CLIENT", {
+      updated_at: OLD,
+    });
+    const customerId = `cus_${randomUUID()}`;
+    mocks.customersCreate.mockResolvedValue({ id: customerId });
+    mocks.portalCreate.mockResolvedValue({
+      url: "https://billing.example.test/session",
+    });
+    const startedAt = Date.now();
+
+    const first = await request(app)
+      .get(`${API}/finances/manage-link`)
+      .query(q)
+      .set(as(clientId));
+
+    expect(first.status).toBe(200);
+    expect(mocks.customersCreate).toHaveBeenCalledWith({
+      email: `${clientId}@example.test`,
+      metadata: { accountId: clientId, role: "CLIENT" },
+    });
+    const stored = await accountRow(clientId);
+    expect(stored.stripe_customer_id).toBe(customerId);
+    expect(stored.updated_at.getTime()).toBeGreaterThanOrEqual(startedAt);
+    const untouched = await accountRow(bystander);
+    expect(untouched.stripe_customer_id).toBeNull();
+    expect(untouched.updated_at.getTime()).toBe(OLD.getTime());
+
+    const second = await request(app)
+      .get(`${API}/finances/manage-link`)
+      .query(q)
+      .set(as(clientId));
+    expect(second.status).toBe(200);
+    expect(mocks.customersCreate).toHaveBeenCalledTimes(1);
+    expect((await accountRow(clientId)).updated_at).toEqual(stored.updated_at);
+  });
+
+  it("marks onboarding complete, returns the verification flags and drops the cached auth after the commit", async () => {
+    const clientId = await insertAccount(newAuthId(), "CLIENT", {
+      identityVerified: true,
+      paymentMethodVerified: false,
+      updated_at: OLD,
+    });
+    await request(app).get(`${API}/profile`).query(q).set(as(clientId));
+    const cacheKey = getAccountAuthCacheKey(clientId, "client");
+    expect(mocks.store.has(cacheKey)).toBe(true);
+    const flagsAtInvalidation: unknown[] = [];
+    mocks.onDel.mockImplementation(async () => {
+      const result = await pool.query(
+        'select "isOnboardingComplete" as flag from accounts where auth_id = $1',
+        [clientId],
+      );
+      flagsAtInvalidation.push(result.rows[0]?.flag);
+    });
+    const startedAt = Date.now();
+
+    const saved = await request(app)
+      .put(`${API}/profile`)
+      .set(as(clientId))
+      .send(profileBody);
+
+    expect(saved.status).toBe(200);
+    expect(saved.body.data).toMatchObject({
+      identityVerified: true,
+      paymentMethodVerified: false,
+      isOnboarded: true,
+    });
+    const row = await accountRow(clientId);
+    expect(row.isOnboardingComplete).toBe(true);
+    expect(row.role).toBe("CLIENT");
+    expect(row.updated_at.getTime()).toBeGreaterThanOrEqual(startedAt);
+    expect(mocks.store.has(cacheKey)).toBe(false);
+    expect(flagsAtInvalidation.length).toBeGreaterThan(0);
+    expect(flagsAtInvalidation.every((flag) => flag === true)).toBe(true);
+
+    const verifiedCardId = await insertAccount(newAuthId(), "CLIENT", {
+      identityVerified: false,
+      paymentMethodVerified: true,
+      updated_at: OLD,
+    });
+    const savedVerifiedCard = await request(app)
+      .put(`${API}/profile`)
+      .set(as(verifiedCardId))
+      .send(profileBody);
+    expect(savedVerifiedCard.status).toBe(200);
+    expect(savedVerifiedCard.body.data).toMatchObject({
+      identityVerified: false,
+      paymentMethodVerified: true,
+      isOnboarded: true,
+    });
+  });
+
+  it("answers 404 and writes nothing when the account is not a client", async () => {
+    const freelancerId = await insertAccount(newAuthId(), "FREELANCER", {
+      updated_at: OLD,
+    });
+
+    await expect(
+      saveClientProfile({
+        userId: freelancerId,
+        professionalRole: "Founder",
+        companyName: "Acme",
+        companyWebsite: "https://acme.example.test",
+        companySize: "11-50",
+        industry: "Software",
+        companyDescription: "We build things.",
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 404,
+      message: "Client account not found.",
+    });
+
+    const row = await accountRow(freelancerId);
+    expect(row.isOnboardingComplete).toBe(false);
+    expect(row.updated_at.getTime()).toBe(OLD.getTime());
+    const metadata = await pool.query(
+      "select 1 from client_metadata where auth_id = $1",
+      [freelancerId],
+    );
+    expect(metadata.rowCount).toBe(0);
   });
 });

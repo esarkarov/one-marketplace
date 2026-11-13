@@ -1013,3 +1013,50 @@ describe("POST /contracts/:contractId/finish", () => {
     expect(owner.status).toBe(200);
   });
 });
+
+describe("POST /contracts/checkout account write", () => {
+  const OLD = new Date("2000-01-01T00:00:00.000Z");
+
+  it("creates a Stripe customer once and stores its id with a fresh updated_at", async () => {
+    const fixture = await seed({ proposalStatus: "INTERVIEWED" });
+    const other = await seed({ proposalStatus: "INTERVIEWED" });
+    await pool.query(
+      "update accounts set stripe_customer_id = null, updated_at = $1 where auth_id = any($2)",
+      [OLD, [fixture.clientId, other.clientId]],
+    );
+    const startedAt = Date.now();
+    const checkout = () =>
+      request(app)
+        .post(`${API}/checkout`)
+        .query({ role: "client" })
+        .set(as(fixture.clientId))
+        .send({ proposalId: fixture.proposalId });
+
+    const first = await checkout();
+
+    expect(first.status).toBe(200);
+    expect(mocks.customersCreate).toHaveBeenCalledWith({
+      email: `${fixture.clientId}@example.test`,
+      metadata: { accountId: fixture.clientId, role: "CLIENT" },
+    });
+    const created = await mocks.customersCreate.mock.results[0]!.value;
+    const read = async (authId: string) =>
+      (await pool.query("select * from accounts where auth_id = $1", [authId]))
+        .rows[0] as { stripe_customer_id: string | null; updated_at: Date };
+    const stored = await read(fixture.clientId);
+    expect(stored.stripe_customer_id).toBe(created.id);
+    expect(stored.updated_at.getTime()).toBeGreaterThanOrEqual(startedAt);
+    expect(mocks.sessionsCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ customer: created.id }),
+    );
+    const untouched = await read(other.clientId);
+    expect(untouched.stripe_customer_id).toBeNull();
+    expect(untouched.updated_at.getTime()).toBe(OLD.getTime());
+
+    expect((await checkout()).status).toBe(200);
+    expect(mocks.customersCreate).toHaveBeenCalledTimes(1);
+    expect((await read(fixture.clientId)).updated_at).toEqual(
+      stored.updated_at,
+    );
+  });
+});

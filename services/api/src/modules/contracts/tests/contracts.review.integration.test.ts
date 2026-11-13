@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import express from "express";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, ne } from "drizzle-orm";
 import request from "supertest";
 import type Stripe from "stripe";
 import {
@@ -68,7 +68,11 @@ import { ApiError } from "../../../shared/http/api-error.js";
 import { splitFee } from "../../../shared/money/money.js";
 import { holdRowLock, raceBlocked } from "../../../test/support/lock-holder.js";
 import { reviewMilestoneWork } from "../contracts.controller.js";
-import { createContractFromPayment } from "../services/contracts.lifecycle.service.js";
+import {
+  acceptContract,
+  createContractFromPayment,
+  finishContractWithReview,
+} from "../services/contracts.lifecycle.service.js";
 import { fundContractMilestoneFromPayment } from "../services/contracts.checkout.service.js";
 import {
   addContractMilestone,
@@ -1064,5 +1068,642 @@ describe("review controller on a lost race", () => {
         ),
       );
     expect(row).toBeDefined();
+  });
+});
+
+describe("conversation writes by site", () => {
+  const OLD = new Date("2000-01-01T00:00:00.000Z");
+  const CLIENT_BASE = 7;
+  const OWNER_BASE = 5;
+  const owners = ["freelancer", "agency"] as const;
+
+  const prime = async (fixture: Fixture) => {
+    await db
+      .update(conversations)
+      .set({ updated_at: OLD })
+      .where(eq(conversations.id, fixture.conversationId));
+    await db
+      .update(conversation_participants)
+      .set({ unread_count: CLIENT_BASE })
+      .where(
+        and(
+          eq(conversation_participants.conversation_id, fixture.conversationId),
+          eq(conversation_participants.participant_type, "CLIENT"),
+        ),
+      );
+    await db
+      .update(conversation_participants)
+      .set({ unread_count: OWNER_BASE })
+      .where(
+        and(
+          eq(conversation_participants.conversation_id, fixture.conversationId),
+          ne(conversation_participants.participant_type, "CLIENT"),
+        ),
+      );
+  };
+
+  const readConversation = async (fixture: Fixture) => {
+    const rows = await db
+      .select()
+      .from(messages)
+      .where(eq(messages.conversation_id, fixture.conversationId))
+      .orderBy(asc(messages.created_at));
+    const [conversation] = await db
+      .select()
+      .from(conversations)
+      .where(eq(conversations.id, fixture.conversationId));
+    const participants = await db
+      .select()
+      .from(conversation_participants)
+      .where(
+        eq(conversation_participants.conversation_id, fixture.conversationId),
+      );
+    const others = participants.filter(
+      (participant) => participant.participant_type !== "CLIENT",
+    );
+    return {
+      rows,
+      conversation: conversation!,
+      clientUnread: participants.find(
+        (participant) => participant.participant_type === "CLIENT",
+      )?.unread_count,
+      ownerUnread: others[0]?.unread_count,
+      otherUnread: others.map((participant) => participant.unread_count),
+    };
+  };
+
+  type Conversation = Awaited<ReturnType<typeof readConversation>>;
+
+  const expectLastMessageAndUnread = (
+    state: Conversation,
+    startedAt: number,
+    unread: { client: number; owner: number },
+  ) => {
+    const last = state.rows.at(-1)!;
+    expect(state.conversation.last_message_id).toBe(last.id);
+    expect(state.conversation.last_message_at?.getTime()).toBe(
+      last.created_at!.getTime(),
+    );
+    expect(state.conversation.updated_at!.getTime()).toBeGreaterThanOrEqual(
+      startedAt,
+    );
+    expect(state.clientUnread).toBe(unread.client);
+    expect(state.ownerUnread).toBe(unread.owner);
+  };
+
+  it.each(owners)(
+    "funding a milestone writes one event and notifies the %s side only",
+    async (owner) => {
+      const fixture = await createFixture(owner);
+      const customerId = `cus_it_${randomUUID()}`;
+      await db
+        .update(accounts)
+        .set({ stripe_customer_id: customerId })
+        .where(eq(accounts.auth_id, fixture.clientId));
+      await db
+        .update(contract_milestones)
+        .set({ status: "PENDING", funded_at: null, payment_requested_at: null })
+        .where(eq(contract_milestones.id, fixture.milestoneId));
+      await prime(fixture);
+      const startedAt = Date.now();
+
+      await fundContractMilestoneFromPayment({
+        id: `cs_it_${randomUUID()}`,
+        payment_status: "paid",
+        payment_intent: `pi_it_${randomUUID()}`,
+        customer: customerId,
+        currency: "usd",
+        amount_total: AMOUNT,
+        metadata: {
+          paymentType: "CONTRACT_MILESTONE_FUNDING",
+          contractId: fixture.contractId,
+          milestoneId: fixture.milestoneId,
+          clientId: fixture.clientId,
+          requirements: "Use the brand colours.",
+        },
+      } as unknown as Stripe.Checkout.Session);
+
+      const state = await readConversation(fixture);
+      expect(state.rows).toHaveLength(1);
+      expect(state.rows[0]).toMatchObject({
+        message_type: "SYSTEM_EVENT",
+        event_type: "MILESTONE_FUNDED",
+        sender_id: fixture.clientId,
+        body: "Milestone funded: “Integration milestone”.",
+      });
+      expect(state.rows[0]!.event_payload).toEqual({
+        contractId: fixture.contractId,
+        milestoneId: fixture.milestoneId,
+        milestoneTitle: "Integration milestone",
+        amountCents: AMOUNT,
+        requirements: "Use the brand colours.",
+      });
+      expectLastMessageAndUnread(state, startedAt, {
+        client: CLIENT_BASE,
+        owner: OWNER_BASE + 1,
+      });
+    },
+  );
+
+  it("creating a contract from payment writes the offer and notifies every non-client participant", async () => {
+    const fixture = await createFixture();
+    await db.delete(contracts).where(eq(contracts.id, fixture.contractId));
+    await db
+      .update(proposals)
+      .set({ sender_id: fixture.ownerAccountId })
+      .where(eq(proposals.id, fixture.proposalId));
+    await db
+      .update(job_posts)
+      .set({
+        milestones: [
+          {
+            id: randomUUID(),
+            title: "First",
+            budgetCents: 1234,
+            dueDate: "2030-01-01",
+          },
+        ],
+      })
+      .where(eq(job_posts.id, fixture.jobId));
+    const customerId = `cus_it_${randomUUID()}`;
+    await db
+      .update(accounts)
+      .set({ stripe_customer_id: customerId })
+      .where(eq(accounts.auth_id, fixture.clientId));
+    const extraParticipant = await insertAccount("FREELANCER");
+    await db.insert(conversation_participants).values({
+      conversation_id: fixture.conversationId,
+      account_id: extraParticipant,
+      participant_type: "FREELANCER",
+    });
+    await prime(fixture);
+    const startedAt = Date.now();
+
+    await createContractFromPayment({
+      id: `cs_it_${randomUUID()}`,
+      payment_status: "paid",
+      payment_intent: `pi_it_${randomUUID()}`,
+      customer: customerId,
+      currency: "usd",
+      amount_total: 1234,
+      metadata: {
+        paymentType: "CONTRACT_MILESTONE",
+        proposalId: fixture.proposalId,
+        clientId: fixture.clientId,
+      },
+    } as unknown as Stripe.Checkout.Session);
+
+    const [contract] = await db
+      .select()
+      .from(contracts)
+      .where(eq(contracts.proposal_id, fixture.proposalId));
+    created.contractIds.push(contract!.id);
+    const state = await readConversation(fixture);
+    expect(state.rows).toHaveLength(1);
+    expect(state.rows[0]).toMatchObject({
+      message_type: "SYSTEM_EVENT",
+      event_type: "CONTRACT_OFFER",
+      sender_id: fixture.clientId,
+      body: "Contract offer sent",
+    });
+    expect(state.rows[0]!.event_payload).toEqual({
+      contractId: contract!.id,
+      proposalId: fixture.proposalId,
+      title: "Integration job",
+      firstMilestone: { title: "First", amountCents: 1234 },
+    });
+    expect(state.conversation.last_message_id).toBe(state.rows[0]!.id);
+    expect(state.conversation.last_message_at?.getTime()).toBe(
+      state.rows[0]!.created_at!.getTime(),
+    );
+    expect(state.conversation.updated_at!.getTime()).toBeGreaterThanOrEqual(
+      startedAt,
+    );
+    expect(state.clientUnread).toBe(CLIENT_BASE);
+    expect(state.otherUnread).toEqual([OWNER_BASE + 1, OWNER_BASE + 1]);
+  });
+
+  it.each(owners)(
+    "accepting a contract offer writes the %s acceptance and notifies the client only",
+    async (owner) => {
+      const fixture = await createFixture(owner);
+      await db
+        .update(accounts)
+        .set({ identityVerified: true })
+        .where(eq(accounts.auth_id, fixture.ownerAccountId));
+      await db
+        .update(contracts)
+        .set({ status: "PENDING", started_at: null })
+        .where(eq(contracts.id, fixture.contractId));
+      await db
+        .update(contract_milestones)
+        .set({ status: "PENDING", payment_requested_at: null })
+        .where(eq(contract_milestones.id, fixture.milestoneId));
+      await prime(fixture);
+      const startedAt = Date.now();
+
+      await acceptContract(
+        fixture.contractId,
+        fixture.ownerAccountId,
+        fixture.agencyId,
+      );
+
+      const state = await readConversation(fixture);
+      expect(state.rows).toHaveLength(1);
+      expect(state.rows[0]).toMatchObject({
+        message_type: "SYSTEM_EVENT",
+        event_type: "CONTRACT_ACCEPTED",
+        sender_id: fixture.ownerAccountId,
+        body:
+          owner === "agency"
+            ? "The agency accepted the contract offer. The contract is now active."
+            : "The freelancer accepted the contract offer. The contract is now active.",
+      });
+      expect(state.rows[0]!.event_payload).toEqual({
+        contractId: fixture.contractId,
+        title: "Integration contract",
+      });
+      expectLastMessageAndUnread(state, startedAt, {
+        client: CLIENT_BASE + 1,
+        owner: OWNER_BASE,
+      });
+    },
+  );
+
+  it.each(owners)(
+    "submitting work as the %s writes the submission and notifies the client only",
+    async (owner) => {
+      const fixture = await createFixture(owner);
+      await prime(fixture);
+      const startedAt = Date.now();
+
+      await submitContractMilestone(
+        fixture.contractId,
+        fixture.milestoneId,
+        fixture.ownerAccountId,
+        "All the work is done.",
+        "https://example.test/delivery",
+        fixture.agencyId,
+      );
+
+      const state = await readConversation(fixture);
+      expect(state.rows).toHaveLength(1);
+      expect(state.rows[0]).toMatchObject({
+        message_type: "SYSTEM_EVENT",
+        event_type: "MILESTONE_SUBMITTED",
+        sender_id: fixture.ownerAccountId,
+        body: "Work submitted for “Integration milestone”.",
+      });
+      expect(state.rows[0]!.event_payload).toEqual({
+        contractId: fixture.contractId,
+        milestoneId: fixture.milestoneId,
+        contractTitle: "Integration contract",
+        milestoneTitle: "Integration milestone",
+        amountCents: AMOUNT,
+        submissionMessage: "All the work is done.",
+        submissionDeliveryLink: "https://example.test/delivery",
+      });
+      expectLastMessageAndUnread(state, startedAt, {
+        client: CLIENT_BASE + 1,
+        owner: OWNER_BASE,
+      });
+    },
+  );
+
+  it.each(owners)(
+    "approving a milestone writes one event and notifies the %s side only",
+    async (owner) => {
+      const fixture = await createFixture(owner);
+      await prime(fixture);
+      const [otherConversation] = await db
+        .insert(conversations)
+        .values({ context_key: `${PREFIX}${randomUUID()}` })
+        .returning({ id: conversations.id });
+      created.conversationIds.push(otherConversation!.id);
+      await db.insert(conversation_participants).values([
+        {
+          conversation_id: otherConversation!.id,
+          account_id: fixture.clientId,
+          participant_type: "CLIENT",
+          unread_count: CLIENT_BASE,
+        },
+        fixture.agencyId
+          ? {
+              conversation_id: otherConversation!.id,
+              agency_id: fixture.agencyId,
+              participant_type: "AGENCY",
+              unread_count: OWNER_BASE,
+            }
+          : {
+              conversation_id: otherConversation!.id,
+              account_id: fixture.ownerAccountId,
+              participant_type: "FREELANCER",
+              unread_count: OWNER_BASE,
+            },
+      ]);
+      const startedAt = Date.now();
+
+      await review(fixture, "APPROVE");
+
+      const state = await readConversation(fixture);
+      expect(state.rows).toHaveLength(1);
+      expect(state.rows[0]).toMatchObject({
+        message_type: "SYSTEM_EVENT",
+        event_type: "MILESTONE_APPROVED",
+        sender_id: fixture.clientId,
+        body: "The client accepted the work for “Integration milestone”.",
+      });
+      expect(state.rows[0]!.event_payload).toEqual({
+        contractId: fixture.contractId,
+        milestoneId: fixture.milestoneId,
+        contractTitle: "Integration contract",
+        milestoneTitle: "Integration milestone",
+        amountCents: AMOUNT,
+      });
+      expectLastMessageAndUnread(state, startedAt, {
+        client: CLIENT_BASE,
+        owner: OWNER_BASE + 1,
+      });
+      const untouched = await readConversation({
+        ...fixture,
+        conversationId: otherConversation!.id,
+      });
+      expect(untouched.rows).toHaveLength(0);
+      expect(untouched.clientUnread).toBe(CLIENT_BASE);
+      expect(untouched.ownerUnread).toBe(OWNER_BASE);
+    },
+  );
+
+  it.each(owners)(
+    "requesting changes writes an event then the feedback and adds 2 unread for the %s side",
+    async (owner) => {
+      const fixture = await createFixture(owner);
+      await prime(fixture);
+      const startedAt = Date.now();
+
+      await review(fixture, "REQUEST_CHANGES");
+
+      const state = await readConversation(fixture);
+      expect(state.rows).toHaveLength(2);
+      const [event, feedback] = state.rows;
+      expect(event).toMatchObject({
+        message_type: "SYSTEM_EVENT",
+        event_type: "MILESTONE_CHANGES_REQUESTED",
+        sender_id: fixture.clientId,
+        body: "The client requested modifications for “Integration milestone”.",
+      });
+      expect(event!.event_payload).toEqual({
+        contractId: fixture.contractId,
+        milestoneId: fixture.milestoneId,
+        contractTitle: "Integration contract",
+        milestoneTitle: "Integration milestone",
+        amountCents: AMOUNT,
+      });
+      expect(feedback).toMatchObject({
+        message_type: "USER",
+        event_type: null,
+        event_payload: null,
+        sender_id: fixture.clientId,
+        body: "Please fix the layout.",
+      });
+      expect(feedback!.created_at!.getTime()).toBe(
+        event!.created_at!.getTime() + 1,
+      );
+      expectLastMessageAndUnread(state, startedAt, {
+        client: CLIENT_BASE,
+        owner: OWNER_BASE + 2,
+      });
+    },
+  );
+
+  it.each(owners)(
+    "adding a milestone writes the event and notifies the %s side only",
+    async (owner) => {
+      const fixture = await createFixture(owner);
+      await review(fixture, "APPROVE");
+      await prime(fixture);
+      const startedAt = Date.now();
+
+      const added = await addContractMilestone(
+        fixture.contractId,
+        fixture.clientId,
+        { title: "Extra work", amountCents: 1505, dueDate: "2030-01-01" },
+      );
+
+      const state = await readConversation(fixture);
+      const row = state.rows.at(-1)!;
+      expect(state.rows).toHaveLength(2);
+      expect(row).toMatchObject({
+        message_type: "SYSTEM_EVENT",
+        event_type: "MILESTONE_ADDED",
+        sender_id: fixture.clientId,
+        body: "A new milestone was added: “Extra work”.",
+      });
+      expect(row.event_payload).toEqual({
+        contractId: fixture.contractId,
+        milestoneId: added.id,
+        milestoneTitle: "Extra work",
+        amountCents: 1505,
+        dueDate: "2030-01-01",
+      });
+      expectLastMessageAndUnread(state, startedAt, {
+        client: CLIENT_BASE,
+        owner: OWNER_BASE + 1,
+      });
+    },
+  );
+
+  it.each([
+    ["freelancer", "client"],
+    ["agency", "client"],
+    ["freelancer", "freelancer"],
+    ["agency", "freelancer"],
+  ] as const)(
+    "finishing a %s contract as the %s writes the completion and notifies the other side only",
+    async (owner, reviewer) => {
+      const fixture = await createFixture(owner);
+      await db
+        .update(contract_milestones)
+        .set({ status: "COMPLETED", completed_at: new Date() })
+        .where(eq(contract_milestones.id, fixture.milestoneId));
+      await prime(fixture);
+      const startedAt = Date.now();
+
+      await finishContractWithReview(
+        fixture.contractId,
+        reviewer === "client" ? fixture.clientId : fixture.ownerAccountId,
+        reviewer,
+        5,
+        "Great collaboration, would hire again.",
+        reviewer === "freelancer" ? fixture.agencyId : undefined,
+      );
+
+      const state = await readConversation(fixture);
+      expect(state.rows).toHaveLength(1);
+      expect(state.rows[0]).toMatchObject({
+        message_type: "SYSTEM_EVENT",
+        event_type: "CONTRACT_COMPLETED",
+        sender_id:
+          reviewer === "client" ? fixture.clientId : fixture.ownerAccountId,
+        body: "The contract “Integration contract” was completed.",
+      });
+      expect(state.rows[0]!.event_payload).toEqual({
+        contractId: fixture.contractId,
+        title: "Integration contract",
+      });
+      expect(state.conversation.updated_at!.getTime()).toBe(
+        state.rows[0]!.created_at!.getTime(),
+      );
+      expect(state.conversation.updated_at!.getTime()).toBeGreaterThanOrEqual(
+        startedAt,
+      );
+      expect(state.conversation.last_message_id).toBe(state.rows[0]!.id);
+      expect(state.clientUnread).toBe(
+        reviewer === "client" ? CLIENT_BASE : CLIENT_BASE + 1,
+      );
+      expect(state.ownerUnread).toBe(
+        reviewer === "client" ? OWNER_BASE + 1 : OWNER_BASE,
+      );
+    },
+  );
+
+  it("adding a milestone appends to the job, bumps its budget and touches no other job", async () => {
+    const fixture = await createFixture();
+    const other = await createFixture();
+    const existing = {
+      id: randomUUID(),
+      title: "Existing",
+      budgetCents: AMOUNT,
+      dueDate: "2029-01-01",
+    };
+    await db
+      .update(job_posts)
+      .set({ milestones: [existing], updated_at: OLD })
+      .where(eq(job_posts.id, fixture.jobId));
+    await review(fixture, "APPROVE");
+    const otherBefore = await db
+      .select()
+      .from(job_posts)
+      .where(eq(job_posts.id, other.jobId));
+    const startedAt = Date.now();
+
+    const added = await addContractMilestone(
+      fixture.contractId,
+      fixture.clientId,
+      { title: "Extra work", amountCents: 1505, dueDate: "2030-01-01" },
+    );
+
+    const [job] = await db
+      .select()
+      .from(job_posts)
+      .where(eq(job_posts.id, fixture.jobId));
+    expect(job?.milestones).toEqual([
+      existing,
+      {
+        id: added.id,
+        title: "Extra work",
+        budgetCents: 1505,
+        dueDate: "2030-01-01",
+      },
+    ]);
+    expect(job?.total_budget_cents).toBe(AMOUNT + 1505);
+    expect(job?.updated_at?.getTime()).toBeGreaterThanOrEqual(startedAt);
+    const [contract] = await db
+      .select()
+      .from(contracts)
+      .where(eq(contracts.id, fixture.contractId));
+    expect(contract?.total_amount_cents).toBe(AMOUNT + 1505);
+    expect(
+      await db.select().from(job_posts).where(eq(job_posts.id, other.jobId)),
+    ).toEqual(otherBefore);
+  });
+});
+
+describe("offer transaction account write", () => {
+  const OLD = new Date("2000-01-01T00:00:00.000Z");
+
+  const prepareOffer = async () => {
+    const fixture = await createFixture();
+    await db.delete(contracts).where(eq(contracts.id, fixture.contractId));
+    await db
+      .update(proposals)
+      .set({ sender_id: fixture.ownerAccountId })
+      .where(eq(proposals.id, fixture.proposalId));
+    await db
+      .update(job_posts)
+      .set({
+        milestones: [
+          {
+            id: randomUUID(),
+            title: "First",
+            budgetCents: 1234,
+            dueDate: "2030-01-01",
+          },
+        ],
+      })
+      .where(eq(job_posts.id, fixture.jobId));
+    const customerId = `cus_it_${randomUUID()}`;
+    await db
+      .update(accounts)
+      .set({ stripe_customer_id: customerId, updated_at: OLD })
+      .where(eq(accounts.auth_id, fixture.clientId));
+    await db
+      .update(accounts)
+      .set({ updated_at: OLD })
+      .where(eq(accounts.auth_id, fixture.ownerAccountId));
+    const session = (amountTotal: number) =>
+      ({
+        id: `cs_it_${randomUUID()}`,
+        payment_status: "paid",
+        payment_intent: `pi_it_${randomUUID()}`,
+        customer: customerId,
+        currency: "usd",
+        amount_total: amountTotal,
+        metadata: {
+          paymentType: "CONTRACT_MILESTONE",
+          proposalId: fixture.proposalId,
+          clientId: fixture.clientId,
+        },
+      }) as unknown as Stripe.Checkout.Session;
+    return { fixture, session };
+  };
+
+  const accountOf = async (authId: string) => {
+    const [row] = await db
+      .select()
+      .from(accounts)
+      .where(eq(accounts.auth_id, authId));
+    return row!;
+  };
+
+  it("marks only the paying client's payment method verified, with a fresh updated_at", async () => {
+    const { fixture, session } = await prepareOffer();
+    const startedAt = Date.now();
+
+    await createContractFromPayment(session(1234));
+
+    const [contract] = await db
+      .select()
+      .from(contracts)
+      .where(eq(contracts.proposal_id, fixture.proposalId));
+    created.contractIds.push(contract!.id);
+    const client = await accountOf(fixture.clientId);
+    expect(client.paymentMethodVerified).toBe(true);
+    expect(client.updated_at!.getTime()).toBeGreaterThanOrEqual(startedAt);
+    const owner = await accountOf(fixture.ownerAccountId);
+    expect(owner.paymentMethodVerified).toBe(false);
+    expect(owner.updated_at!.getTime()).toBe(OLD.getTime());
+  });
+
+  it("leaves the payment method unverified when the payment does not match", async () => {
+    const { fixture, session } = await prepareOffer();
+
+    await expect(
+      createContractFromPayment(session(1233)),
+    ).rejects.toMatchObject({ statusCode: 400 });
+
+    const client = await accountOf(fixture.clientId);
+    expect(client.paymentMethodVerified).toBe(false);
+    expect(client.updated_at!.getTime()).toBe(OLD.getTime());
   });
 });

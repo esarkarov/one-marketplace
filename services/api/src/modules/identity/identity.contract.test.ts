@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import request from "supertest";
+import type Stripe from "stripe";
 import {
   afterAll,
   beforeAll,
@@ -62,6 +63,7 @@ import { db, pool } from "../../database/client.js";
 import { accounts } from "../../test/support/tables.js";
 import { assertTestDatabase } from "../../test/setup/assert-test-database.js";
 import { identityResponses } from "./identity.responses.js";
+import { completeIdentityVerification } from "./identity.service.js";
 
 const { app } = await import("../../app.js");
 
@@ -148,5 +150,87 @@ describe("POST /identity/session", () => {
       .send({});
     expect(response.status).toBe(409);
     identityResponses.session[409].parse(response.body);
+  });
+});
+
+describe("identity verification webhook write", () => {
+  const OLD = new Date("2000-01-01T00:00:00.000Z");
+
+  const session = (accountId: string, role: string, status = "verified") =>
+    ({
+      status,
+      metadata: { accountId, role },
+    }) as unknown as Stripe.Identity.VerificationSession;
+
+  const row = async (authId: string) =>
+    (await pool.query("select * from accounts where auth_id = $1", [authId]))
+      .rows[0] as { identityVerified: boolean; updated_at: Date };
+
+  it.each([
+    ["CLIENT", "client"],
+    ["FREELANCER", "freelancer"],
+  ] as const)(
+    "marks a %s account verified with a fresh updated_at and leaves others alone",
+    async (accountRole, metadataRole) => {
+      const accountId = await insertAccount(accountRole, false);
+      const bystander = await insertAccount(accountRole, false);
+      await pool.query(
+        "update accounts set updated_at = $1 where auth_id = any($2)",
+        [OLD, [accountId, bystander]],
+      );
+      const startedAt = Date.now();
+
+      await completeIdentityVerification(session(accountId, metadataRole));
+
+      const verified = await row(accountId);
+      expect(verified.identityVerified).toBe(true);
+      expect(verified.updated_at.getTime()).toBeGreaterThanOrEqual(startedAt);
+      const untouched = await row(bystander);
+      expect(untouched.identityVerified).toBe(false);
+      expect(untouched.updated_at.getTime()).toBe(OLD.getTime());
+    },
+  );
+
+  it.each([
+    ["CLIENT", "freelancer"],
+    ["FREELANCER", "client"],
+  ] as const)(
+    "answers 404 and writes nothing for a %s account verified as a %s",
+    async (accountRole, metadataRole) => {
+      const accountId = await insertAccount(accountRole, false);
+      await pool.query(
+        "update accounts set updated_at = $2 where auth_id = $1",
+        [accountId, OLD],
+      );
+
+      await expect(
+        completeIdentityVerification(session(accountId, metadataRole)),
+      ).rejects.toMatchObject({
+        statusCode: 404,
+        message: "Identity account not found.",
+      });
+
+      const untouched = await row(accountId);
+      expect(untouched.identityVerified).toBe(false);
+      expect(untouched.updated_at.getTime()).toBe(OLD.getTime());
+    },
+  );
+
+  it("answers 404 for an unknown account", async () => {
+    await expect(
+      completeIdentityVerification(session(`${PREFIX}missing`, "client")),
+    ).rejects.toMatchObject({ statusCode: 404 });
+  });
+
+  it("answers 400 and writes nothing for a session that is not verified", async () => {
+    const accountId = await insertAccount("CLIENT", false);
+
+    await expect(
+      completeIdentityVerification(
+        session(accountId, "client", "requires_input"),
+      ),
+    ).rejects.toMatchObject({ statusCode: 400 });
+
+    expect((await row(accountId)).identityVerified).toBe(false);
   });
 });

@@ -227,3 +227,52 @@ describe("POST /connects/checkout", () => {
     connectsResponses.checkout[403].parse(response.body);
   });
 });
+
+describe("connects checkout account write", () => {
+  const OLD = new Date("2000-01-01T00:00:00.000Z");
+
+  const accountRow = async (authId: string) =>
+    (await pool.query("select * from accounts where auth_id = $1", [authId]))
+      .rows[0] as { stripe_customer_id: string | null; updated_at: Date };
+
+  it("creates a Stripe customer once and stores its id with a fresh updated_at", async () => {
+    const freelancerId = await seedFreelancer();
+    const bystander = await seedFreelancer();
+    await pool.query(
+      "update accounts set updated_at = $1 where auth_id = any($2)",
+      [OLD, [freelancerId, bystander]],
+    );
+    const customerId = `cus_${randomUUID()}`;
+    mocks.customersCreate.mockResolvedValue({ id: customerId });
+    const startedAt = Date.now();
+    const checkout = () =>
+      request(app)
+        .post(`${API}/checkout`)
+        .query({ role: "freelancer" })
+        .set(as(freelancerId))
+        .send({ connects: 20 });
+
+    const first = await checkout();
+
+    expect(first.status).toBe(200);
+    expect(mocks.customersCreate).toHaveBeenCalledWith({
+      email: `${freelancerId}@example.test`,
+      metadata: { freelancerId },
+    });
+    expect(mocks.sessionsCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ customer: customerId }),
+    );
+    const stored = await accountRow(freelancerId);
+    expect(stored.stripe_customer_id).toBe(customerId);
+    expect(stored.updated_at.getTime()).toBeGreaterThanOrEqual(startedAt);
+    const untouched = await accountRow(bystander);
+    expect(untouched.stripe_customer_id).toBeNull();
+    expect(untouched.updated_at.getTime()).toBe(OLD.getTime());
+
+    expect((await checkout()).status).toBe(200);
+    expect(mocks.customersCreate).toHaveBeenCalledTimes(1);
+    expect((await accountRow(freelancerId)).updated_at).toEqual(
+      stored.updated_at,
+    );
+  });
+});

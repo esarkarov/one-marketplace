@@ -12,11 +12,13 @@ import {
 } from "vitest";
 
 const mocks = vi.hoisted(() => ({
+  onDel: vi.fn(async (_keys: string | string[]) => undefined),
   store: new Map<string, string>(),
   verifyToken: vi.fn(),
   getUser: vi.fn(),
   upload: vi.fn(),
   accountsCreate: vi.fn(),
+  accountsRetrieve: vi.fn(),
   loginLink: vi.fn(),
 }));
 
@@ -42,7 +44,14 @@ vi.mock("../../infrastructure/clerk.js", () => ({
 vi.mock("../../infrastructure/stripe.js", () => ({
   STRIPE_TIMEOUT_MS: 30_000,
   stripe: {
-    v2: { core: { accounts: { create: mocks.accountsCreate } } },
+    v2: {
+      core: {
+        accounts: {
+          create: mocks.accountsCreate,
+          retrieve: mocks.accountsRetrieve,
+        },
+      },
+    },
     accounts: { createLoginLink: mocks.loginLink },
   },
 }));
@@ -60,6 +69,7 @@ vi.mock("../../infrastructure/redis.js", () => ({
       return "OK";
     },
     del: async (keys: string | string[]) => {
+      await mocks.onDel(keys);
       for (const key of Array.isArray(keys) ? keys : [keys]) {
         mocks.store.delete(key);
       }
@@ -87,6 +97,8 @@ import {
   proposals,
 } from "../../test/support/tables.js";
 import { assertTestDatabase } from "../../test/setup/assert-test-database.js";
+import { getAccountAuthCacheKey } from "../../config/constants.js";
+import { saveFreelancerProfile } from "./freelancer.service.js";
 import {
   freelancerEarningsCertificateResponses,
   freelancerEarningsOverviewResponses,
@@ -394,6 +406,8 @@ afterAll(async () => {
 beforeEach(() => {
   assertTestDatabase(process.env.DATABASE_URL, process.env.POSTGRES_DB);
   mocks.store.clear();
+  mocks.onDel.mockReset();
+  mocks.onDel.mockResolvedValue(undefined);
   mocks.verifyToken.mockReset();
   mocks.getUser.mockReset();
   mocks.upload.mockReset();
@@ -605,5 +619,143 @@ describe("freelancer contract", () => {
 
     expect(response.status).toBe(403);
     freelancerPayoutLinkResponses[403].parse(response.body);
+  });
+});
+
+describe("freelancer account writes", () => {
+  const OLD = new Date("2000-01-01T00:00:00.000Z");
+
+  const accountRow = async (authId: string) =>
+    (await pool.query("select * from accounts where auth_id = $1", [authId]))
+      .rows[0] as {
+      stripe_connect_account_id: string | null;
+      updated_at: Date;
+      isOnboardingComplete: boolean;
+      role: string;
+    };
+
+  it("completes onboarding without touching updated_at and drops the cached auth after the commit", async () => {
+    const freelancerId = await insertAccount(newAuthId(), "FREELANCER", {
+      identityVerified: true,
+      updated_at: OLD,
+    });
+    await request(app).get(`${API}/profile`).query(q).set(as(freelancerId));
+    const cacheKey = getAccountAuthCacheKey(freelancerId, "freelancer");
+    expect(mocks.store.has(cacheKey)).toBe(true);
+    const flagsAtInvalidation: unknown[] = [];
+    mocks.onDel.mockImplementation(async () => {
+      const result = await pool.query(
+        'select "isOnboardingComplete" as flag from accounts where auth_id = $1',
+        [freelancerId],
+      );
+      flagsAtInvalidation.push(result.rows[0]?.flag);
+    });
+
+    const saved = await request(app)
+      .put(`${API}/profile`)
+      .set(as(freelancerId))
+      .send(profileBody);
+
+    expect(saved.status).toBe(200);
+    const row = await accountRow(freelancerId);
+    expect(row.isOnboardingComplete).toBe(true);
+    expect(row.role).toBe("FREELANCER");
+    expect(row.updated_at.getTime()).toBe(OLD.getTime());
+    expect(mocks.store.has(cacheKey)).toBe(false);
+    expect(flagsAtInvalidation.length).toBeGreaterThan(0);
+    expect(flagsAtInvalidation.every((flag) => flag === true)).toBe(true);
+  });
+
+  it("answers 404 and writes nothing when the account is not a freelancer", async () => {
+    const clientId = await insertAccount(newAuthId(), "CLIENT", {
+      updated_at: OLD,
+    });
+
+    await expect(
+      saveFreelancerProfile(
+        {
+          userId: clientId,
+          professional_title: "Backend developer",
+          professional_description: "I build APIs.",
+          hourly_rate_cents: 6000,
+          country: "US",
+          city: "Austin",
+          availability_status: "AVAILABLE",
+          weekly_availability: "30",
+          experience_level: "EXPERT",
+          skills: ["node"],
+          languages: [{ language: "English", proficiency: "Fluent" }],
+          portfolios: [],
+        },
+        undefined,
+      ),
+    ).rejects.toMatchObject({
+      statusCode: 404,
+      message: "Freelancer account not found.",
+    });
+
+    const row = await accountRow(clientId);
+    expect(row.isOnboardingComplete).toBe(false);
+    expect(row.updated_at.getTime()).toBe(OLD.getTime());
+    const metadata = await pool.query(
+      "select 1 from freelancer_metadata where auth_id = $1",
+      [clientId],
+    );
+    expect(metadata.rowCount).toBe(0);
+  });
+
+  it("uses the stored verification state of the returned account for the profile", async () => {
+    const verified = await insertAccount(newAuthId(), "FREELANCER", {
+      identityVerified: true,
+    });
+    const unverified = await insertAccount(newAuthId(), "FREELANCER", {
+      identityVerified: false,
+    });
+    const send = (userId: string) =>
+      request(app).put(`${API}/profile`).set(as(userId)).send(profileBody);
+
+    const first = await send(verified);
+    const second = await send(unverified);
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+    expect(first.body.data.identityVerified).toBe(true);
+    expect(second.body.data.identityVerified).toBe(false);
+  });
+
+  it("stores the Stripe connect account id with a fresh updated_at and creates it once", async () => {
+    const { freelancerId } = await seedFreelancer();
+    await pool.query("update accounts set updated_at = $2 where auth_id = $1", [
+      freelancerId,
+      OLD,
+    ]);
+    const connectId = `acct_${randomUUID()}`;
+    mocks.accountsCreate.mockResolvedValue({
+      id: connectId,
+      requirements: { entries: [] },
+    });
+    mocks.loginLink.mockResolvedValue({
+      url: "https://connect.example.test/login",
+    });
+    const startedAt = Date.now();
+
+    const first = await request(app)
+      .get(`${API}/payouts/connect-link`)
+      .query(q)
+      .set(as(freelancerId));
+
+    expect(first.status).toBe(200);
+    const stored = await accountRow(freelancerId);
+    expect(stored.stripe_connect_account_id).toBe(connectId);
+    expect(stored.updated_at.getTime()).toBeGreaterThanOrEqual(startedAt);
+
+    mocks.accountsCreate.mockClear();
+    mocks.accountsRetrieve.mockResolvedValue({ requirements: { entries: [] } });
+    const second = await request(app)
+      .get(`${API}/payouts/connect-link`)
+      .query(q)
+      .set(as(freelancerId));
+    expect(second.status).toBe(200);
+    expect(mocks.accountsCreate).not.toHaveBeenCalled();
   });
 });
