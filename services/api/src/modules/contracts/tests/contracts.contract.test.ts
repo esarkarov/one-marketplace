@@ -92,12 +92,14 @@ import {
   accounts,
   agency_members,
   agency_metadata,
+  client_metadata,
   contract_milestones,
   contracts,
   conversation_participants,
   conversations,
   job_posts,
   proposals,
+  reviews,
 } from "../../../test/support/tables.js";
 import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
 import { contractsResponses } from "../contracts.responses.js";
@@ -301,6 +303,7 @@ const purge = async () => {
   await pool.query("delete from agency_metadata where owner_id like $1", [
     like,
   ]);
+  await pool.query("delete from client_metadata where auth_id like $1", [like]);
   await pool.query("delete from accounts where auth_id like $1", [like]);
 };
 
@@ -549,6 +552,277 @@ describe("contract listing order and scope", () => {
         ).map((contract) => contract.id),
       ).toEqual([agency.contractId]);
     }
+  });
+});
+
+describe("contract listing counterparty and review flags", () => {
+  type ListedContract = {
+    id: string;
+    counterpartyName: string;
+    reviewedByCurrentUser: boolean;
+    milestones: { id: string }[];
+  };
+
+  const listFor = async (
+    path: "client" | "freelancer",
+    userId: string,
+    query: Record<string, string>,
+  ) => {
+    const response = await request(app)
+      .get(`${API}/${path}`)
+      .query(query)
+      .set(as(userId));
+    expect(response.status).toBe(200);
+    return response.body.data as ListedContract[];
+  };
+  const asClient = (userId: string) =>
+    listFor("client", userId, { role: "client" });
+  const asFreelancer = (userId: string) =>
+    listFor("freelancer", userId, { role: "freelancer" });
+  const asAgency = (userId: string) =>
+    listFor("freelancer", userId, { role: "freelancer", scope: "agency" });
+  const flagOf = (data: ListedContract[], contractId: string) =>
+    data.find((contract) => contract.id === contractId)?.reviewedByCurrentUser;
+
+  const insertCompany = (clientId: string, companyName: string) =>
+    db.insert(client_metadata).values({
+      auth_id: clientId,
+      role: "Founder",
+      company_name: companyName,
+      company_website: "https://company.example.test",
+      company_size: "11-50",
+      industry: "Software",
+      company_description: "contract test company",
+    });
+
+  const addReview = (
+    contractId: string,
+    reviewerId: string,
+    revieweeId: string,
+    agencyId: string | null = null,
+  ) =>
+    db.insert(reviews).values({
+      contract_id: contractId,
+      reviewer_id: reviewerId,
+      reviewee_id: revieweeId,
+      agency_id: agencyId,
+      rating: 5,
+      comment: "Great work",
+    });
+
+  const addSecondContract = async (fixture: Fixture) => {
+    const [job] = await db
+      .insert(job_posts)
+      .values({
+        client_id: fixture.clientId,
+        title: "Second contract job",
+        description: "Second contract test job",
+        expertise_level: "INTERMEDIATE",
+        expected_duration: "1 week",
+        total_budget_cents: AMOUNT,
+        milestones: [],
+      })
+      .returning({ id: job_posts.id });
+    const [proposal] = await db
+      .insert(proposals)
+      .values({
+        job_id: job!.id,
+        sender_id: fixture.agencyId ?? fixture.ownerId,
+        sender_type: fixture.agencyId ? "AGENCY" : "FREELANCER",
+        cover_letter: "second contract",
+        bid_amount_cents: AMOUNT,
+        duration: "1 week",
+      })
+      .returning({ id: proposals.id });
+    const [contract] = await db
+      .insert(contracts)
+      .values({
+        proposal_id: proposal!.id,
+        job_id: job!.id,
+        client_id: fixture.clientId,
+        freelancer_id: fixture.agencyId ? null : fixture.ownerId,
+        agency_id: fixture.agencyId,
+        title: "Second contract title",
+        total_amount_cents: AMOUNT,
+        status: "ACTIVE",
+        started_at: new Date(),
+      })
+      .returning({ id: contracts.id });
+    await db.insert(contract_milestones).values({
+      contract_id: contract!.id,
+      title: "Only milestone",
+      amount_cents: AMOUNT,
+      due_date: "2026-12-01",
+      position: 0,
+      status: "ACTIVE",
+      funded_at: new Date(),
+    });
+    return contract!.id;
+  };
+
+  const addTeammate = async (agencyId: string) => {
+    const teammateId = await insertAccount("FREELANCER");
+    await db.insert(agency_members).values({
+      agency_id: agencyId,
+      freelancer_id: teammateId,
+      role: "Developer",
+    });
+    return teammateId;
+  };
+
+  describe("counterparty company name", () => {
+    it("shows each client's own company name to the freelancer and to the agency, with every milestone once", async () => {
+      const direct = await seed({
+        milestones: [
+          { status: "COMPLETED", funded: true },
+          { status: "ACTIVE", funded: true },
+        ],
+      });
+      const viaAgency = await seed({ agency: true });
+      await insertCompany(direct.clientId, "Direct Co");
+      await insertCompany(viaAgency.clientId, "Agency Client Co");
+
+      const freelancerView = await asFreelancer(direct.ownerId);
+      expect(freelancerView.map((c) => [c.id, c.counterpartyName])).toEqual([
+        [direct.contractId, "Direct Co"],
+      ]);
+      expect(freelancerView[0]?.milestones.map((m) => m.id)).toEqual(
+        direct.milestoneIds,
+      );
+
+      const agencyView = await asAgency(viaAgency.ownerId);
+      expect(agencyView.map((c) => [c.id, c.counterpartyName])).toEqual([
+        [viaAgency.contractId, "Agency Client Co"],
+      ]);
+      expect(agencyView[0]?.milestones.map((m) => m.id)).toEqual(
+        viaAgency.milestoneIds,
+      );
+    });
+
+    it("never shows the company name to the client, who sees the freelancer's name", async () => {
+      const fixture = await seed();
+      await insertCompany(fixture.clientId, "Client Co");
+      const view = await asClient(fixture.clientId);
+      expect(view.map((c) => c.counterpartyName)).toEqual(["Test User"]);
+    });
+
+    it("falls back to the Clerk name, then to a generic name, when the client has no company", async () => {
+      const fixture = await seed();
+      expect(
+        (await asFreelancer(fixture.ownerId)).map((c) => c.counterpartyName),
+      ).toEqual(["Test User"]);
+
+      mocks.getUser.mockRejectedValue(new Error("clerk unavailable"));
+      expect(
+        (await asFreelancer(fixture.ownerId)).map((c) => c.counterpartyName),
+      ).toEqual(["Marketplace user"]);
+    });
+  });
+
+  describe("reviewedByCurrentUser for the agency scope", () => {
+    it("is false before a review and true once a teammate has reviewed the client", async () => {
+      const fixture = await seed({ agency: true });
+      expect(flagOf(await asAgency(fixture.ownerId), fixture.contractId)).toBe(
+        false,
+      );
+      const teammateId = await addTeammate(fixture.agencyId!);
+      await addReview(
+        fixture.contractId,
+        teammateId,
+        fixture.clientId,
+        fixture.agencyId,
+      );
+      expect(flagOf(await asAgency(fixture.ownerId), fixture.contractId)).toBe(
+        true,
+      );
+    });
+
+    it("ignores a review written for another agency", async () => {
+      const fixture = await seed({ agency: true });
+      const other = await seed({ agency: true });
+      await addReview(
+        fixture.contractId,
+        other.ownerId,
+        fixture.clientId,
+        other.agencyId,
+      );
+      expect(flagOf(await asAgency(fixture.ownerId), fixture.contractId)).toBe(
+        false,
+      );
+    });
+
+    it("ignores a review of another contract by the same agency", async () => {
+      const fixture = await seed({ agency: true });
+      const secondId = await addSecondContract(fixture);
+      await addReview(
+        secondId,
+        fixture.ownerId,
+        fixture.clientId,
+        fixture.agencyId,
+      );
+      const view = await asAgency(fixture.ownerId);
+      expect(flagOf(view, secondId)).toBe(true);
+      expect(flagOf(view, fixture.contractId)).toBe(false);
+    });
+
+    it("ignores the client's review of the agency, which is not a review of the client", async () => {
+      const fixture = await seed({ agency: true });
+      await addReview(
+        fixture.contractId,
+        fixture.clientId,
+        fixture.ownerId,
+        fixture.agencyId,
+      );
+      expect(flagOf(await asAgency(fixture.ownerId), fixture.contractId)).toBe(
+        false,
+      );
+    });
+  });
+
+  describe("reviewedByCurrentUser for a client or a freelancer", () => {
+    it("is true for the reviewer's own review, from either side", async () => {
+      const byFreelancer = await seed();
+      await addReview(
+        byFreelancer.contractId,
+        byFreelancer.ownerId,
+        byFreelancer.clientId,
+      );
+      expect(
+        flagOf(
+          await asFreelancer(byFreelancer.ownerId),
+          byFreelancer.contractId,
+        ),
+      ).toBe(true);
+
+      const byClient = await seed();
+      await addReview(byClient.contractId, byClient.clientId, byClient.ownerId);
+      expect(
+        flagOf(await asClient(byClient.clientId), byClient.contractId),
+      ).toBe(true);
+    });
+
+    it("is false when only the other party reviewed the same contract", async () => {
+      const fixture = await seed();
+      await addReview(fixture.contractId, fixture.clientId, fixture.ownerId);
+      expect(
+        flagOf(await asFreelancer(fixture.ownerId), fixture.contractId),
+      ).toBe(false);
+
+      const reverse = await seed();
+      await addReview(reverse.contractId, reverse.ownerId, reverse.clientId);
+      expect(flagOf(await asClient(reverse.clientId), reverse.contractId)).toBe(
+        false,
+      );
+    });
+
+    it("is false for a contract the caller did not review while another one is reviewed", async () => {
+      const fixture = await seed();
+      const secondId = await addSecondContract(fixture);
+      await addReview(secondId, fixture.ownerId, fixture.clientId);
+      const view = await asFreelancer(fixture.ownerId);
+      expect(flagOf(view, secondId)).toBe(true);
+      expect(flagOf(view, fixture.contractId)).toBe(false);
+    });
   });
 });
 
