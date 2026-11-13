@@ -1,4 +1,4 @@
-import { relations, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import {
   bigint,
   check,
@@ -134,38 +134,6 @@ export const contract_milestones = pgTable(
   ],
 );
 
-export const contractRelations = relations(contracts, ({ many, one }) => ({
-  proposal: one(proposals, {
-    fields: [contracts.proposal_id],
-    references: [proposals.id],
-  }),
-  job: one(job_posts, {
-    fields: [contracts.job_id],
-    references: [job_posts.id],
-  }),
-  client: one(accounts, {
-    fields: [contracts.client_id],
-    references: [accounts.auth_id],
-    relationName: "contract_client",
-  }),
-  freelancer: one(accounts, {
-    fields: [contracts.freelancer_id],
-    references: [accounts.auth_id],
-    relationName: "contract_freelancer",
-  }),
-  milestones: many(contract_milestones),
-}));
-
-export const contractMilestoneRelations = relations(
-  contract_milestones,
-  ({ one }) => ({
-    contract: one(contracts, {
-      fields: [contract_milestones.contract_id],
-      references: [contracts.id],
-    }),
-  }),
-);
-
 export const client_spents = pgTable(
   "client_spents",
   {
@@ -251,30 +219,6 @@ export const reviews = pgTable(
     ),
   ],
 );
-
-export const clientSpentsRelations = relations(client_spents, ({ one }) => ({
-  client: one(accounts, {
-    fields: [client_spents.client_id],
-    references: [accounts.auth_id],
-  }),
-}));
-
-export const reviewRelations = relations(reviews, ({ one }) => ({
-  contract: one(contracts, {
-    fields: [reviews.contract_id],
-    references: [contracts.id],
-  }),
-  reviewer: one(accounts, {
-    fields: [reviews.reviewer_id],
-    references: [accounts.auth_id],
-    relationName: "review_reviewer",
-  }),
-  reviewee: one(accounts, {
-    fields: [reviews.reviewee_id],
-    references: [accounts.auth_id],
-    relationName: "review_reviewee",
-  }),
-}));
 
 export const freelancer_earning = pgTable(
   "freelancer_earning",
@@ -433,36 +377,4 @@ export const earning_history = pgTable(
       sql`(${table.freelancer_id} IS NOT NULL) <> (${table.agency_id} IS NOT NULL)`,
     ),
   ],
-);
-
-export const earningHistoryRelations = relations(
-  earning_history,
-  ({ one }) => ({
-    freelancer: one(accounts, {
-      fields: [earning_history.freelancer_id],
-      references: [accounts.auth_id],
-    }),
-    agency: one(agency_metadata, {
-      fields: [earning_history.agency_id],
-      references: [agency_metadata.id],
-    }),
-    contract: one(contracts, {
-      fields: [earning_history.contract_id],
-      references: [contracts.id],
-    }),
-    milestone: one(contract_milestones, {
-      fields: [earning_history.milestone_id],
-      references: [contract_milestones.id],
-    }),
-  }),
-);
-
-export const freelancerEarningRelations = relations(
-  freelancer_earning,
-  ({ one }) => ({
-    freelancer: one(accounts, {
-      fields: [freelancer_earning.freelancer_id],
-      references: [accounts.auth_id],
-    }),
-  }),
 );

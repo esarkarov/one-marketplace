@@ -1,4 +1,4 @@
-import { relations, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import {
   bigint,
   boolean,
@@ -41,10 +41,3 @@ export const proposals = pgTable(
     ),
   ],
 );
-
-export const proposalRelations = relations(proposals, ({ one }) => ({
-  job: one(job_posts, {
-    fields: [proposals.job_id],
-    references: [job_posts.id],
-  }),
-}));

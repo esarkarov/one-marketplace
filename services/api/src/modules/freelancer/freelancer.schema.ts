@@ -1,4 +1,4 @@
-import { relations, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import {
   bigint,
   check,
@@ -61,20 +61,3 @@ export const freelancer_portfolios = pgTable("freelancer_portfolios", {
   created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
-
-export const freelancerMetadataRelations = relations(
-  freelancer_metadata,
-  ({ many }) => ({
-    portfolios: many(freelancer_portfolios),
-  }),
-);
-
-export const freelancerPortfolioRelations = relations(
-  freelancer_portfolios,
-  ({ one }) => ({
-    freelancer: one(freelancer_metadata, {
-      fields: [freelancer_portfolios.freelancer_id],
-      references: [freelancer_metadata.id],
-    }),
-  }),
-);

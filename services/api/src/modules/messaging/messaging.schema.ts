@@ -1,4 +1,4 @@
-import { relations, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import {
   AnyPgColumn,
   boolean,
@@ -162,70 +162,4 @@ export const message_attachments = pgTable(
     ),
     check("message_attachments_file_size_check", sql`${table.file_size} >= 0`),
   ],
-);
-
-export const conversationRelations = relations(
-  conversations,
-  ({ many, one }) => ({
-    job: one(job_posts, {
-      fields: [conversations.job_id],
-      references: [job_posts.id],
-    }),
-    proposal: one(proposals, {
-      fields: [conversations.proposal_id],
-      references: [proposals.id],
-    }),
-    lastMessage: one(messages, {
-      fields: [conversations.last_message_id],
-      references: [messages.id],
-    }),
-    participants: many(conversation_participants),
-    messages: many(messages),
-  }),
-);
-
-export const conversationParticipantRelations = relations(
-  conversation_participants,
-  ({ one }) => ({
-    conversations: one(conversations, {
-      fields: [conversation_participants.conversation_id],
-      references: [conversations.id],
-    }),
-    account: one(accounts, {
-      fields: [conversation_participants.account_id],
-      references: [accounts.auth_id],
-    }),
-    lastReadMessage: one(messages, {
-      fields: [conversation_participants.last_read_message_id],
-      references: [messages.id],
-    }),
-  }),
-);
-
-export const messageRelations = relations(messages, ({ many, one }) => ({
-  conversation: one(conversations, {
-    fields: [messages.conversation_id],
-    references: [conversations.id],
-  }),
-  sender: one(accounts, {
-    fields: [messages.sender_id],
-    references: [accounts.auth_id],
-  }),
-  replyTo: one(messages, {
-    fields: [messages.reply_to_message_id],
-    references: [messages.id],
-    relationName: "message_replies",
-  }),
-  replies: many(messages, { relationName: "message_replies" }),
-  attachments: many(message_attachments),
-}));
-
-export const messageAttachmentRelations = relations(
-  message_attachments,
-  ({ one }) => ({
-    message: one(messages, {
-      fields: [message_attachments.message_id],
-      references: [messages.id],
-    }),
-  }),
 );

@@ -1,4 +1,3 @@
-import { relations } from "drizzle-orm";
 import {
   boolean,
   index,
@@ -102,36 +101,3 @@ export const agency_invitations = pgTable(
     ),
   ],
 );
-
-export const agencyMetadataRelations = relations(
-  agency_metadata,
-  ({ one, many }) => ({
-    owner: one(accounts, {
-      fields: [agency_metadata.owner_id],
-      references: [accounts.auth_id],
-    }),
-    portfolios: many(agency_portfolios),
-    members: many(agency_members),
-  }),
-);
-
-export const agencyPortfolioRelations = relations(
-  agency_portfolios,
-  ({ one }) => ({
-    agency: one(agency_metadata, {
-      fields: [agency_portfolios.agency_id],
-      references: [agency_metadata.id],
-    }),
-  }),
-);
-
-export const agencyMemberRelations = relations(agency_members, ({ one }) => ({
-  agency: one(agency_metadata, {
-    fields: [agency_members.agency_id],
-    references: [agency_metadata.id],
-  }),
-  freelancer: one(accounts, {
-    fields: [agency_members.freelancer_id],
-    references: [accounts.auth_id],
-  }),
-}));

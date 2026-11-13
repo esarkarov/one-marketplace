@@ -1,12 +1,8 @@
-export type TableAccessEntry =
-  | { importer: string; owner: string; access: "read" }
-  | {
-      importer: string;
-      owner: string;
-      access: "write";
-      knownDebt: true;
-      reason: string;
-    };
+export type TableAccessEntry = {
+  importer: string;
+  owner: string;
+  access: "read";
+};
 
 export const tableAccessAllowlist: TableAccessEntry[] = [
   { importer: "admin", owner: "agency", access: "read" },

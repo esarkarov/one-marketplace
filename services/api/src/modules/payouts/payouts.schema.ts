@@ -1,4 +1,4 @@
-import { relations, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import {
   bigint,
   check,
@@ -77,14 +77,3 @@ export const payout_history = pgTable(
     ),
   ],
 );
-
-export const payoutHistoryRelations = relations(payout_history, ({ one }) => ({
-  freelancer: one(accounts, {
-    fields: [payout_history.freelancer_id],
-    references: [accounts.auth_id],
-  }),
-  earning: one(earning_history, {
-    fields: [payout_history.earning_history_id],
-    references: [earning_history.id],
-  }),
-}));

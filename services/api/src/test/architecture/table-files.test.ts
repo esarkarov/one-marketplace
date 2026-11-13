@@ -85,7 +85,7 @@ describe("table file imports", () => {
   it("allows drizzle-orm packages and other table files", () => {
     const root = tree({
       "modules/a/a.schema.ts": table("a"),
-      "modules/b/b.schema.ts": `import { relations } from "drizzle-orm";\nimport { a } from "../a/a.schema.js";\n${table("b")}export const bRelations = relations(a, () => ({}));\n`,
+      "modules/b/b.schema.ts": `import { sql } from "drizzle-orm";\nimport { a } from "../a/a.schema.js";\n${table("b")}export const bExpr = sql\`\${a}\`;\n`,
     });
     expect(checkTableFiles(root)).toEqual([]);
   });

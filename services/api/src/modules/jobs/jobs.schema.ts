@@ -1,4 +1,4 @@
-import { relations, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import {
   bigint,
   check,
@@ -100,18 +100,4 @@ export const freelancer_saved_job_posts = pgTable(
       table.job_id,
     ),
   ],
-);
-
-export const freelancerSavedJobPostRelations = relations(
-  freelancer_saved_job_posts,
-  ({ one }) => ({
-    job: one(job_posts, {
-      fields: [freelancer_saved_job_posts.job_id],
-      references: [job_posts.id],
-    }),
-    freelancer: one(freelancer_metadata, {
-      fields: [freelancer_saved_job_posts.freelancer_id],
-      references: [freelancer_metadata.auth_id],
-    }),
-  }),
 );

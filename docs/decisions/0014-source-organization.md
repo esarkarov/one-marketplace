@@ -55,6 +55,8 @@ Zod-inferred types stay in `*.schemas.ts`. Small modules (auth, identity, notifi
 
 ### 5. Selective repositories
 
+Amended by ADR 0015: every module's SQL moves into repositories, and locks and guarded updates move with it. The text below is the original decision.
+
 A repository is a file of plain functions taking a db-or-transaction executor as the first argument. No classes, no interfaces, no base class. It owns queries only. Services own transactions and business rules; lock-first `FOR UPDATE` (ADR 0005) and guarded conditional `UPDATE`s (ADR 0007) stay visible in the service. Adopted for `contracts` and `agency`. Deferred until the contracts diff is measured: `freelancer`, `messaging`, `proposals`. Skipped: every other module, where a repository would only pass calls through; `payouts.state.ts` already plays this role for payouts.
 
 ### 6. Pattern decisions
@@ -88,14 +90,14 @@ Every stage that applies this ADR keeps `docs/api/openapi.json` byte-identical, 
 
 ### 9. Table files and table access
 
-Tables, enums and relations live in the module that owns them, in `modules/<name>/<name>.schema.ts`. The suffix is exactly `.schema.ts`: it is the drizzle file and is different from `<name>.schemas.ts`, the zod request and response schemas. There is no central schema anywhere: `database/` keeps `client.ts`, `db-executor.ts` and `pg-errors.ts`, imports no module file, and `database/schema.ts` no longer exists.
+Tables and enums live in the module that owns them, in `modules/<name>/<name>.schema.ts`. The suffix is exactly `.schema.ts`: it is the drizzle file and is different from `<name>.schemas.ts`, the zod request and response schemas. There is no central schema anywhere: `database/` keeps `client.ts`, `db-executor.ts` and `pg-errors.ts`, imports no module file, and `database/schema.ts` no longer exists.
 
 - A table file imports only drizzle-orm packages and other table files, so it is acyclic among table files and independent of config, shared and the db client. It is exempt from the layer order and the `.public.ts` rule, and so is any file that imports one; controllers and routes may not import a table file at all (eslint and the boundary test).
 - Ownership is `src/test/architecture/table-ownership.ts`, the single map for every table and enum. `accounts` and `accountRole` belong to auth; `shared/http/auth` reading `accounts` is a non-module edge in the allowlist.
-- Every cross-module table access, read or write, is an entry in `table-access-allowlist.ts`, enforced by `table-access.test.ts`: an unlisted access fails and a stale entry fails. After section 11 the list has no write entries (58 entries today, all reads), and `table-access-no-writes.test.ts` fails if one is added. This supersedes the prose list in ADR 0013 section 4.
+- Every cross-module table access, read or write, is an entry in `table-access-allowlist.ts`, enforced by `table-access.test.ts`: an unlisted access fails and a stale entry fails. After section 11 the list has no write entries (58 entries today, all reads), and the allowlist type (`TableAccessEntry`) can only express a read, so a write entry does not compile; `table-access.test.ts` also fails on any detected cross-module write. This supersedes the prose list in ADR 0013 section 4.
 - Consumers import tables from the owning module's `.schema.js`. Tests import them through `src/test/support/tables.ts`.
 - `drizzle.config.ts` reads `./src/modules/*/*.schema.ts`; a new module with tables is picked up without a config change. A test checks that the glob matches exactly the owners' table files.
-- The db client is created without a schema (`drizzle(pool)`). The relational API (`db.query`) has no use, so only its typing is gone. The 21 `relations()` declarations stay in the table files, unused, and are slated for removal.
+- The db client is created without a schema (`drizzle(pool)`). The relational API (`db.query`) has no use, so only its typing is gone. The 21 `relations()` declarations were unused and have been removed; the structural dump before and after was identical once relations were left out of it.
 - Each stage kept `drizzle-kit generate` at "No schema changes" and a structural dump of the schema (export names, columns, indexes, constraints, enums, relations) identical.
 
 ### 10. Module layers: auth as the bottom layer
@@ -104,7 +106,7 @@ Auth is its own layer 0 and every other module moves up by one: auth 0; admin, c
 
 ### 11. Owner functions
 
-A public function that another module calls with its own transaction is an owner function: it lives in the owner's `<name>.public.ts`, takes the executor (`DbExecutor`) as the first parameter, does SQL only, and leaves sockets, notifications, Redis and cache invalidation to the caller, after the commit. The caller passes the transaction handle it used before, so no statement changes its lock or isolation behaviour, and keeps its own error text when a result is empty. Owner functions replace cross-module writes; each one removes the matching write entry from the table-access allowlist, and a stale entry fails the test. The allowlist now has no write entries: a cross-module write must be an owner function, and `table-access-no-writes.test.ts` fails on any write entry.
+A public function that another module calls with its own transaction is an owner function: it lives in the owner's `<name>.public.ts`, takes the executor (`DbExecutor`) as the first parameter, does SQL only, and leaves sockets, notifications, Redis and cache invalidation to the caller, after the commit. The caller passes the transaction handle it used before, so no statement changes its lock or isolation behaviour, and keeps its own error text when a result is empty. Owner functions replace cross-module writes; each one removes the matching write entry from the table-access allowlist, and a stale entry fails the test. The allowlist now has no write entries: a cross-module write must be an owner function, and the allowlist type can only express a read, so a write entry does not compile.
 
 `messaging.public.ts` has the first two. `appendConversationMessages(executor, { conversationId, messages, updatedAt, unread })` inserts the messages, sets the conversation's last message from the last inserted row and `updated_at` from the caller's value, and increments unread by the message count for either one account or agency participant or every participant that is not a given type; it returns the inserted rows and, when nothing was inserted, writes nothing more. The seven contracts write sites use it. `openInterviewConversation(executor, input)` is the conversation upsert with its context-key fallback, both interview messages, the read state of the client and the unread bump of the other side; proposals calls it and gets back the conversation id.
 

@@ -1,4 +1,4 @@
-import { relations, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import {
   bigint,
   check,
@@ -70,37 +70,4 @@ export const connects_purchase_history = pgTable(
       sql`${table.amount_paid_cents} <= 9007199254740991`,
     ),
   ],
-);
-
-export const connectsRelations = relations(connects, ({ many, one }) => ({
-  freelancer: one(freelancer_metadata, {
-    fields: [connects.freelancer_id],
-    references: [freelancer_metadata.auth_id],
-  }),
-  agency: one(agency_metadata, {
-    fields: [connects.agency_id],
-    references: [agency_metadata.id],
-  }),
-  history: many(connects_history),
-  purchases: many(connects_purchase_history),
-}));
-
-export const connectsHistoryRelations = relations(
-  connects_history,
-  ({ one }) => ({
-    balance: one(connects, {
-      fields: [connects_history.connects_id],
-      references: [connects.id],
-    }),
-  }),
-);
-
-export const connectsPurchaseHistoryRelations = relations(
-  connects_purchase_history,
-  ({ one }) => ({
-    balance: one(connects, {
-      fields: [connects_purchase_history.connects_id],
-      references: [connects.id],
-    }),
-  }),
 );
