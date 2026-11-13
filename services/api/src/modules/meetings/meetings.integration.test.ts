@@ -255,6 +255,19 @@ describe("endMeetingByRoomName against real Postgres", () => {
     }
   });
 
+  it("stamps ended_at and updated_at with the same instant", async () => {
+    await db
+      .update(meetings)
+      .set({ updated_at: new Date("2020-01-01T00:00:00.000Z") })
+      .where(eq(meetings.id, fixture.meetingId));
+
+    await endMeetingByRoomName(fixture.roomName);
+
+    const state = await readState(fixture);
+    expect(state.meeting.ended_at).toBeInstanceOf(Date);
+    expect(state.meeting.updated_at).toEqual(state.meeting.ended_at);
+  });
+
   it("lets exactly one of two parallel ends post a message", async () => {
     const results = await Promise.all([
       endMeetingByRoomName(fixture.roomName),

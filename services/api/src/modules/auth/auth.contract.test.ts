@@ -50,6 +50,7 @@ import { assertTestDatabase } from "../../test/setup/assert-test-database.js";
 import { authStatusResponses, signUpResponses } from "./auth.responses.js";
 
 const { app } = await import("../../app.js");
+const { receiveSignup } = await import("./auth.service.js");
 
 const PREFIX = "auth-contract-";
 const API = "/api/v1/auth";
@@ -98,5 +99,62 @@ describe("auth contract", () => {
     expect(status.status).toBe(200);
     authStatusResponses[200].parse(status.body);
     expect(status.body.data.accountExists).toBe(true);
+  });
+
+  it("POST /sign-up stores the requested role, the Clerk email and unverified defaults", async () => {
+    const userId = `${PREFIX}${randomUUID()}`;
+    const email = `${userId}@example.test`;
+    mocks.verifyToken.mockResolvedValue({ sub: userId, sid: "sess_1" });
+    mocks.getUser.mockResolvedValue({
+      primaryEmailAddress: { emailAddress: email },
+      emailAddresses: [],
+    });
+
+    const signup = await request(app)
+      .post(`${API}/sign-up`)
+      .set({ Authorization: "Bearer test-token" })
+      .send({ role: "freelancer" });
+    expect(signup.status).toBe(201);
+
+    const { rows } = await pool.query(
+      `select email, role, "identityVerified", "isOnboardingComplete", created_at, updated_at from accounts where auth_id = $1`,
+      [userId],
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0].email).toBe(email);
+    expect(rows[0].role).toBe("FREELANCER");
+    expect(rows[0].identityVerified).toBe(false);
+    expect(rows[0].isOnboardingComplete).toBe(false);
+    expect(rows[0].created_at).toBeInstanceOf(Date);
+    expect(rows[0].updated_at).toBeInstanceOf(Date);
+  });
+
+  it("receiveSignup leaves an existing account untouched when the insert conflicts", async () => {
+    const userId = `${PREFIX}${randomUUID()}`;
+    await pool.query(
+      `insert into accounts (auth_id, email, role) values ($1, $2, 'FREELANCER')`,
+      [userId, "original@example.test"],
+    );
+    mocks.getUser.mockResolvedValue({
+      primaryEmailAddress: { emailAddress: "other@example.test" },
+      emailAddresses: [],
+    });
+
+    await expect(
+      receiveSignup({
+        userId,
+        role: "client",
+        accountExists: false,
+        isOnboarded: false,
+      }),
+    ).resolves.toBeUndefined();
+
+    const { rows } = await pool.query(
+      "select email, role from accounts where auth_id = $1",
+      [userId],
+    );
+    expect(rows).toEqual([
+      { email: "original@example.test", role: "FREELANCER" },
+    ]);
   });
 });

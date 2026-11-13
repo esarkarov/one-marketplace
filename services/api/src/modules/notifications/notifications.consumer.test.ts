@@ -148,6 +148,30 @@ describe("notification consumer", () => {
     expect(mocks.emit).not.toHaveBeenCalled();
   });
 
+  it("stores the agency id and no recipient for agency notifications", async () => {
+    const { consumer, deliver } = setup();
+    const agencyId = "3f2b8c1e-9a4d-4e7f-8b21-5c6d7e8f9a0b";
+    mocks.returning.mockResolvedValue([]);
+    await consumer.start();
+
+    deliver(
+      message(
+        createNotificationEnvelope({
+          agencyId,
+          type: "T",
+          title: "a",
+          message: "b",
+        }),
+      ),
+    );
+    await consumer.stop();
+
+    expect(mocks.values.mock.calls[0]![0]).toMatchObject({
+      agency_id: agencyId,
+      recipient_id: null,
+    });
+  });
+
   it("acks a duplicate without emitting", async () => {
     const { channel, consumer, deliver } = setup();
     mocks.returning.mockResolvedValue([]);

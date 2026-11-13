@@ -352,6 +352,115 @@ describe("startMeeting against real Postgres", () => {
     expect(orphanWarns()).toHaveLength(0);
   });
 
+  it("ignores an ended meeting and starts a new one", async () => {
+    const [ended] = await db
+      .insert(meetings)
+      .values({
+        conversation_id: fixture.conversationId,
+        provider_room_name: `${PREFIX}ended-${randomUUID()}`,
+        join_url: "https://example.test/ended",
+        started_by_account_id: fixture.actorId,
+        status: "ENDED",
+        ended_at: new Date(),
+      })
+      .returning();
+
+    const result = await start();
+
+    expect(result.id).not.toBe(ended!.id);
+    expect(mocks.createDailyRoom).toHaveBeenCalledTimes(1);
+    const state = await readState(fixture);
+    expect(state.active).toHaveLength(1);
+    expect(state.active[0]!.id).toBe(result.id);
+  });
+
+  it("stores the Daily room name and url and the starter on the new meeting", async () => {
+    const result = await start();
+
+    const state = await readState(fixture);
+    const [active] = state.active;
+    expect(createdRooms).toHaveLength(1);
+    expect(active).toMatchObject({
+      id: result.id,
+      provider: "daily",
+      provider_room_name: createdRooms[0],
+      join_url: `https://example.test/${createdRooms[0]}`,
+      started_by_account_id: fixture.actorId,
+    });
+    expect(result.joinUrl).toBe(`https://example.test/${createdRooms[0]}`);
+  });
+
+  it("links the system message to its own meeting only", async () => {
+    const other = await createFixture();
+    const [otherMeeting] = await db
+      .insert(meetings)
+      .values({
+        conversation_id: other.conversationId,
+        provider_room_name: `${PREFIX}other-${randomUUID()}`,
+        join_url: "https://example.test/other",
+        started_by_account_id: other.actorId,
+        status: "ACTIVE",
+      })
+      .returning();
+
+    const result = await start();
+
+    const state = await readState(fixture);
+    expect(state.messageRows).toHaveLength(1);
+    expect(state.active[0]!.id).toBe(result.id);
+    expect(state.active[0]!.message_id).toBe(state.messageRows[0]!.id);
+    const [untouched] = await db
+      .select()
+      .from(meetings)
+      .where(eq(meetings.id, otherMeeting!.id));
+    expect(untouched!.message_id).toBeNull();
+  });
+
+  it("returns this conversation's committed active meeting after a lost race, not an ended or foreign one", async () => {
+    const other = await createFixture();
+    await db.insert(meetings).values({
+      conversation_id: other.conversationId,
+      provider_room_name: `${PREFIX}foreign-${randomUUID()}`,
+      join_url: "https://example.test/foreign",
+      started_by_account_id: other.actorId,
+      status: "ACTIVE",
+    });
+    await db.insert(meetings).values({
+      conversation_id: fixture.conversationId,
+      provider_room_name: `${PREFIX}old-${randomUUID()}`,
+      join_url: "https://example.test/old",
+      started_by_account_id: fixture.actorId,
+      status: "ENDED",
+      ended_at: new Date(),
+    });
+    const holderRoom = `${PREFIX}holder-${randomUUID()}`;
+    const client = await pool.connect();
+    let committed = false;
+    try {
+      await client.query("begin");
+      await holdUncommittedMeeting(fixture, holderRoom)(client);
+      const pidResult = await client.query<{ pid: number }>(
+        "select pg_backend_pid() as pid",
+      );
+
+      const pending = start();
+      expect(
+        await waitForBlocked(pidResult.rows[0]!.pid, 1, INSERT_MEETING),
+      ).toBe(1);
+      await client.query("commit");
+      committed = true;
+      const result = await pending;
+
+      const state = await readState(fixture);
+      expect(state.active).toHaveLength(1);
+      expect(state.active[0]!.provider_room_name).toBe(holderRoom);
+      expect(result.id).toBe(state.active[0]!.id);
+    } finally {
+      if (!committed) await client.query("rollback");
+      client.release();
+    }
+  }, 30000);
+
   it("returns the existing active meeting without creating a Daily room", async () => {
     const [existing] = await db
       .insert(meetings)
