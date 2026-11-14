@@ -58,19 +58,19 @@ Each third-party service has one lazy client in its folder. Upload logic (`uploa
 
 Cuts that remove today's edges (derived from the real import graph in `src/modules`):
 
-| Edge today                                                                                              | Resolution                                                                                                                                                 |
-| ------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `requireClient` (from proposals), `requireFreelancer` (from freelancer) in 5 controllers                | move code down: `shared/http`                                                                                                                              |
-| `messaging.route` imports meetings controller, schemas, responses                                       | move code up: meetings routes wired in `routes/` assembly                                                                                                  |
-| `openapi/build-spec` imports the admin session middleware                                               | move code down: `shared/http`                                                                                                                              |
-| `events/consumer` imports the notifications SSE hub                                                     | move code down: the hub goes to `infrastructure`                                                                                                           |
-| agency, freelancer, messaging, contracts, notifications, proposals read `agency.service` member lookups | public surface: `agency.public.ts` (`getAgencyIdForMember` and similar)                                                                                    |
-| agency and contracts read `freelancer.service` (`getJSSContribution`, `getMatchedJobPostsBySkills`)     | public surface: `freelancer.public.ts`                                                                                                                     |
-| agency, freelancer read `connects.service` (`addAgencyConnects`, `addConnects`)                         | public surface: `connects.public.ts`                                                                                                                       |
-| contracts and proposals call `emitConversationUpdate` from `messaging.socket`; meetings uses messaging  | public surface: `messaging.public.ts`                                                                                                                      |
-| `freelancer.service` reads agency identity for a member                                                 | move code down: `getAgencyIdentityForMember` is in `shared/utils/agency-identity.ts`                                                                       |
-| `agency.controller` calls `proposals.service`; `proposals.service` calls agency                         | invert the reverse edge: the three agency proposal handlers live in `proposals.controller` and `routes/agency-proposals.route.ts` mounts them at `/agency` |
-| `agency.controller` calls `connects` and `freelancer` services                                          | public surface (above)                                                                                                                                     |
+| Edge today                                                                                              | Resolution                                                                                                                                                                |
+| ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `requireClient` (from proposals), `requireFreelancer` (from freelancer) in 5 controllers                | move code down: `shared/http`                                                                                                                                             |
+| `messaging.route` imports meetings controller, schemas, responses                                       | move code up: meetings routes wired in `routes/` assembly                                                                                                                 |
+| `openapi/build-spec` imports the admin session middleware                                               | move code down: `shared/http`                                                                                                                                             |
+| `events/consumer` imports the notifications SSE hub                                                     | move code down: the hub goes to `infrastructure`                                                                                                                          |
+| agency, freelancer, messaging, contracts, notifications, proposals read `agency.service` member lookups | public surface: `agency.public.ts` (`getAgencyIdForMember` and similar)                                                                                                   |
+| agency and contracts read `freelancer.service` (`getJSSContribution`, `getMatchedJobPostsBySkills`)     | public surface: `freelancer.public.ts`                                                                                                                                    |
+| agency, freelancer read `connects.service` (`addAgencyConnects`, `addConnects`)                         | public surface: `connects.public.ts`                                                                                                                                      |
+| contracts and proposals call `emitConversationUpdate` from `messaging.socket`; meetings uses messaging  | public surface: `messaging.public.ts`                                                                                                                                     |
+| `freelancer.service` reads agency identity for a member                                                 | move code down: `getAgencyIdentityForMember` is in `shared/utils/agency-identity.ts`                                                                                      |
+| `agency.controller` calls `proposals.service`; `proposals.service` calls agency                         | invert the reverse edge: the three agency proposal handlers live in `proposals.controller` and `proposals.route.ts` exports `agencyProposalsRouter`, mounted at `/agency` |
+| `agency.controller` calls `connects` and `freelancer` services                                          | public surface (above)                                                                                                                                                    |
 
 Module layers (enforced by the architecture test). A module may import only a strictly lower layer, never one in its own layer, and only through the other module's `<name>.public.ts`.
 
@@ -141,6 +141,10 @@ Outliers renamed in Phase D:
 - C: add the four `*.public.ts` files, move service reads down, invert reverse edges, enforce the layer table and no cycles (done).
 - D: naming renames (done).
 - E: delete resolved exceptions, update `AGENTS.md`, `docs/architecture.md` and the READMEs to the new paths.
+
+## Routing
+
+`src/routes/index.ts` only imports module routers and registers them under their prefixes, in a fixed order. A module-specific router is exported from that module's `<name>.route.ts`, as `agencyProposalsRouter` is from `proposals`. `/health` and `/ready` belong to the `health` module (layer 0). Route introspection and the contract allowlist live in `src/openapi/`; the validation allowlist and the route checks live in `src/test/architecture/routing/`.
 
 ## Findings reported, not fixed here
 

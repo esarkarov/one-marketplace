@@ -2,7 +2,7 @@
 
 ## Scope
 
-Uncommitted hardening in `services/api`: CORS allowlist (`config/cors.ts`), helmet, per-route JSON body limits (`json-body.middleware.ts`), rate limiting (`rate-limit.middleware.ts`), request ids, error handler, `/health` and `/ready` (`bootstrap/readiness.ts`), `TRUST_PROXY` parsing (`config/env.ts`), graceful shutdown (`server.ts`), socket.io and SSE changes. Tools: vitest and supertest (existing).
+Uncommitted hardening in `services/api`: CORS allowlist (`config/cors.ts`), helmet, per-route JSON body limits (`json-body.middleware.ts`), rate limiting (`rate-limit.middleware.ts`), request ids, error handler, `/health` and `/ready` (`modules/health/controllers/health.controller.ts`), `TRUST_PROXY` parsing (`config/env.ts`), graceful shutdown (`server.ts`), socket.io and SSE changes. Tools: vitest and supertest (existing).
 
 ## Covered by the 225 automated tests (16 files, all passing)
 
