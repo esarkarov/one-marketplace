@@ -1,4 +1,3 @@
-import { desc, eq, sql } from "drizzle-orm";
 import {
   CONNECTS_CACHE_TTL_SECONDS,
   CONNECTS_PLANS,
@@ -8,13 +7,19 @@ import {
   INITIAL_CONNECTS,
 } from "../../config/constants.js";
 import { db } from "../../database/client.js";
-import { accounts } from "../auth/auth.schema.js";
 import { setStripeCustomerId } from "../auth/auth.public.js";
 import {
-  connects,
-  connects_history,
-  connects_purchase_history,
-} from "./connects.schema.js";
+  creditConnects,
+  findAgencyConnectsBalance,
+  findAgencyConnectsHistory,
+  findCheckoutAccount,
+  findFreelancerConnectsHistory,
+  insertAgencyConnectsIfAbsent,
+  insertAgencyPurchaseIfNew,
+  insertFreelancerConnectsIfAbsent,
+  insertFreelancerPurchaseIfNew,
+  recordConnectsHistory,
+} from "./connects.repository.js";
 import { ApiError } from "../../shared/http/api-error.js";
 import { redis } from "../../infrastructure/redis.js";
 import { env } from "../../config/env.js";
@@ -29,19 +34,16 @@ const cacheBalance = (freelancerId: string, balance: number) =>
 
 export const addConnects = async (freelancerId: string) => {
   const balance = await db.transaction(async (transaction) => {
-    const [balance] = await transaction
-      .insert(connects)
-      .values({
-        freelancer_id: freelancerId,
-        connects: INITIAL_CONNECTS,
-      })
-      .onConflictDoNothing({ target: connects.freelancer_id })
-      .returning();
+    const balance = await insertFreelancerConnectsIfAbsent(
+      transaction,
+      freelancerId,
+      INITIAL_CONNECTS,
+    );
 
     if (!balance) return;
 
-    await transaction.insert(connects_history).values({
-      connects_id: balance.id,
+    await recordConnectsHistory(transaction, {
+      connectsId: balance.id,
       type: "Onboarding Bonus",
       description: "New account welcome Connects",
       amount: INITIAL_CONNECTS,
@@ -56,19 +58,16 @@ export const addConnects = async (freelancerId: string) => {
 
 export const addAgencyConnects = async (agencyId: string) => {
   const balance = await db.transaction(async (transaction) => {
-    const [balance] = await transaction
-      .insert(connects)
-      .values({
-        agency_id: agencyId,
-        connects: INITIAL_CONNECTS,
-      })
-      .onConflictDoNothing({ target: connects.agency_id })
-      .returning();
+    const balance = await insertAgencyConnectsIfAbsent(
+      transaction,
+      agencyId,
+      INITIAL_CONNECTS,
+    );
 
     if (!balance) return;
 
-    await transaction.insert(connects_history).values({
-      connects_id: balance.id,
+    await recordConnectsHistory(transaction, {
+      connectsId: balance.id,
       type: "Onboarding Bonus",
       description: "New agency welcome Connects",
       amount: INITIAL_CONNECTS,
@@ -98,11 +97,7 @@ export const getAgencyConnectsBalance = async (
     return Number(cachedConnects);
   }
 
-  const [balance] = await db
-    .select({ connects: connects.connects })
-    .from(connects)
-    .where(eq(connects.agency_id, agencyId))
-    .limit(1);
+  const balance = await findAgencyConnectsBalance(db, agencyId);
 
   const value = balance?.connects ?? 0;
   await redis.setEx(cacheKey, CONNECTS_CACHE_TTL_SECONDS, String(value));
@@ -110,34 +105,10 @@ export const getAgencyConnectsBalance = async (
 };
 
 export const getAgencyConnectsHistory = async (agencyId: string) =>
-  await db
-    .select({
-      id: connects_history.id,
-      type: connects_history.type,
-      description: connects_history.description,
-      amount: connects_history.amount,
-      created_at: connects_history.created_at,
-    })
-    .from(connects_history)
-    .innerJoin(connects, eq(connects_history.connects_id, connects.id))
-    .where(eq(connects.agency_id, agencyId))
-    .orderBy(desc(connects_history.created_at))
-    .limit(10);
+  await findAgencyConnectsHistory(db, agencyId);
 
 export const getConnectsHistory = async (freelancerId: string) =>
-  await db
-    .select({
-      id: connects_history.id,
-      type: connects_history.type,
-      description: connects_history.description,
-      amount: connects_history.amount,
-      created_at: connects_history.created_at,
-    })
-    .from(connects_history)
-    .innerJoin(connects, eq(connects_history.connects_id, connects.id))
-    .where(eq(connects.freelancer_id, freelancerId))
-    .orderBy(desc(connects_history.created_at))
-    .limit(10);
+  await findFreelancerConnectsHistory(db, freelancerId);
 
 export const createConnectsCheckout = async (
   freelancerId: string,
@@ -147,11 +118,7 @@ export const createConnectsCheckout = async (
     throw new ApiError(503, "Connects payments are not configured.");
   }
 
-  const [account] = await db
-    .select()
-    .from(accounts)
-    .where(eq(accounts.auth_id, freelancerId))
-    .limit(1);
+  const account = await findCheckoutAccount(db, freelancerId);
 
   if (!account) throw new ApiError(404, "Freelancer account not found.");
 
@@ -197,33 +164,25 @@ export const completeConnectsPurchase = async (
   paymentId: string,
 ) => {
   const balance = await db.transaction(async (transaction) => {
-    const [purchase] = await transaction
-      .insert(connects_purchase_history)
-      .values({
-        connects_id: sql`(select ${connects.id} from ${connects} where ${connects.freelancer_id} = ${freelancerId})`,
-        purchased_connects: purchasedConnects,
-        amount_paid_cents: CONNECTS_PLANS[purchasedConnects],
-        payment_id: paymentId,
-        status: "COMPLETED",
-      })
-      .onConflictDoNothing({ target: connects_purchase_history.payment_id })
-      .returning();
+    const purchase = await insertFreelancerPurchaseIfNew(transaction, {
+      freelancerId,
+      purchasedConnects,
+      amountPaidCents: CONNECTS_PLANS[purchasedConnects],
+      paymentId,
+    });
 
     if (!purchase) return;
 
-    const [updatedBalance] = await transaction
-      .update(connects)
-      .set({
-        connects: sql`${connects.connects} + ${purchasedConnects}`,
-        updated_at: new Date(),
-      })
-      .where(eq(connects.freelancer_id, freelancerId))
-      .returning();
+    const updatedBalance = await creditConnects(
+      transaction,
+      { freelancerId },
+      purchasedConnects,
+    );
 
     if (!updatedBalance) throw new ApiError(404, "Connects balance not found.");
 
-    await transaction.insert(connects_history).values({
-      connects_id: updatedBalance.id,
+    await recordConnectsHistory(transaction, {
+      connectsId: updatedBalance.id,
       type: "Connects purchased",
       description: `Purchased ${purchasedConnects} Connects`,
       amount: purchasedConnects,
@@ -243,11 +202,7 @@ export const createAgencyConnectsCheckout = async (
     throw new ApiError(503, "Connects payments are not configured.");
   }
 
-  const [account] = await db
-    .select()
-    .from(accounts)
-    .where(eq(accounts.auth_id, ownerId))
-    .limit(1);
+  const account = await findCheckoutAccount(db, ownerId);
 
   if (!account) throw new ApiError(404, "Agency owner account not found.");
 
@@ -293,33 +248,25 @@ export const completeAgencyConnectsPurchase = async (
   paymentId: string,
 ) => {
   const balance = await db.transaction(async (transaction) => {
-    const [purchase] = await transaction
-      .insert(connects_purchase_history)
-      .values({
-        connects_id: sql`(select ${connects.id} from ${connects} where ${connects.agency_id} = ${agencyId})`,
-        purchased_connects: purchasedConnects,
-        amount_paid_cents: CONNECTS_PLANS[purchasedConnects],
-        payment_id: paymentId,
-        status: "COMPLETED",
-      })
-      .onConflictDoNothing({ target: connects_purchase_history.payment_id })
-      .returning();
+    const purchase = await insertAgencyPurchaseIfNew(transaction, {
+      agencyId,
+      purchasedConnects,
+      amountPaidCents: CONNECTS_PLANS[purchasedConnects],
+      paymentId,
+    });
 
     if (!purchase) return;
 
-    const [updatedBalance] = await transaction
-      .update(connects)
-      .set({
-        connects: sql`${connects.connects} + ${purchasedConnects}`,
-        updated_at: new Date(),
-      })
-      .where(eq(connects.agency_id, agencyId))
-      .returning();
+    const updatedBalance = await creditConnects(
+      transaction,
+      { agencyId },
+      purchasedConnects,
+    );
 
     if (!updatedBalance) throw new ApiError(404, "Connects balance not found.");
 
-    await transaction.insert(connects_history).values({
-      connects_id: updatedBalance.id,
+    await recordConnectsHistory(transaction, {
+      connectsId: updatedBalance.id,
       type: "Connects purchased",
       description: `Purchased ${purchasedConnects} Connects`,
       amount: purchasedConnects,

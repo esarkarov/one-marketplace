@@ -7,8 +7,7 @@ import {
 } from "../../config/constants.js";
 import { redis } from "../../infrastructure/redis.js";
 import { db } from "../../database/client.js";
-import { connects } from "./connects.schema.js";
-import { eq } from "drizzle-orm";
+import { findFreelancerConnectsBalance } from "./connects.repository.js";
 
 export const availableConnects: RequestHandler = asyncHandler(
   async (request, _response, next) => {
@@ -29,11 +28,10 @@ export const availableConnects: RequestHandler = asyncHandler(
       return;
     }
 
-    const [balance] = await db
-      .select({ connects: connects.connects })
-      .from(connects)
-      .where(eq(connects.freelancer_id, request.auth.userId))
-      .limit(1);
+    const balance = await findFreelancerConnectsBalance(
+      db,
+      request.auth.userId,
+    );
 
     request.availableConnects = balance?.connects ?? 0;
     await redis.setEx(

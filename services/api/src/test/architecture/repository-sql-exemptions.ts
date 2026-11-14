@@ -1,10 +1,6 @@
 export const repositorySqlExemptions: string[] = [
   "modules/admin/admin.service.ts",
   "modules/agency/agency.service.ts",
-  "modules/client/client.service.ts",
-  "modules/connects/connects.middleware.ts",
-  "modules/connects/connects.public.ts",
-  "modules/connects/connects.service.ts",
   "modules/contracts/services/contracts.checkout.service.ts",
   "modules/contracts/services/contracts.lifecycle.service.ts",
   "modules/contracts/services/contracts.listing.service.ts",
