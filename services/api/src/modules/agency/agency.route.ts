@@ -12,30 +12,36 @@ import {
   inviteWriteLimiter,
 } from "../../shared/http/limits/user-rate-limit.middleware.js";
 import {
-  buyAgencyConnects,
-  cancelAgencyInvitationHandler,
   createAgencyHandler,
+  getAgencyJobFeed,
+  getLoggedInAgency,
+  getPublicAgencyHandler,
+  searchPublicAgenciesHandler,
+  updateAgencyHandler,
+} from "./controllers/agency.controller.js";
+import {
+  buyAgencyConnects,
   getAgencyConnects,
   getAgencyConnectsHistoryHandler,
+} from "./controllers/agency.connects.controller.js";
+import {
   getAgencyEarningsOverviewHandler,
   getAgencyEarningsSummaryHandler,
-  getAgencyJobFeed,
-  getAgencyMembershipHandler,
-  getAgencyVerificationHandler,
   getAgencyPayoutManagementLinkHandler,
+} from "./controllers/agency.earnings.controller.js";
+import {
+  cancelAgencyInvitationHandler,
+  getAgencyMembershipHandler,
   getAgencyTeamInvitationsHandler,
-  getLoggedInAgency,
+  getAgencyVerificationHandler,
   getMyAgencyInvitationsHandler,
-  getPublicAgencyHandler,
   inviteAgencyMemberHandler,
   removeAgencyMemberHandler,
   resendAgencyInvitationHandler,
   respondToAgencyInvitationHandler,
-  searchPublicAgenciesHandler,
-  updateAgencyHandler,
   updateAgencyInvitationRoleHandler,
   updateAgencyMemberRoleHandler,
-} from "./controllers/agency.controller.js";
+} from "./controllers/agency.invitations.controller.js";
 import {
   agencyConnectsCheckoutResponses,
   agencyConnectsHistoryResponses,

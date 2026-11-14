@@ -99,3 +99,36 @@ export interface UpdateAgencyInput {
   avatarImage?: ImageInput;
   portfolio: UpdateAgencyPortfolioInput[];
 }
+
+export interface PublicAgencySummary {
+  id: string;
+  name: string;
+  avatarUrl: string | null;
+  verified: boolean;
+  tagline: string | null;
+  description: string;
+  specialty: string;
+  location: string | null;
+  teamSize: string;
+  memberCount: number;
+  minHourlyRateCents: number | null;
+  rating: number;
+  reviews: number;
+  projects: number;
+  success: number;
+  skills: string[];
+}
+
+export interface PublicAgencyFilters {
+  query?: string;
+  specialty?: string;
+  sizes?: string[];
+  verifiedOnly?: boolean;
+  maxRateCents?: number;
+  sort?: "recommended" | "rating" | "projects" | "rate-low";
+}
+
+export interface PublicAgencyFeedPage {
+  results: PublicAgencySummary[];
+  hasMore: boolean;
+}

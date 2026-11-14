@@ -1,41 +1,14 @@
 import { db } from "../../../database/client.js";
 import { toSafeCents } from "../../../shared/money/money.js";
 import { searchAgencyRows } from "../repositories/agency.search.repository.js";
-
-export interface PublicAgencySummary {
-  id: string;
-  name: string;
-  avatarUrl: string | null;
-  verified: boolean;
-  tagline: string | null;
-  description: string;
-  specialty: string;
-  location: string | null;
-  teamSize: string;
-  memberCount: number;
-  minHourlyRateCents: number | null;
-  rating: number;
-  reviews: number;
-  projects: number;
-  success: number;
-  skills: string[];
-}
-
-export interface PublicAgencyFilters {
-  query?: string;
-  specialty?: string;
-  sizes?: string[];
-  verifiedOnly?: boolean;
-  maxRateCents?: number;
-  sort?: "recommended" | "rating" | "projects" | "rate-low";
-}
-
-export interface PublicAgencyFeedPage {
-  results: PublicAgencySummary[];
-  hasMore: boolean;
-}
+import {
+  PublicAgencySummary,
+  PublicAgencyFilters,
+  PublicAgencyFeedPage,
+} from "../types/agency.types.js";
 
 const PUBLIC_AGENCY_PAGE_SIZE = 20;
+
 const publicAgencyRegionNames = new Intl.DisplayNames(["en"], {
   type: "region",
 });
