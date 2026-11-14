@@ -55,12 +55,10 @@ import {
   timeTravel,
 } from "../../../test/support/factories.js";
 import { uuidV5 } from "../../../shared/ids/uuid-v5.js";
-import {
-  getAdminOverviewTotals,
-  getAdminTransactions,
-} from "../../admin/services/admin.service.js";
+import { getAdminTransactions } from "../../admin/services/admin.listings.service.js";
+import { getAdminOverviewTotals } from "../../admin/services/admin.overview.service.js";
 import { getAgencyEarningsOverview } from "../../agency/services/agency.earnings.service.js";
-import { getFreelancerEarningsOverview } from "../../freelancer/services/freelancer.service.js";
+import { getFreelancerEarningsOverview } from "../../freelancer/services/freelancer.earnings.service.js";
 import { RETRY_BACKOFF_SECONDS } from "../utils/payouts.failure.js";
 import {
   PayoutTransitionError,

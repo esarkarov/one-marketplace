@@ -37,7 +37,7 @@ import {
 } from "../../test/support/tables.js";
 import { assertTestDatabase } from "../../test/setup/assert-test-database.js";
 import { updateAgencyProfile } from "../../modules/agency/services/agency.profile.service.js";
-import { saveFreelancerProfile } from "../../modules/freelancer/services/freelancer.service.js";
+import { saveFreelancerProfile } from "../../modules/freelancer/services/freelancer.profile.service.js";
 
 const PREFIX = "img-it-";
 const DATA_URL = "data:image/png;base64,iVBORw0KGgo=";

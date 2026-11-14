@@ -1,4 +1,4 @@
 export {
   getJSSContribution,
   getMatchedJobPostsBySkills,
-} from "./services/freelancer.service.js";
+} from "./services/freelancer.jobs.service.js";

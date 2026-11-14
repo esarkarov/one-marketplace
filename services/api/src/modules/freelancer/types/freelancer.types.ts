@@ -68,3 +68,62 @@ export interface SaveFreelancerProfileInput {
   languages: LanguageData[];
   portfolios: PortfolioInput[];
 }
+
+export type EarningsCertificateWindow = {
+  label: string;
+  totalCents: number;
+};
+
+export type EarningsCertificateData = {
+  freelancerName: string;
+  professionalTitle: string;
+  profileUrl: string;
+  location: string;
+  activeSince: Date;
+  issuedAt: Date;
+  windows: EarningsCertificateWindow[];
+};
+
+export interface JobFeedFilters {
+  sort?: "best-match" | "recent";
+  levels?: string[];
+  durations?: string[];
+  minBudgetCents?: number;
+  maxBudgetCents?: number;
+  minProposals?: number;
+  maxProposals?: number;
+  paymentVerified?: boolean;
+}
+
+export interface PublicTalentSummary {
+  id: string;
+  name: string;
+  avatarUrl: string | null;
+  title: string;
+  location: string;
+  verified: boolean;
+  active: boolean;
+  jobSuccess: number;
+  completedProjects: number;
+  rating: number;
+  reviews: number;
+  hourlyRateCents: number;
+  skills: string[];
+  summary: string;
+}
+
+export interface PublicTalentSearchFilters {
+  query?: string;
+  verifiedOnly?: boolean;
+  availableOnly?: boolean;
+  minRating?: number;
+  minSuccess?: number;
+  minRateCents?: number;
+  maxRateCents?: number;
+  sort?: "recommended" | "rating" | "success" | "projects" | "rate-low";
+}
+
+export interface PublicTalentSearchPage {
+  results: PublicTalentSummary[];
+  hasMore: boolean;
+}

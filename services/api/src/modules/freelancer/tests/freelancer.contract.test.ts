@@ -99,7 +99,7 @@ import {
 } from "../../../test/support/tables.js";
 import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
 import { getAccountAuthCacheKey } from "../../../config/constants.js";
-import { saveFreelancerProfile } from "../services/freelancer.service.js";
+import { saveFreelancerProfile } from "../services/freelancer.profile.service.js";
 import {
   freelancerEarningsCertificateResponses,
   freelancerEarningsOverviewResponses,

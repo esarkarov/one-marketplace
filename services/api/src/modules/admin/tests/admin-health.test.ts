@@ -21,7 +21,7 @@ vi.mock("../../../database/client.js", () => ({
   pool: { end: async () => undefined },
 }));
 
-const { getSystemHealth } = await import("../services/admin.service.js");
+const { getSystemHealth } = await import("../services/admin.system.service.js");
 
 beforeEach(() => {
   vi.resetAllMocks();

@@ -1,24 +1,7 @@
 import { clerk } from "../../../infrastructure/clerk.js";
 import { db } from "../../../database/client.js";
-import { toSafeCents } from "../../../shared/money/money.js";
-import { redis } from "../../../infrastructure/redis.js";
-import { getRabbitStatus } from "../../../infrastructure/rabbitmq.js";
 import { env } from "../../../config/env.js";
-import { logger } from "../../../config/logger.js";
-import { errorLogAttributes } from "../../../shared/logging/sanitize-log.js";
-import { ApiError } from "../../../shared/http/api-error.js";
 import {
-  isAllowedRedisKey,
-  REDIS_REDACTED_PREFIX,
-  REDIS_REDACTED_VALUE,
-} from "../schemas/admin.redis.schema.js";
-import {
-  countAccountsByRole,
-  countActiveContracts,
-  countAgencies,
-  countContracts,
-  countJobPosts,
-  countProposals,
   listAccountsWithCompany,
   listAgenciesWithOwner,
   listAgencyNamesByIds,
@@ -29,26 +12,10 @@ import {
   listMilestonesForContracts,
   listPaidPayouts,
   listProposalsPage,
-  listRecentAccounts,
-  listRecentAgencies,
-  listRecentContracts,
   listRecentEarnings,
-  listRecentJobPosts,
-  pingDatabase,
-  sumCompletedConnectsPurchaseCents,
-  sumContractTotalCents,
-  sumPaidPayoutCents,
 } from "../repositories/admin.repository.js";
-
-export interface Pagination {
-  limit: number;
-  offset: number;
-}
-
-export interface PaginatedResult<T> {
-  results: T[];
-  hasMore: boolean;
-}
+import { Pagination, AdminTransactionRow } from "../types/admin.types.js";
+import { mergePages } from "../utils/admin.pagination.js";
 
 const clerkNames = async (authIds: string[]) => {
   const unique = [...new Set(authIds)];
@@ -76,108 +43,6 @@ const clerkNames = async (authIds: string[]) => {
     }),
   );
   return names;
-};
-
-const mergePages = <T extends { createdAt: Date | null }>(
-  sources: T[][],
-  { limit, offset }: Pagination,
-): PaginatedResult<T> => {
-  const merged = sources
-    .flat()
-    .filter((item): item is T & { createdAt: Date } => Boolean(item.createdAt))
-    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-  return {
-    results: merged.slice(offset, offset + limit),
-    hasMore: merged.length > offset + limit,
-  };
-};
-
-export const getAdminOverviewTotals = async () => {
-  const [
-    [freelancerCount],
-    [clientCount],
-    [agencyCount],
-    [jobPostCount],
-    [proposalCount],
-    [contractCount],
-    [activeContractCount],
-    [contractVolume],
-    [payoutVolume],
-    [connectsRevenue],
-  ] = await Promise.all([
-    countAccountsByRole(db, "FREELANCER"),
-    countAccountsByRole(db, "CLIENT"),
-    countAgencies(db),
-    countJobPosts(db),
-    countProposals(db),
-    countContracts(db),
-    countActiveContracts(db),
-    sumContractTotalCents(db),
-    sumPaidPayoutCents(db),
-    sumCompletedConnectsPurchaseCents(db),
-  ]);
-
-  return {
-    totals: {
-      freelancers: Number(freelancerCount?.value ?? 0),
-      clients: Number(clientCount?.value ?? 0),
-      agencies: Number(agencyCount?.value ?? 0),
-      jobPosts: Number(jobPostCount?.value ?? 0),
-      proposals: Number(proposalCount?.value ?? 0),
-      contracts: Number(contractCount?.value ?? 0),
-      activeContracts: Number(activeContractCount?.value ?? 0),
-    },
-    volume: {
-      totalContractValueCents: toSafeCents(contractVolume?.value),
-      totalPaidOutCents: toSafeCents(payoutVolume?.value),
-      totalConnectsRevenueCents: toSafeCents(connectsRevenue?.value),
-    },
-  };
-};
-
-export const getAdminOverviewActivity = async (pagination: Pagination) => {
-  const fetchLimit = pagination.offset + pagination.limit;
-
-  const [recentAccounts, recentAgencies, recentJobs, recentContracts] =
-    await Promise.all([
-      listRecentAccounts(db, fetchLimit),
-      listRecentAgencies(db, fetchLimit),
-      listRecentJobPosts(db, fetchLimit),
-      listRecentContracts(db, fetchLimit),
-    ]);
-
-  return mergePages(
-    [
-      recentAccounts.map((row) => ({
-        type: row.role === "FREELANCER" ? "Freelancer joined" : "Client joined",
-        id: row.id,
-        title:
-          row.role === "FREELANCER"
-            ? "New freelancer account"
-            : "New client account",
-        createdAt: row.createdAt,
-      })),
-      recentAgencies.map((row) => ({
-        type: "Agency created",
-        id: row.id,
-        title: row.name,
-        createdAt: row.createdAt,
-      })),
-      recentJobs.map((row) => ({
-        type: "Job posted",
-        id: row.id,
-        title: row.title,
-        createdAt: row.createdAt,
-      })),
-      recentContracts.map((row) => ({
-        type: "Contract created",
-        id: row.id,
-        title: row.title,
-        createdAt: row.createdAt,
-      })),
-    ],
-    pagination,
-  );
 };
 
 export const getAdminAccounts = async (pagination: Pagination) => {
@@ -327,40 +192,6 @@ export const getAdminContracts = async ({ limit, offset }: Pagination) => {
   return { results, hasMore: rows.length === limit };
 };
 
-type AdminTransactionRow =
-  | {
-      id: string;
-      type: "MILESTONE_FUNDED";
-      description: string;
-      party: string;
-      amountCents: number;
-      createdAt: Date | null;
-    }
-  | {
-      id: string;
-      type: "EARNING";
-      description: string;
-      party: string;
-      amountCents: number;
-      createdAt: Date | null;
-    }
-  | {
-      id: string;
-      type: "PAYOUT";
-      description: string;
-      party: string;
-      amountCents: number;
-      createdAt: Date | null;
-    }
-  | {
-      id: string;
-      type: "CONNECTS_PURCHASE";
-      description: string;
-      party: string;
-      amountCents: number;
-      createdAt: Date | null;
-    };
-
 export const getAdminTransactions = async (pagination: Pagination) => {
   const fetchLimit = pagination.offset + pagination.limit;
 
@@ -434,137 +265,4 @@ export const getAdminTransactions = async (pagination: Pagination) => {
     ],
     pagination,
   );
-};
-
-export const getSystemHealth = async () => {
-  const startedAt = Date.now();
-
-  const [redisResult, dbResult, rabbitResult] = await Promise.allSettled([
-    (async () => {
-      const start = Date.now();
-      await redis.ping();
-      return { ok: true, latencyMs: Date.now() - start };
-    })(),
-    (async () => {
-      const start = Date.now();
-      await pingDatabase(db);
-      return { ok: true, latencyMs: Date.now() - start };
-    })(),
-    getRabbitStatus(),
-  ]);
-
-  const settle = async (
-    result: PromiseSettledResult<{ ok: boolean; latencyMs: number }>,
-    eventName: string,
-    message: string,
-  ): Promise<{ ok: boolean; latencyMs?: number }> => {
-    if (result.status === "fulfilled") return result.value;
-    await Promise.resolve()
-      .then(() =>
-        logger.error({
-          message,
-          eventName,
-          attributes: errorLogAttributes(result.reason),
-        }),
-      )
-      .catch(() => undefined);
-    return { ok: false };
-  };
-
-  return {
-    redis: await settle(
-      redisResult,
-      "admin.health.redis_failed",
-      "Redis health check failed",
-    ),
-    database: await settle(
-      dbResult,
-      "admin.health.database_failed",
-      "Database health check failed",
-    ),
-    rabbitmq:
-      rabbitResult.status === "fulfilled" ? rabbitResult.value : { ok: false },
-    process: {
-      uptimeSeconds: Math.round(process.uptime()),
-      memory: process.memoryUsage(),
-      loadAverage: (await import("os")).loadavg(),
-      cpuCount: (await import("os")).cpus().length,
-      totalMemoryMb: Math.round((await import("os")).totalmem() / 1024 / 1024),
-      freeMemoryMb: Math.round((await import("os")).freemem() / 1024 / 1024),
-      nodeVersion: process.version,
-    },
-    checkedAt: new Date(startedAt).toISOString(),
-  };
-};
-
-const MAX_SCAN_KEYS = 200;
-
-export const scanRedisKeys = async (pattern: string) => {
-  if (!isAllowedRedisKey(pattern)) {
-    throw new ApiError(400, "Invalid request.");
-  }
-  const keys: string[] = [];
-  let cursor = "0";
-  do {
-    const result = await redis.scan(cursor, { MATCH: pattern, COUNT: 100 });
-    cursor = result.cursor;
-    keys.push(...result.keys.filter(isAllowedRedisKey));
-  } while (cursor !== "0" && keys.length < MAX_SCAN_KEYS);
-
-  const preview = keys.slice(0, MAX_SCAN_KEYS);
-  const details = await Promise.all(
-    preview.map(async (key) => {
-      const [type, ttl] = await Promise.all([redis.type(key), redis.ttl(key)]);
-      return { key, type, ttl };
-    }),
-  );
-
-  return { keys: details, truncated: keys.length >= MAX_SCAN_KEYS };
-};
-
-const MAX_VALUE_PREVIEW = 5_000;
-
-export const getRedisKeyValue = async (key: string) => {
-  if (!isAllowedRedisKey(key)) {
-    throw new ApiError(403, "Access to this Redis key is not allowed.");
-  }
-  const type = await redis.type(key);
-  let value: unknown;
-
-  switch (type) {
-    case "string":
-      value = await redis.get(key);
-      break;
-    case "hash":
-      value = await redis.hGetAll(key);
-      break;
-    case "list":
-      value = await redis.lRange(key, 0, 100);
-      break;
-    case "set":
-      value = await redis.sMembers(key);
-      break;
-    case "zset":
-      value = await redis.zRangeWithScores(key, 0, 100);
-      break;
-    case "none":
-      return { type, ttl: -2, value: null };
-    default:
-      value = `<unsupported type: ${type}>`;
-  }
-
-  if (key.startsWith(REDIS_REDACTED_PREFIX)) {
-    value = REDIS_REDACTED_VALUE;
-  }
-
-  const serialized = JSON.stringify(value);
-  const truncated = serialized.length > MAX_VALUE_PREVIEW;
-  const ttl = await redis.ttl(key);
-
-  return {
-    type,
-    ttl,
-    value: truncated ? serialized.slice(0, MAX_VALUE_PREVIEW) : value,
-    truncated,
-  };
 };

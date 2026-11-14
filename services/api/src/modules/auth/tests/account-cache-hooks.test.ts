@@ -78,7 +78,7 @@ const { receiveSignup } = await import("../services/auth.service.js");
 const { saveClientProfile } =
   await import("../../client/services/client.service.js");
 const { saveFreelancerProfile } =
-  await import("../../freelancer/services/freelancer.service.js");
+  await import("../../freelancer/services/freelancer.profile.service.js");
 
 beforeEach(() => {
   mocks.events.length = 0;
