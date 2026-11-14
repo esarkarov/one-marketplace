@@ -1,20 +1,20 @@
 import { randomUUID } from "crypto";
-import { db } from "../../database/client.js";
-import { isUniqueViolation } from "../../database/pg-errors.js";
+import { db } from "../../../database/client.js";
+import { isUniqueViolation } from "../../../database/pg-errors.js";
 import {
   endActiveMeetingByRoomName,
   findActiveMeetingByConversation,
   insertActiveMeeting,
   setMeetingMessageId,
-} from "./meetings.repository.js";
-import { ApiError } from "../../shared/http/api-error.js";
-import { errorLogAttributes } from "../../shared/logging/sanitize-log.js";
-import { logger } from "../../config/logger.js";
-import { createDailyRoom } from "../../infrastructure/daily.js";
+} from "../repositories/meetings.repository.js";
+import { ApiError } from "../../../shared/http/api-error.js";
+import { errorLogAttributes } from "../../../shared/logging/sanitize-log.js";
+import { logger } from "../../../config/logger.js";
+import { createDailyRoom } from "../../../infrastructure/daily.js";
 import {
   postSystemEventMessage,
   requireMember,
-} from "../messaging/messaging.public.js";
+} from "../../messaging/messaging.public.js";
 
 const ACTIVE_MEETING_UNIQUE = "meetings_one_active_per_conversation_unique";
 

@@ -1,6 +1,6 @@
 import { and, desc, eq, or, sql } from "drizzle-orm";
-import type { DbExecutor } from "../../database/db-executor.js";
-import { notifications } from "./models/notifications.model.js";
+import type { DbExecutor } from "../../../database/db-executor.js";
+import { notifications } from "../models/notifications.model.js";
 
 export const findLatestNotifications = (
   executor: DbExecutor,

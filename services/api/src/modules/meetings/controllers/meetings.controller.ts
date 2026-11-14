@@ -1,12 +1,15 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import type { Request, RequestHandler } from "express";
-import { asyncHandler } from "../../shared/http/async-handler.js";
-import { ApiError } from "../../shared/http/api-error.js";
-import { ApiResponse } from "../../types/common.types.js";
-import { env } from "../../config/env.js";
-import { redis } from "../../infrastructure/redis.js";
-import { errorLogAttributes } from "../../shared/logging/sanitize-log.js";
-import { endMeetingByRoomName, startMeeting } from "./meetings.service.js";
+import { asyncHandler } from "../../../shared/http/async-handler.js";
+import { ApiError } from "../../../shared/http/api-error.js";
+import { ApiResponse } from "../../../types/common.types.js";
+import { env } from "../../../config/env.js";
+import { redis } from "../../../infrastructure/redis.js";
+import { errorLogAttributes } from "../../../shared/logging/sanitize-log.js";
+import {
+  endMeetingByRoomName,
+  startMeeting,
+} from "../services/meetings.service.js";
 
 export const createMeetingHandler: RequestHandler = asyncHandler(
   async (request, response) => {

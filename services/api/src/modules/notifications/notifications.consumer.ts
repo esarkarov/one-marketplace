@@ -6,11 +6,11 @@ import { db } from "../../database/client.js";
 import {
   insertNotificationIfNew,
   pingDatabase,
-} from "./notifications.repository.js";
+} from "./repositories/notifications.repository.js";
 import {
   emitAgencyNotification,
   emitNotification,
-} from "./notifications.sse.js";
+} from "./services/notifications.sse.js";
 import {
   errorCodeForLog,
   errorLogAttributes,

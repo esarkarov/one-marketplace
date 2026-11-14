@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { dailyWebhookHandler } from "./meetings.controller.js";
+import { dailyWebhookHandler } from "./controllers/meetings.controller.js";
 
 export const meetingsRouter = Router();
 

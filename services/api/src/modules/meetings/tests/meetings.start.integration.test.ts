@@ -18,32 +18,32 @@ const mocks = vi.hoisted(() => ({
   createDailyRoom: vi.fn(),
 }));
 
-vi.mock("../../config/logger.js", async (importOriginal) => {
+vi.mock("../../../config/logger.js", async (importOriginal) => {
   const original =
-    await importOriginal<typeof import("../../config/logger.js")>();
+    await importOriginal<typeof import("../../../config/logger.js")>();
   return {
     ...original,
     logger: { ...original.logger, warn: mocks.loggerWarn },
   };
 });
 
-vi.mock("../../infrastructure/daily.js", () => ({
+vi.mock("../../../infrastructure/daily.js", () => ({
   createDailyRoom: mocks.createDailyRoom,
 }));
 
-vi.mock("../messaging/messaging.socket.js", async (importOriginal) => ({
+vi.mock("../../messaging/messaging.socket.js", async (importOriginal) => ({
   ...(await importOriginal<
-    typeof import("../messaging/messaging.socket.js")
+    typeof import("../../messaging/messaging.socket.js")
   >()),
   emitConversationUpdate: mocks.emitConversationUpdate,
 }));
 
 vi.mock(
-  "../messaging/services/messaging.service.js",
+  "../../messaging/services/messaging.service.js",
   async (importOriginal) => {
     const original =
       await importOriginal<
-        typeof import("../messaging/services/messaging.service.js")
+        typeof import("../../messaging/services/messaging.service.js")
       >();
     const post = original.postSystemEventMessage as (
       ...args: unknown[]
@@ -59,21 +59,21 @@ vi.mock(
   },
 );
 
-import { db, pool } from "../../database/client.js";
+import { db, pool } from "../../../database/client.js";
 import {
   accounts,
   conversation_participants,
   conversations,
   messages,
   meetings,
-} from "../../test/support/tables.js";
-import { assertTestDatabase } from "../../test/setup/assert-test-database.js";
+} from "../../../test/support/tables.js";
+import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
 import {
   raceBlocked,
   waitForBlocked,
   type LockHolder,
-} from "../../test/support/lock-holder.js";
-import { startMeeting } from "./meetings.service.js";
+} from "../../../test/support/lock-holder.js";
+import { startMeeting } from "../services/meetings.service.js";
 
 const PREFIX = "meeting-start-it-";
 const INSERT_MEETING = 'insert into "meetings"%';

@@ -17,12 +17,13 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@clerk/backend", () => ({ verifyToken: mocks.verifyToken }));
 
-vi.mock("../../config/env.js", async (importOriginal) => {
-  const original = await importOriginal<typeof import("../../config/env.js")>();
+vi.mock("../../../config/env.js", async (importOriginal) => {
+  const original =
+    await importOriginal<typeof import("../../../config/env.js")>();
   return { ...original, env: { ...original.env, clerkSecretKey: "sk_test" } };
 });
 
-vi.mock("../../infrastructure/redis.js", () => ({
+vi.mock("../../../infrastructure/redis.js", () => ({
   redis: {
     get: async (key: string) => mocks.store.get(key) ?? null,
     expire: async () => true,
@@ -41,17 +42,17 @@ vi.mock("../../infrastructure/redis.js", () => ({
   disconnectRedis: async () => undefined,
 }));
 
-import { db, pool } from "../../database/client.js";
+import { db, pool } from "../../../database/client.js";
 import {
   accounts,
   agency_members,
   agency_metadata,
   notifications,
-} from "../../test/support/tables.js";
-import { assertTestDatabase } from "../../test/setup/assert-test-database.js";
-import { notificationsResponses } from "./notifications.responses.js";
+} from "../../../test/support/tables.js";
+import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
+import { notificationsResponses } from "../responses/notifications.responses.js";
 
-const { app } = await import("../../app.js");
+const { app } = await import("../../../app.js");
 
 const PREFIX = "notifications-contract-it-";
 const API = "/api/v1/notifications";

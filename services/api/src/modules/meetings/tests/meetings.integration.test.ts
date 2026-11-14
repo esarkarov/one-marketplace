@@ -22,24 +22,25 @@ const mocks = vi.hoisted(() => ({
   loggerWarn: vi.fn(),
 }));
 
-vi.mock("../../config/logger.js", async (importOriginal) => {
+vi.mock("../../../config/logger.js", async (importOriginal) => {
   const original =
-    await importOriginal<typeof import("../../config/logger.js")>();
+    await importOriginal<typeof import("../../../config/logger.js")>();
   return {
     ...original,
     logger: { ...original.logger, warn: mocks.loggerWarn },
   };
 });
 
-vi.mock("../../config/env.js", async (importOriginal) => {
-  const original = await importOriginal<typeof import("../../config/env.js")>();
+vi.mock("../../../config/env.js", async (importOriginal) => {
+  const original =
+    await importOriginal<typeof import("../../../config/env.js")>();
   return {
     ...original,
     env: { ...original.env, dailyWebhookSecret: mocks.secret },
   };
 });
 
-vi.mock("../../infrastructure/redis.js", () => ({
+vi.mock("../../../infrastructure/redis.js", () => ({
   redis: {
     isReady: true,
     set: async (key: string, value: string) => {
@@ -55,19 +56,19 @@ vi.mock("../../infrastructure/redis.js", () => ({
   },
 }));
 
-vi.mock("../messaging/messaging.socket.js", async (importOriginal) => ({
+vi.mock("../../messaging/messaging.socket.js", async (importOriginal) => ({
   ...(await importOriginal<
-    typeof import("../messaging/messaging.socket.js")
+    typeof import("../../messaging/messaging.socket.js")
   >()),
   emitConversationUpdate: mocks.emitConversationUpdate,
 }));
 
 vi.mock(
-  "../messaging/services/messaging.service.js",
+  "../../messaging/services/messaging.service.js",
   async (importOriginal) => {
     const original =
       await importOriginal<
-        typeof import("../messaging/services/messaging.service.js")
+        typeof import("../../messaging/services/messaging.service.js")
       >();
     const post = original.postSystemEventMessage as (
       ...args: unknown[]
@@ -83,18 +84,18 @@ vi.mock(
   },
 );
 
-import { db, pool } from "../../database/client.js";
+import { db, pool } from "../../../database/client.js";
 import {
   accounts,
   conversation_participants,
   conversations,
   messages,
   meetings,
-} from "../../test/support/tables.js";
-import { errorHandler } from "../../app-middleware/error.middleware.js";
-import { assertTestDatabase } from "../../test/setup/assert-test-database.js";
-import { dailyWebhookHandler } from "./meetings.controller.js";
-import { endMeetingByRoomName } from "./meetings.service.js";
+} from "../../../test/support/tables.js";
+import { errorHandler } from "../../../app-middleware/error.middleware.js";
+import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
+import { dailyWebhookHandler } from "../controllers/meetings.controller.js";
+import { endMeetingByRoomName } from "../services/meetings.service.js";
 
 const PREFIX = "meeting-it-";
 

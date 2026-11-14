@@ -3,7 +3,7 @@ import {
   ErrorBody,
   isoDateTime,
   ok,
-} from "../../shared/validation/response-schemas.js";
+} from "../../../shared/validation/response-schemas.js";
 
 export const meetingsResponses = {
   create: {

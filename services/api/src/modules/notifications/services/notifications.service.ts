@@ -1,9 +1,9 @@
-import { db } from "../../database/client.js";
+import { db } from "../../../database/client.js";
 import {
   findLatestNotifications,
   markAllNotificationsRead,
   markNotificationReadForRecipient,
-} from "./notifications.repository.js";
+} from "../repositories/notifications.repository.js";
 
 export const getNotifications = (userId: string, agencyId: string | null) =>
   findLatestNotifications(db, userId, agencyId);

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ConsumeMessage } from "amqplib";
-import { createNotificationEnvelope } from "../../infrastructure/events/envelope.js";
+import { createNotificationEnvelope } from "../../../infrastructure/events/envelope.js";
 
 const mocks = vi.hoisted(() => ({
   returning: vi.fn(),
@@ -12,15 +12,15 @@ const mocks = vi.hoisted(() => ({
   logInfo: vi.fn(),
 }));
 
-vi.mock("../../config/logger.js", () => ({
+vi.mock("../../../config/logger.js", () => ({
   logger: { error: mocks.logError, info: mocks.logInfo },
 }));
 
-vi.mock("../../infrastructure/rabbitmq.js", () => ({
+vi.mock("../../../infrastructure/rabbitmq.js", () => ({
   getRabbitConsumerChannel: vi.fn(),
 }));
 
-vi.mock("../../database/client.js", () => ({
+vi.mock("../../../database/client.js", () => ({
   db: {
     insert: () => ({
       values: (value: unknown) => {
@@ -34,13 +34,13 @@ vi.mock("../../database/client.js", () => ({
   },
 }));
 
-vi.mock("./notifications.sse.js", () => ({
+vi.mock("../services/notifications.sse.js", () => ({
   emitNotification: mocks.emit,
   emitAgencyNotification: mocks.emitAgency,
 }));
 
 const { createNotificationConsumer } =
-  await import("./notifications.consumer.js");
+  await import("../notifications.consumer.js");
 
 type Handler = (message: ConsumeMessage) => void;
 

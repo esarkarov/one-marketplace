@@ -6,13 +6,13 @@ import {
   markAllNotificationsRead,
   markNotificationRead,
   notificationStream,
-} from "./notifications.controller.js";
+} from "./controllers/notifications.controller.js";
 import {
   notificationIdParamsSchema,
   roleOnlyQuerySchema,
   scopeQuerySchema,
-} from "./notifications.schemas.js";
-import { notificationsResponses } from "./notifications.responses.js";
+} from "./schemas/notifications.schema.js";
+import { notificationsResponses } from "./responses/notifications.responses.js";
 
 export const notificationRouter = Router();
 

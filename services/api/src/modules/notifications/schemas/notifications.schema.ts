@@ -3,7 +3,7 @@ import {
   authRoleShape,
   scopeField,
   uuidParam,
-} from "../../shared/validation/common-schemas.js";
+} from "../../../shared/validation/common-schemas.js";
 
 export const notificationIdParamsSchema = z.strictObject({
   notificationId: uuidParam("Notification"),

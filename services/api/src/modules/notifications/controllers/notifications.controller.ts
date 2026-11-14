@@ -1,17 +1,17 @@
 import { RequestHandler } from "express";
-import { asyncHandler } from "../../shared/http/async-handler.js";
-import { ApiResponse } from "../../types/common.types.js";
+import { asyncHandler } from "../../../shared/http/async-handler.js";
+import { ApiResponse } from "../../../types/common.types.js";
 import {
   getNotifications,
   readAllNotifications,
   readNotification,
-} from "./notifications.service.js";
-import { getAgencyIdForMember } from "../agency/agency.public.js";
+} from "../services/notifications.service.js";
+import { getAgencyIdForMember } from "../../agency/agency.public.js";
 import {
   addAgencyNotificationClient,
   addNotificationClient,
-} from "./notifications.sse.js";
-import { ApiError } from "../../shared/http/api-error.js";
+} from "../services/notifications.sse.js";
+import { ApiError } from "../../../shared/http/api-error.js";
 
 type Scope = "agency" | "default";
 
