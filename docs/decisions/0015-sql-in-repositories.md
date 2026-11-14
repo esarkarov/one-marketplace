@@ -21,6 +21,6 @@ ADR 0014 section 5 adopted repositories only for `contracts` and `agency` and ke
 
 ## Consequences
 
-- Every conversion stage moves one module's SQL, keeps behavior identical, and removes that module's files from the exemption list.
+- Every conversion stage moved one module's SQL into its repository and kept behavior identical; all modules are converted and no exemption list exists.
 - Guards and locks are reviewed in repositories, with mutation proof, instead of inline in services.
 - ADR 0014 section 5 points here; this ADR wins where they differ.
