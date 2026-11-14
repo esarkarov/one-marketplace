@@ -3,10 +3,10 @@ import type { Channel } from "amqplib";
 export const NOTIFICATIONS_CREATED_ROUTING_KEY = "notifications.created";
 export const DEFAULT_DELIVERY_LIMIT = 5;
 
-export type TopologyOptions = {
+export interface TopologyOptions {
   prefix?: string;
   deliveryLimit?: number;
-};
+}
 
 export const topologyNames = (prefix = "") => ({
   exchange: `${prefix}notifications`,

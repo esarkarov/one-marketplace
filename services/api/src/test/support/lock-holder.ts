@@ -40,10 +40,10 @@ export const waitForBlocked = async (
   }
 };
 
-export type LockHolder = {
+export interface LockHolder {
   pid: number;
   release: () => Promise<void>;
-};
+}
 
 export const openLockHolder = async (
   hold: (client: PoolClient) => Promise<void>,

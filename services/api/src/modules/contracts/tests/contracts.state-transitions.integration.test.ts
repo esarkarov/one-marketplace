@@ -74,10 +74,10 @@ const UPDATE_MILESTONE = 'update "contract_milestones"%';
 const LOCK_CONTRACT = 'select "status" from "contracts"%';
 const UPSERT_EARNING = 'insert into "freelancer_earning"%';
 
-type MilestoneSeed = {
+interface MilestoneSeed {
   status: "PENDING" | "ACTIVE" | "COMPLETED";
   requested?: boolean;
-};
+}
 
 const created = {
   accountIds: [] as string[],

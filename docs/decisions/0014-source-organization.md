@@ -98,7 +98,7 @@ Every stage that applies this ADR keeps `docs/api/openapi.json` byte-identical, 
 
 > Superseded by ADR 0016: table files are `modules/<name>/models/<name>.model.ts`, the drizzle glob is `./src/modules/*/models/*.model.ts` and tables are imported from `.model.js`.
 
-Tables and enums live in the module that owns them, in `modules/<name>/<name>.schema.ts`. The suffix is exactly `.schema.ts`: it is the drizzle file and is different from `<name>.schemas.ts`, the zod request and response schemas. There is no central schema anywhere: `database/` keeps `client.ts`, `db-executor.ts` and `pg-errors.ts`, imports no module file, and `database/schema.ts` no longer exists.
+Tables and enums live in the module that owns them, in `modules/<name>/<name>.schema.ts`. The suffix is exactly `.schema.ts`: it is the drizzle file and is different from `<name>.schemas.ts`, the zod request and response schemas. There is no central schema anywhere: `database/` keeps `client.ts`, `database.types.ts` (ADR 0018) and `pg-errors.ts`, imports no module file, and `database/schema.ts` no longer exists.
 
 - A table file imports only drizzle-orm packages and other table files, so it is acyclic among table files and independent of config, shared and the db client. It is exempt from the layer order and the `.public.ts` rule, and so is any file that imports one; controllers and routes may not import a table file at all (eslint and the boundary test).
 - Ownership is `src/test/architecture/table-ownership.ts`, the single map for every table and enum. `accounts` and `accountRole` belong to auth; `shared/http/auth` reading `accounts` is a non-module edge in the allowlist.

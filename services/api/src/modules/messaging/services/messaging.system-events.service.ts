@@ -1,7 +1,7 @@
 import { db } from "../../../database/client.js";
 import type { messages } from "../models/messaging.model.js";
 import { ApiError } from "../../../shared/http/api-error.js";
-import type { DbExecutor } from "../../../database/db-executor.js";
+import type { DbExecutor } from "../../../database/database.types.js";
 import { emitConversationUpdate } from "../messaging.socket.js";
 import { appendConversationMessages } from "../repositories/messaging.conversations.repository.js";
 import { SystemEventInput } from "../types/messaging.types.js";

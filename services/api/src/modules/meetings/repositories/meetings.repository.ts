@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm";
-import type { DbExecutor } from "../../../database/db-executor.js";
+import type { DbExecutor } from "../../../database/database.types.js";
 import { meetings } from "../models/meetings.model.js";
 
 export const findActiveMeetingByConversation = async (

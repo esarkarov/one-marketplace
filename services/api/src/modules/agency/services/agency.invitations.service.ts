@@ -2,7 +2,7 @@ import { clerk } from "../../../infrastructure/clerk.js";
 import { db } from "../../../database/client.js";
 import { isUniqueViolation } from "../../../database/pg-errors.js";
 import { ApiError } from "../../../shared/http/api-error.js";
-import type { DbExecutor } from "../../../database/db-executor.js";
+import type { DbExecutor } from "../../../database/database.types.js";
 import { env } from "../../../config/env.js";
 import { logger } from "../../../config/logger.js";
 import { errorLogAttributes } from "../../../shared/logging/sanitize-log.js";

@@ -117,13 +117,13 @@ const START_CONNECTS = 50;
 const as = (userId: string) => ({ Authorization: `Bearer ${userId}` });
 const newAuthId = () => `${PREFIX}${randomUUID()}`;
 
-type RoleCase = {
+interface RoleCase {
   label: string;
   role: string;
   isOwner: boolean;
   hasMemberRow: boolean;
   allowed: boolean;
-};
+}
 
 const ROLE_CASES: RoleCase[] = [
   {

@@ -20,7 +20,7 @@ export type Owner =
   | { freelancerId: string; agencyId?: undefined }
   | { agencyId: string; freelancerId?: undefined };
 
-export type PayoutSeed = {
+export interface PayoutSeed {
   status?: "PENDING" | "PROCESSING" | "PAID" | "FAILED";
   amountCents?: number;
   attempts?: number;
@@ -31,7 +31,7 @@ export type PayoutSeed = {
   notified?: boolean;
   lastError?: string;
   destinationAccountId?: string;
-};
+}
 
 export const assertPayoutSchema = async () => {
   assertTestDatabase(process.env.DATABASE_URL, process.env.POSTGRES_DB);

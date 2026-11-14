@@ -27,16 +27,16 @@ import {
 
 const TRANSFER_LIST_LIMIT = 10;
 
-export type PayoutRunSummary = {
+export interface PayoutRunSummary {
   checked: number;
   paid: number;
   skipped: number;
   failed: number;
-};
+}
 
 type Outcome = "paid" | "skipped" | "failed";
 
-type Candidate = {
+interface Candidate {
   id: string;
   earningHistoryId: string;
   amountCents: number;
@@ -44,7 +44,7 @@ type Candidate = {
   freelancerId: string | null;
   agencyId: string | null;
   stripeConnectAccountId: string | null;
-};
+}
 
 const payoutAttributes = (row: {
   id: string;
@@ -231,7 +231,10 @@ const failClaimed = async (
   return "failed";
 };
 
-type FoundTransfer = { id: string; reversed: boolean };
+interface FoundTransfer {
+  id: string;
+  reversed: boolean;
+}
 
 const parkForReview = async (
   claimed: PayoutRecord,

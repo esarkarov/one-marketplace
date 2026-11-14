@@ -5,15 +5,15 @@ import { sanitizeForLog } from "../shared/logging/sanitize-log.js";
 
 type AttributeValue = string | number | boolean | null;
 
-export type LogPayload = {
+export interface LogPayload {
   message: string;
   eventName?: string;
   attributes?: Record<string, AttributeValue | AttributeValue[]>;
-};
+}
 
 type LogMethod = (payload: LogPayload) => Promise<void>;
 
-export type AppLogger = {
+export interface AppLogger {
   trace: LogMethod;
   debug: LogMethod;
   info: LogMethod;
@@ -21,7 +21,7 @@ export type AppLogger = {
   warning: LogMethod;
   error: LogMethod;
   fatal: LogMethod;
-};
+}
 
 const sanitizeValue = (value: unknown): unknown => {
   if (typeof value === "string") return sanitizeForLog(value);

@@ -63,7 +63,7 @@ describe("SQL lives in repositories", () => {
   it("flags queries on an executor parameter and on db directly", () => {
     const root = tree({
       "modules/a/index.ts": `
-import type { DbExecutor } from "../../database/db-executor.js";
+import type { DbExecutor } from "../../database/database.types.js";
 export const f = (executor: DbExecutor) => executor.insert(x).values({});
 `,
       "modules/b/b.service.ts": `

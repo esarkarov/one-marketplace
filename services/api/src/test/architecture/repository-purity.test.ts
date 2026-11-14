@@ -70,7 +70,7 @@ export const find = () => fetch("https://example.test");
   it("passes a repository that only returns data and ignores non-repository files", () => {
     const root = tree({
       "modules/a/a.repository.ts": `
-import type { DbExecutor } from "../../database/db-executor.js";
+import type { DbExecutor } from "../../database/database.types.js";
 export const find = (executor: DbExecutor) => executor.select();
 `,
       "modules/a/a.service.ts": `

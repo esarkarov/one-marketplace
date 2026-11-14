@@ -53,7 +53,10 @@ const attachment = {
 };
 
 type Method = "get" | "post";
-type Input = { query?: object; body?: object };
+interface Input {
+  query?: object;
+  body?: object;
+}
 
 const call = (method: Method, path: string, role: string, input: Input) => {
   const req = request(app)[method](path).set(bearer);

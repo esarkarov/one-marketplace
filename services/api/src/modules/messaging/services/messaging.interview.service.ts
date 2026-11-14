@@ -1,4 +1,4 @@
-import type { DbExecutor } from "../../../database/db-executor.js";
+import type { DbExecutor } from "../../../database/database.types.js";
 import { ApiError } from "../../../shared/http/api-error.js";
 import {
   insertOrFindConversationByContextKey,

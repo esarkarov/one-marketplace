@@ -12,7 +12,10 @@ export const AGENCY_PERMISSIONS = {
 
 export type AgencyPermission = keyof typeof AGENCY_PERMISSIONS;
 
-export type AgencyActor = { isOwner: boolean; role: string };
+export interface AgencyActor {
+  isOwner: boolean;
+  role: string;
+}
 
 export const isAgencyRoleAllowed = (
   permission: AgencyPermission,

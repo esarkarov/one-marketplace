@@ -8,10 +8,10 @@ export const RETRY_BACKOFF_SECONDS = [
   24 * 60 * 60,
 ] as const;
 
-export type PayoutFailure = {
+export interface PayoutFailure {
   kind: "unknown" | "definitive";
   code: string;
-};
+}
 
 const safeToken = (value: unknown): string | undefined => {
   if (typeof value !== "string") return undefined;

@@ -22,6 +22,12 @@ export default defineConfig([
     rules: { "no-console": "error" },
   },
   {
+    files: ["src/**/*.ts"],
+    rules: {
+      "@typescript-eslint/consistent-type-definitions": ["error", "interface"],
+    },
+  },
+  {
     files: ["src/modules/**/*.controller.ts", "src/modules/**/*.route.ts"],
     rules: {
       "no-restricted-imports": [
@@ -77,7 +83,7 @@ export default defineConfig([
       "src/shared/**/*.ts",
       "src/app-middleware/**/*.ts",
       "src/bootstrap/**/*.ts",
-      "src/database/db-executor.ts",
+      "src/database/database.types.ts",
       "src/routes/**/*.ts",
       "src/types/**/*.ts",
       "src/*.ts",

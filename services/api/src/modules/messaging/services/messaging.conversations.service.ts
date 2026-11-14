@@ -16,7 +16,7 @@ import {
   listParticipantProfileRows,
 } from "../repositories/messaging.participants.repository.js";
 import { ApiError } from "../../../shared/http/api-error.js";
-import type { DbExecutor } from "../../../database/db-executor.js";
+import type { DbExecutor } from "../../../database/database.types.js";
 import {
   getAgencyIdForMember,
   getAgencyTeamMemberIds,

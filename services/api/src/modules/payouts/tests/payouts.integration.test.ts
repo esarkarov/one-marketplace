@@ -67,21 +67,21 @@ import {
 import { transitionPayoutIfAllowed } from "../repositories/payouts.repository.js";
 import { processDuePayouts } from "../services/payouts.service.js";
 
-type LogEntry = {
+interface LogEntry {
   level: "info" | "warn" | "error";
   message: string;
   eventName?: string;
   attributes?: Record<string, unknown>;
-};
+}
 
-type StripeTransferLike = {
+interface StripeTransferLike {
   id: string;
   amount: number;
   currency: string;
   destination: string;
   reversed?: boolean;
   amount_reversed?: number;
-};
+}
 
 const activeAccount = {
   configuration: {

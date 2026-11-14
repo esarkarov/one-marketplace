@@ -2,7 +2,11 @@ import { env } from "../config/env.js";
 import { imageKit } from "./image-kit.js";
 import { ApiError } from "../shared/http/api-error.js";
 
-type Document = { fileId: string; fileName: string; fileUrl: string };
+interface Document {
+  fileId: string;
+  fileName: string;
+  fileUrl: string;
+}
 
 export const deleteDocuments = (
   documents: Array<{ fileId: string } | string> = [],

@@ -1,5 +1,5 @@
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
-import type { DbExecutor } from "../../../database/db-executor.js";
+import type { DbExecutor } from "../../../database/database.types.js";
 import { accounts } from "../../auth/models/auth.model.js";
 import { agency_earning } from "../../contracts/models/contracts.model.js";
 import { freelancer_metadata } from "../../freelancer/models/freelancer.model.js";

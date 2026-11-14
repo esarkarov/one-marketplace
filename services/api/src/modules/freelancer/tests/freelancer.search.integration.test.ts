@@ -71,12 +71,12 @@ const insertAccount = async (
   return authId;
 };
 
-type Seed = {
+interface Seed {
   rate: number;
   verified: boolean;
   status: string;
   earning: { rating: string; success: string; completed: number } | null;
-};
+}
 
 const seedTalent = async (seed: Seed) => {
   const authId = await insertAccount("FREELANCER", {

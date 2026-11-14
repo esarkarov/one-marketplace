@@ -374,10 +374,10 @@ describe("jobs queries against real Postgres", () => {
     await purge();
   });
 
-  type ClientOptions = {
+  interface ClientOptions {
     rating?: string | null;
     paymentVerified?: boolean;
-  };
+  }
 
   const seedClientWith = async (options: ClientOptions = {}) => {
     const clientId = await insertAccount(newAuthId(), "CLIENT", {

@@ -52,7 +52,10 @@ const future = new Date(Date.now() + 86_400_000 * 30)
   .slice(0, 10);
 
 type Method = "get" | "post" | "patch";
-type Input = { query?: object; body?: object };
+interface Input {
+  query?: object;
+  body?: object;
+}
 
 const call = (method: Method, path: string, role: string, input: Input) => {
   const req = request(app)[method](path).set(bearer);

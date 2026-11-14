@@ -1,7 +1,9 @@
 export type Json =
   null | boolean | number | string | Json[] | { [key: string]: Json };
 
-export type JsonObject = { [key: string]: Json };
+export interface JsonObject {
+  [key: string]: Json;
+}
 
 export const isObject = (value: unknown): value is JsonObject =>
   typeof value === "object" && value !== null && !Array.isArray(value);

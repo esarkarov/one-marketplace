@@ -137,11 +137,11 @@ const insertAccount = async (
   return authId;
 };
 
-type MilestoneSeed = {
+interface MilestoneSeed {
   status: "PENDING" | "ACTIVE" | "COMPLETED";
   funded?: boolean;
   requested?: boolean;
-};
+}
 
 const seed = async (
   options: {
@@ -556,12 +556,12 @@ describe("contract listing order and scope", () => {
 });
 
 describe("contract listing counterparty and review flags", () => {
-  type ListedContract = {
+  interface ListedContract {
     id: string;
     counterpartyName: string;
     reviewedByCurrentUser: boolean;
     milestones: { id: string }[];
-  };
+  }
 
   const listFor = async (
     path: "client" | "freelancer",

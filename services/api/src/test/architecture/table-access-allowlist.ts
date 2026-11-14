@@ -1,8 +1,8 @@
-export type TableAccessEntry = {
+export interface TableAccessEntry {
   importer: string;
   owner: string;
   access: "read";
-};
+}
 
 export const tableAccessAllowlist: TableAccessEntry[] = [
   { importer: "admin", owner: "agency", access: "read" },

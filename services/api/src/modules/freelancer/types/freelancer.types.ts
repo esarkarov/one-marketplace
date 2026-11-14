@@ -69,12 +69,12 @@ export interface SaveFreelancerProfileInput {
   portfolios: PortfolioInput[];
 }
 
-export type EarningsCertificateWindow = {
+export interface EarningsCertificateWindow {
   label: string;
   totalCents: number;
-};
+}
 
-export type EarningsCertificateData = {
+export interface EarningsCertificateData {
   freelancerName: string;
   professionalTitle: string;
   profileUrl: string;
@@ -82,7 +82,7 @@ export type EarningsCertificateData = {
   activeSince: Date;
   issuedAt: Date;
   windows: EarningsCertificateWindow[];
-};
+}
 
 export interface JobFeedFilters {
   sort?: "best-match" | "recent";

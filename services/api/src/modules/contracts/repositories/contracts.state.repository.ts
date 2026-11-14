@@ -1,5 +1,5 @@
 import { and, eq, isNotNull, ne, sql } from "drizzle-orm";
-import type { DbExecutor } from "../../../database/db-executor.js";
+import type { DbExecutor } from "../../../database/database.types.js";
 import {
   agency_earning,
   client_spents,
