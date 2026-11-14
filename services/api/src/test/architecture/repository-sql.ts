@@ -26,7 +26,7 @@ export const isSqlCarveOut = (key: string) =>
   key.startsWith("database/") ||
   key.startsWith("bootstrap/") ||
   isTestKey(key) ||
-  key.endsWith(".schema.ts") ||
+  key.endsWith(".model.ts") ||
   key.endsWith(".repository.ts");
 
 const isTypeOnlyImport = (node: ts.ImportDeclaration) => {
@@ -46,7 +46,7 @@ const isDrizzleSpecifier = (specifier: string) =>
   specifier === "drizzle-orm" || specifier.startsWith("drizzle-orm/");
 
 const isSchemaSpecifier = (specifier: string) =>
-  /\.schema(\.js)?$/.test(specifier);
+  /\.model(\.js)?$/.test(specifier);
 
 const rootIdentifier = (expression: ts.Expression): string | null => {
   let current: ts.Expression = expression;

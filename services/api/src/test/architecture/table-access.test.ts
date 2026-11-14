@@ -117,12 +117,12 @@ describe("table access", () => {
         writeFileSync(file, content);
       };
       put(
-        "modules/owner/owner.schema.ts",
+        "modules/owner/models/owner.model.ts",
         'import { pgTable, uuid } from "drizzle-orm/pg-core";\nexport const things = pgTable("things", { id: uuid("id") });\n',
       );
       put(
         "modules/importer/importer.service.ts",
-        'import { db } from "../../database/client.js";\nimport { things } from "../owner/owner.schema.js";\nexport const touch = () => db.update(things).set({});\n',
+        'import { db } from "../../database/client.js";\nimport { things } from "../owner/models/owner.model.js";\nexport const touch = () => db.update(things).set({});\n',
       );
       const found = analyzeTableAccess(
         (name) => (name === "things" ? "owner" : undefined),

@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import type { DbExecutor } from "../../database/db-executor.js";
-import { accounts } from "../auth/auth.schema.js";
+import { accounts } from "../auth/models/auth.model.js";
 
 export const findAccountIdentityStatus = async (
   executor: DbExecutor,

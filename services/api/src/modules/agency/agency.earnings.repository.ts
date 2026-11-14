@@ -1,11 +1,14 @@
 import { and, desc, eq, gte, sql } from "drizzle-orm";
 import type { DbExecutor } from "../../database/db-executor.js";
-import { accounts } from "../auth/auth.schema.js";
-import { client_metadata } from "../client/client.schema.js";
-import { contracts, earning_history } from "../contracts/contracts.schema.js";
-import { freelancer_metadata } from "../freelancer/freelancer.schema.js";
-import { payout_history } from "../payouts/payouts.schema.js";
-import { agency_metadata } from "./agency.schema.js";
+import { accounts } from "../auth/models/auth.model.js";
+import { client_metadata } from "../client/models/client.model.js";
+import {
+  contracts,
+  earning_history,
+} from "../contracts/models/contracts.model.js";
+import { freelancer_metadata } from "../freelancer/models/freelancer.model.js";
+import { payout_history } from "../payouts/models/payouts.model.js";
+import { agency_metadata } from "./models/agency.model.js";
 
 export const findHasAgencyEarnings = async (
   executor: DbExecutor,

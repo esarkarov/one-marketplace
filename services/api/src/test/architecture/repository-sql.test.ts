@@ -9,7 +9,7 @@ const found = analyzeRepositorySql();
 const SERVICE_WITH_SQL = `
 import { eq } from "drizzle-orm";
 import { db } from "../../database/client.js";
-import { things } from "./things.schema.js";
+import { things } from "./models/things.model.js";
 
 export const rename = (id: string) =>
   db.transaction(async (transaction) => {
@@ -79,7 +79,7 @@ export const g = () => db.select().from(x);
 
   it("flags a re-export of a table file", () => {
     const root = tree({
-      "modules/a/a.public.ts": `export { things } from "./a.schema.js";`,
+      "modules/a/a.public.ts": `export { things } from "./models/a.model.js";`,
     });
     expect([...analyzeRepositorySql(root).keys()]).toEqual([
       "modules/a/a.public.ts",
@@ -90,7 +90,7 @@ export const g = () => db.select().from(x);
     const root = tree({
       "modules/things/things.repository.ts": SERVICE_WITH_SQL,
       "modules/things/things.split.repository.ts": SERVICE_WITH_SQL,
-      "modules/things/things.schema.ts": `import { pgTable } from "drizzle-orm/pg-core";`,
+      "modules/things/models/things.model.ts": `import { pgTable } from "drizzle-orm/pg-core";`,
       "database/client.ts": SERVICE_WITH_SQL,
       "bootstrap/readiness.ts": SERVICE_WITH_SQL,
       "modules/things/things.service.test.ts": SERVICE_WITH_SQL,

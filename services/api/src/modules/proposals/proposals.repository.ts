@@ -1,18 +1,21 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import type { DbExecutor } from "../../database/db-executor.js";
-import { accounts } from "../auth/auth.schema.js";
+import { accounts } from "../auth/models/auth.model.js";
 import {
   agency_earning,
   client_spents,
   contracts,
   freelancer_earning,
-} from "../contracts/contracts.schema.js";
-import { agency_members, agency_metadata } from "../agency/agency.schema.js";
-import { client_metadata } from "../client/client.schema.js";
-import { conversations } from "../messaging/messaging.schema.js";
-import { freelancer_metadata } from "../freelancer/freelancer.schema.js";
-import { job_posts } from "../jobs/jobs.schema.js";
-import { proposals } from "./proposals.schema.js";
+} from "../contracts/models/contracts.model.js";
+import {
+  agency_members,
+  agency_metadata,
+} from "../agency/models/agency.model.js";
+import { client_metadata } from "../client/models/client.model.js";
+import { conversations } from "../messaging/models/messaging.model.js";
+import { freelancer_metadata } from "../freelancer/models/freelancer.model.js";
+import { job_posts } from "../jobs/models/jobs.model.js";
+import { proposals } from "./models/proposals.model.js";
 
 type SenderType = "FREELANCER" | "AGENCY";
 

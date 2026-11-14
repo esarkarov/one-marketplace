@@ -1,12 +1,12 @@
 import { and, asc, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import type { DbExecutor } from "../../database/db-executor.js";
-import { accounts } from "../auth/auth.schema.js";
-import { client_metadata } from "../client/client.schema.js";
-import { contract_milestones, contracts } from "./contracts.schema.js";
-import { conversations } from "../messaging/messaging.schema.js";
-import { job_posts } from "../jobs/jobs.schema.js";
-import { proposals } from "../proposals/proposals.schema.js";
-import { agency_metadata } from "../agency/agency.schema.js";
+import { accounts } from "../auth/models/auth.model.js";
+import { client_metadata } from "../client/models/client.model.js";
+import { contract_milestones, contracts } from "./models/contracts.model.js";
+import { conversations } from "../messaging/models/messaging.model.js";
+import { job_posts } from "../jobs/models/jobs.model.js";
+import { proposals } from "../proposals/models/proposals.model.js";
+import { agency_metadata } from "../agency/models/agency.model.js";
 
 export const findMilestoneForFunding = (
   executor: DbExecutor,

@@ -29,7 +29,7 @@ import {
   listParticipantProfileRows,
   markParticipantReadIfNotAhead,
 } from "./messaging.participants.repository.js";
-import type { messages } from "./messaging.schema.js";
+import type { messages } from "./models/messaging.model.js";
 import { ApiError } from "../../shared/http/api-error.js";
 import type { DbExecutor } from "../../database/db-executor.js";
 import {

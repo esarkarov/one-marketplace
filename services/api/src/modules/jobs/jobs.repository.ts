@@ -12,11 +12,14 @@ import {
   sql,
 } from "drizzle-orm";
 import type { DbExecutor } from "../../database/db-executor.js";
-import { accounts } from "../auth/auth.schema.js";
-import { client_metadata } from "../client/client.schema.js";
-import { client_spents, contracts } from "../contracts/contracts.schema.js";
-import { freelancer_saved_job_posts, job_posts } from "./jobs.schema.js";
-import { proposals } from "../proposals/proposals.schema.js";
+import { accounts } from "../auth/models/auth.model.js";
+import { client_metadata } from "../client/models/client.model.js";
+import {
+  client_spents,
+  contracts,
+} from "../contracts/models/contracts.model.js";
+import { freelancer_saved_job_posts, job_posts } from "./models/jobs.model.js";
+import { proposals } from "../proposals/models/proposals.model.js";
 
 export type NewJobPost = typeof job_posts.$inferInsert;
 export type JobData = Omit<NewJobPost, "client_id">;

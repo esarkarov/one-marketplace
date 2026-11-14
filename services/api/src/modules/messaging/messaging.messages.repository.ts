@@ -10,7 +10,7 @@ import {
   sql,
 } from "drizzle-orm";
 import type { DbExecutor } from "../../database/db-executor.js";
-import { message_attachments, messages } from "./messaging.schema.js";
+import { message_attachments, messages } from "./models/messaging.model.js";
 
 export type NewMessage = Omit<typeof messages.$inferInsert, "conversation_id">;
 

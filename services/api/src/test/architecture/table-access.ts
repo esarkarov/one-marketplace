@@ -50,7 +50,7 @@ export const parse = (file: string) =>
   );
 
 export const isLooseTableFile = (key: string) =>
-  /^modules\/[^/]+\/[^/]+\.schema\.ts$/.test(key);
+  /^modules\/[^/]+\/models\/[^/]+\.model\.ts$/.test(key);
 
 const isTableSource = (key: string) => isLooseTableFile(key);
 

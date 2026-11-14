@@ -1,9 +1,9 @@
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import type { DbExecutor } from "../../database/db-executor.js";
-import { accounts } from "../auth/auth.schema.js";
-import { agency_earning } from "../contracts/contracts.schema.js";
-import { freelancer_metadata } from "../freelancer/freelancer.schema.js";
-import { agency_members, agency_metadata } from "./agency.schema.js";
+import { accounts } from "../auth/models/auth.model.js";
+import { agency_earning } from "../contracts/models/contracts.model.js";
+import { freelancer_metadata } from "../freelancer/models/freelancer.model.js";
+import { agency_members, agency_metadata } from "./models/agency.model.js";
 
 export interface AgencySearchCriteria {
   specialty?: string;

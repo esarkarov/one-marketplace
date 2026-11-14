@@ -1,11 +1,11 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 import type { DbExecutor } from "../../database/db-executor.js";
-import { accounts } from "../auth/auth.schema.js";
+import { accounts } from "../auth/models/auth.model.js";
 import {
   agency_invitations,
   agency_members,
   agency_metadata,
-} from "./agency.schema.js";
+} from "./models/agency.model.js";
 
 const invitationColumns = {
   id: agency_invitations.id,

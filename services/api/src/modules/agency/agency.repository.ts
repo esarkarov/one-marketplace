@@ -1,19 +1,19 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
 import type { DbExecutor } from "../../database/db-executor.js";
-import { accounts } from "../auth/auth.schema.js";
+import { accounts } from "../auth/models/auth.model.js";
 import {
   agency_earning,
   contracts,
   freelancer_earning,
   reviews,
-} from "../contracts/contracts.schema.js";
-import { client_metadata } from "../client/client.schema.js";
-import { freelancer_metadata } from "../freelancer/freelancer.schema.js";
+} from "../contracts/models/contracts.model.js";
+import { client_metadata } from "../client/models/client.model.js";
+import { freelancer_metadata } from "../freelancer/models/freelancer.model.js";
 import {
   agency_members,
   agency_metadata,
   agency_portfolios,
-} from "./agency.schema.js";
+} from "./models/agency.model.js";
 
 const agencyColumns = {
   id: agency_metadata.id,

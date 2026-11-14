@@ -1,9 +1,9 @@
 import { and, asc, eq, isNull, or, sql, type SQL } from "drizzle-orm";
 import type { PgUpdateSetSource } from "drizzle-orm/pg-core";
 import type { DbExecutor } from "../../database/db-executor.js";
-import { accounts } from "../auth/auth.schema.js";
-import { agency_metadata } from "../agency/agency.schema.js";
-import { payout_history } from "./payouts.schema.js";
+import { accounts } from "../auth/models/auth.model.js";
+import { agency_metadata } from "../agency/models/agency.model.js";
+import { payout_history } from "./models/payouts.model.js";
 import {
   allowedFrom,
   assertTransition,

@@ -36,24 +36,43 @@ const table = (name: string) =>
   `import { pgTable, text } from "drizzle-orm/pg-core";\nexport const ${name} = pgTable("${name}", { id: text("id") });\n`;
 
 describe("table file naming", () => {
-  it("accepts only modules/<name>/<name>.schema.ts", () => {
-    expect(isTableFile("modules/auth/auth.schema.ts")).toBe(true);
-    expect(isTableFile("modules/auth/accounts.schema.ts")).toBe(false);
+  it("accepts only modules/<name>/models/<name>.model.ts", () => {
+    expect(isTableFile("modules/auth/models/auth.model.ts")).toBe(true);
+    expect(isTableFile("modules/auth/models/accounts.model.ts")).toBe(false);
+    expect(isTableFile("modules/auth/auth.schema.ts")).toBe(false);
+    expect(isTableFile("modules/auth/auth.model.ts")).toBe(false);
+    expect(isTableFile("modules/auth/schemas/auth.schema.ts")).toBe(false);
+    expect(isTableFile("modules/auth/schemas/x.schema.ts")).toBe(false);
     expect(isTableFile("modules/auth/auth.schemas.ts")).toBe(false);
     expect(isTableFile("database/schema.ts")).toBe(false);
-    expect(isTableFile("modules/auth/tests/auth.schema.ts")).toBe(false);
+    expect(isTableFile("modules/auth/tests/auth.model.ts")).toBe(false);
+  });
+
+  it("rejects a table file left at the module root", () => {
+    const root = tree({ "modules/a/a.schema.ts": table("t0") });
+    expect(checkTableFiles(root)).toEqual([
+      "modules/a/a.schema.ts: defines t0; tables and enums are defined only in table files",
+    ]);
+  });
+
+  it("does not treat a zod schemas file as a table file", () => {
+    const root = tree({
+      "modules/a/schemas/a.schema.ts":
+        'import { z } from "zod";\nexport const s = z.object({});\n',
+    });
+    expect(checkTableFiles(root)).toEqual([]);
   });
 
   it("flags a misnamed or misplaced table file", () => {
     const root = tree({
-      "modules/a/b.schema.ts": table("t1"),
-      "database/x.schema.ts": table("t2"),
+      "modules/a/models/b.model.ts": table("t1"),
+      "database/x.model.ts": table("t2"),
     });
     const problems = checkTableFiles(root);
-    expect(problems.some((p) => p.startsWith("modules/a/b.schema.ts:"))).toBe(
-      true,
-    );
-    expect(problems.some((p) => p.startsWith("database/x.schema.ts:"))).toBe(
+    expect(
+      problems.some((p) => p.startsWith("modules/a/models/b.model.ts:")),
+    ).toBe(true);
+    expect(problems.some((p) => p.startsWith("database/x.model.ts:"))).toBe(
       true,
     );
   });
@@ -84,8 +103,8 @@ describe("table file naming", () => {
 describe("table file imports", () => {
   it("allows drizzle-orm packages and other table files", () => {
     const root = tree({
-      "modules/a/a.schema.ts": table("a"),
-      "modules/b/b.schema.ts": `import { sql } from "drizzle-orm";\nimport { a } from "../a/a.schema.js";\n${table("b")}export const bExpr = sql\`\${a}\`;\n`,
+      "modules/a/models/a.model.ts": table("a"),
+      "modules/b/models/b.model.ts": `import { sql } from "drizzle-orm";\nimport { a } from "../../a/models/a.model.js";\n${table("b")}export const bExpr = sql\`\${a}\`;\n`,
     });
     expect(checkTableFiles(root)).toEqual([]);
   });
@@ -94,32 +113,32 @@ describe("table file imports", () => {
     const root = tree({
       "config/env.ts": "export const env = {};\n",
       "modules/a/a.service.ts": "export const service = 1;\n",
-      "modules/a/a.schema.ts": `import { env } from "../../config/env.js";\nimport { z } from "zod";\nimport { service } from "./a.service.js";\n${table("a")}`,
+      "modules/a/models/a.model.ts": `import { env } from "../../../config/env.js";\nimport { z } from "zod";\nimport { service } from "../a.service.js";\n${table("a")}`,
     });
     const problems = checkTableFiles(root);
     expect(problems).toHaveLength(3);
-    expect(problems.every((p) => p.startsWith("modules/a/a.schema.ts:"))).toBe(
-      true,
-    );
+    expect(
+      problems.every((p) => p.startsWith("modules/a/models/a.model.ts:")),
+    ).toBe(true);
   });
 });
 
 describe("table file cycles", () => {
   it("detects a cycle among table files", () => {
     const root = tree({
-      "modules/a/a.schema.ts": `import { b } from "../b/b.schema.js";\n${table("a")}`,
-      "modules/b/b.schema.ts": `import { a } from "../a/a.schema.js";\n${table("b")}`,
+      "modules/a/models/a.model.ts": `import { b } from "../../b/models/b.model.js";\n${table("a")}`,
+      "modules/b/models/b.model.ts": `import { a } from "../../a/models/a.model.js";\n${table("b")}`,
     });
     expect(findTableFileCycles(root)).toEqual([
-      "modules/a/a.schema.ts -> modules/b/b.schema.ts -> modules/a/a.schema.ts",
+      "modules/a/models/a.model.ts -> modules/b/models/b.model.ts -> modules/a/models/a.model.ts",
     ]);
   });
 
   it("accepts a chain of table files", () => {
     const root = tree({
-      "modules/a/a.schema.ts": table("a"),
-      "modules/b/b.schema.ts": `import { a } from "../a/a.schema.js";\n${table("b")}`,
-      "modules/c/c.schema.ts": `import { a } from "../a/a.schema.js";\nimport { b } from "../b/b.schema.js";\n${table("c")}`,
+      "modules/a/models/a.model.ts": table("a"),
+      "modules/b/models/b.model.ts": `import { a } from "../../a/models/a.model.js";\n${table("b")}`,
+      "modules/c/models/c.model.ts": `import { a } from "../../a/models/a.model.js";\nimport { b } from "../../b/models/b.model.js";\n${table("c")}`,
     });
     expect(findTableFileCycles(root)).toEqual([]);
   });
@@ -135,10 +154,10 @@ describe("table access across table files", () => {
 
   it("detects a read and a write through a module table file", () => {
     const root = tree({
-      "modules/a/a.schema.ts": table("a_table"),
-      "modules/b/b.schema.ts": table("b_table"),
-      "modules/b/b.service.ts": `import { a_table } from "../a/a.schema.js";\nimport { b_table } from "./b.schema.js";\nexport const run = (db: any) => {\n  db.select().from(a_table);\n  db.insert(b_table);\n};\n`,
-      "modules/c/c.service.ts": `import { a_table } from "../a/a.schema.js";\nexport const run = (tx: any) => tx.update(a_table);\n`,
+      "modules/a/models/a.model.ts": table("a_table"),
+      "modules/b/models/b.model.ts": table("b_table"),
+      "modules/b/b.service.ts": `import { a_table } from "../a/models/a.model.js";\nimport { b_table } from "./models/b.model.js";\nexport const run = (db: any) => {\n  db.select().from(a_table);\n  db.insert(b_table);\n};\n`,
+      "modules/c/c.service.ts": `import { a_table } from "../a/models/a.model.js";\nexport const run = (tx: any) => tx.update(a_table);\n`,
     });
     const { edges, violations } = analyzeTableAccess(owners, root);
     expect(violations).toEqual([]);
@@ -151,16 +170,16 @@ describe("table access across table files", () => {
 
   it("ignores access by the owning module and by table files", () => {
     const root = tree({
-      "modules/a/a.schema.ts": table("a_table"),
-      "modules/a/a.service.ts": `import { a_table } from "./a.schema.js";\nexport const run = (db: any) => db.insert(a_table);\n`,
+      "modules/a/models/a.model.ts": table("a_table"),
+      "modules/a/a.service.ts": `import { a_table } from "./models/a.model.js";\nexport const run = (db: any) => db.insert(a_table);\n`,
     });
     expect(analyzeTableAccess(owners, root).edges.size).toBe(0);
   });
 
   it("flags a namespace import and a re-export of a table file", () => {
     const root = tree({
-      "modules/a/a.schema.ts": table("a_table"),
-      "modules/b/b.service.ts": `import * as schema from "../a/a.schema.js";\nexport { a_table } from "../a/a.schema.js";\nexport const run = schema;\n`,
+      "modules/a/models/a.model.ts": table("a_table"),
+      "modules/b/b.service.ts": `import * as schema from "../a/models/a.model.js";\nexport { a_table } from "../a/models/a.model.js";\nexport const run = schema;\n`,
     });
     expect(analyzeTableAccess(owners, root).violations).toHaveLength(2);
   });
@@ -169,12 +188,12 @@ describe("table access across table files", () => {
 describe("database imports", () => {
   it("flags a database file that imports a module file", () => {
     const root = tree({
-      "modules/a/a.schema.ts": table("a_table"),
+      "modules/a/models/a.model.ts": table("a_table"),
       "database/client.ts": "export const db = 1;\n",
-      "database/aggregate.ts": `export * from "../modules/a/a.schema.js";\n`,
+      "database/aggregate.ts": `export * from "../modules/a/models/a.model.js";\n`,
     });
     expect(findDatabaseModuleImports(root)).toEqual([
-      "database/aggregate.ts imports modules/a/a.schema.ts; database/ imports no module files",
+      "database/aggregate.ts imports modules/a/models/a.model.ts; database/ imports no module files",
     ]);
   });
 

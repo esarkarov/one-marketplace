@@ -7,7 +7,7 @@ import {
   timestamp,
   uuid,
 } from "drizzle-orm/pg-core";
-import { accounts } from "../auth/auth.schema.js";
+import { accounts } from "../../auth/models/auth.model.js";
 
 export const agency_metadata = pgTable("agency_metadata", {
   id: uuid("id").defaultRandom().primaryKey(),

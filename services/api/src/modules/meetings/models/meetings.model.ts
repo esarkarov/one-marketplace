@@ -8,8 +8,11 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
-import { accounts } from "../auth/auth.schema.js";
-import { conversations, messages } from "../messaging/messaging.schema.js";
+import { accounts } from "../../auth/models/auth.model.js";
+import {
+  conversations,
+  messages,
+} from "../../messaging/models/messaging.model.js";
 
 export const meetings = pgTable(
   "meetings",

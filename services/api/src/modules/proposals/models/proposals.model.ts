@@ -10,7 +10,7 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
-import { job_posts } from "../jobs/jobs.schema.js";
+import { job_posts } from "../../jobs/models/jobs.model.js";
 
 export const proposals = pgTable(
   "proposals",

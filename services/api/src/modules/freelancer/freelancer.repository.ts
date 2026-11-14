@@ -1,18 +1,21 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
 import type { DbExecutor } from "../../database/db-executor.js";
-import { accounts } from "../auth/auth.schema.js";
-import { agency_members, agency_metadata } from "../agency/agency.schema.js";
-import { client_metadata } from "../client/client.schema.js";
+import { accounts } from "../auth/models/auth.model.js";
+import {
+  agency_members,
+  agency_metadata,
+} from "../agency/models/agency.model.js";
+import { client_metadata } from "../client/models/client.model.js";
 import {
   contracts,
   freelancer_earning,
   reviews,
-} from "../contracts/contracts.schema.js";
-import { job_posts } from "../jobs/jobs.schema.js";
+} from "../contracts/models/contracts.model.js";
+import { job_posts } from "../jobs/models/jobs.model.js";
 import {
   freelancer_metadata,
   freelancer_portfolios,
-} from "./freelancer.schema.js";
+} from "./models/freelancer.model.js";
 
 export type FreelancerMetadataValues = Omit<
   typeof freelancer_metadata.$inferInsert,

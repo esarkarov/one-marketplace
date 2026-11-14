@@ -9,8 +9,8 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
-import { accounts } from "../auth/auth.schema.js";
-import { freelancer_metadata } from "../freelancer/freelancer.schema.js";
+import { accounts } from "../../auth/models/auth.model.js";
+import { freelancer_metadata } from "../../freelancer/models/freelancer.model.js";
 
 export const job_posts = pgTable(
   "job_posts",

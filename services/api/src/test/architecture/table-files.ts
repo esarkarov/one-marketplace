@@ -9,12 +9,12 @@ import {
   toKey,
 } from "./table-access.js";
 
-const TABLE_FILE = /^modules\/([^/]+)\/\1\.schema\.ts$/;
+const TABLE_FILE = /^modules\/([^/]+)\/models\/\1\.model\.ts$/;
 
 export const isTableFile = (key: string) => TABLE_FILE.test(key);
 
 export const tableFileOf = (owner: string) =>
-  `modules/${owner}/${owner}.schema.ts`;
+  `modules/${owner}/models/${owner}.model.ts`;
 
 const isDrizzlePackage = (specifier: string) =>
   specifier === "drizzle-orm" || specifier.startsWith("drizzle-orm/");
@@ -50,10 +50,10 @@ export const checkTableFiles = (root = srcDir): string[] => {
   for (const file of listTsFiles(root)) {
     const key = toKey(root, file);
     if (isTestKey(key)) continue;
-    const looksLikeTableFile = key.endsWith(".schema.ts");
+    const looksLikeTableFile = key.endsWith(".model.ts");
     if (looksLikeTableFile && !isTableFile(key)) {
       problems.push(
-        `${key}: a table file is exactly modules/<name>/<name>.schema.ts`,
+        `${key}: a table file is exactly modules/<name>/models/<name>.model.ts`,
       );
     }
     if (!isTableFile(key)) continue;

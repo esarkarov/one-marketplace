@@ -1,13 +1,13 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { logger } from "../src/config/logger.js";
 import { db } from "../src/database/client.js";
-import { agency_metadata } from "../src/modules/agency/agency.schema.js";
+import { agency_metadata } from "../src/modules/agency/models/agency.model.js";
 import { getAgencyOwnerId } from "../src/modules/agency/agency.public.js";
 import {
   conversation_participants,
   conversations,
-} from "../src/modules/messaging/messaging.schema.js";
-import { proposals } from "../src/modules/proposals/proposals.schema.js";
+} from "../src/modules/messaging/models/messaging.model.js";
+import { proposals } from "../src/modules/proposals/models/proposals.model.js";
 
 // One-off migration cleanup: conversation_participants used to store one row
 // per agency team member (account_id = that member's real auth_id). The

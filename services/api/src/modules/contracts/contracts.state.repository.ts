@@ -8,7 +8,7 @@ import {
   earning_history,
   freelancer_earning,
   reviews,
-} from "./contracts.schema.js";
+} from "./models/contracts.model.js";
 
 export const lockContractStatusForUpdate = (
   executor: DbExecutor,
