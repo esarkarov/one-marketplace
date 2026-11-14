@@ -16,6 +16,8 @@ Constraints: this stays a modular monolith (ADR 0001), not microservices. No who
 
 ### 1. Target layout under `services/api/src`
 
+> Superseded by ADR 0016: a module has the folder set `controllers/`, `services/`, `repositories/`, `models/`, `schemas/`, `responses/`, `middleware/`, `tests/` (plus `types/`, `constants/`, `utils/`).
+
 - `server.ts` (entry) and `app.ts` (express factory).
 - `bootstrap/`: ordered start and stop of infrastructure and of the module-owned workers, and readiness. `payouts.cron.ts` and `messaging.socket.ts` stay in their modules; bootstrap only runs their lifecycle. No `workers/` or `realtime/` folders.
 - `config/`: validated env, constants, cors, logger, webhooks.
@@ -95,6 +97,8 @@ Rule: one owner per table. Other modules may read a table they do not own but ne
 Cross-module table access, reads and writes, is no longer listed here. Superseded by ADR 0014 section 9: the list is `services/api/src/test/architecture/table-access-allowlist.ts` (owners in `table-ownership.ts`), enforced by `table-access.test.ts`. Each write carries a reason and is known debt; it should move behind the owning module's public surface or an event, per module and with a test, never as part of the layout move. `payouts` reads other tables by design (ADR 0005).
 
 ### 5. Naming
+
+> Superseded by ADR 0016: the suffix vocabulary now maps to folders, `.schema` is zod and `.model` is drizzle.
 
 Derived from existing practice:
 

@@ -18,6 +18,8 @@ Stage 10 fixed the direction of dependencies. The inside of the folders is the r
 
 ### 1. Module shape rule
 
+> Superseded by ADR 0016: there is no size threshold; every module uses the same folder set.
+
 A module is flat (`route`, `controller`, `schemas`, `responses`, `types`, `public`, `errors`, `repository`, `service`, tests) unless a threshold is met:
 
 | Addition                   | Threshold                                                                           |
@@ -41,6 +43,8 @@ Zod-inferred types stay in `*.schemas.ts`. Small modules (auth, identity, notifi
 `src/database/schema.ts` stays as a file that re-exports `src/database/schema/<domain>.ts` files (enums and accounts at the bottom of the import direction, other domains import downward). `drizzle.config.ts` and every importer stay unchanged. Gate: `drizzle-kit generate` prints "No schema changes" and no file appears under `drizzle/`. Where the table definitions live is superseded by section 9. This supersedes ADR 0013 section 1 on `schema.ts` staying one file.
 
 ### 4. Test layout and suffix vocabulary
+
+> Amended by ADR 0016: the suffix vocabulary stays and tests live in the module `tests/` folder.
 
 `src/test/setup/` holds global setup (`setup.ts`, `assert-test-database.ts` and its test). `src/test/support/` holds helpers (`capture-logs`, `factories`, `fake-secrets`, `lock-holder`). `src/test/architecture/` is unchanged.
 
@@ -89,6 +93,8 @@ The notifications consumer is exactly-once for the database write (redelivery in
 Every stage that applies this ADR keeps `docs/api/openapi.json` byte-identical, the full suite at 0 failed and 0 skipped with per-file test counts unchanged, `boundary-exceptions.ts` empty, no cycles, "No schema changes" from drizzle-kit, and no migration files. Docs, vitest and eslint globs, the CI junit path and agent or command files that name paths are updated in the same stage as the move.
 
 ### 9. Table files and table access
+
+> Superseded by ADR 0016: table files are `modules/<name>/models/<name>.model.ts`, the drizzle glob is `./src/modules/*/models/*.model.ts` and tables are imported from `.model.js`.
 
 Tables and enums live in the module that owns them, in `modules/<name>/<name>.schema.ts`. The suffix is exactly `.schema.ts`: it is the drizzle file and is different from `<name>.schemas.ts`, the zod request and response schemas. There is no central schema anywhere: `database/` keeps `client.ts`, `db-executor.ts` and `pg-errors.ts`, imports no module file, and `database/schema.ts` no longer exists.
 
