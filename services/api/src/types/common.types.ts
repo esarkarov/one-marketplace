@@ -4,3 +4,12 @@ export interface ApiResponse<T> {
   data?: T;
   requestId?: string;
 }
+
+export type StripeRequirementsLike =
+  | {
+      entries?: Array<{
+        awaiting_action_from: string;
+        minimum_deadline: { status: string };
+      }>;
+    }
+  | undefined;

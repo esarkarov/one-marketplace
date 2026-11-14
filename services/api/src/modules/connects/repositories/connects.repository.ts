@@ -7,7 +7,7 @@ import {
   connects_purchase_history,
 } from "../models/connects.model.js";
 
-export type ConnectsOwner = { freelancerId: string } | { agencyId: string };
+type ConnectsOwner = { freelancerId: string } | { agencyId: string };
 
 const ownerFilter = (owner: ConnectsOwner) =>
   "agencyId" in owner

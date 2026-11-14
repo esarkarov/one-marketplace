@@ -69,7 +69,7 @@ const SIGNATURE_HEADERS: Readonly<Record<string, readonly string[]>> = {
   daily: ["x-webhook-signature", "x-webhook-timestamp"],
 };
 
-export interface BuildSpecOptions {
+interface BuildSpecOptions {
   version: string;
 }
 

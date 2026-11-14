@@ -11,7 +11,7 @@ export interface PortfolioData {
   cover_image: { imageId: string; url: string };
 }
 
-export interface PortfolioInput extends Omit<PortfolioData, "cover_image"> {
+interface PortfolioInput extends Omit<PortfolioData, "cover_image"> {
   cover_image: { url: string };
 }
 
@@ -69,7 +69,7 @@ export interface SaveFreelancerProfileInput {
   portfolios: PortfolioInput[];
 }
 
-export interface EarningsCertificateWindow {
+interface EarningsCertificateWindow {
   label: string;
   totalCents: number;
 }

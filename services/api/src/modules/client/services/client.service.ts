@@ -57,7 +57,7 @@ export const saveClientProfile = async (
 ): Promise<ClientProfileData> => {
   const now = new Date();
 
-  const profile: any = await db.transaction(async (transaction) => {
+  const profile = await db.transaction(async (transaction) => {
     const account = await markClientOnboardingComplete(
       transaction,
       input.userId,

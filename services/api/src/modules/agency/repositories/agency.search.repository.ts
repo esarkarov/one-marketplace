@@ -5,7 +5,7 @@ import { agency_earning } from "../../contracts/models/contracts.model.js";
 import { freelancer_metadata } from "../../freelancer/models/freelancer.model.js";
 import { agency_members, agency_metadata } from "../models/agency.model.js";
 
-export interface AgencySearchCriteria {
+interface AgencySearchCriteria {
   specialty?: string;
   sizes?: string[];
   verifiedOnly?: boolean;

@@ -12,6 +12,7 @@ import {
 import { EarningsCertificateData } from "../types/freelancer.types.js";
 import { env } from "../../../config/env.js";
 import { stripe } from "../../../infrastructure/stripe.js";
+import type { StripeRequirementsLike } from "../../../types/common.types.js";
 import { ApiError } from "../../../shared/http/api-error.js";
 import {
   EARNINGS_HOLD_PERIOD_MS,
@@ -170,15 +171,6 @@ export const getFreelancerEarningsCertificateData = async (
     windows,
   };
 };
-
-type StripeRequirementsLike =
-  | {
-      entries?: Array<{
-        awaiting_action_from: string;
-        minimum_deadline: { status: string };
-      }>;
-    }
-  | undefined;
 
 const hasBlockingRequirements = (requirements: StripeRequirementsLike) =>
   (requirements?.entries ?? []).some(

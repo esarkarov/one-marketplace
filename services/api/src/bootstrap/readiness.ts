@@ -1,14 +1,14 @@
 import { redis } from "../infrastructure/redis.js";
 import { pool } from "../database/client.js";
 
-export type CheckStatus = "ok" | "failed";
+type CheckStatus = "ok" | "failed";
 
 export interface ReadinessChecks {
   postgres: CheckStatus;
   redis: CheckStatus;
 }
 
-export type ReadinessFailureHandler = (
+type ReadinessFailureHandler = (
   check: keyof ReadinessChecks,
   error: Error,
 ) => void;

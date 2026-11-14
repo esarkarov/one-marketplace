@@ -75,7 +75,7 @@ const envelopeV1 = z
 
 export const notificationEnvelopeSchema = z.union([envelopeV2, envelopeV1]);
 
-export type NotificationPayload = z.infer<typeof notificationPayload>;
+type NotificationPayload = z.infer<typeof notificationPayload>;
 export type NotificationEnvelope = z.infer<typeof envelopeV2>;
 export type NotificationInput = NotificationPayload & { eventId?: string };
 

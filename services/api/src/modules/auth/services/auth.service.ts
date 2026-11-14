@@ -4,7 +4,7 @@ import { db } from "../../../database/client.js";
 import { insertAccountIfAbsent } from "../repositories/auth.repository.js";
 import { invalidateAccountAuthCache } from "../../../infrastructure/account-auth-cache.js";
 
-export interface SignupInput {
+interface SignupInput {
   userId: string;
   sessionId?: string;
   role: "client" | "freelancer";

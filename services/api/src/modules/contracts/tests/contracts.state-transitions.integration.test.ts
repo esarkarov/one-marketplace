@@ -296,7 +296,7 @@ const expectContractInvariants = (state: State) => {
 };
 
 const settle = <T>(promise: Promise<T>) =>
-  Promise.allSettled([promise]).then(([result]) => result!);
+  Promise.allSettled([promise]).then(([result]) => result);
 
 const fulfilled = (results: PromiseSettledResult<unknown>[]) =>
   results.filter((result) => result.status === "fulfilled");
@@ -525,10 +525,10 @@ describe("submitContractMilestone races", () => {
     ]);
 
     const [submitResult, approveResult] = results;
-    expect(approveResult!.status).toBe("fulfilled");
+    expect(approveResult.status).toBe("fulfilled");
     const state = await readState(fixture);
     expect(state.milestones[0]!.status).toBe("COMPLETED");
-    if (submitResult!.status === "rejected") {
+    if (submitResult.status === "rejected") {
       expectApiError(submitResult, 409, "MILESTONE_NOT_SUBMITTABLE");
       expect(state.milestones[0]!.submission_message).toBeNull();
       expect(state.events("MILESTONE_SUBMITTED")).toHaveLength(0);

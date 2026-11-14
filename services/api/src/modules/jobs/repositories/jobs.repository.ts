@@ -21,10 +21,10 @@ import {
 import { freelancer_saved_job_posts, job_posts } from "../models/jobs.model.js";
 import { proposals } from "../../proposals/models/proposals.model.js";
 
-export type NewJobPost = typeof job_posts.$inferInsert;
+type NewJobPost = typeof job_posts.$inferInsert;
 export type JobData = Omit<NewJobPost, "client_id">;
 export type JobUpdate = Partial<NewJobPost>;
-export type JobAttachments = NonNullable<NewJobPost["attachments"]>;
+type JobAttachments = NonNullable<NewJobPost["attachments"]>;
 type JobMilestone = (typeof job_posts.$inferSelect)["milestones"][number];
 
 export interface PublicJobFilters {

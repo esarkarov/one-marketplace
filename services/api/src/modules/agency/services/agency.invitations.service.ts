@@ -34,7 +34,7 @@ import {
 } from "../repositories/agency.invitations.repository.js";
 import { insertAgencyMember } from "../repositories/agency.repository.js";
 
-export interface AgencyInvitationData {
+interface AgencyInvitationData {
   id: string;
   email: string;
   role: string;
@@ -175,7 +175,7 @@ export const updateAgencyInvitationRole = async (
   if (!updated) throw new ApiError(404, "Invitation not found.");
 };
 
-export interface MyAgencyInvitation {
+interface MyAgencyInvitation {
   id: string;
   agencyId: string;
   agencyName: string;

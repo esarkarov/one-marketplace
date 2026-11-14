@@ -5,7 +5,7 @@ import { sanitizeForLog } from "../shared/logging/sanitize-log.js";
 
 type AttributeValue = string | number | boolean | null;
 
-export interface LogPayload {
+interface LogPayload {
   message: string;
   eventName?: string;
   attributes?: Record<string, AttributeValue | AttributeValue[]>;

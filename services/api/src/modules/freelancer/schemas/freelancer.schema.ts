@@ -139,6 +139,8 @@ export const upsertProfileBodySchema = withIgnoredKeys(
   IGNORED_KEYS,
 );
 
+export type UpsertProfileBody = z.infer<typeof upsertProfileBodySchema>;
+
 export const idParamsSchema = uuidParams("id");
 
 const listParam = z

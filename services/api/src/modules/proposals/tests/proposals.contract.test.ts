@@ -538,14 +538,14 @@ describe("interview conversation writes", () => {
       body: "Hello there.",
       reply_to_message_id: proposalMessage!.id,
     });
-    expect(openingMessage!.created_at!.getTime()).toBe(
-      proposalMessage!.created_at!.getTime() + 1,
+    expect(openingMessage!.created_at.getTime()).toBe(
+      proposalMessage!.created_at.getTime() + 1,
     );
     expect(thread.conversation!.last_message_id).toBe(openingMessage!.id);
     expect(thread.conversation!.last_message_at?.getTime()).toBe(
-      openingMessage!.created_at!.getTime(),
+      openingMessage!.created_at.getTime(),
     );
-    expect(thread.conversation!.updated_at!.getTime()).toBeGreaterThanOrEqual(
+    expect(thread.conversation!.updated_at.getTime()).toBeGreaterThanOrEqual(
       startedAt,
     );
     expect(thread.participantCount).toBe(2);

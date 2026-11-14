@@ -229,7 +229,7 @@ describe("single agency per freelancer", () => {
       holder.release();
     }
 
-    const response = await pending!;
+    const response = await pending;
 
     expect(response.status).toBe(409);
     expect(response.body.code).toBe("ALREADY_IN_AGENCY");
@@ -265,7 +265,7 @@ describe("single agency per freelancer", () => {
       holder.release();
     }
 
-    const response = await pending!;
+    const response = await pending;
 
     expect(response.status).toBe(409);
     expect(response.body.code).toBe("ALREADY_IN_AGENCY");

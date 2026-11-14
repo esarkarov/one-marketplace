@@ -403,7 +403,7 @@ export const contractWebhook: RequestHandler = asyncHandler(
       throw new ApiError(400, "Invalid Stripe webhook.");
     }
 
-    let event: any;
+    let event: ReturnType<typeof stripe.webhooks.constructEvent>;
     try {
       event = stripe.webhooks.constructEvent(
         request.body,

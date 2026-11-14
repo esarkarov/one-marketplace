@@ -1,13 +1,9 @@
-export interface ContractAllowlistEntry {
-  method: string;
-  path: string;
-  reason: string;
-}
+import type { ValidationAllowlistEntry } from "./validation-allowlist.js";
 
 export interface ContractAllowlist {
-  rawBodyWebhooks: readonly ContractAllowlistEntry[];
-  eventStreams: readonly ContractAllowlistEntry[];
-  untestedRoutes: readonly ContractAllowlistEntry[];
+  rawBodyWebhooks: readonly ValidationAllowlistEntry[];
+  eventStreams: readonly ValidationAllowlistEntry[];
+  untestedRoutes: readonly ValidationAllowlistEntry[];
 }
 
 export const contractAllowlist: ContractAllowlist = {

@@ -59,7 +59,7 @@ const logSafely = async (write: () => unknown): Promise<void> => {
   }
 };
 
-export type SendNotificationResult = "published" | "disabled" | "failed";
+type SendNotificationResult = "published" | "disabled" | "failed";
 
 export const sendNotification = async (
   input: NotificationInput,

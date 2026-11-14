@@ -63,12 +63,9 @@ export const buildTransitionGuard = (
   return and(...conditions) as SQL;
 };
 
-export type PayoutPatch = Omit<
-  PgUpdateSetSource<typeof payout_history>,
-  "status"
->;
+type PayoutPatch = Omit<PgUpdateSetSource<typeof payout_history>, "status">;
 
-export type ClaimedPayout = PayoutRecord & {
+type ClaimedPayout = PayoutRecord & {
   prev_claimed_at: unknown;
   prev_idempotency_key: string | null;
 };

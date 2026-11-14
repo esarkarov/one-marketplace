@@ -5,7 +5,7 @@ const DAILY_API_BASE = "https://api.daily.co/v1";
 // abandoned meetings that never get an explicit "ended" webhook.
 const ROOM_TTL_SECONDS = 60 * 60 * 6;
 
-export interface DailyRoom {
+interface DailyRoom {
   id: string;
   name: string;
   url: string;

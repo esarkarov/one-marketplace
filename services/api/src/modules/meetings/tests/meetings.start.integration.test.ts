@@ -258,9 +258,9 @@ describe("startMeeting against real Postgres", () => {
       expect(state.meetingRows).toHaveLength(1);
       const holderMeeting = state.active[0]!;
       expect(holderMeeting.provider_room_name).toBe(holderRoom);
-      expect(first!.id).toBe(holderMeeting.id);
-      expect(second!.id).toBe(holderMeeting.id);
-      expect(first!.joinUrl).toBe(holderMeeting.join_url);
+      expect(first.id).toBe(holderMeeting.id);
+      expect(second.id).toBe(holderMeeting.id);
+      expect(first.joinUrl).toBe(holderMeeting.join_url);
       expect(state.messageRows).toHaveLength(0);
       expect(mocks.emitConversationUpdate).not.toHaveBeenCalled();
       expect(createdRooms).toHaveLength(2);

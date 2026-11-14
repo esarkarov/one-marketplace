@@ -27,7 +27,7 @@ import {
 
 const TRANSFER_LIST_LIMIT = 10;
 
-export interface PayoutRunSummary {
+interface PayoutRunSummary {
   checked: number;
   paid: number;
   skipped: number;

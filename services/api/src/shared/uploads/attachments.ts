@@ -16,7 +16,7 @@ export const ALLOWED_ATTACHMENT_TYPES = [
 const DOCX_TYPE =
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
-export type AllowedAttachmentType = (typeof ALLOWED_ATTACHMENT_TYPES)[number];
+type AllowedAttachmentType = (typeof ALLOWED_ATTACHMENT_TYPES)[number];
 
 export const MAX_ENCODED_LENGTH = Math.ceil(MAX_ATTACHMENT_BYTES / 3) * 4;
 export const MAX_DATA_URL_HEADER_LENGTH = 512;
@@ -57,7 +57,7 @@ export const normalizeMimeType = (value: string) => value.trim().toLowerCase();
 
 export const isDataUrl = (value: string) => value.startsWith("data:");
 
-export interface ParsedDataUrl {
+interface ParsedDataUrl {
   mimeType: string;
   base64: string;
   size: number;
@@ -265,18 +265,18 @@ export const assertExtensionMatchesType = (
   }
 };
 
-export interface AttachmentBatchItem {
+interface AttachmentBatchItem {
   fileUrl: string;
   mimeType: string;
   fileName: string;
 }
 
-export interface AttachmentBatchOptions {
+interface AttachmentBatchOptions {
   tooManyMessage: string;
   nonDataMessage: string | null;
 }
 
-export interface ValidatedAttachment {
+interface ValidatedAttachment {
   mimeType: string;
   size: number;
 }

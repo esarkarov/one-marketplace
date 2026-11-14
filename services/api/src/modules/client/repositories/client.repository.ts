@@ -1,5 +1,6 @@
 import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
 import type { DbExecutor } from "../../../database/database.types.js";
+import type { SaveClientProfileInput } from "../types/client.types.js";
 import { accounts } from "../../auth/models/auth.model.js";
 import {
   agency_earning,
@@ -18,16 +19,6 @@ import {
 import { freelancer_metadata } from "../../freelancer/models/freelancer.model.js";
 import { job_posts } from "../../jobs/models/jobs.model.js";
 import { proposals } from "../../proposals/models/proposals.model.js";
-
-export interface ClientMetadataInput {
-  userId: string;
-  professionalRole: string;
-  companyName: string;
-  companyWebsite: string;
-  companySize: string;
-  industry: string;
-  companyDescription: string;
-}
 
 export const findClientProfile = async (
   executor: DbExecutor,
@@ -60,7 +51,7 @@ export const findClientProfile = async (
 
 export const upsertClientMetadata = async (
   executor: DbExecutor,
-  input: ClientMetadataInput,
+  input: SaveClientProfileInput,
   now: Date,
 ) => {
   const [savedProfile] = await executor

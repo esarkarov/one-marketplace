@@ -17,7 +17,7 @@ import {
   freelancer_portfolios,
 } from "../models/freelancer.model.js";
 
-export type FreelancerMetadataValues = Omit<
+type FreelancerMetadataValues = Omit<
   typeof freelancer_metadata.$inferInsert,
   "auth_id"
 >;

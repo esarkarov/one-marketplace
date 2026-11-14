@@ -3,6 +3,7 @@ import { toSafeCents } from "../../../shared/money/money.js";
 import { ApiError } from "../../../shared/http/api-error.js";
 import { env } from "../../../config/env.js";
 import { stripe } from "../../../infrastructure/stripe.js";
+import type { StripeRequirementsLike } from "../../../types/common.types.js";
 import {
   EARNINGS_HOLD_PERIOD_MS,
   STRIPE_PAYOUT_ELIGIBLE_COUNTRIES,
@@ -114,15 +115,6 @@ export const getAgencyEarningsOverview = async (agencyId: string) => {
     recentEarnings: earnings.slice(0, RECENT_AGENCY_EARNINGS_LIMIT),
   };
 };
-
-type StripeRequirementsLike =
-  | {
-      entries?: Array<{
-        awaiting_action_from: string;
-        minimum_deadline: { status: string };
-      }>;
-    }
-  | undefined;
 
 const hasBlockingAgencyRequirements = (requirements: StripeRequirementsLike) =>
   (requirements?.entries ?? []).some(

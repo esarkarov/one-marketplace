@@ -22,7 +22,7 @@ const SCHEMA_KEYS = [
 const SCHEMA_LIST_KEYS = ["allOf", "anyOf", "oneOf", "prefixItems"] as const;
 const SCHEMA_MAP_KEYS = ["properties", "patternProperties", "$defs"] as const;
 
-export type SchemaVisitor = (
+type SchemaVisitor = (
   schema: JsonObject,
   path: string,
   propertyName: string | undefined,
@@ -62,8 +62,7 @@ export const walkSchema = (
   }
 };
 
-export type DocumentSchemaKind =
-  "component" | "parameter" | "request" | "response";
+type DocumentSchemaKind = "component" | "parameter" | "request" | "response";
 
 export const walkDocumentSchemas = (
   document: JsonObject,

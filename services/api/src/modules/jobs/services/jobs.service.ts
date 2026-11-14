@@ -138,7 +138,7 @@ export const removeSavedJobPost = async (
   return savedJob;
 };
 
-export interface PublicJobSummary {
+interface PublicJobSummary {
   id: string;
   title: string;
   description: string;

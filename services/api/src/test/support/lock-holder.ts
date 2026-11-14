@@ -95,7 +95,7 @@ export const raceBlocked = async <T>(options: {
   try {
     const pending: Array<Promise<PromiseSettledResult<T>>> = [];
     const start = (run: () => Promise<T>) =>
-      Promise.allSettled([run()]).then(([settled]) => settled!);
+      Promise.allSettled([run()]).then(([settled]) => settled);
     if (options.ordered) {
       for (const [index, run] of options.starts.entries()) {
         pending.push(start(run));

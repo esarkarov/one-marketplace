@@ -1142,9 +1142,9 @@ describe("conversation writes by site", () => {
     const last = state.rows.at(-1)!;
     expect(state.conversation.last_message_id).toBe(last.id);
     expect(state.conversation.last_message_at?.getTime()).toBe(
-      last.created_at!.getTime(),
+      last.created_at.getTime(),
     );
-    expect(state.conversation.updated_at!.getTime()).toBeGreaterThanOrEqual(
+    expect(state.conversation.updated_at.getTime()).toBeGreaterThanOrEqual(
       startedAt,
     );
     expect(state.clientUnread).toBe(unread.client);
@@ -1274,9 +1274,9 @@ describe("conversation writes by site", () => {
     });
     expect(state.conversation.last_message_id).toBe(state.rows[0]!.id);
     expect(state.conversation.last_message_at?.getTime()).toBe(
-      state.rows[0]!.created_at!.getTime(),
+      state.rows[0]!.created_at.getTime(),
     );
-    expect(state.conversation.updated_at!.getTime()).toBeGreaterThanOrEqual(
+    expect(state.conversation.updated_at.getTime()).toBeGreaterThanOrEqual(
       startedAt,
     );
     expect(state.clientUnread).toBe(CLIENT_BASE);
@@ -1466,8 +1466,8 @@ describe("conversation writes by site", () => {
         sender_id: fixture.clientId,
         body: "Please fix the layout.",
       });
-      expect(feedback!.created_at!.getTime()).toBe(
-        event!.created_at!.getTime() + 1,
+      expect(feedback!.created_at.getTime()).toBe(
+        event!.created_at.getTime() + 1,
       );
       expectLastMessageAndUnread(state, startedAt, {
         client: CLIENT_BASE,
@@ -1551,10 +1551,10 @@ describe("conversation writes by site", () => {
         contractId: fixture.contractId,
         title: "Integration contract",
       });
-      expect(state.conversation.updated_at!.getTime()).toBe(
-        state.rows[0]!.created_at!.getTime(),
+      expect(state.conversation.updated_at.getTime()).toBe(
+        state.rows[0]!.created_at.getTime(),
       );
-      expect(state.conversation.updated_at!.getTime()).toBeGreaterThanOrEqual(
+      expect(state.conversation.updated_at.getTime()).toBeGreaterThanOrEqual(
         startedAt,
       );
       expect(state.conversation.last_message_id).toBe(state.rows[0]!.id);

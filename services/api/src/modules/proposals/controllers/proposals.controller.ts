@@ -71,7 +71,7 @@ export const getProposals: RequestHandler = asyncHandler(
       request.auth.role === "client"
         ? await getClientJobProposals(
             request.auth.userId,
-            requireText(request.query.jobId as any, "Job post"),
+            requireText(request.query.jobId as string | undefined, "Job post"),
           )
         : await getFreelancerProposals(request.auth.userId);
     response.status(200).json({

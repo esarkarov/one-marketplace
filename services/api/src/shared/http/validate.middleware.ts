@@ -2,18 +2,18 @@ import { RequestHandler } from "express";
 import { z } from "zod";
 import { ApiError, ApiErrorDetail } from "./api-error.js";
 
-export type ValidationPart = "params" | "query" | "body";
+type ValidationPart = "params" | "query" | "body";
 
-export type SchemaInput = z.ZodType | z.ZodRawShape;
+type SchemaInput = z.ZodType | z.ZodRawShape;
 
-export interface ValidationInput {
+interface ValidationInput {
   body?: SchemaInput;
   params?: SchemaInput;
   query?: SchemaInput;
   responses?: ResponseSchemas;
 }
 
-export type ResponseSchemas = Partial<Record<number, z.ZodType>>;
+type ResponseSchemas = Partial<Record<number, z.ZodType>>;
 
 export interface ValidationSchemas {
   body?: z.ZodType;

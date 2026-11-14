@@ -10,6 +10,7 @@ import {
   SaveFreelancerProfileInput,
 } from "../types/freelancer.types.js";
 import { requireText } from "../../../config/constants.js";
+import type { UpsertProfileBody } from "../schemas/freelancer.schema.js";
 import { parseLiveUrl } from "../../../shared/uploads/portfolio-images.js";
 import {
   getFreelancerEarningsCertificateData,
@@ -47,9 +48,10 @@ export const getLoggedInFreelancerProfile: RequestHandler = asyncHandler(
 export const upsertFreelanceProfile: RequestHandler = asyncHandler(
   async (request, response) => {
     const auth = requireFreelancer(request);
-    const metadata = request.body?.freelancer_metadata as
-      Record<string, any> | undefined;
-    const portfolios = request?.body?.freelancer_portfolios as any;
+    const metadata: UpsertProfileBody["freelancer_metadata"] | undefined =
+      request.body?.freelancer_metadata;
+    const portfolios: UpsertProfileBody["freelancer_portfolios"] =
+      request?.body?.freelancer_portfolios;
 
     if (!metadata) throw new ApiError(400, "Freelancer metadata is required.");
     if (!Array.isArray(portfolios) || portfolios.length < 1) {
@@ -111,7 +113,7 @@ export const upsertFreelanceProfile: RequestHandler = asyncHandler(
       ),
       skills: skills.map((skill) => String(skill).trim()),
       languages: languages.map((item) => {
-        const language = item as Record<string, any>;
+        const language = item;
         return {
           language: requireText(language.language, "Language"),
           proficiency: requireText(
@@ -121,7 +123,7 @@ export const upsertFreelanceProfile: RequestHandler = asyncHandler(
         };
       }),
       portfolios: portfolios.map((item) => {
-        const portfolio = item as Record<string, any>;
+        const portfolio = item;
         const coverImage = portfolio.cover_image as
           Record<string, string> | undefined;
         if (!coverImage)
