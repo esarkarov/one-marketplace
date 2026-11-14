@@ -66,6 +66,17 @@ services:
       retries: 10
       start_period: 30s
 
+  swagger-ui:
+    image: swaggerapi/swagger-ui
+    container_name: onemarketplace-swagger-ui
+    restart: unless-stopped
+    environment:
+      SWAGGER_JSON: /spec/openapi.json
+    ports:
+      - "127.0.0.1:${SWAGGER_PORT:-8081}:8080"
+    volumes:
+      - ../../docs/api:/spec:ro
+
 volumes:
   postgres-data:
   redis-data:
