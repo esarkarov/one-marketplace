@@ -27,10 +27,15 @@ process.env.DATABASE_URL = "postgres://localhost:5432/openapi_generate";
 process.env.REDIS_URL = "redis://localhost:6379";
 
 try {
-  const { apiRouter } = await import("../routes/index.js");
+  const { apiRouter, identifyAccount, isAuthenticated, verifyBearerToken } =
+    await import("../routes/index.js");
   const { OPENAPI_FILE, createOpenApiText } = await import("./document.js");
 
-  const text = createOpenApiText(apiRouter);
+  const text = createOpenApiText(apiRouter, [
+    isAuthenticated,
+    identifyAccount,
+    verifyBearerToken,
+  ]);
   const file = fileURLToPath(OPENAPI_FILE);
   mkdirSync(fileURLToPath(new URL(".", OPENAPI_FILE)), { recursive: true });
   writeFileSync(file, text, { encoding: "utf8" });

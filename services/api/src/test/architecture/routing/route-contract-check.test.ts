@@ -1,10 +1,10 @@
 import { Router } from "express";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { validate } from "../shared/http/validate.middleware.js";
-import type { ContractAllowlist } from "./contract-allowlist.js";
+import { validate } from "../../../shared/http/validate.middleware.js";
+import type { ContractAllowlist } from "../../../openapi/contract-allowlist.js";
+import { collectRoutes } from "../../../openapi/route-introspection.js";
 import {
-  collectRoutes,
   findContractAllowlistProblems,
   findContractViolations,
 } from "./route-validation-check.js";

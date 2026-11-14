@@ -2,20 +2,11 @@ import { STATUS_CODES } from "node:http";
 import type { z } from "zod";
 import { API_PREFIX } from "../config/constants.js";
 import {
-  identifyAccount,
-  isAuthenticated,
-  verifyBearerToken,
-} from "../routes/auth-handlers.js";
-import {
   requireAdminSession,
   requireAdminSessionAllowingQueryToken,
 } from "../shared/http/auth/admin-session.middleware.js";
-import { contractAllowlist } from "../routes/contract-allowlist.js";
-import {
-  routeKey,
-  schemasOf,
-  type RouteInfo,
-} from "../routes/route-validation-check.js";
+import { contractAllowlist } from "./contract-allowlist.js";
+import { routeKey, schemasOf, type RouteInfo } from "./route-introspection.js";
 import {
   ErrorBody,
   InternalErrorBody,
@@ -37,11 +28,6 @@ export const DEFAULT_PORT = 4000;
 const CLERK_BEARER = "clerkBearer";
 const ADMIN_SESSION = "adminSession";
 
-const CLERK_GUARDS: ReadonlySet<unknown> = new Set([
-  isAuthenticated,
-  identifyAccount,
-  verifyBearerToken,
-]);
 const ADMIN_GUARDS: ReadonlySet<unknown> = new Set([
   requireAdminSession,
   requireAdminSessionAllowingQueryToken,
@@ -71,6 +57,7 @@ const SIGNATURE_HEADERS: Readonly<Record<string, readonly string[]>> = {
 
 interface BuildSpecOptions {
   version: string;
+  clerkGuards: readonly unknown[];
 }
 
 const snake = (value: string) =>
@@ -100,8 +87,8 @@ export const operationIdOf = (method: string, path: string): string => {
   return [moduleOf(path), method.toLowerCase(), ...words].join("_");
 };
 
-const securityOf = (route: RouteInfo) => {
-  const clerk = route.handlers.some((handler) => CLERK_GUARDS.has(handler));
+const securityOf = (route: RouteInfo, clerkGuards: ReadonlySet<unknown>) => {
+  const clerk = route.handlers.some((handler) => clerkGuards.has(handler));
   const admin = route.handlers.some((handler) => ADMIN_GUARDS.has(handler));
   if (clerk && admin) {
     throw new Error(
@@ -247,6 +234,7 @@ export const buildOpenApiDocument = (
   routes: readonly RouteInfo[],
   options: BuildSpecOptions,
 ): JsonObject => {
+  const clerkGuards: ReadonlySet<unknown> = new Set(options.clerkGuards);
   const components: ComponentSchemas = {};
   const paths: JsonObject = {};
   const tags = new Set<string>();
@@ -285,7 +273,7 @@ export const buildOpenApiDocument = (
     operationIds.set(operationId, key);
     tags.add(tag);
 
-    const security = isWebhook ? [] : securityOf(route);
+    const security = isWebhook ? [] : securityOf(route, clerkGuards);
     const operation: JsonObject = { operationId, tags: [tag], security };
     const responses: JsonObject = {};
 

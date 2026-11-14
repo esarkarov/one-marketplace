@@ -1,12 +1,21 @@
 import { Router } from "express";
 import { validate } from "../../shared/http/validate.middleware.js";
 import { isAuthenticated } from "../auth/index.js";
+import { authRoleShape } from "../../shared/validation/common-schemas.js";
 import { submitProposalBodySchema } from "../../shared/validation/money-schemas.js";
 import {
+  agencyProposalMetadataResponses,
+  agencyProposalsResponses,
+  agencySubmitProposalResponses,
+} from "../agency/index.js";
+import {
   createProposal,
+  getAgencyProposalMetadataHandler,
+  getAgencyProposalsHandler,
   getProposalMetadata,
   getProposals,
   interviewProposal,
+  submitAgencyProposalHandler,
   updateProposalStatus,
 } from "./controllers/proposals.controller.js";
 import {
@@ -75,4 +84,32 @@ proposalRouter.post(
     responses: proposalsInterviewResponses,
   }),
   interviewProposal,
+);
+
+export const agencyProposalsRouter = Router();
+
+agencyProposalsRouter.get(
+  "/proposals",
+  isAuthenticated,
+  validate({ query: authRoleShape, responses: agencyProposalsResponses }),
+  getAgencyProposalsHandler,
+);
+agencyProposalsRouter.post(
+  "/proposals",
+  isAuthenticated,
+  validate({
+    query: authRoleShape,
+    body: submitProposalBodySchema,
+    responses: agencySubmitProposalResponses,
+  }),
+  submitAgencyProposalHandler,
+);
+agencyProposalsRouter.get(
+  "/proposals/metadata",
+  isAuthenticated,
+  validate({
+    query: authRoleShape,
+    responses: agencyProposalMetadataResponses,
+  }),
+  getAgencyProposalMetadataHandler,
 );

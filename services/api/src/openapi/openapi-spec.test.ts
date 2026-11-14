@@ -1,10 +1,15 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { env, parseEnv } from "../config/env.js";
-import { apiRouter } from "../routes/index.js";
-import { contractAllowlist } from "../routes/contract-allowlist.js";
-import { routeKey } from "../routes/route-validation-check.js";
-import { publicRoutes } from "../routes/validation-allowlist.js";
+import {
+  apiRouter,
+  identifyAccount,
+  isAuthenticated,
+  verifyBearerToken,
+} from "../routes/index.js";
+import { contractAllowlist } from "./contract-allowlist.js";
+import { routeKey } from "./route-introspection.js";
+import { publicRoutes } from "../test/architecture/routing/validation-allowlist.js";
 import {
   CONTROLLER_AUTH_OVERRIDES,
   DEFAULT_PORT,
@@ -27,7 +32,8 @@ import {
 
 const METHODS = ["get", "post", "put", "patch", "delete"];
 const routes = collectApiRoutes(apiRouter);
-const document = createOpenApiDocument(apiRouter);
+const clerkGuards = [isAuthenticated, identifyAccount, verifyBearerToken];
+const document = createOpenApiDocument(apiRouter, clerkGuards);
 const paths = document.paths as Record<string, JsonObject>;
 const schemas = (document.components as JsonObject).schemas as Record<
   string,
@@ -115,7 +121,7 @@ describe("openapi document", () => {
     const committed = readFileSync(OPENAPI_FILE, "utf8");
 
     expect(
-      createOpenApiText(apiRouter) === committed,
+      createOpenApiText(apiRouter, clerkGuards) === committed,
       "docs/api/openapi.json is out of date; run `pnpm --filter @onemarketplace/api openapi:generate` and commit the result.",
     ).toBe(true);
   });

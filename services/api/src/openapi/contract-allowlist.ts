@@ -1,4 +1,4 @@
-import type { ValidationAllowlistEntry } from "./validation-allowlist.js";
+import type { ValidationAllowlistEntry } from "./route-introspection.js";
 
 export interface ContractAllowlist {
   rawBodyWebhooks: readonly ValidationAllowlistEntry[];

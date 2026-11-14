@@ -1,8 +1,4 @@
-export interface ValidationAllowlistEntry {
-  method: string;
-  path: string;
-  reason: string;
-}
+import type { ValidationAllowlistEntry } from "../../../openapi/route-introspection.js";
 
 export const validationAllowlist: readonly ValidationAllowlistEntry[] = [
   {

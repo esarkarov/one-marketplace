@@ -4,7 +4,7 @@ import {
   collectRoutes,
   readMountPaths,
   type RouteInfo,
-} from "../routes/route-validation-check.js";
+} from "./route-introspection.js";
 import { buildOpenApiDocument, serializeDocument } from "./build-spec.js";
 import type { JsonObject } from "./schema-walk.js";
 
@@ -31,10 +31,16 @@ export const collectApiRoutes = (apiRouter: Router): RouteInfo[] =>
     ),
   );
 
-export const createOpenApiDocument = (apiRouter: Router): JsonObject =>
+export const createOpenApiDocument = (
+  apiRouter: Router,
+  clerkGuards: readonly unknown[],
+): JsonObject =>
   buildOpenApiDocument(collectApiRoutes(apiRouter), {
     version: readVersion(),
+    clerkGuards,
   });
 
-export const createOpenApiText = (apiRouter: Router): string =>
-  serializeDocument(createOpenApiDocument(apiRouter));
+export const createOpenApiText = (
+  apiRouter: Router,
+  clerkGuards: readonly unknown[],
+): string => serializeDocument(createOpenApiDocument(apiRouter, clerkGuards));

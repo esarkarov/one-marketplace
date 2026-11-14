@@ -2,18 +2,20 @@ import { readFileSync } from "node:fs";
 import { Router } from "express";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { withIgnoredKeys } from "../shared/validation/common-schemas.js";
-import { validate } from "../shared/http/validate.middleware.js";
-import { apiRouter } from "./index.js";
-import { contractAllowlist } from "./contract-allowlist.js";
+import { withIgnoredKeys } from "../../../shared/validation/common-schemas.js";
+import { validate } from "../../../shared/http/validate.middleware.js";
+import { apiRouter } from "../../../routes/index.js";
+import { contractAllowlist } from "../../../openapi/contract-allowlist.js";
 import {
   collectRoutes,
+  readMountPaths,
+  routeKey,
+} from "../../../openapi/route-introspection.js";
+import {
   findContractAllowlistProblems,
   findContractViolations,
   findStaleEntries,
   findViolations,
-  readMountPaths,
-  routeKey,
 } from "./route-validation-check.js";
 import {
   bodylessRoutes,
@@ -22,7 +24,7 @@ import {
 } from "./validation-allowlist.js";
 
 const mountPaths = readMountPaths(
-  readFileSync(new URL("./index.ts", import.meta.url), "utf8"),
+  readFileSync(new URL("../../../routes/index.ts", import.meta.url), "utf8"),
 );
 const routes = collectRoutes(apiRouter, mountPaths);
 const noop = () => undefined;
