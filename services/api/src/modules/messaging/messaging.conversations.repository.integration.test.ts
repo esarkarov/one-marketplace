@@ -58,6 +58,14 @@ afterAll(async () => {
 
 const newAuthId = () => `${PREFIX}${randomUUID()}`;
 
+const upsertContextConversation = async (
+  input: Parameters<typeof insertOrFindConversationByContextKey>[1],
+) => {
+  const row = await insertOrFindConversationByContextKey(db, input);
+  if (!row) throw new Error("conversation was not returned");
+  return row;
+};
+
 const insertAccount = async (role: "CLIENT" | "FREELANCER") => {
   const authId = newAuthId();
   await db.insert(accounts).values({
@@ -438,12 +446,12 @@ describe("insertOrFindConversationByContextKey", () => {
     const key = newAuthId();
     const otherKey = newAuthId();
 
-    const created = await insertOrFindConversationByContextKey(db, {
+    const created = await upsertContextConversation({
       jobId,
       proposalId,
       contextKey: key,
     });
-    const other = await insertOrFindConversationByContextKey(db, {
+    const other = await upsertContextConversation({
       jobId: undefined,
       proposalId: undefined,
       contextKey: otherKey,
@@ -458,13 +466,13 @@ describe("insertOrFindConversationByContextKey", () => {
     expect(stored?.job_id).toBe(jobId);
     expect(stored?.proposal_id).toBe(proposalId);
 
-    const again = await insertOrFindConversationByContextKey(db, {
+    const again = await upsertContextConversation({
       jobId: undefined,
       proposalId: undefined,
       contextKey: key,
     });
     expect(again.id).toBe(created.id);
-    const second = await insertOrFindConversationByContextKey(db, {
+    const second = await upsertContextConversation({
       jobId: undefined,
       proposalId: undefined,
       contextKey: otherKey,
