@@ -2,6 +2,8 @@
 
 Status: accepted. Section 1 is partly superseded by ADR 0014 (`schema.ts` as one file, the `shared/` areas, the `test/` layout, `app-middleware/`); the rest stands.
 
+Superseded in part by ADR 0017: a module's public API is `modules/<name>/index.ts`, not `<name>.public.ts`.
+
 This amends the rule "third-party clients are created only in `src/config/`" (ADR 0001, `AGENTS.md`, `docs/architecture.md`). ADRs 0011 and 0012 are accepted and keep their historical paths (`src/utils`, `src/middleware`, ...); this ADR supersedes those paths. The living docs are updated with the migration phases below.
 
 ## Context

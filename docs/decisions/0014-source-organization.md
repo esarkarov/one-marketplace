@@ -2,6 +2,8 @@
 
 Status: accepted.
 
+Superseded in part by ADR 0017: a module's public API is `modules/<name>/index.ts`, not `<name>.public.ts`.
+
 This extends ADR 0013. It supersedes ADR 0013 section 1 on four points: `schema.ts` being one file, the contents of `shared/`, the layout of `test/`, and where app-wide middleware lives. Dependency direction, table ownership, third-party clients and the boundary test (ADR 0013 sections 2 to 4 and 6) are unchanged. ADRs 0004 to 0013 are not rewritten; the superseded lines in ADR 0013 are marked in place.
 
 ## Context

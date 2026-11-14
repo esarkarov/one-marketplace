@@ -2,6 +2,8 @@
 
 Status: accepted. Supersedes parts of ADR 0013, ADR 0014 and ADR 0015 (list below).
 
+Superseded in part by ADR 0017: a module's public API is `modules/<name>/index.ts`, not `<name>.public.ts`.
+
 ## Context
 
 After ADR 0014 the 14 modules under `services/api/src/modules/` (198 files) were flat, except `contracts`, which split services and tests into folders. A module of 20 files mixed controllers, services, repositories, zod schemas, responses, tables and tests in one directory, and ADR 0014 section 1 made the shape depend on a size threshold. One folder set for every module makes a file's role visible from its path and removes the threshold.

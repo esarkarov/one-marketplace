@@ -2,6 +2,8 @@
 
 Status: accepted. Amends ADR 0014 section 5.
 
+Superseded in part by ADR 0017: a module's public API is `modules/<name>/index.ts`, not `<name>.public.ts`.
+
 ## Context
 
 ADR 0014 section 5 adopted repositories only for `contracts` and `agency` and kept every `FOR UPDATE` lock and guarded `UPDATE` in the service. Cross-module writes now go through owner functions (ADR 0014 section 11), but those functions, and the SQL of every other module, still sit in services and `.public.ts` files. At the start of this decision 27 non-test files outside `database/` and `bootstrap/` build queries: 264 calls to `select`, `insert`, `update`, `delete` or `execute` on `db`, a transaction handle or an executor. A rule that only some modules follow cannot be enforced.
