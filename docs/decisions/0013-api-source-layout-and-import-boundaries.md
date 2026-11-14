@@ -23,7 +23,7 @@ Constraints: this stays a modular monolith (ADR 0001), not microservices. No who
 - `server.ts` (entry) and `app.ts` (express factory).
 - `bootstrap/`: ordered start and stop of infrastructure and of the module-owned workers, and readiness. `payouts.cron.ts` and `messaging.socket.ts` stay in their modules; bootstrap only runs their lifecycle. No `workers/` or `realtime/` folders.
 - `config/`: validated env, constants, cors, logger, webhooks.
-- `infrastructure/`: one file per third-party client or adapter: redis, rabbitmq, `events/` (envelope, topology, publisher, legacy-v1; the consumer lives in `modules/notifications/notifications.consumer.ts`), stripe, clerk, daily, image-kit, upload-documents, account-auth-cache.
+- `infrastructure/`: one folder per third-party service, see "Infrastructure layout" below. The notifications consumer lives in `modules/notifications/notifications.consumer.ts`.
 - `shared/`:
   - `http/`: api-error, async-handler, generic middleware, and the auth and role guards (`requireClient`, `requireFreelancer`).
   - `validation/`: common, response, money and search schemas, and `validation-limits.ts`.
@@ -36,6 +36,17 @@ Constraints: this stays a modular monolith (ADR 0001), not microservices. No who
 ### 2. Third-party clients
 
 One file per third-party client under `src/infrastructure/`, none created anywhere else. An eslint `no-restricted-imports` rule forbids importing the client packages (stripe, clerk, daily, imagekit, ioredis or redis, amqplib and amqp-connection-manager) outside `src/infrastructure/`. `config/` keeps configuration only.
+
+### Infrastructure layout
+
+- `auth/`: Clerk client and `verifyToken`.
+- `cache/`: Redis client and `account-auth-cache`.
+- `events/`: RabbitMQ connection, envelope, topology, publisher, legacy-v1.
+- `payments/`: Stripe client.
+- `storage/`: ImageKit client.
+- `video/`: Daily client.
+
+Each third-party service has one lazy client in its folder. Upload logic (`upload-documents`) is not infrastructure and lives in `shared/uploads`.
 
 ### 3. Dependency direction
 
@@ -114,7 +125,7 @@ Outliers renamed in Phase D:
 - `freelancer/@types.ts` to `freelancer.types.ts`
 - `notifications/notification.sse.ts` to `notifications.sse.ts`
 - `payouts/payout-state.ts` and `payout-failure.ts` to `payouts.state.ts` and `payouts.failure.ts`
-- `config/imageKit.ts` to `infrastructure/image-kit.ts`
+- `config/imageKit.ts` to `infrastructure/storage/image-kit.ts`
 - `middleware/connects.middleware.ts` moves into the connects module
 
 ### 6. Enforcement
