@@ -14,12 +14,16 @@ import {
   getFreelancerProposalMetadata,
   getFreelancerProposals,
   getClientJobProposals,
-  submitAgencyProposal,
-  submitProposal,
+} from "../services/proposals.queries.service.js";
+import {
   updateProposal,
   shortlistProposal,
   startProposalInterview,
-} from "../services/proposals.service.js";
+} from "../services/proposals.review.service.js";
+import {
+  submitAgencyProposal,
+  submitProposal,
+} from "../services/proposals.submission.service.js";
 import {
   getAgencyIdForMember,
   requireAgencyPermission,

@@ -45,7 +45,7 @@ import { assertTestDatabase } from "../../../test/setup/assert-test-database.js"
 import {
   submitAgencyProposal,
   submitProposal,
-} from "../services/proposals.service.js";
+} from "../services/proposals.submission.service.js";
 
 const PREFIX = "self-deal-it-";
 const STARTING_CONNECTS = 100;
