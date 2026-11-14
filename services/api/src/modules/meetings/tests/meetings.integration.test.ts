@@ -64,11 +64,11 @@ vi.mock("../../messaging/messaging.socket.js", async (importOriginal) => ({
 }));
 
 vi.mock(
-  "../../messaging/services/messaging.service.js",
+  "../../messaging/services/messaging.system-events.service.js",
   async (importOriginal) => {
     const original =
       await importOriginal<
-        typeof import("../../messaging/services/messaging.service.js")
+        typeof import("../../messaging/services/messaging.system-events.service.js")
       >();
     const post = original.postSystemEventMessage as (
       ...args: unknown[]

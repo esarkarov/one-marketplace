@@ -10,8 +10,7 @@ import {
 import { authenticateAccount } from "../auth/index.js";
 import { ApiError } from "../../shared/http/api-error.js";
 import { getAgencyIdForMember } from "../agency/index.js";
-
-type ConversationScope = "default" | "agency";
+import { ConversationScope } from "./types/messaging.types.js";
 
 let io: Server | undefined;
 const userSockets = new Map<string, Set<string>>();

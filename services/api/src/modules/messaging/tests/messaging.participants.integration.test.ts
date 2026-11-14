@@ -24,7 +24,7 @@ import { assertTestDatabase } from "../../../test/setup/assert-test-database.js"
 import {
   createConversation,
   getConversations,
-} from "../services/messaging.service.js";
+} from "../services/messaging.conversations.service.js";
 
 const PREFIX = "msg-part-it-";
 

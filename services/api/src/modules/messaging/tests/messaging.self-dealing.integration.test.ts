@@ -19,7 +19,7 @@ import {
   proposals,
 } from "../../../test/support/tables.js";
 import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
-import { createConversation } from "../services/messaging.service.js";
+import { createConversation } from "../services/messaging.conversations.service.js";
 
 const PREFIX = "msg-self-it-";
 

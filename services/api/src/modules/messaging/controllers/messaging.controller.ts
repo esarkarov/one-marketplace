@@ -2,28 +2,24 @@ import { RequestHandler } from "express";
 import { asyncHandler } from "../../../shared/http/async-handler.js";
 import { ApiResponse } from "../../../types/common.types.js";
 import {
-  ConversationScope,
   createConversation,
   getConversations,
+} from "../services/messaging.conversations.service.js";
+import {
   getMessages,
   markConversationRead,
   sendMessage,
-} from "../services/messaging.service.js";
+} from "../services/messaging.messages.service.js";
+import {
+  AttachmentInput,
+  ConversationScope,
+} from "../types/messaging.types.js";
 import { requireClient } from "../../../shared/http/auth/role-guards.js";
 import { ApiError } from "../../../shared/http/api-error.js";
 import {
   assertAttachmentFileName,
   validateAttachmentBatch,
 } from "../../../shared/uploads/attachments.js";
-
-export interface AttachmentInput {
-  fileId: string;
-  fileUrl: string;
-  fileName: string;
-  mimeType: string;
-  fileSize: number;
-  attachmentType: string;
-}
 
 const requestedScope = (value: unknown): ConversationScope =>
   value === "agency" ? "agency" : "default";
