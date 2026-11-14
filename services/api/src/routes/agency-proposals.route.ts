@@ -7,7 +7,7 @@ import {
   agencyProposalMetadataResponses,
   agencyProposalsResponses,
   agencySubmitProposalResponses,
-} from "../modules/agency/agency.responses.js";
+} from "../modules/agency/responses/agency.responses.js";
 import {
   getAgencyProposalMetadataHandler,
   getAgencyProposalsHandler,

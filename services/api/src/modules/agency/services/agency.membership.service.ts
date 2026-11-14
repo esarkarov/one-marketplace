@@ -1,10 +1,10 @@
-import { db } from "../../database/client.js";
-import { ApiError } from "../../shared/http/api-error.js";
-import type { DbExecutor } from "../../database/db-executor.js";
+import { db } from "../../../database/client.js";
+import { ApiError } from "../../../shared/http/api-error.js";
+import type { DbExecutor } from "../../../database/db-executor.js";
 import {
   isAgencyRoleAllowed,
   type AgencyPermission,
-} from "./agency.permissions.js";
+} from "../utils/agency.permissions.js";
 import {
   deleteAgencyMember,
   findAgencyIdOfMember,
@@ -14,7 +14,7 @@ import {
   findOwnedAgencyId,
   listAgencyMemberFreelancerIds,
   setAgencyMemberRole,
-} from "./agency.repository.js";
+} from "../repositories/agency.repository.js";
 
 export const getAgencyIdForMember = async (
   freelancerId: string,

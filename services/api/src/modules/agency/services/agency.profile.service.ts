@@ -1,21 +1,21 @@
 import { randomUUID } from "crypto";
-import { clerk } from "../../infrastructure/clerk.js";
-import { db } from "../../database/client.js";
-import { isUniqueViolation } from "../../database/pg-errors.js";
-import { ApiError } from "../../shared/http/api-error.js";
-import { imageKit } from "../../infrastructure/image-kit.js";
-import { env } from "../../config/env.js";
-import { logger } from "../../config/logger.js";
-import { errorLogAttributes } from "../../shared/logging/sanitize-log.js";
-import { addAgencyConnects } from "../connects/connects.public.js";
-import { sendNotification } from "../../infrastructure/events/publisher.js";
-import { INITIAL_CONNECTS } from "../../config/constants.js";
-import { getJSSContribution } from "../freelancer/freelancer.public.js";
+import { clerk } from "../../../infrastructure/clerk.js";
+import { db } from "../../../database/client.js";
+import { isUniqueViolation } from "../../../database/pg-errors.js";
+import { ApiError } from "../../../shared/http/api-error.js";
+import { imageKit } from "../../../infrastructure/image-kit.js";
+import { env } from "../../../config/env.js";
+import { logger } from "../../../config/logger.js";
+import { errorLogAttributes } from "../../../shared/logging/sanitize-log.js";
+import { addAgencyConnects } from "../../connects/connects.public.js";
+import { sendNotification } from "../../../infrastructure/events/publisher.js";
+import { INITIAL_CONNECTS } from "../../../config/constants.js";
+import { getJSSContribution } from "../../freelancer/freelancer.public.js";
 import {
   isImageDataUrl,
   reuseStoredImage,
   type StoredImage,
-} from "../../shared/uploads/portfolio-images.js";
+} from "../../../shared/uploads/portfolio-images.js";
 import {
   AgencyPortfolioItem,
   AgencyMember,
@@ -25,13 +25,13 @@ import {
   CreateAgencyInput,
   ImageInput,
   UpdateAgencyInput,
-} from "./agency.types.js";
+} from "../types/agency.types.js";
 import {
   AGENCY_MEMBER_UNIQUE,
   AGENCY_OWNER_UNIQUE,
   alreadyInAgencyError,
   ALREADY_IN_AGENCY_MESSAGE,
-} from "./agency.errors.js";
+} from "../utils/agency.errors.js";
 import { getAgencyIdForMember } from "./agency.membership.service.js";
 import {
   deletePortfolioOfAgency,
@@ -49,7 +49,7 @@ import {
   listContractReviewRatings,
   listPortfolioOfAgency,
   updateAgencyProfileByOwner,
-} from "./agency.repository.js";
+} from "../repositories/agency.repository.js";
 
 const regionNames = new Intl.DisplayNames(["en"], { type: "region" });
 

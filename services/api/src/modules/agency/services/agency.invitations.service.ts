@@ -1,18 +1,18 @@
-import { clerk } from "../../infrastructure/clerk.js";
-import { db } from "../../database/client.js";
-import { isUniqueViolation } from "../../database/pg-errors.js";
-import { ApiError } from "../../shared/http/api-error.js";
-import type { DbExecutor } from "../../database/db-executor.js";
-import { env } from "../../config/env.js";
-import { logger } from "../../config/logger.js";
-import { errorLogAttributes } from "../../shared/logging/sanitize-log.js";
-import { sendNotification } from "../../infrastructure/events/publisher.js";
+import { clerk } from "../../../infrastructure/clerk.js";
+import { db } from "../../../database/client.js";
+import { isUniqueViolation } from "../../../database/pg-errors.js";
+import { ApiError } from "../../../shared/http/api-error.js";
+import type { DbExecutor } from "../../../database/db-executor.js";
+import { env } from "../../../config/env.js";
+import { logger } from "../../../config/logger.js";
+import { errorLogAttributes } from "../../../shared/logging/sanitize-log.js";
+import { sendNotification } from "../../../infrastructure/events/publisher.js";
 import {
   AGENCY_MEMBER_UNIQUE,
   alreadyInAgencyError,
   ALREADY_IN_AGENCY_MESSAGE,
   invitationHandledError,
-} from "./agency.errors.js";
+} from "../utils/agency.errors.js";
 import {
   getAgencyIdForMember,
   getAgencyOwnerId,
@@ -31,8 +31,8 @@ import {
   resolveInvitationIfPending,
   setPendingInvitationRole,
   touchPendingInvitationIfCooldownElapsed,
-} from "./agency.invitations.repository.js";
-import { insertAgencyMember } from "./agency.repository.js";
+} from "../repositories/agency.invitations.repository.js";
+import { insertAgencyMember } from "../repositories/agency.repository.js";
 
 export interface AgencyInvitationData {
   id: string;

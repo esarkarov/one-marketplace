@@ -35,7 +35,7 @@ import {
   updateAgencyHandler,
   updateAgencyInvitationRoleHandler,
   updateAgencyMemberRoleHandler,
-} from "./agency.controller.js";
+} from "./controllers/agency.controller.js";
 import {
   agencyConnectsCheckoutResponses,
   agencyConnectsHistoryResponses,
@@ -58,7 +58,7 @@ import {
   agencyTeamInvitationsResponses,
   agencyUpdateResponses,
   agencyVerificationResponses,
-} from "./agency.responses.js";
+} from "./responses/agency.responses.js";
 import { authRoleShape } from "../../shared/validation/common-schemas.js";
 import {
   agencyJobFeedQuerySchema,
@@ -72,7 +72,7 @@ import {
   publicAgencyParamsSchema,
   respondInvitationBodySchema,
   updateAgencyBodySchema,
-} from "./agency.schemas.js";
+} from "./schemas/agency.schema.js";
 
 export const agencyRouter = Router();
 

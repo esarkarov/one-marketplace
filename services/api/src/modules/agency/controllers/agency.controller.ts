@@ -1,15 +1,15 @@
 import { RequestHandler } from "express";
-import { asyncHandler } from "../../shared/http/async-handler.js";
-import { ApiError } from "../../shared/http/api-error.js";
-import { isValidEmail } from "../../shared/validation/email.js";
-import { ApiResponse } from "../../types/common.types.js";
-import { requireText } from "../../config/constants.js";
-import { parseLiveUrl } from "../../shared/uploads/portfolio-images.js";
+import { asyncHandler } from "../../../shared/http/async-handler.js";
+import { ApiError } from "../../../shared/http/api-error.js";
+import { isValidEmail } from "../../../shared/validation/email.js";
+import { ApiResponse } from "../../../types/common.types.js";
+import { requireText } from "../../../config/constants.js";
+import { parseLiveUrl } from "../../../shared/uploads/portfolio-images.js";
 import {
   getAgencyEarningsOverview,
   getAgencyMonthlyEarnings,
   getAgencyPayoutManagementUrl,
-} from "./agency.earnings.service.js";
+} from "../services/agency.earnings.service.js";
 import {
   cancelAgencyInvitation,
   getAgencyInvitations,
@@ -18,13 +18,13 @@ import {
   resendAgencyInvitation,
   respondToAgencyInvitation,
   updateAgencyInvitationRole,
-} from "./agency.invitations.service.js";
+} from "../services/agency.invitations.service.js";
 import {
   getAgencyIdForMember,
   removeAgencyMember,
   requireAgencyPermission,
   updateAgencyMemberRole,
-} from "./agency.membership.service.js";
+} from "../services/agency.membership.service.js";
 import {
   createAgency,
   getAgencyForMember,
@@ -33,24 +33,24 @@ import {
   getAgencyTags,
   getPublicAgencyProfile,
   updateAgencyProfile,
-} from "./agency.profile.service.js";
+} from "../services/agency.profile.service.js";
 import {
   PublicAgencyFeedPage,
   PublicAgencyFilters,
   searchPublicAgencies,
-} from "./agency.search.service.js";
+} from "../services/agency.search.service.js";
 import {
   AgencyData,
   ImageInput,
   UpdateAgencyPortfolioInput,
-} from "./agency.types.js";
-import { getMatchedJobPostsBySkills } from "../freelancer/freelancer.public.js";
+} from "../types/agency.types.js";
+import { getMatchedJobPostsBySkills } from "../../freelancer/freelancer.public.js";
 import {
   createAgencyConnectsCheckout,
   getAgencyConnectsBalance,
   getAgencyConnectsHistory,
-} from "../connects/connects.public.js";
-import { CONNECTS_PLANS, ConnectsPlan } from "../../config/constants.js";
+} from "../../connects/connects.public.js";
+import { CONNECTS_PLANS, ConnectsPlan } from "../../../config/constants.js";
 
 const requireAgencyWebsite = (
   value: string | undefined,

@@ -5,7 +5,7 @@ import {
   agencyTalentSearchQuerySchema,
   createAgencyBodySchema,
   updateAgencyBodySchema,
-} from "./agency.schemas.js";
+} from "../schemas/agency.schema.js";
 
 describe("agencyJobFeedQuerySchema and agencyTalentSearchQuerySchema", () => {
   it.each(["1.5", "-1", "abc", "9007199254740993"])(
