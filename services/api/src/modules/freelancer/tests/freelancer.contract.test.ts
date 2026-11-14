@@ -22,8 +22,9 @@ const mocks = vi.hoisted(() => ({
   loginLink: vi.fn(),
 }));
 
-vi.mock("../../config/env.js", async (importOriginal) => {
-  const original = await importOriginal<typeof import("../../config/env.js")>();
+vi.mock("../../../config/env.js", async (importOriginal) => {
+  const original =
+    await importOriginal<typeof import("../../../config/env.js")>();
   return {
     ...original,
     env: {
@@ -36,12 +37,12 @@ vi.mock("../../config/env.js", async (importOriginal) => {
   };
 });
 
-vi.mock("../../infrastructure/clerk.js", () => ({
+vi.mock("../../../infrastructure/clerk.js", () => ({
   clerk: { users: { getUser: mocks.getUser } },
   verifyToken: mocks.verifyToken,
 }));
 
-vi.mock("../../infrastructure/stripe.js", () => ({
+vi.mock("../../../infrastructure/stripe.js", () => ({
   STRIPE_TIMEOUT_MS: 30_000,
   stripe: {
     v2: {
@@ -56,11 +57,11 @@ vi.mock("../../infrastructure/stripe.js", () => ({
   },
 }));
 
-vi.mock("../../infrastructure/image-kit.js", () => ({
+vi.mock("../../../infrastructure/image-kit.js", () => ({
   imageKit: { files: { upload: mocks.upload, delete: vi.fn() } },
 }));
 
-vi.mock("../../infrastructure/redis.js", () => ({
+vi.mock("../../../infrastructure/redis.js", () => ({
   redis: {
     get: async (key: string) => mocks.store.get(key) ?? null,
     expire: async () => true,
@@ -80,7 +81,7 @@ vi.mock("../../infrastructure/redis.js", () => ({
   disconnectRedis: async () => undefined,
 }));
 
-import { db, pool } from "../../database/client.js";
+import { db, pool } from "../../../database/client.js";
 import {
   accounts,
   agency_members,
@@ -95,10 +96,10 @@ import {
   job_posts,
   payout_history,
   proposals,
-} from "../../test/support/tables.js";
-import { assertTestDatabase } from "../../test/setup/assert-test-database.js";
-import { getAccountAuthCacheKey } from "../../config/constants.js";
-import { saveFreelancerProfile } from "./freelancer.service.js";
+} from "../../../test/support/tables.js";
+import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
+import { getAccountAuthCacheKey } from "../../../config/constants.js";
+import { saveFreelancerProfile } from "../services/freelancer.service.js";
 import {
   freelancerEarningsCertificateResponses,
   freelancerEarningsOverviewResponses,
@@ -110,9 +111,9 @@ import {
   freelancerProfilePutResponses,
   freelancerPublicProfileResponses,
   freelancerSearchResponses,
-} from "./freelancer.responses.js";
+} from "../responses/freelancer.responses.js";
 
-const { app } = await import("../../app.js");
+const { app } = await import("../../../app.js");
 
 const PREFIX = "freelancer-contract-";
 const API = "/api/v1/freelancer";

@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { db, pool } from "../../database/client.js";
+import { db, pool } from "../../../database/client.js";
 import {
   accounts,
   client_metadata,
@@ -10,17 +10,17 @@ import {
   freelancer_metadata,
   job_posts,
   proposals,
-} from "../../test/support/tables.js";
-import { assertTestDatabase } from "../../test/setup/assert-test-database.js";
+} from "../../../test/support/tables.js";
+import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
 import {
   searchFreelancerRows,
   type TalentSearchCriteria,
-} from "./freelancer.search.repository.js";
+} from "../repositories/freelancer.search.repository.js";
 import {
   countHiresPerJob,
   countProposalsPerJob,
   listPublishedJobsWithClient,
-} from "./freelancer.jobs.repository.js";
+} from "../repositories/freelancer.jobs.repository.js";
 
 const PREFIX = "freelancer-search-";
 const like = `${PREFIX}%`;

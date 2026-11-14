@@ -59,8 +59,8 @@ import {
   getAdminOverviewTotals,
   getAdminTransactions,
 } from "../../admin/admin.service.js";
-import { getAgencyEarningsOverview } from "../../agency/agency.earnings.service.js";
-import { getFreelancerEarningsOverview } from "../../freelancer/freelancer.service.js";
+import { getAgencyEarningsOverview } from "../../agency/services/agency.earnings.service.js";
+import { getFreelancerEarningsOverview } from "../../freelancer/services/freelancer.service.js";
 import { RETRY_BACKOFF_SECONDS } from "../utils/payouts.failure.js";
 import {
   PayoutTransitionError,

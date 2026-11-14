@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { db, pool } from "../../database/client.js";
+import { db, pool } from "../../../database/client.js";
 import {
   accounts,
   agency_members,
@@ -18,8 +18,8 @@ import {
   payout_history,
   proposals,
   reviews,
-} from "../../test/support/tables.js";
-import { assertTestDatabase } from "../../test/setup/assert-test-database.js";
+} from "../../../test/support/tables.js";
+import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
 import {
   deletePortfoliosOfFreelancer,
   findAgencyIdentityOfMember,
@@ -34,7 +34,7 @@ import {
   listReviewsOfContract,
   listStoredPortfolioCoverImages,
   upsertFreelancerMetadata,
-} from "./freelancer.repository.js";
+} from "../repositories/freelancer.repository.js";
 import {
   findCertificateAccount,
   findHasEarnings,
@@ -42,13 +42,13 @@ import {
   listEarningAmounts,
   listEarningsWithPayoutState,
   listMonthlyEarningTotals,
-} from "./freelancer.earnings.repository.js";
+} from "../repositories/freelancer.earnings.repository.js";
 import {
   countHiresForJob,
   countProposalsForJob,
   findPublishedJobDetail,
-} from "./freelancer.jobs.repository.js";
-import { getAgencyIdentityForMember } from "./freelancer.agency-identity.js";
+} from "../repositories/freelancer.jobs.repository.js";
+import { getAgencyIdentityForMember } from "../services/freelancer.agency-identity.service.js";
 
 const PREFIX = "freelancer-repo-";
 const like = `${PREFIX}%`;

@@ -1,5 +1,5 @@
-import { db } from "../../database/client.js";
-import { findAgencyIdentityOfMember } from "./freelancer.repository.js";
+import { db } from "../../../database/client.js";
+import { findAgencyIdentityOfMember } from "../repositories/freelancer.repository.js";
 
 export const getAgencyIdentityForMember = async (
   freelancerId: string,

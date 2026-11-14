@@ -22,9 +22,12 @@ vi.mock("../../../config/logger.js", () => ({
 
 vi.mock("../../../infrastructure/stripe.js", () => ({ stripe: {} }));
 vi.mock("../../../infrastructure/image-kit.js", () => ({ imageKit: {} }));
-vi.mock("../../freelancer/freelancer.agency-identity.js", () => ({
-  getAgencyIdentityForMember: vi.fn(),
-}));
+vi.mock(
+  "../../freelancer/services/freelancer.agency-identity.service.js",
+  () => ({
+    getAgencyIdentityForMember: vi.fn(),
+  }),
+);
 vi.mock("../../connects/services/connects.service.js", () => ({
   addConnects: vi.fn(),
 }));
@@ -75,7 +78,7 @@ const { receiveSignup } = await import("../services/auth.service.js");
 const { saveClientProfile } =
   await import("../../client/services/client.service.js");
 const { saveFreelancerProfile } =
-  await import("../../freelancer/freelancer.service.js");
+  await import("../../freelancer/services/freelancer.service.js");
 
 beforeEach(() => {
   mocks.events.length = 0;

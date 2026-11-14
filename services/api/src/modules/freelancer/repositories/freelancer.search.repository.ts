@@ -1,8 +1,8 @@
 import { and, asc, desc, eq, gte, lte, sql } from "drizzle-orm";
-import type { DbExecutor } from "../../database/db-executor.js";
-import { accounts } from "../auth/models/auth.model.js";
-import { freelancer_earning } from "../contracts/models/contracts.model.js";
-import { freelancer_metadata } from "./models/freelancer.model.js";
+import type { DbExecutor } from "../../../database/db-executor.js";
+import { accounts } from "../../auth/models/auth.model.js";
+import { freelancer_earning } from "../../contracts/models/contracts.model.js";
+import { freelancer_metadata } from "../models/freelancer.model.js";
 
 export interface TalentSearchCriteria {
   verifiedOnly?: boolean;

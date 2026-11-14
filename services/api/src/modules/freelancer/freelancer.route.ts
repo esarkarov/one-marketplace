@@ -18,7 +18,7 @@ import {
   getPublicFreelancer,
   searchPublicFreelancersHandler,
   upsertFreelanceProfile,
-} from "./freelancer.controller.js";
+} from "./controllers/freelancer.controller.js";
 
 import { validate } from "../../shared/http/validate.middleware.js";
 import { authRoleShape } from "../../shared/validation/common-schemas.js";
@@ -33,13 +33,13 @@ import {
   freelancerProfilePutResponses,
   freelancerPublicProfileResponses,
   freelancerSearchResponses,
-} from "./freelancer.responses.js";
+} from "./responses/freelancer.responses.js";
 import {
   idParamsSchema,
   jobFeedQuerySchema,
   talentSearchQuerySchema,
   upsertProfileBodySchema,
-} from "./freelancer.schemas.js";
+} from "./schemas/freelancer.schema.js";
 
 export const freelancerRouter = Router();
 

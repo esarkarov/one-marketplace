@@ -1,14 +1,14 @@
 import { RequestHandler } from "express";
-import { ApiError } from "../../shared/http/api-error.js";
-import { requireFreelancer } from "../../shared/http/auth/role-guards.js";
-import { asyncHandler } from "../../shared/http/async-handler.js";
-import { ApiResponse } from "../../types/common.types.js";
+import { ApiError } from "../../../shared/http/api-error.js";
+import { requireFreelancer } from "../../../shared/http/auth/role-guards.js";
+import { asyncHandler } from "../../../shared/http/async-handler.js";
+import { ApiResponse } from "../../../types/common.types.js";
 import {
   FreelancerProfileData,
   SaveFreelancerProfileInput,
-} from "./freelancer.types.js";
-import { requireText } from "../../config/constants.js";
-import { parseLiveUrl } from "../../shared/uploads/portfolio-images.js";
+} from "../types/freelancer.types.js";
+import { requireText } from "../../../config/constants.js";
+import { parseLiveUrl } from "../../../shared/uploads/portfolio-images.js";
 import {
   getFreelancerEarningsCertificateData,
   getFreelancerEarningsOverview,
@@ -22,8 +22,8 @@ import {
   PublicTalentSearchPage,
   saveFreelancerProfile,
   searchPublicFreelancers,
-} from "./freelancer.service.js";
-import { renderEarningsCertificatePdf } from "./earnings-certificate.pdf.js";
+} from "../services/freelancer.service.js";
+import { renderEarningsCertificatePdf } from "../utils/earnings-certificate.pdf.js";
 
 export const getLoggedInFreelancerProfile: RequestHandler = asyncHandler(
   async (request, response) => {

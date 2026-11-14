@@ -1,9 +1,9 @@
-import { db } from "../../database/client.js";
-import { toSafeCents } from "../../shared/money/money.js";
+import { db } from "../../../database/client.js";
+import { toSafeCents } from "../../../shared/money/money.js";
 import {
   markFreelancerOnboardingComplete,
   setStripeConnectAccountId,
-} from "../auth/auth.public.js";
+} from "../../auth/auth.public.js";
 import {
   countHiresForJob,
   countHiresPerJob,
@@ -11,8 +11,8 @@ import {
   countProposalsPerJob,
   findPublishedJobDetail,
   listPublishedJobsWithClient,
-} from "./freelancer.jobs.repository.js";
-import { searchFreelancerRows } from "./freelancer.search.repository.js";
+} from "../repositories/freelancer.jobs.repository.js";
+import { searchFreelancerRows } from "../repositories/freelancer.search.repository.js";
 import {
   findCertificateAccount,
   findHasEarnings,
@@ -20,7 +20,7 @@ import {
   listEarningAmounts,
   listEarningsWithPayoutState,
   listMonthlyEarningTotals,
-} from "./freelancer.earnings.repository.js";
+} from "../repositories/freelancer.earnings.repository.js";
 import {
   deletePortfoliosOfFreelancer,
   findEarningStats,
@@ -34,32 +34,32 @@ import {
   listReviewsOfContract,
   listStoredPortfolioCoverImages,
   upsertFreelancerMetadata,
-} from "./freelancer.repository.js";
+} from "../repositories/freelancer.repository.js";
 import {
   FreelancerProfileData,
   PortfolioData,
   SaveFreelancerProfileInput,
-} from "./freelancer.types.js";
-import { getAgencyIdentityForMember } from "./freelancer.agency-identity.js";
-import { env } from "../../config/env.js";
-import { logger } from "../../config/logger.js";
-import { errorLogAttributes } from "../../shared/logging/sanitize-log.js";
-import { stripe } from "../../infrastructure/stripe.js";
-import { ApiError } from "../../shared/http/api-error.js";
-import { imageKit } from "../../infrastructure/image-kit.js";
+} from "../types/freelancer.types.js";
+import { getAgencyIdentityForMember } from "./freelancer.agency-identity.service.js";
+import { env } from "../../../config/env.js";
+import { logger } from "../../../config/logger.js";
+import { errorLogAttributes } from "../../../shared/logging/sanitize-log.js";
+import { stripe } from "../../../infrastructure/stripe.js";
+import { ApiError } from "../../../shared/http/api-error.js";
+import { imageKit } from "../../../infrastructure/image-kit.js";
 import { randomUUID } from "crypto";
 import {
   EARNINGS_HOLD_PERIOD_MS,
   PLATFORM_FEE_BPS,
   STRIPE_PAYOUT_ELIGIBLE_COUNTRIES,
-} from "../../config/constants.js";
-import { invalidateAccountAuthCache } from "../../infrastructure/account-auth-cache.js";
-import { addConnects } from "../connects/connects.public.js";
-import { clerk } from "../../infrastructure/clerk.js";
+} from "../../../config/constants.js";
+import { invalidateAccountAuthCache } from "../../../infrastructure/account-auth-cache.js";
+import { addConnects } from "../../connects/connects.public.js";
+import { clerk } from "../../../infrastructure/clerk.js";
 import {
   isImageDataUrl,
   reuseStoredImage,
-} from "../../shared/uploads/portfolio-images.js";
+} from "../../../shared/uploads/portfolio-images.js";
 
 const getClientCountry = async (clientId: string) => {
   if (!env.clerkSecretKey) {

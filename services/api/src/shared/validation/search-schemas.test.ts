@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { agencyTalentSearchQuerySchema } from "../../modules/agency/agency.schemas.js";
+import { agencyTalentSearchQuerySchema } from "../../modules/agency/schemas/agency.schema.js";
 import { marketplaceSearchQuerySchema } from "../../modules/client/schemas/client.schema.js";
-import { talentSearchQuerySchema } from "../../modules/freelancer/freelancer.schemas.js";
+import { talentSearchQuerySchema } from "../../modules/freelancer/schemas/freelancer.schema.js";
 import {
   SEARCH_OFFSET_MAX,
   SEARCH_QUERY_MAX_LENGTH,
