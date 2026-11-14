@@ -22,7 +22,7 @@ On-demand checklist for `services/api`. Rules and rationale: `services/api/AGENT
 ## Rules that apply to both
 
 - Money is integer cents: `*_cents` columns, `*Cents` fields, helpers from `shared/money/money.ts`.
-- SQL: put queries in `<name>.repository.ts` (plain functions, executor first); a service opens `db.transaction` and passes the handle down but never queries, and `.public.ts` only re-exports (ADR 0015). Do not add a file to `src/test/architecture/repository-sql-exemptions.ts`; the list only shrinks as modules are converted.
+- SQL: put queries in `<name>.repository.ts` (plain functions, executor first); a service opens `db.transaction` and passes the handle down but never queries, and `.public.ts` only re-exports (ADR 0015). There is no exemption list: a file that holds SQL outside a repository fails `repository-sql.test.ts`, and a repository that throws or imports `ApiError` fails `repository-purity.test.ts`; return the result and let the service throw.
 - Tables: touch another module's tables only to read, through an edge in `services/api/src/test/architecture/table-access-allowlist.ts`. A write to another module's table is an owner function in the owner's `<name>.public.ts` (executor first, SQL only, ADR 0014 section 11); the allowlist holds no writes and a test fails if one is added. New edges need review. Register new tables in `table-ownership.ts`. `<name>.schema.ts` (drizzle tables, planned) is different from `<name>.schemas.ts` (zod).
 - Events: publish through `infrastructure/events`. Consumers live in the module that owns the data they write. RabbitMQ stays optional.
 - Third-party clients (Stripe, Clerk, Daily, ImageKit, Redis, RabbitMQ) exist only in `infrastructure/`; modules import them from there. Config comes from `config/`.

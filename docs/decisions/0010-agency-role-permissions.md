@@ -8,7 +8,7 @@ Status: accepted (Stage 8). Closes finding M8 of ADR 0008.
 
 ## Decision
 
-One map in `services/api/src/modules/agency/agency.permissions.ts` and one helper, `requireAgencyPermission(userId, permission)` in `agency.service.ts`. Owner resolution lives only in the helper.
+One map in `services/api/src/modules/agency/agency.permissions.ts` and one helper, `requireAgencyPermission(userId, permission)` in `agency.membership.service.ts`, exposed through `agency.public.ts`. Owner resolution lives only in the helper.
 
 | Permission              | Owner | Business manager | Any other role |
 | ----------------------- | ----- | ---------------- | -------------- |

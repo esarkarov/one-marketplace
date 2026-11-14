@@ -2,7 +2,7 @@
 
 ## Scope
 
-- `services/api/src/modules/agency/agency.permissions.ts` and `requireAgencyPermission` in `agency.service.ts` (design: `docs/decisions/0010-agency-role-permissions.md`).
+- `services/api/src/modules/agency/agency.permissions.ts` and `requireAgencyPermission` in `agency.membership.service.ts` (design: `docs/decisions/0010-agency-role-permissions.md`).
 - Guarded paths: `POST /agency/proposals`, `POST /agency/connects/checkout`, `GET /agency/earnings/summary`, `GET /agency/earnings/overview`, `GET /agency/team/invitations`, contract accept and finish with `scope=agency`.
 
 Use only the `_test` database with Stripe, ImageKit and Clerk mocked. Never use or print the real `.env`.
