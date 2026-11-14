@@ -25,7 +25,7 @@ vi.mock("../../../infrastructure/image-kit.js", () => ({ imageKit: {} }));
 vi.mock("../../freelancer/freelancer.agency-identity.js", () => ({
   getAgencyIdentityForMember: vi.fn(),
 }));
-vi.mock("../../connects/connects.service.js", () => ({
+vi.mock("../../connects/services/connects.service.js", () => ({
   addConnects: vi.fn(),
 }));
 
@@ -72,7 +72,8 @@ vi.mock("../../../database/client.js", () => {
 });
 
 const { receiveSignup } = await import("../services/auth.service.js");
-const { saveClientProfile } = await import("../../client/client.service.js");
+const { saveClientProfile } =
+  await import("../../client/services/client.service.js");
 const { saveFreelancerProfile } =
   await import("../../freelancer/freelancer.service.js");
 

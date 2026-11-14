@@ -1,18 +1,18 @@
 import { Router } from "express";
 import { isAuthenticated } from "../auth/auth.public.js";
-import { availableConnects } from "./connects.middleware.js";
+import { availableConnects } from "./middleware/connects.middleware.js";
 import { validate } from "../../shared/http/validate.middleware.js";
 import {
   buyConnects,
   connectsWebhook,
   getAvailableConnects,
   getLoggedInFreelancerConnectsHistory,
-} from "./connects.controller.js";
+} from "./controllers/connects.controller.js";
 import {
   buyConnectsBodySchema,
   roleOnlyQuerySchema,
-} from "./connects.schemas.js";
-import { connectsResponses } from "./connects.responses.js";
+} from "./schemas/connects.schema.js";
+import { connectsResponses } from "./responses/connects.responses.js";
 
 export const connectsRouter = Router();
 

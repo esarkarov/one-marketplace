@@ -17,7 +17,7 @@ import {
   removeClientJobPost,
   saveFreelancerJobPost,
   unsaveFreelancerJobPost,
-} from "./jobs.controller.js";
+} from "./controllers/jobs.controller.js";
 import {
   jobsCreateResponses,
   jobsDeleteResponses,
@@ -28,12 +28,12 @@ import {
   jobsSavedListResponses,
   jobsUnsaveResponses,
   jobsUpdateResponses,
-} from "./jobs.responses.js";
+} from "./responses/jobs.responses.js";
 import {
   jobBodySchema,
   jobIdParamsSchema,
   publicJobFeedQuerySchema,
-} from "./jobs.schemas.js";
+} from "./schemas/jobs.schema.js";
 
 export const jobRouter = Router();
 

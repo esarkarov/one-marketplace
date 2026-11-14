@@ -5,7 +5,7 @@ import { authRoleShape } from "../../shared/validation/common-schemas.js";
 import {
   clientProfileBodySchema,
   marketplaceSearchQuerySchema,
-} from "./client.schemas.js";
+} from "./schemas/client.schema.js";
 import {
   clientCompletedContractsResponses,
   clientDashboardOverviewResponses,
@@ -14,7 +14,7 @@ import {
   clientMarketplaceSearchResponses,
   clientProfileGetResponses,
   clientProfilePutResponses,
-} from "./client.responses.js";
+} from "./responses/client.responses.js";
 import {
   getClientCompletedContractsHandler,
   getClientDashboardOverviewHandler,
@@ -23,7 +23,7 @@ import {
   getLoggedInClientProfile,
   searchMarketplaceHandler,
   upsertClientProfile,
-} from "./client.controller.js";
+} from "./controllers/client.controller.js";
 
 export const clientRouter = Router();
 

@@ -4,9 +4,9 @@ import { validate } from "../../shared/http/validate.middleware.js";
 import {
   identityWebhook,
   startIdentityVerification,
-} from "./identity.controller.js";
-import { identityResponses } from "./identity.responses.js";
-import { identitySessionQuerySchema } from "./identity.schemas.js";
+} from "./controllers/identity.controller.js";
+import { identityResponses } from "./responses/identity.responses.js";
+import { identitySessionQuerySchema } from "./schemas/identity.schema.js";
 
 export const identityRouter = Router();
 

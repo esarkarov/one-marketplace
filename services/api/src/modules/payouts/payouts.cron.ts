@@ -1,5 +1,5 @@
 import cron from "node-cron";
-import { processDuePayouts } from "./payouts.service.js";
+import { processDuePayouts } from "./services/payouts.service.js";
 import { logger } from "../../config/logger.js";
 import { errorLogAttributes } from "../../shared/logging/sanitize-log.js";
 

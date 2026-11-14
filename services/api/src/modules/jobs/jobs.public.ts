@@ -1,1 +1,1 @@
-export { appendJobMilestone } from "./jobs.repository.js";
+export { appendJobMilestone } from "./repositories/jobs.repository.js";
