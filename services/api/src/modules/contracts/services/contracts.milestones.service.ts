@@ -1,16 +1,6 @@
-import { and, eq, isNotNull, sql } from "drizzle-orm";
 import { logger } from "../../../config/logger.js";
 import { db } from "../../../database/client.js";
 import { isUniqueViolation } from "../../../database/pg-errors.js";
-import {
-  agency_earning,
-  client_spents,
-  contract_milestones,
-  contracts,
-  earning_history,
-  freelancer_earning,
-} from "../contracts.schema.js";
-import { conversations } from "../../messaging/messaging.schema.js";
 import { appendJobMilestone } from "../../jobs/jobs.public.js";
 import { ApiError } from "../../../shared/http/api-error.js";
 import { splitFee } from "../../../shared/money/money.js";
@@ -22,8 +12,21 @@ import {
 import { getAgencyOwnerId } from "../../agency/agency.public.js";
 import {
   findContractForNewMilestone,
+  findMilestoneForReview,
   findMilestoneForSubmission,
 } from "../contracts.repository.js";
+import {
+  addAgencyEarning,
+  addClientSpent,
+  addFreelancerEarning,
+  addToContractTotal,
+  insertEarningHistory,
+  insertPendingMilestone,
+  lockContractStatusForUpdate,
+  markMilestoneReviewedIfAwaitingReview,
+  markMilestoneSubmittedIfActiveAndFunded,
+  readMilestoneAppendState,
+} from "../contracts.state.repository.js";
 
 const milestoneAddNotAllowed = () =>
   new ApiError(
@@ -60,22 +63,15 @@ export const submitContractMilestone = async (
 
   const now = new Date();
   await db.transaction(async (transaction) => {
-    const [submitted] = await transaction
-      .update(contract_milestones)
-      .set({
-        submission_message: submissionMessage,
-        submission_delivery_link: submissionDeliveryLink ?? null,
-        payment_requested_at: now,
-        updated_at: now,
-      })
-      .where(
-        and(
-          eq(contract_milestones.id, milestone.milestoneId),
-          eq(contract_milestones.status, "ACTIVE"),
-          isNotNull(contract_milestones.funded_at),
-        ),
-      )
-      .returning({ id: contract_milestones.id });
+    const [submitted] = await markMilestoneSubmittedIfActiveAndFunded(
+      transaction,
+      {
+        milestoneId: milestone.milestoneId,
+        submissionMessage,
+        submissionDeliveryLink: submissionDeliveryLink ?? null,
+        now,
+      },
+    );
     if (!submitted) throw milestoneNotSubmittable();
 
     const [message] = await appendConversationMessages(transaction, {
@@ -122,37 +118,11 @@ export const reviewContractMilestone = async (
   action: "APPROVE" | "REQUEST_CHANGES",
   feedback?: string,
 ) => {
-  const [milestone] = await db
-    .select({
-      contractId: contracts.id,
-      contractTitle: contracts.title,
-      freelancerId: contracts.freelancer_id,
-      agencyId: contracts.agency_id,
-      milestoneId: contract_milestones.id,
-      milestoneTitle: contract_milestones.title,
-      milestoneAmountCents: contract_milestones.amount_cents,
-      milestoneStatus: contract_milestones.status,
-      paymentRequestedAt: contract_milestones.payment_requested_at,
-      conversationId: conversations.id,
-    })
-    .from(contracts)
-    .innerJoin(
-      contract_milestones,
-      eq(contract_milestones.contract_id, contracts.id),
-    )
-    .innerJoin(
-      conversations,
-      eq(conversations.proposal_id, contracts.proposal_id),
-    )
-    .where(
-      and(
-        eq(contracts.id, contractId),
-        eq(contracts.client_id, clientId),
-        eq(contracts.status, "ACTIVE"),
-        eq(contract_milestones.id, milestoneId),
-      ),
-    )
-    .limit(1);
+  const [milestone] = await findMilestoneForReview(db, {
+    contractId,
+    milestoneId,
+    clientId,
+  });
 
   if (!milestone) throw new ApiError(404, "Contract milestone not found.");
   if (milestone.milestoneStatus !== "ACTIVE" || !milestone.paymentRequestedAt) {
@@ -173,67 +143,30 @@ export const reviewContractMilestone = async (
 
   await db
     .transaction(async (transaction) => {
-      const [transitioned] = await transaction
-        .update(contract_milestones)
-        .set(
-          approved
-            ? { status: "COMPLETED", completed_at: now, updated_at: now }
-            : { payment_requested_at: null, updated_at: now },
-        )
-        .where(
-          and(
-            eq(contract_milestones.id, milestone.milestoneId),
-            eq(contract_milestones.status, "ACTIVE"),
-            isNotNull(contract_milestones.payment_requested_at),
-          ),
-        )
-        .returning({ id: contract_milestones.id });
+      const [transitioned] = await markMilestoneReviewedIfAwaitingReview(
+        transaction,
+        { milestoneId: milestone.milestoneId, approved, now },
+      );
       if (!transitioned) throw notAwaitingReview();
 
       if (approved) {
         if (milestone.agencyId) {
-          await transaction
-            .insert(agency_earning)
-            .values({
-              agency_id: milestone.agencyId,
-              total_earning_cents: netCents,
-            })
-            .onConflictDoUpdate({
-              target: agency_earning.agency_id,
-              set: {
-                total_earning_cents: sql`${agency_earning.total_earning_cents} + ${netCents}`,
-                updated_at: now,
-              },
-            });
+          await addAgencyEarning(
+            transaction,
+            milestone.agencyId,
+            netCents,
+            now,
+          );
         } else {
-          await transaction
-            .insert(freelancer_earning)
-            .values({
-              freelancer_id: freelancerAccountId,
-              total_earning_cents: netCents,
-            })
-            .onConflictDoUpdate({
-              target: freelancer_earning.freelancer_id,
-              set: {
-                total_earning_cents: sql`${freelancer_earning.total_earning_cents} + ${netCents}`,
-                updated_at: now,
-              },
-            });
+          await addFreelancerEarning(
+            transaction,
+            freelancerAccountId,
+            netCents,
+            now,
+          );
         }
-        await transaction
-          .insert(client_spents)
-          .values({
-            client_id: clientId,
-            total_spent_cents: grossCents,
-          })
-          .onConflictDoUpdate({
-            target: client_spents.client_id,
-            set: {
-              total_spent_cents: sql`${client_spents.total_spent_cents} + ${grossCents}`,
-              updated_at: now,
-            },
-          });
-        await transaction.insert(earning_history).values({
+        await addClientSpent(transaction, clientId, grossCents, now);
+        await insertEarningHistory(transaction, {
           freelancer_id: milestone.agencyId ? null : freelancerAccountId,
           agency_id: milestone.agencyId ?? null,
           contract_id: milestone.contractId,
@@ -334,33 +267,22 @@ export const addContractMilestone = async (
 
   const now = new Date();
   const result = await db.transaction(async (transaction) => {
-    const [locked] = await transaction
-      .select({ status: contracts.status })
-      .from(contracts)
-      .where(eq(contracts.id, contract.id))
-      .for("update");
+    const [locked] = await lockContractStatusForUpdate(
+      transaction,
+      contract.id,
+    );
     if (!locked || locked.status !== "ACTIVE") throw milestoneAddNotAllowed();
 
-    const [state] = await transaction
-      .select({
-        incomplete: sql<number>`count(*) filter (where ${contract_milestones.status} <> 'COMPLETED')::int`,
-        nextPosition: sql<number>`coalesce(max(${contract_milestones.position}), -1)::int + 1`,
-      })
-      .from(contract_milestones)
-      .where(eq(contract_milestones.contract_id, contract.id));
+    const [state] = await readMilestoneAppendState(transaction, contract.id);
     if (!state || state.incomplete > 0) throw milestoneAddNotAllowed();
 
-    const [milestone] = await transaction
-      .insert(contract_milestones)
-      .values({
-        contract_id: contract.id,
-        title: input.title,
-        amount_cents: input.amountCents,
-        due_date: input.dueDate,
-        position: state.nextPosition,
-        status: "PENDING",
-      })
-      .returning({ id: contract_milestones.id });
+    const [milestone] = await insertPendingMilestone(transaction, {
+      contractId: contract.id,
+      title: input.title,
+      amountCents: input.amountCents,
+      dueDate: input.dueDate,
+      position: state.nextPosition,
+    });
     if (!milestone) throw new ApiError(500, "Milestone could not be added.");
 
     await appendJobMilestone(
@@ -374,13 +296,7 @@ export const addContractMilestone = async (
       },
       now,
     );
-    await transaction
-      .update(contracts)
-      .set({
-        total_amount_cents: sql`${contracts.total_amount_cents} + ${input.amountCents}`,
-        updated_at: now,
-      })
-      .where(eq(contracts.id, contract.id));
+    await addToContractTotal(transaction, contract.id, input.amountCents, now);
 
     if (!contract.conversationId) {
       return { milestoneId: milestone.id, conversationId: null };

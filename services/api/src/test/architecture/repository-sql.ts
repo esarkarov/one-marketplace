@@ -189,12 +189,77 @@ export const analyzeRepositorySql = (root = srcDir) => {
   return result;
 };
 
-export const unlistedSqlFiles = (
-  found: Map<string, SqlViolation[]>,
-  exemptions: string[],
-) => [...found.keys()].filter((key) => !exemptions.includes(key)).sort();
+export interface PurityViolation {
+  line: number;
+  kind: "api-error" | "throw" | "non-sql-import" | "fetch-call";
+  detail: string;
+}
 
-export const staleSqlExemptions = (
-  found: Map<string, SqlViolation[]>,
-  exemptions: string[],
-) => exemptions.filter((key) => !found.has(key)).sort();
+const isRepositoryKey = (key: string) =>
+  key.endsWith(".repository.ts") && !isTestKey(key);
+
+const NON_SQL_IMPORT =
+  /(^|\/)(infrastructure|config|bootstrap)\/|(^|\/)shared\/(http|uploads|logging)\/|^node:(fs|fs\/promises|http|https|net|tls|child_process|dns)$|^(stripe|redis|amqplib|socket\.io|pino|@clerk\/.*|@imagekit\/.*)$/;
+
+export const findRepositoryPurityViolations = (
+  file: string,
+): PurityViolation[] => {
+  const source = parse(file);
+  const found: PurityViolation[] = [];
+  const lineOf = (node: ts.Node) =>
+    source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1;
+
+  const visit = (node: ts.Node) => {
+    if (
+      (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
+      node.moduleSpecifier &&
+      ts.isStringLiteral(node.moduleSpecifier)
+    ) {
+      const specifier = node.moduleSpecifier.text;
+      if (/(^|\/)api-error(\.js)?$/.test(specifier)) {
+        found.push({
+          line: lineOf(node),
+          kind: "api-error",
+          detail: specifier,
+        });
+      } else if (NON_SQL_IMPORT.test(specifier)) {
+        found.push({
+          line: lineOf(node),
+          kind: "non-sql-import",
+          detail: specifier,
+        });
+      }
+    }
+    if (ts.isIdentifier(node) && node.text === "ApiError") {
+      found.push({ line: lineOf(node), kind: "api-error", detail: "ApiError" });
+    }
+    if (ts.isThrowStatement(node)) {
+      found.push({
+        line: lineOf(node),
+        kind: "throw",
+        detail: node.expression.getText(source).slice(0, 60),
+      });
+    }
+    if (
+      ts.isCallExpression(node) &&
+      ts.isIdentifier(node.expression) &&
+      node.expression.text === "fetch"
+    ) {
+      found.push({ line: lineOf(node), kind: "fetch-call", detail: "fetch" });
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
+  return found;
+};
+
+export const analyzeRepositoryPurity = (root = srcDir) => {
+  const result = new Map<string, PurityViolation[]>();
+  for (const file of listTsFiles(root)) {
+    const key = toKey(root, file);
+    if (!isRepositoryKey(key)) continue;
+    const violations = findRepositoryPurityViolations(file);
+    if (violations.length > 0) result.set(key, violations);
+  }
+  return result;
+};

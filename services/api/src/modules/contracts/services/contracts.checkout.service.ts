@@ -1,14 +1,8 @@
 import type Stripe from "stripe";
-import { and, eq } from "drizzle-orm";
 import { env } from "../../../config/env.js";
 import { stripe } from "../../../infrastructure/stripe.js";
 import { db } from "../../../database/client.js";
-import { accounts } from "../../auth/auth.schema.js";
 import { setStripeCustomerId } from "../../auth/auth.public.js";
-import { contract_milestones, contracts } from "../contracts.schema.js";
-import { conversations } from "../../messaging/messaging.schema.js";
-import { job_posts } from "../../jobs/jobs.schema.js";
-import { proposals } from "../../proposals/proposals.schema.js";
 import { ApiError } from "../../../shared/http/api-error.js";
 import { sendNotification } from "../../../infrastructure/events/publisher.js";
 import {
@@ -16,7 +10,12 @@ import {
   emitConversationUpdate,
 } from "../../messaging/messaging.public.js";
 import { getAgencyOwnerId } from "../../agency/agency.public.js";
-import { findMilestoneForFunding } from "../contracts.repository.js";
+import {
+  findMilestoneForFunding,
+  findPendingMilestoneForPaymentFunding,
+  findProposalOfferForCheckout,
+} from "../contracts.repository.js";
+import { markMilestoneFundedIfPending } from "../contracts.state.repository.js";
 
 export const createContractCheckout = async (
   clientId: string,
@@ -26,17 +25,7 @@ export const createContractCheckout = async (
     throw new ApiError(503, "Contract payments are not configured.");
   }
 
-  const [offer] = await db
-    .select({
-      proposal: proposals,
-      job: job_posts,
-      account: accounts,
-    })
-    .from(proposals)
-    .innerJoin(job_posts, eq(proposals.job_id, job_posts.id))
-    .innerJoin(accounts, eq(accounts.auth_id, job_posts.client_id))
-    .where(and(eq(proposals.id, proposalId), eq(job_posts.client_id, clientId)))
-    .limit(1);
+  const [offer] = await findProposalOfferForCheckout(db, proposalId, clientId);
 
   if (!offer) throw new ApiError(404, "Proposal not found.");
   if (offer.proposal.status !== "INTERVIEWED") {
@@ -168,37 +157,11 @@ export const fundContractMilestoneFromPayment = async (
     throw new ApiError(400, "Stripe milestone metadata is missing.");
   }
 
-  const [milestone] = await db
-    .select({
-      contractId: contracts.id,
-      freelancerId: contracts.freelancer_id,
-      agencyId: contracts.agency_id,
-      milestoneId: contract_milestones.id,
-      milestoneTitle: contract_milestones.title,
-      milestoneAmountCents: contract_milestones.amount_cents,
-      conversationId: conversations.id,
-      customerId: accounts.stripe_customer_id,
-    })
-    .from(contracts)
-    .innerJoin(
-      contract_milestones,
-      eq(contract_milestones.contract_id, contracts.id),
-    )
-    .innerJoin(
-      conversations,
-      eq(conversations.proposal_id, contracts.proposal_id),
-    )
-    .innerJoin(accounts, eq(accounts.auth_id, contracts.client_id))
-    .where(
-      and(
-        eq(contracts.id, contractId),
-        eq(contracts.client_id, clientId),
-        eq(contracts.status, "ACTIVE"),
-        eq(contract_milestones.id, milestoneId),
-        eq(contract_milestones.status, "PENDING"),
-      ),
-    )
-    .limit(1);
+  const [milestone] = await findPendingMilestoneForPaymentFunding(db, {
+    contractId,
+    clientId,
+    milestoneId,
+  });
   if (!milestone) return;
 
   const recipientId =
@@ -225,22 +188,12 @@ export const fundContractMilestoneFromPayment = async (
       : session.payment_intent?.id;
   const now = new Date();
   const funded = await db.transaction(async (transaction) => {
-    const [updated] = await transaction
-      .update(contract_milestones)
-      .set({
-        status: "ACTIVE",
-        funded_at: now,
-        stripe_checkout_session_id: session.id,
-        stripe_payment_intent_id: paymentIntentId,
-        updated_at: now,
-      })
-      .where(
-        and(
-          eq(contract_milestones.id, milestone.milestoneId),
-          eq(contract_milestones.status, "PENDING"),
-        ),
-      )
-      .returning({ id: contract_milestones.id });
+    const [updated] = await markMilestoneFundedIfPending(transaction, {
+      milestoneId: milestone.milestoneId,
+      checkoutSessionId: session.id,
+      paymentIntentId,
+      now,
+    });
     if (!updated) return false;
 
     const [message] = await appendConversationMessages(transaction, {

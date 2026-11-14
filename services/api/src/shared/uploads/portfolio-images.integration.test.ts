@@ -36,7 +36,7 @@ import {
   freelancer_portfolios,
 } from "../../test/support/tables.js";
 import { assertTestDatabase } from "../../test/setup/assert-test-database.js";
-import { updateAgencyProfile } from "../../modules/agency/agency.service.js";
+import { updateAgencyProfile } from "../../modules/agency/agency.profile.service.js";
 import { saveFreelancerProfile } from "../../modules/freelancer/freelancer.service.js";
 
 const PREFIX = "img-it-";

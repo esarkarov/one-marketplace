@@ -81,6 +81,7 @@ export default defineConfig([
       "src/routes/**/*.ts",
       "src/types/**/*.ts",
       "src/*.ts",
+      "src/modules/auth/auth.middleware.ts",
     ],
     rules: { "@typescript-eslint/no-explicit-any": "error" },
   },

@@ -10,7 +10,7 @@ import {
   isAuthenticated,
   resolveAccountRole,
   verifyBearerToken,
-} from "../../shared/http/auth/auth.middleware.js";
+} from "../auth/auth.public.js";
 import { largeJsonBody } from "../../shared/http/limits/json-body.middleware.js";
 import { messageWriteLimiter } from "../../shared/http/limits/user-rate-limit.middleware.js";
 import { validate } from "../../shared/http/validate.middleware.js";

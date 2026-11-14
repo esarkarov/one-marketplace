@@ -1,9 +1,10 @@
-import { inArray } from "drizzle-orm";
 import { clerk } from "../../../infrastructure/clerk.js";
 import { env } from "../../../config/env.js";
-import { listContractRows } from "../contracts.repository.js";
+import {
+  listAgencySummariesByIds,
+  listContractRows,
+} from "../contracts.repository.js";
 import { db } from "../../../database/client.js";
-import { agency_metadata } from "../../agency/agency.schema.js";
 
 export const getAccountContracts = async (
   userId: string,
@@ -52,14 +53,7 @@ export const getAccountContracts = async (
   const agencyNames = new Map<string, string>();
   const agencyAvatars = new Map<string, string | null>();
   if (agencyIds.length) {
-    const agencyRows = await db
-      .select({
-        id: agency_metadata.id,
-        name: agency_metadata.name,
-        avatar: agency_metadata.avatar_image,
-      })
-      .from(agency_metadata)
-      .where(inArray(agency_metadata.id, agencyIds));
+    const agencyRows = await listAgencySummariesByIds(db, agencyIds);
     agencyRows.forEach((row) => {
       agencyNames.set(row.id, row.name ?? "Agency");
       agencyAvatars.set(row.id, row.avatar?.url ?? null);

@@ -1,20 +1,8 @@
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
-import {
-  analyzeRepositorySql,
-  staleSqlExemptions,
-  unlistedSqlFiles,
-} from "./repository-sql.js";
-import { repositorySqlExemptions } from "./repository-sql-exemptions.js";
-import { srcDir } from "./table-access.js";
+import { analyzeRepositorySql } from "./repository-sql.js";
 
 const found = analyzeRepositorySql();
 
@@ -50,31 +38,13 @@ const tree = (files: Record<string, string>) => {
 };
 
 describe("SQL lives in repositories", () => {
-  it("lets only exempt files import drizzle-orm or a table file, or query through db, a transaction or an executor", () => {
-    const unlisted = unlistedSqlFiles(found, repositorySqlExemptions);
+  it("keeps SQL out of every file except repositories, table files, database and bootstrap code", () => {
     expect(
-      unlisted.map((key) => {
-        const first = found.get(key)![0]!;
+      [...found].map(([key, violations]) => {
+        const first = violations[0]!;
         return `${key}:${first.line} ${first.kind} ${first.detail}`;
       }),
       "SQL belongs in <module>.repository.ts; services may use db only to open db.transaction",
-    ).toEqual([]);
-  });
-
-  it("has no stale exemptions, so the list only shrinks", () => {
-    expect(staleSqlExemptions(found, repositorySqlExemptions)).toEqual([]);
-  });
-
-  it("lists each exemption once, for an existing file", () => {
-    expect(
-      repositorySqlExemptions.filter(
-        (key, index) => repositorySqlExemptions.indexOf(key) !== index,
-      ),
-    ).toEqual([]);
-    expect(
-      repositorySqlExemptions.filter(
-        (key) => !existsSync(path.join(srcDir, key)),
-      ),
     ).toEqual([]);
   });
 
@@ -88,9 +58,6 @@ describe("SQL lives in repositories", () => {
         .map((v) => v.kind)
         .sort(),
     ).toEqual(["drizzle-import", "query-call", "schema-import"]);
-    expect(unlistedSqlFiles(result, repositorySqlExemptions)).toEqual([
-      "modules/things/things.service.ts",
-    ]);
   });
 
   it("flags queries on an executor parameter and on db directly", () => {
@@ -141,15 +108,5 @@ export const run = (id: string) =>
 `,
     });
     expect([...analyzeRepositorySql(root).keys()]).toEqual([]);
-  });
-
-  it("reports an exemption for a file that is already clean as stale", () => {
-    const root = tree({
-      "modules/things/things.service.ts": `export const clean = () => 1;`,
-    });
-    const result = analyzeRepositorySql(root);
-    expect(
-      staleSqlExemptions(result, ["modules/things/things.service.ts"]),
-    ).toEqual(["modules/things/things.service.ts"]);
   });
 });

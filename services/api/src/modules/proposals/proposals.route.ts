@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { validate } from "../../shared/http/validate.middleware.js";
-import { isAuthenticated } from "../../shared/http/auth/auth.middleware.js";
+import { isAuthenticated } from "../auth/auth.public.js";
 import { submitProposalBodySchema } from "../../shared/validation/money-schemas.js";
 import {
   createProposal,

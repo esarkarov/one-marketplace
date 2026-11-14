@@ -106,3 +106,16 @@ export const insertAccountIfAbsent = async (
       target: accounts.auth_id,
     });
 };
+
+export const findAccountOnboardingState = async (
+  executor: DbExecutor,
+  userId: string,
+  role: "CLIENT" | "FREELANCER",
+) => {
+  const [account] = await executor
+    .select({ isOnboardingComplete: accounts.isOnboardingComplete })
+    .from(accounts)
+    .where(and(eq(accounts.auth_id, userId), eq(accounts.role, role)))
+    .limit(1);
+  return account;
+};

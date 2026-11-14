@@ -46,3 +46,11 @@ export const assertTransition = (
 
 export const allowedFrom = (to: PayoutStatus): PayoutStatus[] =>
   PAYOUT_STATUSES.filter((from) => isTransitionAllowed(from, to));
+
+export const requireAllowedFrom = (to: PayoutStatus): PayoutStatus[] => {
+  const froms = allowedFrom(to);
+  if (froms.length === 0) {
+    throw new Error(`No payout transition leads to ${to}`);
+  }
+  return froms;
+};

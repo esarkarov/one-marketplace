@@ -3,10 +3,7 @@ import { ApiError } from "../../shared/http/api-error.js";
 import { ApiResponse } from "../../types/common.types.js";
 import { asyncHandler } from "../../shared/http/async-handler.js";
 import { receiveSignup } from "./auth.service.js";
-import {
-  authenticateAccount,
-  getBearerToken,
-} from "../../shared/http/auth/auth.middleware.js";
+import { authenticateAccount, getBearerToken } from "./auth.middleware.js";
 
 interface AuthStatusData {
   role: "client" | "freelancer";

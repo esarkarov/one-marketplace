@@ -20,15 +20,15 @@ const mocks = vi.hoisted(() => {
 
 vi.mock("@clerk/backend", () => ({ verifyToken: mocks.verifyToken }));
 
-vi.mock("../../../config/env.js", () => ({
+vi.mock("../../config/env.js", () => ({
   env: { clerkSecretKey: "sk_test" },
 }));
 
-vi.mock("../../../config/logger.js", () => ({
+vi.mock("../../config/logger.js", () => ({
   logger: { warn: mocks.warn },
 }));
 
-vi.mock("../../../infrastructure/redis.js", () => ({
+vi.mock("../../infrastructure/redis.js", () => ({
   redis: {
     get: async (key: string) => {
       const entry = mocks.entries.get(key);
@@ -65,7 +65,7 @@ vi.mock("../../../infrastructure/redis.js", () => ({
   },
 }));
 
-vi.mock("../../../database/client.js", () => {
+vi.mock("../../database/client.js", () => {
   const chain = {
     from: () => chain,
     where: () => chain,
@@ -79,7 +79,7 @@ vi.mock("../../../database/client.js", () => {
 
 const { authenticateAccount } = await import("./auth.middleware.js");
 const { invalidateAccountAuthCache } =
-  await import("../../../infrastructure/account-auth-cache.js");
+  await import("../../infrastructure/account-auth-cache.js");
 
 beforeEach(() => {
   mocks.entries.clear();

@@ -6,34 +6,44 @@ import { ApiResponse } from "../../types/common.types.js";
 import { requireText } from "../../config/constants.js";
 import { parseLiveUrl } from "../../shared/uploads/portfolio-images.js";
 import {
-  AgencyData,
-  cancelAgencyInvitation,
-  createAgency,
   getAgencyEarningsOverview,
-  getAgencyForMember,
-  getAgencyIdentityForOwner,
-  getAgencyIdForMember,
-  getAgencyInvitations,
   getAgencyMonthlyEarnings,
-  getAgencyOwnerVerification,
   getAgencyPayoutManagementUrl,
-  getAgencyTags,
+} from "./agency.earnings.service.js";
+import {
+  cancelAgencyInvitation,
+  getAgencyInvitations,
   getMyAgencyInvitations,
-  getPublicAgencyProfile,
-  ImageInput,
   inviteAgencyMember,
-  PublicAgencyFeedPage,
-  PublicAgencyFilters,
-  removeAgencyMember,
-  requireAgencyPermission,
   resendAgencyInvitation,
   respondToAgencyInvitation,
-  searchPublicAgencies,
   updateAgencyInvitationRole,
+} from "./agency.invitations.service.js";
+import {
+  getAgencyIdForMember,
+  removeAgencyMember,
+  requireAgencyPermission,
   updateAgencyMemberRole,
+} from "./agency.membership.service.js";
+import {
+  createAgency,
+  getAgencyForMember,
+  getAgencyIdentityForOwner,
+  getAgencyOwnerVerification,
+  getAgencyTags,
+  getPublicAgencyProfile,
   updateAgencyProfile,
+} from "./agency.profile.service.js";
+import {
+  PublicAgencyFeedPage,
+  PublicAgencyFilters,
+  searchPublicAgencies,
+} from "./agency.search.service.js";
+import {
+  AgencyData,
+  ImageInput,
   UpdateAgencyPortfolioInput,
-} from "./agency.service.js";
+} from "./agency.types.js";
 import { getMatchedJobPostsBySkills } from "../freelancer/freelancer.public.js";
 import {
   createAgencyConnectsCheckout,

@@ -3,4 +3,4 @@ export {
   getAgencyOwnerId,
   getAgencyTeamMemberIds,
   requireAgencyPermission,
-} from "./agency.service.js";
+} from "./agency.membership.service.js";

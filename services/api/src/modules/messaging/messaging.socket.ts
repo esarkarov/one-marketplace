@@ -1,10 +1,13 @@
 import type { Server as HttpServer } from "node:http";
-import { and, eq, inArray, sql } from "drizzle-orm";
 import { Server } from "socket.io";
 import { socketCorsOptions } from "../../config/cors.js";
 import { db } from "../../database/client.js";
-import { conversation_participants, messages } from "./messaging.schema.js";
-import { authenticateAccount } from "../../shared/http/auth/auth.middleware.js";
+import {
+  listConversationIdsOfParticipant,
+  listParticipantsOfConversations,
+  markReadIfMessageInConversation,
+} from "./messaging.participants.repository.js";
+import { authenticateAccount } from "../auth/auth.public.js";
 import { ApiError } from "../../shared/http/api-error.js";
 import { getAgencyIdForMember } from "../agency/agency.public.js";
 
@@ -26,26 +29,15 @@ const getConversationUsers = async (
   scope: ConversationScope,
   agencyId: string | null,
 ) => {
-  const memberships = await db
-    .select({ conversationId: conversation_participants.conversation_id })
-    .from(conversation_participants)
-    .where(
-      scope === "agency" && agencyId
-        ? eq(conversation_participants.agency_id, agencyId)
-        : eq(conversation_participants.account_id, userId),
-    );
+  const memberships = await listConversationIdsOfParticipant(
+    db,
+    scope === "agency" && agencyId ? { agencyId } : { accountId: userId },
+  );
   const conversationIds = memberships.map(
     ({ conversationId }) => conversationId,
   );
   if (!conversationIds.length) return { conversationIds, participants: [] };
-  const rows = await db
-    .select({
-      accountId: conversation_participants.account_id,
-      agencyId: conversation_participants.agency_id,
-      participantType: conversation_participants.participant_type,
-    })
-    .from(conversation_participants)
-    .where(inArray(conversation_participants.conversation_id, conversationIds));
+  const rows = await listParticipantsOfConversations(db, conversationIds);
 
   // Each conversation partner listens in *their own* scope room, not mine —
   // a client is always "default", the agency side is always "agency",
@@ -152,27 +144,12 @@ export const initializeMessagingSocket = (server: HttpServer) => {
           return;
         }
 
-        const [participant] = await db
-          .update(conversation_participants)
-          .set({
-            last_read_message_id: messageId,
-            last_read_at: new Date(),
-            unread_count: 0,
-          })
-          .where(
-            and(
-              eq(conversation_participants.conversation_id, conversationId),
-              agencyId
-                ? eq(conversation_participants.agency_id, agencyId)
-                : eq(conversation_participants.account_id, userId),
-              sql`EXISTS (
-                SELECT 1 FROM ${messages}
-                WHERE ${messages.id} = ${messageId}
-                  AND ${messages.conversation_id} = ${conversationId}
-              )`,
-            ),
-          )
-          .returning({ id: conversation_participants.id });
+        const participant = await markReadIfMessageInConversation(db, {
+          conversationId,
+          messageId,
+          agencyId,
+          userId,
+        });
 
         acknowledge?.({ success: Boolean(participant) });
       },
@@ -205,14 +182,9 @@ export const emitConversationUpdate = async (
   excludedUserId?: string,
 ) => {
   if (!io) return;
-  const participants = await db
-    .select({
-      accountId: conversation_participants.account_id,
-      agencyId: conversation_participants.agency_id,
-      participantType: conversation_participants.participant_type,
-    })
-    .from(conversation_participants)
-    .where(eq(conversation_participants.conversation_id, conversationId));
+  const participants = await listParticipantsOfConversations(db, [
+    conversationId,
+  ]);
   participants.forEach(({ accountId, agencyId, participantType }) => {
     const isAgency = participantType === "AGENCY";
     const roomId = isAgency ? agencyId : accountId;

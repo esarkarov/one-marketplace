@@ -5,7 +5,7 @@ import {
   identifyAccount,
   isAuthenticated,
   verifyBearerToken,
-} from "../shared/http/auth/auth.middleware.js";
+} from "../routes/auth-handlers.js";
 import {
   requireAdminSession,
   requireAdminSessionAllowingQueryToken,

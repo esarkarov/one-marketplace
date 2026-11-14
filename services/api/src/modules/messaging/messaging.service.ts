@@ -1,32 +1,35 @@
 import { clerk } from "../../infrastructure/clerk.js";
-import {
-  and,
-  count,
-  desc,
-  eq,
-  inArray,
-  lt,
-  ne,
-  notInArray,
-  or,
-  sql,
-} from "drizzle-orm";
 import { env } from "../../config/env.js";
 import { db } from "../../database/client.js";
-import { accounts } from "../auth/auth.schema.js";
-import { agency_metadata } from "../agency/agency.schema.js";
-import { client_metadata } from "../client/client.schema.js";
 import {
-  conversation_participants,
-  conversations,
-  message_attachments,
-  messages,
-} from "./messaging.schema.js";
-import { contracts } from "../contracts/contracts.schema.js";
-import { freelancer_metadata } from "../freelancer/freelancer.schema.js";
-import { job_posts } from "../jobs/jobs.schema.js";
-import { meetings } from "../meetings/meetings.schema.js";
-import { proposals } from "../proposals/proposals.schema.js";
+  findAccountRole,
+  findActiveMeetingForConversation,
+  findJobOwnedByClient,
+  findProposalWithJobClient,
+  insertOrFindConversationByContextKey,
+  listActiveMeetingsForConversations,
+  listConversationRowsOfParticipant,
+  setConversationLastMessage,
+} from "./messaging.conversations.repository.js";
+import {
+  countMessagesFromOthersAfter,
+  findMessageInConversation,
+  insertMessageAttachments,
+  insertMessages,
+  listAttachmentsForMessages,
+  listMessagesPage,
+  listReplyPreviews,
+} from "./messaging.messages.repository.js";
+import {
+  findParticipantByAccount,
+  findParticipantByAgency,
+  findParticipantReadState,
+  incrementUnreadCounts,
+  insertConversationParticipantsIfAbsent,
+  listParticipantProfileRows,
+  markParticipantReadIfNotAhead,
+} from "./messaging.participants.repository.js";
+import type { messages } from "./messaging.schema.js";
 import { ApiError } from "../../shared/http/api-error.js";
 import type { DbExecutor } from "../../database/db-executor.js";
 import {
@@ -34,6 +37,7 @@ import {
   uploadDocuments,
 } from "../../infrastructure/upload-documents.js";
 import { emitConversationUpdate } from "./messaging.socket.js";
+import { appendConversationMessages } from "./messaging.conversations.repository.js";
 import {
   getAgencyIdForMember,
   getAgencyTeamMemberIds,
@@ -53,30 +57,20 @@ export const requireMember = async (
   userId: string,
   executor: DbExecutor = db,
 ) => {
-  const [direct] = await executor
-    .select()
-    .from(conversation_participants)
-    .where(
-      and(
-        eq(conversation_participants.conversation_id, conversationId),
-        eq(conversation_participants.account_id, userId),
-      ),
-    )
-    .limit(1);
+  const direct = await findParticipantByAccount(
+    executor,
+    conversationId,
+    userId,
+  );
   if (direct) return direct;
 
   const agencyId = await getAgencyIdForMember(userId, executor);
   if (agencyId) {
-    const [viaAgency] = await executor
-      .select()
-      .from(conversation_participants)
-      .where(
-        and(
-          eq(conversation_participants.conversation_id, conversationId),
-          eq(conversation_participants.agency_id, agencyId),
-        ),
-      )
-      .limit(1);
+    const viaAgency = await findParticipantByAgency(
+      executor,
+      conversationId,
+      agencyId,
+    );
     if (viaAgency) return viaAgency;
   }
 
@@ -86,31 +80,7 @@ export const requireMember = async (
 const getParticipantProfiles = async (conversationIds: string[]) => {
   if (!conversationIds.length) return new Map<string, unknown[]>();
 
-  const rows = await db
-    .select({
-      conversationId: conversation_participants.conversation_id,
-      accountId: conversation_participants.account_id,
-      agencyId: conversation_participants.agency_id,
-      participantType: conversation_participants.participant_type,
-      professionalTitle: freelancer_metadata.professional_title,
-      companyName: client_metadata.company_name,
-      agencyName: agency_metadata.name,
-      agencyAvatar: agency_metadata.avatar_image,
-    })
-    .from(conversation_participants)
-    .leftJoin(
-      freelancer_metadata,
-      eq(conversation_participants.account_id, freelancer_metadata.auth_id),
-    )
-    .leftJoin(
-      client_metadata,
-      eq(conversation_participants.account_id, client_metadata.auth_id),
-    )
-    .leftJoin(
-      agency_metadata,
-      eq(conversation_participants.agency_id, agency_metadata.id),
-    )
-    .where(inArray(conversation_participants.conversation_id, conversationIds));
+  const rows = await listParticipantProfileRows(db, conversationIds);
 
   const clerkUsers = new Map<
     string,
@@ -175,70 +145,17 @@ export const getConversations = async (
     if (!agencyId) return { conversations: [], totalUnread: 0 };
   }
 
-  const rows = await db
-    .select({
-      id: conversations.id,
-      jobId: conversations.job_id,
-      proposalId: conversations.proposal_id,
-      lastMessageAt: conversations.last_message_at,
-      updatedAt: conversations.updated_at,
-      unreadCount: conversation_participants.unread_count,
-      lastMessage: {
-        id: messages.id,
-        senderId: messages.sender_id,
-        messageType: messages.message_type,
-        body: messages.body,
-        eventType: messages.event_type,
-        createdAt: messages.created_at,
-      },
-      lastAttachmentName: sql<string | null>`(
-        SELECT ${message_attachments.file_name}
-        FROM ${message_attachments}
-        WHERE ${message_attachments.message_id} = ${messages.id}
-        LIMIT 1
-      )`,
-      jobTitle: job_posts.title,
-      contractId: contracts.id,
-      contractStatus: contracts.status,
-    })
-    .from(conversation_participants)
-    .innerJoin(
-      conversations,
-      eq(conversation_participants.conversation_id, conversations.id),
-    )
-    .leftJoin(messages, eq(conversations.last_message_id, messages.id))
-    .leftJoin(job_posts, eq(conversations.job_id, job_posts.id))
-    .leftJoin(contracts, eq(conversations.proposal_id, contracts.proposal_id))
-    .where(
-      agencyId
-        ? eq(conversation_participants.agency_id, agencyId)
-        : eq(conversation_participants.account_id, userId),
-    )
-    .orderBy(
-      desc(conversations.last_message_at),
-      desc(conversations.created_at),
-    );
+  const rows = await listConversationRowsOfParticipant(db, {
+    agencyId,
+    userId,
+  });
 
   const profiles = await getParticipantProfiles(rows.map(({ id }) => id));
   const activeMeetings = rows.length
-    ? await db
-        .select({
-          conversationId: meetings.conversation_id,
-          id: meetings.id,
-          joinUrl: meetings.join_url,
-          startedAt: meetings.started_at,
-          startedByAccountId: meetings.started_by_account_id,
-        })
-        .from(meetings)
-        .where(
-          and(
-            inArray(
-              meetings.conversation_id,
-              rows.map(({ id }) => id),
-            ),
-            eq(meetings.status, "ACTIVE"),
-          ),
-        )
+    ? await listActiveMeetingsForConversations(
+        db,
+        rows.map(({ id }) => id),
+      )
     : [];
   const activeMeetingByConversation = new Map(
     activeMeetings.map((meeting) => [meeting.conversationId, meeting]),
@@ -264,17 +181,7 @@ export const createConversation = async (
   let agencyIdForKey: string | undefined;
 
   if (input.proposalId) {
-    const [proposal] = await db
-      .select({
-        freelancerId: proposals.sender_id,
-        senderType: proposals.sender_type,
-        jobId: proposals.job_id,
-        clientId: job_posts.client_id,
-      })
-      .from(proposals)
-      .innerJoin(job_posts, eq(proposals.job_id, job_posts.id))
-      .where(eq(proposals.id, input.proposalId))
-      .limit(1);
+    const proposal = await findProposalWithJobClient(db, input.proposalId);
     if (!proposal || proposal.clientId !== clientId) {
       throw new ApiError(404, "Proposal not found.");
     }
@@ -305,20 +212,12 @@ export const createConversation = async (
     if (recipientId === clientId) {
       throw new ApiError(400, "You cannot start a conversation with yourself.");
     }
-    const [recipient] = await db
-      .select({ role: accounts.role })
-      .from(accounts)
-      .where(eq(accounts.auth_id, recipientId))
-      .limit(1);
+    const recipient = await findAccountRole(db, recipientId);
     if (recipient?.role !== "FREELANCER") {
       throw new ApiError(404, "Freelancer not found.");
     }
     if (jobId) {
-      const [job] = await db
-        .select({ id: job_posts.id })
-        .from(job_posts)
-        .where(and(eq(job_posts.id, jobId), eq(job_posts.client_id, clientId)))
-        .limit(1);
+      const job = await findJobOwnedByClient(db, jobId, clientId);
       if (!job) throw new ApiError(404, "Job post not found.");
     }
   }
@@ -330,49 +229,21 @@ export const createConversation = async (
       : `direct:client:${clientId}:talent:${recipientId}`;
 
   const conversationId = await db.transaction(async (transaction) => {
-    const [created] = await transaction
-      .insert(conversations)
-      .values({
-        job_id: jobId,
-        proposal_id: input.proposalId,
-        context_key: contextKey,
-      })
-      .onConflictDoNothing({ target: conversations.context_key })
-      .returning({ id: conversations.id });
-
-    const existing =
-      created ??
-      (
-        await transaction
-          .select({ id: conversations.id })
-          .from(conversations)
-          .where(eq(conversations.context_key, contextKey))
-          .limit(1)
-      )[0];
+    const existing = await insertOrFindConversationByContextKey(transaction, {
+      jobId,
+      proposalId: input.proposalId,
+      contextKey,
+    });
     if (!existing)
       throw new ApiError(500, "Conversation could not be created.");
 
-    await transaction
-      .insert(conversation_participants)
-      .values([
-        {
-          conversation_id: existing.id,
-          account_id: clientId,
-          participant_type: "CLIENT",
-        },
-        isAgencyConversation
-          ? {
-              conversation_id: existing.id,
-              agency_id: agencyIdForKey!,
-              participant_type: "AGENCY",
-            }
-          : {
-              conversation_id: existing.id,
-              account_id: recipientId!,
-              participant_type: "FREELANCER",
-            },
-      ])
-      .onConflictDoNothing();
+    await insertConversationParticipantsIfAbsent(transaction, {
+      conversationId: existing.id,
+      clientId,
+      counterparty: isAgencyConversation
+        ? { agencyId: agencyIdForKey! }
+        : { accountId: recipientId! },
+    });
     return existing.id;
   });
 
@@ -412,30 +283,14 @@ const hydrateMessages = async (
   }>,
 ) => {
   if (!rows.length) return [];
-  const attachments = await db
-    .select()
-    .from(message_attachments)
-    .where(
-      inArray(
-        message_attachments.message_id,
-        rows.map(({ id }) => id),
-      ),
-    );
+  const attachments = await listAttachmentsForMessages(
+    db,
+    rows.map(({ id }) => id),
+  );
   const replyIds = rows
     .map(({ replyToMessageId }) => replyToMessageId)
     .filter((id): id is string => Boolean(id));
-  const replies = replyIds.length
-    ? await db
-        .select({
-          id: messages.id,
-          senderId: messages.sender_id,
-          messageType: messages.message_type,
-          body: messages.body,
-          eventType: messages.event_type,
-        })
-        .from(messages)
-        .where(inArray(messages.id, replyIds))
-    : [];
+  const replies = replyIds.length ? await listReplyPreviews(db, replyIds) : [];
 
   return rows.map((message) => ({
     ...message,
@@ -454,35 +309,11 @@ export const getMessages = async (
 ) => {
   await requireMember(conversationId, userId);
   const before = cursor ? decodeCursor(cursor) : null;
-  const rows = await db
-    .select({
-      id: messages.id,
-      conversationId: messages.conversation_id,
-      senderId: messages.sender_id,
-      messageType: messages.message_type,
-      body: messages.body,
-      eventType: messages.event_type,
-      eventPayload: messages.event_payload,
-      replyToMessageId: messages.reply_to_message_id,
-      createdAt: messages.created_at,
-    })
-    .from(messages)
-    .where(
-      and(
-        eq(messages.conversation_id, conversationId),
-        before
-          ? or(
-              lt(messages.created_at, before.createdAt),
-              and(
-                eq(messages.created_at, before.createdAt),
-                lt(messages.id, before.id),
-              ),
-            )
-          : undefined,
-      ),
-    )
-    .orderBy(desc(messages.created_at), desc(messages.id))
-    .limit(limit + 1);
+  const rows = await listMessagesPage(db, {
+    conversationId,
+    before,
+    limit: limit + 1,
+  });
 
   const hasMore = rows.length > limit;
   const page = rows.slice(0, limit);
@@ -504,31 +335,20 @@ export const sendMessage = async (
 ) => {
   const participant = await requireMember(conversationId, senderId);
 
-  const [activeMeeting] = await db
-    .select({ id: meetings.id })
-    .from(meetings)
-    .where(
-      and(
-        eq(meetings.conversation_id, conversationId),
-        eq(meetings.status, "ACTIVE"),
-      ),
-    )
-    .limit(1);
+  const activeMeeting = await findActiveMeetingForConversation(
+    db,
+    conversationId,
+  );
   if (activeMeeting) {
     throw new ApiError(423, "Chat is paused while a meeting is in progress.");
   }
 
   if (input.replyToMessageId) {
-    const [reply] = await db
-      .select({ id: messages.id })
-      .from(messages)
-      .where(
-        and(
-          eq(messages.id, input.replyToMessageId),
-          eq(messages.conversation_id, conversationId),
-        ),
-      )
-      .limit(1);
+    const reply = await findMessageInConversation(
+      db,
+      input.replyToMessageId,
+      conversationId,
+    );
     if (!reply) throw new ApiError(400, "Reply message is invalid.");
   }
 
@@ -539,19 +359,18 @@ export const sendMessage = async (
   let message;
   try {
     message = await db.transaction(async (transaction) => {
-      const [created] = await transaction
-        .insert(messages)
-        .values({
-          conversation_id: conversationId,
+      const [created] = await insertMessages(transaction, conversationId, [
+        {
           sender_id: senderId,
           body: input.body,
           reply_to_message_id: input.replyToMessageId,
-        })
-        .returning();
+        },
+      ]);
       if (!created) throw new ApiError(500, "Message could not be sent.");
 
       if (uploaded.length) {
-        await transaction.insert(message_attachments).values(
+        await insertMessageAttachments(
+          transaction,
           uploaded.map((attachment) => ({
             message_id: created.id,
             storage_key: attachment.fileId,
@@ -563,25 +382,18 @@ export const sendMessage = async (
           })),
         );
       }
-      await transaction
-        .update(conversations)
-        .set({
-          last_message_id: created.id,
-          last_message_at: created.created_at,
-          updated_at: new Date(),
-        })
-        .where(eq(conversations.id, conversationId));
-      await transaction
-        .update(conversation_participants)
-        .set({
-          unread_count: sql`${conversation_participants.unread_count} + 1`,
-        })
-        .where(
-          and(
-            eq(conversation_participants.conversation_id, conversationId),
-            ne(conversation_participants.id, participant.id),
-          ),
-        );
+      await setConversationLastMessage(transaction, {
+        conversationId,
+        messageId: created.id,
+        messageAt: created.created_at,
+        updatedAt: new Date(),
+      });
+      await incrementUnreadCounts(
+        transaction,
+        conversationId,
+        { exceptParticipant: participant.id },
+        1,
+      );
       return created;
     });
   } catch (error) {
@@ -620,42 +432,24 @@ const writeSystemEventMessage = async (
   actorId: string | undefined,
   excludeParticipantId: string | undefined,
 ) => {
-  const [created] = await executor
-    .insert(messages)
-    .values({
-      conversation_id: conversationId,
-      sender_id: actorId,
-      message_type: "SYSTEM_EVENT",
-      event_type: event.eventType,
-      event_payload: event.eventPayload,
-    })
-    .returning();
+  const [created] = await appendConversationMessages(executor, {
+    conversationId,
+    messages: [
+      {
+        sender_id: actorId,
+        message_type: "SYSTEM_EVENT",
+        event_type: event.eventType,
+        event_payload: event.eventPayload,
+      },
+    ],
+    updatedAt: new Date(),
+    unread: excludeParticipantId
+      ? { exceptParticipant: excludeParticipantId }
+      : { all: true },
+  });
   if (!created) {
     throw new ApiError(500, "Event message could not be created.");
   }
-
-  await executor
-    .update(conversations)
-    .set({
-      last_message_id: created.id,
-      last_message_at: created.created_at,
-      updated_at: new Date(),
-    })
-    .where(eq(conversations.id, conversationId));
-
-  await executor
-    .update(conversation_participants)
-    .set({
-      unread_count: sql`${conversation_participants.unread_count} + 1`,
-    })
-    .where(
-      excludeParticipantId
-        ? and(
-            eq(conversation_participants.conversation_id, conversationId),
-            ne(conversation_participants.id, excludeParticipantId),
-          )
-        : eq(conversation_participants.conversation_id, conversationId),
-    );
 
   return created;
 };
@@ -736,78 +530,32 @@ export const markConversationRead = async (
   lastReadMessageId: string,
 ) => {
   const participant = await requireMember(conversationId, userId);
-  const [message] = await db
-    .select({ id: messages.id, createdAt: messages.created_at })
-    .from(messages)
-    .where(
-      and(
-        eq(messages.id, lastReadMessageId),
-        eq(messages.conversation_id, conversationId),
-      ),
-    )
-    .limit(1);
+  const message = await findMessageInConversation(
+    db,
+    lastReadMessageId,
+    conversationId,
+  );
   if (!message) throw new ApiError(400, "Read message is invalid.");
 
   const excludedSenderIds = participant.agency_id
     ? await getAgencyTeamMemberIds(participant.agency_id)
     : [userId];
 
-  const [remaining] = await db
-    .select({ value: count(messages.id) })
-    .from(messages)
-    .where(
-      and(
-        eq(messages.conversation_id, conversationId),
-        notInArray(messages.sender_id, excludedSenderIds),
-        or(
-          sql`${messages.created_at} > ${message.createdAt}`,
-          and(
-            eq(messages.created_at, message.createdAt),
-            sql`${messages.id} > ${message.id}`,
-          ),
-        ),
-      ),
-    );
+  const remaining = await countMessagesFromOthersAfter(db, {
+    conversationId,
+    excludedSenderIds,
+    after: message,
+  });
 
-  const [updated] = await db
-    .update(conversation_participants)
-    .set({
-      last_read_message_id: message.id,
-      last_read_at: new Date(),
-      unread_count: remaining?.value ?? 0,
-    })
-    .where(
-      and(
-        eq(conversation_participants.id, participant.id),
-        sql`(
-          ${conversation_participants.last_read_message_id} IS NULL
-          OR NOT EXISTS (
-            SELECT 1
-            FROM ${messages} AS current_read_message
-            WHERE current_read_message.id = ${conversation_participants.last_read_message_id}
-              AND (
-                current_read_message.created_at > ${message.createdAt}
-                OR (
-                  current_read_message.created_at = ${message.createdAt}
-                  AND current_read_message.id >= ${message.id}
-                )
-              )
-          )
-        )`,
-      ),
-    )
-    .returning({ unreadCount: conversation_participants.unread_count });
+  const updated = await markParticipantReadIfNotAhead(db, {
+    participantId: participant.id,
+    message,
+    unreadCount: remaining?.value ?? 0,
+  });
   if (updated) {
     return { conversationId, lastReadMessageId: message.id, ...updated };
   }
 
-  const [current] = await db
-    .select({
-      lastReadMessageId: conversation_participants.last_read_message_id,
-      unreadCount: conversation_participants.unread_count,
-    })
-    .from(conversation_participants)
-    .where(eq(conversation_participants.id, participant.id))
-    .limit(1);
+  const current = await findParticipantReadState(db, participant.id);
   return { conversationId, ...current };
 };

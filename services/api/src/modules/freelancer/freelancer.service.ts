@@ -1,26 +1,40 @@
-import { and, asc, count, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { db } from "../../database/client.js";
 import { toSafeCents } from "../../shared/money/money.js";
-import { accounts } from "../auth/auth.schema.js";
 import {
   markFreelancerOnboardingComplete,
   setStripeConnectAccountId,
 } from "../auth/auth.public.js";
-import { client_metadata } from "../client/client.schema.js";
 import {
-  client_spents,
-  contracts,
-  earning_history,
-  freelancer_earning,
-  reviews,
-} from "../contracts/contracts.schema.js";
+  countHiresForJob,
+  countHiresPerJob,
+  countProposalsForJob,
+  countProposalsPerJob,
+  findPublishedJobDetail,
+  listPublishedJobsWithClient,
+} from "./freelancer.jobs.repository.js";
+import { searchFreelancerRows } from "./freelancer.search.repository.js";
 import {
-  freelancer_metadata,
-  freelancer_portfolios,
-} from "./freelancer.schema.js";
-import { job_posts } from "../jobs/jobs.schema.js";
-import { payout_history } from "../payouts/payouts.schema.js";
-import { proposals } from "../proposals/proposals.schema.js";
+  findCertificateAccount,
+  findHasEarnings,
+  findPayoutAccount,
+  listEarningAmounts,
+  listEarningsWithPayoutState,
+  listMonthlyEarningTotals,
+} from "./freelancer.earnings.repository.js";
+import {
+  deletePortfoliosOfFreelancer,
+  findEarningStats,
+  findFreelancerAuthIdByProfileId,
+  findFreelancerLocation,
+  findFreelancerSkills,
+  findFreelancerWithAccount,
+  insertPortfolios,
+  listActiveOrCompletedContractsOfFreelancer,
+  listPortfoliosOfFreelancer,
+  listReviewsOfContract,
+  listStoredPortfolioCoverImages,
+  upsertFreelancerMetadata,
+} from "./freelancer.repository.js";
 import {
   FreelancerProfileData,
   PortfolioData,
@@ -71,73 +85,24 @@ export const getJSSContribution = (rating: number): number => {
 export const getFreelancerProfile = async (
   userId: string,
 ): Promise<FreelancerProfileData | null> => {
-  const [result] = await db
-    .select()
-    .from(freelancer_metadata)
-    .innerJoin(
-      accounts,
-      and(
-        eq(accounts.auth_id, freelancer_metadata.auth_id),
-        eq(accounts.role, "FREELANCER"),
-      ),
-    )
-    .where(eq(freelancer_metadata.auth_id, userId))
-    .limit(1);
+  const result = await findFreelancerWithAccount(db, userId);
 
   if (!result) return null;
 
   const profile = result.freelancer_metadata;
 
-  const portfolios = await db
-    .select()
-    .from(freelancer_portfolios)
-    .where(eq(freelancer_portfolios.freelancer_id, profile.id));
+  const portfolios = await listPortfoliosOfFreelancer(db, profile.id);
 
-  const [earningStats] = await db
-    .select({
-      totalEarningCents: freelancer_earning.total_earning_cents,
-      completedJobs: freelancer_earning.completed_jobs,
-      ongoingJobs: freelancer_earning.ongoing_jobs,
-      reviewCount: freelancer_earning.review_count,
-      jobSuccessScore: freelancer_earning.job_success_score,
-      rating: freelancer_earning.rating,
-    })
-    .from(freelancer_earning)
-    .where(eq(freelancer_earning.freelancer_id, userId))
-    .limit(1);
+  const earningStats = await findEarningStats(db, userId);
 
-  const userContracts = await db
-    .select({
-      contract: contracts,
-      companyName: client_metadata.company_name,
-      skills: job_posts.skills,
-    })
-    .from(contracts)
-    .innerJoin(
-      client_metadata,
-      eq(contracts.client_id, client_metadata.auth_id),
-    )
-    .leftJoin(job_posts, eq(contracts.job_id, job_posts.id))
-    .where(
-      and(
-        eq(contracts.freelancer_id, userId),
-        inArray(contracts.status, ["ACTIVE", "COMPLETED"]),
-      ),
-    )
-    .orderBy(desc(contracts.updated_at));
+  const userContracts = await listActiveOrCompletedContractsOfFreelancer(
+    db,
+    userId,
+  );
 
   const workHistory = await Promise.all(
     userContracts.map(async ({ contract, companyName, skills }) => {
-      const contractReviews = await db
-        .select({
-          reviewerId: reviews.reviewer_id,
-          revieweeId: reviews.reviewee_id,
-          rating: reviews.rating,
-          comment: reviews.comment,
-          createdAt: reviews.created_at,
-        })
-        .from(reviews)
-        .where(eq(reviews.contract_id, contract.id));
+      const contractReviews = await listReviewsOfContract(db, contract.id);
 
       const clientReview = contractReviews.find(
         (r) => r.reviewerId === contract.client_id,
@@ -220,10 +185,7 @@ export const getFreelancerProfile = async (
 const MONTHLY_EARNINGS_SPAN = 7;
 
 export const getFreelancerMonthlyEarnings = async (userId: string) => {
-  const [earningsCheck] = await db
-    .select({ hasEarnings: sql<boolean>`count(*) > 0` })
-    .from(earning_history)
-    .where(eq(earning_history.freelancer_id, userId));
+  const earningsCheck = await findHasEarnings(db, userId);
   const hasEarnings = earningsCheck?.hasEarnings ?? false;
 
   if (!hasEarnings) {
@@ -240,20 +202,7 @@ export const getFreelancerMonthlyEarnings = async (userId: string) => {
   spanStart.setUTCHours(0, 0, 0, 0);
   spanStart.setUTCMonth(spanStart.getUTCMonth() - (MONTHLY_EARNINGS_SPAN - 1));
 
-  const rows = await db
-    .select({
-      month: sql<string>`to_char(date_trunc('month', ${earning_history.created_at}), 'YYYY-MM')`,
-      totalCents: sql<string>`sum(${earning_history.amount_cents} - ${earning_history.platform_fee_cents})`,
-    })
-    .from(earning_history)
-    .where(
-      and(
-        eq(earning_history.freelancer_id, userId),
-        gte(earning_history.created_at, spanStart),
-      ),
-    )
-    .groupBy(sql`date_trunc('month', ${earning_history.created_at})`)
-    .orderBy(sql`date_trunc('month', ${earning_history.created_at})`);
+  const rows = await listMonthlyEarningTotals(db, userId, spanStart);
 
   const totalsByMonth = new Map(
     rows.map((row) => [row.month, toSafeCents(row.totalCents)]),
@@ -277,28 +226,7 @@ export const getFreelancerMonthlyEarnings = async (userId: string) => {
 const RECENT_EARNINGS_LIMIT = 20;
 
 export const getFreelancerEarningsOverview = async (userId: string) => {
-  const rows = await db
-    .select({
-      id: earning_history.id,
-      amountCents: earning_history.amount_cents,
-      platformFeeCents: earning_history.platform_fee_cents,
-      createdAt: earning_history.created_at,
-      contractTitle: contracts.title,
-      clientCompany: client_metadata.company_name,
-      paidOut: sql<boolean>`${payout_history.id} is not null`,
-    })
-    .from(earning_history)
-    .innerJoin(contracts, eq(earning_history.contract_id, contracts.id))
-    .leftJoin(client_metadata, eq(contracts.client_id, client_metadata.auth_id))
-    .leftJoin(
-      payout_history,
-      and(
-        eq(payout_history.earning_history_id, earning_history.id),
-        eq(payout_history.status, "PAID"),
-      ),
-    )
-    .where(eq(earning_history.freelancer_id, userId))
-    .orderBy(desc(earning_history.created_at));
+  const rows = await listEarningsWithPayoutState(db, userId);
 
   const now = Date.now();
   let availableCents = 0;
@@ -380,35 +308,14 @@ export const getFreelancerEarningsCertificateData = async (
     throw new ApiError(503, "Earnings certificates are not configured.");
   }
 
-  const [account] = await db
-    .select({
-      professionalTitle: freelancer_metadata.professional_title,
-      country: freelancer_metadata.country,
-      city: freelancer_metadata.city,
-      activeSince: freelancer_metadata.created_at,
-      profileId: freelancer_metadata.id,
-    })
-    .from(accounts)
-    .innerJoin(
-      freelancer_metadata,
-      eq(freelancer_metadata.auth_id, accounts.auth_id),
-    )
-    .where(and(eq(accounts.auth_id, userId), eq(accounts.role, "FREELANCER")))
-    .limit(1);
+  const account = await findCertificateAccount(db, userId);
 
   if (!account) throw new ApiError(404, "Freelancer profile not found.");
 
   const user = await clerk.users.getUser(userId);
   const freelancerName = user.fullName ?? "Freelancer";
 
-  const rows = await db
-    .select({
-      amountCents: earning_history.amount_cents,
-      platformFeeCents: earning_history.platform_fee_cents,
-      createdAt: earning_history.created_at,
-    })
-    .from(earning_history)
-    .where(eq(earning_history.freelancer_id, userId));
+  const rows = await listEarningAmounts(db, userId);
 
   const now = new Date();
 
@@ -461,19 +368,7 @@ export const getFreelancerPayoutManagementUrl = async (userId: string) => {
     throw new ApiError(503, "Payouts are not configured.");
   }
 
-  const [account] = await db
-    .select({
-      email: accounts.email,
-      stripeConnectAccountId: accounts.stripe_connect_account_id,
-      country: freelancer_metadata.country,
-    })
-    .from(accounts)
-    .leftJoin(
-      freelancer_metadata,
-      eq(freelancer_metadata.auth_id, accounts.auth_id),
-    )
-    .where(and(eq(accounts.auth_id, userId), eq(accounts.role, "FREELANCER")))
-    .limit(1);
+  const account = await findPayoutAccount(db, userId);
 
   if (!account) throw new ApiError(404, "Freelancer account not found.");
 
@@ -608,14 +503,7 @@ export const saveFreelancerProfile = async (
   input: SaveFreelancerProfileInput,
   isOnboarded: boolean | undefined,
 ): Promise<FreelancerProfileData> => {
-  const existingImages = await db
-    .select({ cover_image: freelancer_portfolios.cover_image })
-    .from(freelancer_portfolios)
-    .innerJoin(
-      freelancer_metadata,
-      eq(freelancer_portfolios.freelancer_id, freelancer_metadata.id),
-    )
-    .where(eq(freelancer_metadata.auth_id, input.userId));
+  const existingImages = await listStoredPortfolioCoverImages(db, input.userId);
 
   const storedImages = existingImages.map(({ cover_image }) => cover_image);
   const resolvedPortfolios: PortfolioData[] = input.portfolios.map(
@@ -647,13 +535,10 @@ export const saveFreelancerProfile = async (
       let city = input.city;
 
       if (account.identityVerified) {
-        const [existingMetadata] = await transaction
-          .select({
-            country: freelancer_metadata.country,
-            city: freelancer_metadata.city,
-          })
-          .from(freelancer_metadata)
-          .where(eq(freelancer_metadata.auth_id, input.userId));
+        const existingMetadata = await findFreelancerLocation(
+          transaction,
+          input.userId,
+        );
 
         if (existingMetadata) {
           country = existingMetadata.country;
@@ -674,35 +559,25 @@ export const saveFreelancerProfile = async (
         languages: input.languages,
       };
 
-      const [metadata] = await transaction
-        .insert(freelancer_metadata)
-        .values({
-          auth_id: input.userId,
-          ...metadataValues,
-        })
-        .onConflictDoUpdate({
-          target: freelancer_metadata.auth_id,
-          set: metadataValues,
-        })
-        .returning();
+      const metadata = await upsertFreelancerMetadata(
+        transaction,
+        input.userId,
+        metadataValues,
+      );
 
       if (!metadata) {
         throw new ApiError(500, "Freelancer profile could not be saved.");
       }
 
-      await transaction
-        .delete(freelancer_portfolios)
-        .where(eq(freelancer_portfolios.freelancer_id, metadata.id));
+      await deletePortfoliosOfFreelancer(transaction, metadata.id);
 
-      const portfolios = await transaction
-        .insert(freelancer_portfolios)
-        .values(
-          uploadedPortfolios.map((portfolio) => ({
-            freelancer_id: metadata.id,
-            ...portfolio,
-          })),
-        )
-        .returning();
+      const portfolios = await insertPortfolios(
+        transaction,
+        uploadedPortfolios.map((portfolio) => ({
+          freelancer_id: metadata.id,
+          ...portfolio,
+        })),
+      );
 
       return {
         professional_title: metadata.professional_title,
@@ -785,34 +660,10 @@ export const getMatchedJobPostsBySkills = async (
 ) => {
   const skills = skillList.map(normalizeSkill);
 
-  const jobs = await db
-    .select({
-      job: job_posts,
-      companyName: client_metadata.company_name,
-      paymentVerified: accounts.paymentMethodVerified,
-      totalSpentCents: client_spents.total_spent_cents,
-      clientRating: client_spents.rating,
-      clientReviewCount: client_spents.review_count,
-    })
-    .from(job_posts)
-    .innerJoin(accounts, eq(job_posts.client_id, accounts.auth_id))
-    .innerJoin(
-      client_metadata,
-      eq(job_posts.client_id, client_metadata.auth_id),
-    )
-    .leftJoin(client_spents, eq(job_posts.client_id, client_spents.client_id))
-    .where(eq(job_posts.status, "PUBLISHED"))
-    .orderBy(desc(job_posts.published_at));
+  const jobs = await listPublishedJobsWithClient(db);
 
-  const proposalCounts = await db
-    .select({ jobId: proposals.job_id, count: count(proposals.id) })
-    .from(proposals)
-    .groupBy(proposals.job_id);
-  const hireCounts = await db
-    .select({ jobId: contracts.job_id, count: count(contracts.id) })
-    .from(contracts)
-    .where(inArray(contracts.status, ["ACTIVE", "COMPLETED"]))
-    .groupBy(contracts.job_id);
+  const proposalCounts = await countProposalsPerJob(db);
+  const hireCounts = await countHiresPerJob(db);
 
   const clientCountries = new Map(
     await Promise.all(
@@ -900,10 +751,7 @@ export const getMatchedJobPosts = async (
   userId: string,
   filters: JobFeedFilters = {},
 ) => {
-  const [profile] = await db
-    .select({ skills: freelancer_metadata.skills })
-    .from(freelancer_metadata)
-    .where(eq(freelancer_metadata.auth_id, userId));
+  const profile = await findFreelancerSkills(db, userId);
 
   if (!profile) throw new ApiError(404, "Freelancer profile not found.");
 
@@ -911,42 +759,12 @@ export const getMatchedJobPosts = async (
 };
 
 export const getFreelancerJobPost = async (jobId: string) => {
-  const [result] = await db
-    .select({
-      job: job_posts,
-      companyName: client_metadata.company_name,
-      companyDescription: client_metadata.company_description,
-      paymentVerified: accounts.paymentMethodVerified,
-      clientJoinedAt: accounts.created_at,
-      totalSpentCents: client_spents.total_spent_cents,
-      clientRating: client_spents.rating,
-      clientReviewCount: client_spents.review_count,
-    })
-    .from(job_posts)
-    .innerJoin(accounts, eq(job_posts.client_id, accounts.auth_id))
-    .innerJoin(
-      client_metadata,
-      eq(job_posts.client_id, client_metadata.auth_id),
-    )
-    .leftJoin(client_spents, eq(job_posts.client_id, client_spents.client_id))
-    .where(and(eq(job_posts.id, jobId), eq(job_posts.status, "PUBLISHED")))
-    .limit(1);
+  const result = await findPublishedJobDetail(db, jobId);
 
   if (!result) throw new ApiError(404, "Job post not found.");
 
-  const [proposalTotal] = await db
-    .select({ count: count(proposals.id) })
-    .from(proposals)
-    .where(eq(proposals.job_id, jobId));
-  const [hireTotal] = await db
-    .select({ count: count(contracts.id) })
-    .from(contracts)
-    .where(
-      and(
-        eq(contracts.job_id, jobId),
-        inArray(contracts.status, ["ACTIVE", "COMPLETED"]),
-      ),
-    );
+  const proposalTotal = await countProposalsForJob(db, jobId);
+  const hireTotal = await countHiresForJob(db, jobId);
 
   const clientCountry = await getClientCountry(result.job.client_id);
 
@@ -966,11 +784,7 @@ export const getFreelancerJobPost = async (jobId: string) => {
 };
 
 export const getPublicFreelancerProfile = async (profileId: string) => {
-  const [freelancer] = await db
-    .select({ userId: freelancer_metadata.auth_id })
-    .from(freelancer_metadata)
-    .where(eq(freelancer_metadata.id, profileId))
-    .limit(1);
+  const freelancer = await findFreelancerAuthIdByProfileId(db, profileId);
   if (!freelancer) return null;
 
   const profile = await getFreelancerProfile(freelancer.userId);
@@ -1041,75 +855,7 @@ export const searchPublicFreelancers = async (
   const offset = pagination.offset ?? 0;
   const normalizedQuery = (filters.query ?? "").trim().toLowerCase();
 
-  const conditions = [];
-  if (filters.verifiedOnly)
-    conditions.push(eq(accounts.identityVerified, true));
-  if (filters.availableOnly) {
-    conditions.push(eq(freelancer_metadata.availability_status, "AVAILABLE"));
-  }
-  if (filters.minRating) {
-    conditions.push(gte(freelancer_earning.rating, String(filters.minRating)));
-  }
-  if (filters.minSuccess) {
-    conditions.push(
-      gte(freelancer_earning.job_success_score, String(filters.minSuccess)),
-    );
-  }
-  if (filters.minRateCents) {
-    conditions.push(
-      gte(freelancer_metadata.hourly_rate_cents, filters.minRateCents),
-    );
-  }
-  if (filters.maxRateCents) {
-    conditions.push(
-      lte(freelancer_metadata.hourly_rate_cents, filters.maxRateCents),
-    );
-  }
-
-  const orderBy = (() => {
-    switch (filters.sort) {
-      case "rating":
-        return desc(freelancer_earning.rating);
-      case "success":
-        return desc(freelancer_earning.job_success_score);
-      case "projects":
-        return desc(freelancer_earning.completed_jobs);
-      case "rate-low":
-        return asc(freelancer_metadata.hourly_rate_cents);
-      default:
-        return desc(
-          sql`${freelancer_earning.rating} * ${freelancer_earning.job_success_score}`,
-        );
-    }
-  })();
-
-  const rows = await db
-    .select({
-      id: freelancer_metadata.id,
-      authId: freelancer_metadata.auth_id,
-      professionalTitle: freelancer_metadata.professional_title,
-      professionalDescription: freelancer_metadata.professional_description,
-      hourlyRateCents: freelancer_metadata.hourly_rate_cents,
-      city: freelancer_metadata.city,
-      country: freelancer_metadata.country,
-      skills: freelancer_metadata.skills,
-      availabilityStatus: freelancer_metadata.availability_status,
-      identityVerified: accounts.identityVerified,
-      rating: freelancer_earning.rating,
-      jobSuccessScore: freelancer_earning.job_success_score,
-      completedJobs: freelancer_earning.completed_jobs,
-      reviewCount: freelancer_earning.review_count,
-    })
-    .from(freelancer_metadata)
-    .innerJoin(accounts, eq(accounts.auth_id, freelancer_metadata.auth_id))
-    .leftJoin(
-      freelancer_earning,
-      eq(freelancer_earning.freelancer_id, freelancer_metadata.auth_id),
-    )
-    .where(conditions.length ? and(...conditions) : undefined)
-    .orderBy(orderBy)
-    .limit(limit)
-    .offset(offset);
+  const rows = await searchFreelancerRows(db, filters, { limit, offset });
 
   const hasMore = rows.length === limit;
   if (!rows.length || !env.clerkSecretKey)

@@ -1,6 +1,5 @@
-import { eq } from "drizzle-orm";
 import { db } from "../../database/client.js";
-import { agency_members, agency_metadata } from "../agency/agency.schema.js";
+import { findAgencyIdentityOfMember } from "./freelancer.repository.js";
 
 export const getAgencyIdentityForMember = async (
   freelancerId: string,
@@ -9,19 +8,7 @@ export const getAgencyIdentityForMember = async (
   name: string;
   avatarUrl: string | null;
 } | null> => {
-  const [agency] = await db
-    .select({
-      id: agency_metadata.id,
-      name: agency_metadata.name,
-      avatarImage: agency_metadata.avatar_image,
-    })
-    .from(agency_members)
-    .innerJoin(
-      agency_metadata,
-      eq(agency_metadata.id, agency_members.agency_id),
-    )
-    .where(eq(agency_members.freelancer_id, freelancerId))
-    .limit(1);
+  const agency = await findAgencyIdentityOfMember(db, freelancerId);
 
   if (!agency) return null;
   return {

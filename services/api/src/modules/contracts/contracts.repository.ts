@@ -1,10 +1,12 @@
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import type { DbExecutor } from "../../database/db-executor.js";
 import { accounts } from "../auth/auth.schema.js";
 import { client_metadata } from "../client/client.schema.js";
 import { contract_milestones, contracts } from "./contracts.schema.js";
 import { conversations } from "../messaging/messaging.schema.js";
 import { job_posts } from "../jobs/jobs.schema.js";
+import { proposals } from "../proposals/proposals.schema.js";
+import { agency_metadata } from "../agency/agency.schema.js";
 
 export const findMilestoneForFunding = (
   executor: DbExecutor,
@@ -229,3 +231,168 @@ export const listContractRows = (
           : eq(contracts.freelancer_id, userId),
     )
     .orderBy(desc(contracts.created_at), asc(contract_milestones.position));
+
+export const findProposalOfferForCheckout = (
+  executor: DbExecutor,
+  proposalId: string,
+  clientId: string,
+) =>
+  executor
+    .select({
+      proposal: proposals,
+      job: job_posts,
+      account: accounts,
+    })
+    .from(proposals)
+    .innerJoin(job_posts, eq(proposals.job_id, job_posts.id))
+    .innerJoin(accounts, eq(accounts.auth_id, job_posts.client_id))
+    .where(and(eq(proposals.id, proposalId), eq(job_posts.client_id, clientId)))
+    .limit(1);
+
+export const findPendingMilestoneForPaymentFunding = (
+  executor: DbExecutor,
+  input: { contractId: string; clientId: string; milestoneId: string },
+) =>
+  executor
+    .select({
+      contractId: contracts.id,
+      freelancerId: contracts.freelancer_id,
+      agencyId: contracts.agency_id,
+      milestoneId: contract_milestones.id,
+      milestoneTitle: contract_milestones.title,
+      milestoneAmountCents: contract_milestones.amount_cents,
+      conversationId: conversations.id,
+      customerId: accounts.stripe_customer_id,
+    })
+    .from(contracts)
+    .innerJoin(
+      contract_milestones,
+      eq(contract_milestones.contract_id, contracts.id),
+    )
+    .innerJoin(
+      conversations,
+      eq(conversations.proposal_id, contracts.proposal_id),
+    )
+    .innerJoin(accounts, eq(accounts.auth_id, contracts.client_id))
+    .where(
+      and(
+        eq(contracts.id, input.contractId),
+        eq(contracts.client_id, input.clientId),
+        eq(contracts.status, "ACTIVE"),
+        eq(contract_milestones.id, input.milestoneId),
+        eq(contract_milestones.status, "PENDING"),
+      ),
+    )
+    .limit(1);
+
+export const findFundedContractOffer = (
+  executor: DbExecutor,
+  input: {
+    contractId: string;
+    freelancerId: string;
+    agencyId?: string | null;
+  },
+) =>
+  executor
+    .select({
+      id: contracts.id,
+      title: contracts.title,
+      status: contracts.status,
+      clientId: contracts.client_id,
+      freelancerId: contracts.freelancer_id,
+      agencyId: contracts.agency_id,
+      identityVerified: accounts.identityVerified,
+      conversationId: conversations.id,
+      milestoneId: contract_milestones.id,
+    })
+    .from(contracts)
+    .innerJoin(accounts, eq(accounts.auth_id, input.freelancerId))
+    .innerJoin(
+      conversations,
+      eq(conversations.proposal_id, contracts.proposal_id),
+    )
+    .innerJoin(
+      contract_milestones,
+      and(
+        eq(contract_milestones.contract_id, contracts.id),
+        eq(contract_milestones.position, 0),
+        isNotNull(contract_milestones.funded_at),
+      ),
+    )
+    .where(
+      and(
+        eq(contracts.id, input.contractId),
+        input.agencyId
+          ? eq(contracts.agency_id, input.agencyId)
+          : eq(contracts.freelancer_id, input.freelancerId),
+      ),
+    )
+    .limit(1);
+
+export const findProposalOfferForContractCreation = (
+  executor: DbExecutor,
+  proposalId: string,
+  clientId: string,
+) =>
+  executor
+    .select({
+      proposal: proposals,
+      job: job_posts,
+      stripeCustomerId: accounts.stripe_customer_id,
+      conversationId: conversations.id,
+    })
+    .from(proposals)
+    .innerJoin(job_posts, eq(proposals.job_id, job_posts.id))
+    .innerJoin(accounts, eq(accounts.auth_id, job_posts.client_id))
+    .innerJoin(conversations, eq(conversations.proposal_id, proposals.id))
+    .where(and(eq(proposals.id, proposalId), eq(job_posts.client_id, clientId)))
+    .limit(1);
+
+export const findMilestoneForReview = (
+  executor: DbExecutor,
+  input: { contractId: string; milestoneId: string; clientId: string },
+) =>
+  executor
+    .select({
+      contractId: contracts.id,
+      contractTitle: contracts.title,
+      freelancerId: contracts.freelancer_id,
+      agencyId: contracts.agency_id,
+      milestoneId: contract_milestones.id,
+      milestoneTitle: contract_milestones.title,
+      milestoneAmountCents: contract_milestones.amount_cents,
+      milestoneStatus: contract_milestones.status,
+      paymentRequestedAt: contract_milestones.payment_requested_at,
+      conversationId: conversations.id,
+    })
+    .from(contracts)
+    .innerJoin(
+      contract_milestones,
+      eq(contract_milestones.contract_id, contracts.id),
+    )
+    .innerJoin(
+      conversations,
+      eq(conversations.proposal_id, contracts.proposal_id),
+    )
+    .where(
+      and(
+        eq(contracts.id, input.contractId),
+        eq(contracts.client_id, input.clientId),
+        eq(contracts.status, "ACTIVE"),
+        eq(contract_milestones.id, input.milestoneId),
+      ),
+    )
+    .limit(1);
+
+export const listAgencySummariesByIds = (
+  executor: DbExecutor,
+  agencyIds: string[],
+) =>
+  executor
+    .select({
+      id: agency_metadata.id,
+      name: agency_metadata.name,
+      avatar: agency_metadata.avatar_image,
+    })
+    .from(agency_metadata)
+    .where(inArray(agency_metadata.id, agencyIds));

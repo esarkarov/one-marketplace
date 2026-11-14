@@ -1,20 +1,7 @@
 import type Stripe from "stripe";
-import { and, eq, isNotNull, ne, sql } from "drizzle-orm";
 import { db } from "../../../database/client.js";
 import { isUniqueViolation } from "../../../database/pg-errors.js";
-import { accounts } from "../../auth/auth.schema.js";
 import { markPaymentMethodVerified } from "../../auth/auth.public.js";
-import {
-  agency_earning,
-  client_spents,
-  contract_milestones,
-  contracts,
-  freelancer_earning,
-  reviews,
-} from "../contracts.schema.js";
-import { conversations } from "../../messaging/messaging.schema.js";
-import { job_posts } from "../../jobs/jobs.schema.js";
-import { proposals } from "../../proposals/proposals.schema.js";
 import { ApiError } from "../../../shared/http/api-error.js";
 import { sendNotification } from "../../../infrastructure/events/publisher.js";
 import {
@@ -23,7 +10,30 @@ import {
 } from "../../messaging/messaging.public.js";
 import { getJSSContribution } from "../../freelancer/freelancer.public.js";
 import { getAgencyOwnerId } from "../../agency/agency.public.js";
-import { findContractForReview } from "../contracts.repository.js";
+import {
+  findContractForReview,
+  findFundedContractOffer,
+  findProposalOfferForContractCreation,
+} from "../contracts.repository.js";
+import {
+  countIncompleteMilestones,
+  insertContractIfProposalUnused,
+  insertContractMilestones,
+  insertReview,
+  lockContractStatusForUpdate,
+  markContractActiveIfPending,
+  markContractCompletedIfActive,
+  markMilestoneActiveIfFundedAndPending,
+  recordAgencyJobCompleted,
+  recordAgencyJobStarted,
+  recordAgencyReviewStats,
+  recordClientContractCompleted,
+  recordClientContractStarted,
+  recordClientReviewStats,
+  recordFreelancerJobCompleted,
+  recordFreelancerJobStarted,
+  recordFreelancerReviewStats,
+} from "../contracts.state.repository.js";
 
 const REVIEW_CONTRACT_REVIEWER_UNIQUE = "reviews_contract_reviewer_unique";
 
@@ -84,32 +94,26 @@ export const finishContractWithReview = async (
 
   await db
     .transaction(async (transaction) => {
-      const [locked] = await transaction
-        .select({ status: contracts.status })
-        .from(contracts)
-        .where(eq(contracts.id, contract.id))
-        .for("update");
+      const [locked] = await lockContractStatusForUpdate(
+        transaction,
+        contract.id,
+      );
       if (!locked) throw new ApiError(404, "Contract not found.");
       if (newlyCompleted && locked.status !== "ACTIVE") {
         throw contractAlreadyFinished();
       }
 
-      const [pending] = await transaction
-        .select({ count: sql<number>`count(*)::int` })
-        .from(contract_milestones)
-        .where(
-          and(
-            eq(contract_milestones.contract_id, contract.id),
-            ne(contract_milestones.status, "COMPLETED"),
-          ),
-        );
+      const [pending] = await countIncompleteMilestones(
+        transaction,
+        contract.id,
+      );
       if ((pending?.count ?? 0) > 0) throw contractHasIncompleteMilestones();
 
-      await transaction.insert(reviews).values({
-        contract_id: contract.id,
-        reviewer_id: reviewerId,
-        reviewee_id: revieweeId,
-        agency_id: contract.agencyId ?? null,
+      await insertReview(transaction, {
+        contractId: contract.id,
+        reviewerId,
+        revieweeId,
+        agencyId: contract.agencyId ?? null,
         rating,
         comment,
       });
@@ -117,107 +121,47 @@ export const finishContractWithReview = async (
       if (role === "client") {
         const jssContribution = getJSSContribution(rating);
         if (contract.agencyId) {
-          await transaction
-            .insert(agency_earning)
-            .values({
-              agency_id: contract.agencyId,
-              review_count: 1,
-              rating: rating.toFixed(2),
-              job_success_score: jssContribution.toFixed(2),
-            })
-            .onConflictDoUpdate({
-              target: agency_earning.agency_id,
-              set: {
-                rating: sql`((${agency_earning.rating} * ${agency_earning.review_count}) + ${rating}) / (${agency_earning.review_count} + 1)`,
-                job_success_score: sql`((${agency_earning.job_success_score} * ${agency_earning.review_count}) + ${jssContribution}) / (${agency_earning.review_count} + 1)`,
-                review_count: sql`${agency_earning.review_count} + 1`,
-                updated_at: now,
-              },
-            });
+          await recordAgencyReviewStats(transaction, {
+            agencyId: contract.agencyId,
+            rating,
+            jssContribution,
+            now,
+          });
         } else {
-          await transaction
-            .insert(freelancer_earning)
-            .values({
-              freelancer_id: freelancerAccountId,
-              review_count: 1,
-              rating: rating.toFixed(2),
-              job_success_score: jssContribution.toFixed(2),
-            })
-            .onConflictDoUpdate({
-              target: freelancer_earning.freelancer_id,
-              set: {
-                rating: sql`((${freelancer_earning.rating} * ${freelancer_earning.review_count}) + ${rating}) / (${freelancer_earning.review_count} + 1)`,
-                job_success_score: sql`((${freelancer_earning.job_success_score} * ${freelancer_earning.review_count}) + ${jssContribution}) / (${freelancer_earning.review_count} + 1)`,
-                review_count: sql`${freelancer_earning.review_count} + 1`,
-                updated_at: now,
-              },
-            });
+          await recordFreelancerReviewStats(transaction, {
+            freelancerId: freelancerAccountId,
+            rating,
+            jssContribution,
+            now,
+          });
         }
       } else {
-        await transaction
-          .insert(client_spents)
-          .values({
-            client_id: contract.clientId,
-            review_count: 1,
-            rating: rating.toFixed(2),
-          })
-          .onConflictDoUpdate({
-            target: client_spents.client_id,
-            set: {
-              rating: sql`((${client_spents.rating} * ${client_spents.review_count}) + ${rating}) / (${client_spents.review_count} + 1)`,
-              review_count: sql`${client_spents.review_count} + 1`,
-              updated_at: now,
-            },
-          });
+        await recordClientReviewStats(transaction, {
+          clientId: contract.clientId,
+          rating,
+          now,
+        });
       }
 
       if (!newlyCompleted) return;
 
-      const [completed] = await transaction
-        .update(contracts)
-        .set({ status: "COMPLETED", completed_at: now, updated_at: now })
-        .where(
-          and(eq(contracts.id, contract.id), eq(contracts.status, "ACTIVE")),
-        )
-        .returning({ id: contracts.id });
+      const [completed] = await markContractCompletedIfActive(
+        transaction,
+        contract.id,
+        now,
+      );
       if (!completed) throw contractAlreadyFinished();
 
       if (contract.agencyId) {
-        await transaction
-          .insert(agency_earning)
-          .values({ agency_id: contract.agencyId, completed_jobs: 1 })
-          .onConflictDoUpdate({
-            target: agency_earning.agency_id,
-            set: {
-              ongoing_jobs: sql`greatest(${agency_earning.ongoing_jobs} - 1, 0)`,
-              completed_jobs: sql`${agency_earning.completed_jobs} + 1`,
-              updated_at: now,
-            },
-          });
+        await recordAgencyJobCompleted(transaction, contract.agencyId, now);
       } else {
-        await transaction
-          .insert(freelancer_earning)
-          .values({ freelancer_id: freelancerAccountId, completed_jobs: 1 })
-          .onConflictDoUpdate({
-            target: freelancer_earning.freelancer_id,
-            set: {
-              ongoing_jobs: sql`greatest(${freelancer_earning.ongoing_jobs} - 1, 0)`,
-              completed_jobs: sql`${freelancer_earning.completed_jobs} + 1`,
-              updated_at: now,
-            },
-          });
+        await recordFreelancerJobCompleted(
+          transaction,
+          freelancerAccountId,
+          now,
+        );
       }
-      await transaction
-        .insert(client_spents)
-        .values({ client_id: contract.clientId, completed_contracts: 1 })
-        .onConflictDoUpdate({
-          target: client_spents.client_id,
-          set: {
-            ongoing_contracts: sql`greatest(${client_spents.ongoing_contracts} - 1, 0)`,
-            completed_contracts: sql`${client_spents.completed_contracts} + 1`,
-            updated_at: now,
-          },
-        });
+      await recordClientContractCompleted(transaction, contract.clientId, now);
 
       if (contract.conversationId) {
         await appendConversationMessages(transaction, {
@@ -262,41 +206,11 @@ export const acceptContract = async (
   freelancerId: string,
   agencyId?: string | null,
 ) => {
-  const [offer] = await db
-    .select({
-      id: contracts.id,
-      title: contracts.title,
-      status: contracts.status,
-      clientId: contracts.client_id,
-      freelancerId: contracts.freelancer_id,
-      agencyId: contracts.agency_id,
-      identityVerified: accounts.identityVerified,
-      conversationId: conversations.id,
-      milestoneId: contract_milestones.id,
-    })
-    .from(contracts)
-    .innerJoin(accounts, eq(accounts.auth_id, freelancerId))
-    .innerJoin(
-      conversations,
-      eq(conversations.proposal_id, contracts.proposal_id),
-    )
-    .innerJoin(
-      contract_milestones,
-      and(
-        eq(contract_milestones.contract_id, contracts.id),
-        eq(contract_milestones.position, 0),
-        isNotNull(contract_milestones.funded_at),
-      ),
-    )
-    .where(
-      and(
-        eq(contracts.id, contractId),
-        agencyId
-          ? eq(contracts.agency_id, agencyId)
-          : eq(contracts.freelancer_id, freelancerId),
-      ),
-    )
-    .limit(1);
+  const [offer] = await findFundedContractOffer(db, {
+    contractId,
+    freelancerId,
+    agencyId,
+  });
 
   if (!offer) throw new ApiError(404, "Funded contract offer not found.");
   if (!offer.identityVerified) {
@@ -315,59 +229,26 @@ export const acceptContract = async (
 
   const now = new Date();
   await db.transaction(async (transaction) => {
-    const [contract] = await transaction
-      .update(contracts)
-      .set({ status: "ACTIVE", started_at: now, updated_at: now })
-      .where(and(eq(contracts.id, offer.id), eq(contracts.status, "PENDING")))
-      .returning({ id: contracts.id });
+    const [contract] = await markContractActiveIfPending(
+      transaction,
+      offer.id,
+      now,
+    );
     if (!contract) throw offerNotAcceptable();
 
-    const [activated] = await transaction
-      .update(contract_milestones)
-      .set({ status: "ACTIVE", updated_at: now })
-      .where(
-        and(
-          eq(contract_milestones.id, offer.milestoneId),
-          eq(contract_milestones.status, "PENDING"),
-          isNotNull(contract_milestones.funded_at),
-        ),
-      )
-      .returning({ id: contract_milestones.id });
+    const [activated] = await markMilestoneActiveIfFundedAndPending(
+      transaction,
+      offer.milestoneId,
+      now,
+    );
     if (!activated) throw offerNotAcceptable();
 
     if (agencyId) {
-      await transaction
-        .insert(agency_earning)
-        .values({ agency_id: agencyId, ongoing_jobs: 1 })
-        .onConflictDoUpdate({
-          target: agency_earning.agency_id,
-          set: {
-            ongoing_jobs: sql`${agency_earning.ongoing_jobs} + 1`,
-            updated_at: now,
-          },
-        });
+      await recordAgencyJobStarted(transaction, agencyId, now);
     } else {
-      await transaction
-        .insert(freelancer_earning)
-        .values({ freelancer_id: freelancerId, ongoing_jobs: 1 })
-        .onConflictDoUpdate({
-          target: freelancer_earning.freelancer_id,
-          set: {
-            ongoing_jobs: sql`${freelancer_earning.ongoing_jobs} + 1`,
-            updated_at: now,
-          },
-        });
+      await recordFreelancerJobStarted(transaction, freelancerId, now);
     }
-    await transaction
-      .insert(client_spents)
-      .values({ client_id: offer.clientId, ongoing_contracts: 1 })
-      .onConflictDoUpdate({
-        target: client_spents.client_id,
-        set: {
-          ongoing_contracts: sql`${client_spents.ongoing_contracts} + 1`,
-          updated_at: now,
-        },
-      });
+    await recordClientContractStarted(transaction, offer.clientId, now);
 
     const [message] = await appendConversationMessages(transaction, {
       conversationId: offer.conversationId,
@@ -408,19 +289,11 @@ export const createContractFromPayment = async (
     throw new ApiError(400, "Stripe contract metadata is missing.");
   }
 
-  const [offer] = await db
-    .select({
-      proposal: proposals,
-      job: job_posts,
-      stripeCustomerId: accounts.stripe_customer_id,
-      conversationId: conversations.id,
-    })
-    .from(proposals)
-    .innerJoin(job_posts, eq(proposals.job_id, job_posts.id))
-    .innerJoin(accounts, eq(accounts.auth_id, job_posts.client_id))
-    .innerJoin(conversations, eq(conversations.proposal_id, proposals.id))
-    .where(and(eq(proposals.id, proposalId), eq(job_posts.client_id, clientId)))
-    .limit(1);
+  const [offer] = await findProposalOfferForContractCreation(
+    db,
+    proposalId,
+    clientId,
+  );
 
   if (!offer) throw new ApiError(404, "Contract offer data not found.");
   const isAgency = offer.proposal.sender_type === "AGENCY";
@@ -455,24 +328,21 @@ export const createContractFromPayment = async (
       : session.payment_intent?.id;
 
   const result = await db.transaction(async (transaction) => {
-    const [contract] = await transaction
-      .insert(contracts)
-      .values({
-        proposal_id: offer.proposal.id,
-        job_id: offer.job.id,
-        client_id: clientId,
-        freelancer_id: isAgency ? null : offer.proposal.sender_id,
-        agency_id: isAgency ? offer.proposal.sender_id : null,
-        title: offer.job.title,
-        total_amount_cents: totalAmountCents,
-        status: "PENDING",
-      })
-      .onConflictDoNothing({ target: contracts.proposal_id })
-      .returning({ id: contracts.id });
+    const [contract] = await insertContractIfProposalUnused(transaction, {
+      proposal_id: offer.proposal.id,
+      job_id: offer.job.id,
+      client_id: clientId,
+      freelancer_id: isAgency ? null : offer.proposal.sender_id,
+      agency_id: isAgency ? offer.proposal.sender_id : null,
+      title: offer.job.title,
+      total_amount_cents: totalAmountCents,
+      status: "PENDING",
+    });
 
     if (!contract) return;
 
-    await transaction.insert(contract_milestones).values(
+    await insertContractMilestones(
+      transaction,
       milestones.map((milestone, position) => ({
         contract_id: contract.id,
         title: milestone.title,

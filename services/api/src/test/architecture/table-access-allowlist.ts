@@ -62,5 +62,4 @@ export const tableAccessAllowlist: TableAccessEntry[] = [
   { importer: "proposals", owner: "freelancer", access: "read" },
   { importer: "proposals", owner: "jobs", access: "read" },
   { importer: "proposals", owner: "messaging", access: "read" },
-  { importer: "shared/http/auth", owner: "auth", access: "read" },
 ];

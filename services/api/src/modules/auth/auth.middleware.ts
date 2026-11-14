@@ -1,18 +1,17 @@
 import type { Request, RequestHandler } from "express";
-import { asyncHandler } from "../async-handler.js";
-import { ApiError } from "../api-error.js";
-import { env } from "../../../config/env.js";
-import { allowedOrigins } from "../../../config/cors.js";
+import { asyncHandler } from "../../shared/http/async-handler.js";
+import { ApiError } from "../../shared/http/api-error.js";
+import { env } from "../../config/env.js";
+import { allowedOrigins } from "../../config/cors.js";
 import {
   ACCOUNT_AUTH_CACHE_TTL_SECONDS,
   ACCOUNT_AUTH_NEGATIVE_CACHE_TTL_SECONDS,
   getAccountAuthCacheKey,
-} from "../../../config/constants.js";
-import { verifyToken } from "../../../infrastructure/clerk.js";
-import { redis } from "../../../infrastructure/redis.js";
-import { db } from "../../../database/client.js";
-import { accounts } from "../../../modules/auth/auth.schema.js";
-import { and, eq } from "drizzle-orm";
+} from "../../config/constants.js";
+import { verifyToken } from "../../infrastructure/clerk.js";
+import { redis } from "../../infrastructure/redis.js";
+import { db } from "../../database/client.js";
+import { findAccountOnboardingState } from "./auth.repository.js";
 
 const accountRoles = ["client", "freelancer"] as const;
 type AccountRole = (typeof accountRoles)[number];
@@ -55,11 +54,7 @@ const isAccountAvailable = async (
 
   const databaseRole = requestedRole === "client" ? "CLIENT" : "FREELANCER";
 
-  const [account] = await db
-    .select({ isOnboardingComplete: accounts.isOnboardingComplete })
-    .from(accounts)
-    .where(and(eq(accounts.auth_id, userId), eq(accounts.role, databaseRole)))
-    .limit(1);
+  const account = await findAccountOnboardingState(db, userId, databaseRole);
 
   const accountAuth: CachedAccountAuth = {
     userId,

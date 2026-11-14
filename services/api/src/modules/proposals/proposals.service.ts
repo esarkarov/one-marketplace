@@ -1,23 +1,25 @@
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../../database/client.js";
-import { accounts } from "../auth/auth.schema.js";
 import {
-  agency_earning,
-  client_spents,
-  contracts,
-  freelancer_earning,
-} from "../contracts/contracts.schema.js";
-import { agency_members, agency_metadata } from "../agency/agency.schema.js";
-import { client_metadata } from "../client/client.schema.js";
+  countAgencyMembers,
+  findAgencyName,
+  findAgencyOwnerLocation,
+  findClientProposalForInterview,
+  findClientProposalForView,
+  findPublishedJobForProposal,
+  insertProposalIfAbsent,
+  listAgencyProposals,
+  listClientJobProposalRows,
+  listFreelancerProposals,
+  listProposalStatusesBySender,
+  markProposalInterviewedIfOpen,
+  markProposalShortlistedForClient,
+  markProposalViewedIfSubmitted,
+} from "./proposals.repository.js";
 import {
   creditConnects,
   debitConnects,
   recordConnectsHistory,
 } from "../connects/connects.public.js";
-import { conversations } from "../messaging/messaging.schema.js";
-import { freelancer_metadata } from "../freelancer/freelancer.schema.js";
-import { job_posts } from "../jobs/jobs.schema.js";
-import { proposals } from "./proposals.schema.js";
 import { ApiError } from "../../shared/http/api-error.js";
 import {
   CONNECTS_CACHE_TTL_SECONDS,
@@ -48,18 +50,7 @@ export const submitProposal = async (
   },
 ) => {
   const result = await db.transaction(async (transaction) => {
-    const [job] = await transaction
-      .select({
-        id: job_posts.id,
-        title: job_posts.title,
-        clientId: job_posts.client_id,
-        screeningQuestions: job_posts.screening_questions,
-      })
-      .from(job_posts)
-      .where(
-        and(eq(job_posts.id, input.jobId), eq(job_posts.status, "PUBLISHED")),
-      )
-      .limit(1);
+    const job = await findPublishedJobForProposal(transaction, input.jobId);
     if (!job) throw new ApiError(404, "Job post not found.");
     if (job.clientId === freelancerId) {
       throw new ApiError(403, "You cannot submit a proposal to your own job.");
@@ -80,22 +71,18 @@ export const submitProposal = async (
 
     if (!balance) throw new ApiError(400, "Not enough Connects.");
 
-    const [proposal] = await transaction
-      .insert(proposals)
-      .values({
-        job_id: input.jobId,
-        sender_id: freelancerId,
-        sender_type: "FREELANCER",
-        cover_letter: input.coverLetter,
-        bid_amount_cents: input.bidAmountCents,
-        duration: input.duration,
-        screening_answers: questions.map((question, index) => ({
-          question,
-          answer: input.screeningAnswers[index]!,
-        })),
-      })
-      .onConflictDoNothing()
-      .returning();
+    const proposal = await insertProposalIfAbsent(transaction, {
+      jobId: input.jobId,
+      senderId: freelancerId,
+      senderType: "FREELANCER",
+      coverLetter: input.coverLetter,
+      bidAmountCents: input.bidAmountCents,
+      duration: input.duration,
+      screeningAnswers: questions.map((question, index) => ({
+        question,
+        answer: input.screeningAnswers[index]!,
+      })),
+    });
     if (!proposal)
       throw new ApiError(409, "You already submitted a proposal for this job.");
 
@@ -142,18 +129,7 @@ export const submitAgencyProposal = async (
   },
 ) => {
   const result = await db.transaction(async (transaction) => {
-    const [job] = await transaction
-      .select({
-        id: job_posts.id,
-        title: job_posts.title,
-        clientId: job_posts.client_id,
-        screeningQuestions: job_posts.screening_questions,
-      })
-      .from(job_posts)
-      .where(
-        and(eq(job_posts.id, input.jobId), eq(job_posts.status, "PUBLISHED")),
-      )
-      .limit(1);
+    const job = await findPublishedJobForProposal(transaction, input.jobId);
     if (!job) throw new ApiError(404, "Job post not found.");
     if ((await getAgencyTeamMemberIds(agencyId)).includes(job.clientId)) {
       throw new ApiError(
@@ -169,11 +145,7 @@ export const submitAgencyProposal = async (
       throw new ApiError(400, "Answer every screening question.");
     }
 
-    const [agency] = await transaction
-      .select({ name: agency_metadata.name })
-      .from(agency_metadata)
-      .where(eq(agency_metadata.id, agencyId))
-      .limit(1);
+    const agency = await findAgencyName(transaction, agencyId);
     if (!agency) throw new ApiError(404, "Agency workspace not found.");
 
     const balance = await debitConnects(
@@ -184,22 +156,18 @@ export const submitAgencyProposal = async (
 
     if (!balance) throw new ApiError(400, "Not enough Connects.");
 
-    const [proposal] = await transaction
-      .insert(proposals)
-      .values({
-        job_id: input.jobId,
-        sender_id: agencyId,
-        sender_type: "AGENCY",
-        cover_letter: input.coverLetter,
-        bid_amount_cents: input.bidAmountCents,
-        duration: input.duration,
-        screening_answers: questions.map((question, index) => ({
-          question,
-          answer: input.screeningAnswers[index]!,
-        })),
-      })
-      .onConflictDoNothing()
-      .returning();
+    const proposal = await insertProposalIfAbsent(transaction, {
+      jobId: input.jobId,
+      senderId: agencyId,
+      senderType: "AGENCY",
+      coverLetter: input.coverLetter,
+      bidAmountCents: input.bidAmountCents,
+      duration: input.duration,
+      screeningAnswers: questions.map((question, index) => ({
+        question,
+        answer: input.screeningAnswers[index]!,
+      })),
+    });
     if (!proposal) {
       throw new ApiError(
         409,
@@ -249,20 +217,11 @@ const ACTIVE_PROPOSAL_STATUSES = new Set([
 ]);
 
 export const getFreelancerProposalMetadata = async (freelancerId: string) => {
-  const freelancerProposals = await db
-    .select({
-      jobId: proposals.job_id,
-      status: proposals.status,
-      submittedAt: proposals.created_at,
-    })
-    .from(proposals)
-    .where(
-      and(
-        eq(proposals.sender_id, freelancerId),
-        eq(proposals.sender_type, "FREELANCER"),
-      ),
-    )
-    .orderBy(desc(proposals.created_at));
+  const freelancerProposals = await listProposalStatusesBySender(
+    db,
+    freelancerId,
+    "FREELANCER",
+  );
 
   const normalizedProposals = freelancerProposals.map((proposal) => ({
     ...proposal,
@@ -287,20 +246,11 @@ export const getFreelancerProposalMetadata = async (freelancerId: string) => {
 };
 
 export const getAgencyProposalMetadata = async (agencyId: string) => {
-  const agencyProposals = await db
-    .select({
-      jobId: proposals.job_id,
-      status: proposals.status,
-      submittedAt: proposals.created_at,
-    })
-    .from(proposals)
-    .where(
-      and(
-        eq(proposals.sender_id, agencyId),
-        eq(proposals.sender_type, "AGENCY"),
-      ),
-    )
-    .orderBy(desc(proposals.created_at));
+  const agencyProposals = await listProposalStatusesBySender(
+    db,
+    agencyId,
+    "AGENCY",
+  );
 
   const normalizedProposals = agencyProposals.map((proposal) => ({
     ...proposal,
@@ -325,121 +275,16 @@ export const getAgencyProposalMetadata = async (agencyId: string) => {
 };
 
 export const getFreelancerProposals = async (freelancerId: string) =>
-  db
-    .select({
-      id: proposals.id,
-      jobId: proposals.job_id,
-      title: job_posts.title,
-      company: client_metadata.company_name,
-      status: proposals.status,
-      submittedAt: proposals.created_at,
-      budgetCents: job_posts.total_budget_cents,
-      bidAmountCents: proposals.bid_amount_cents,
-      duration: proposals.duration,
-      coverLetter: proposals.cover_letter,
-      skills: job_posts.skills,
-    })
-    .from(proposals)
-    .innerJoin(job_posts, eq(proposals.job_id, job_posts.id))
-    .leftJoin(client_metadata, eq(job_posts.client_id, client_metadata.auth_id))
-    .where(
-      and(
-        eq(proposals.sender_id, freelancerId),
-        eq(proposals.sender_type, "FREELANCER"),
-      ),
-    )
-    .orderBy(desc(proposals.created_at));
+  listFreelancerProposals(db, freelancerId);
 
 export const getAgencyProposals = async (agencyId: string) =>
-  db
-    .select({
-      id: proposals.id,
-      jobId: proposals.job_id,
-      title: job_posts.title,
-      company: client_metadata.company_name,
-      status: proposals.status,
-      submittedAt: proposals.created_at,
-      budgetCents: job_posts.total_budget_cents,
-      bidAmountCents: proposals.bid_amount_cents,
-      duration: proposals.duration,
-      coverLetter: proposals.cover_letter,
-      skills: job_posts.skills,
-      clientRating: client_spents.rating,
-      clientReviewCount: client_spents.review_count,
-      clientTotalSpentCents: client_spents.total_spent_cents,
-      conversationId: conversations.id,
-    })
-    .from(proposals)
-    .innerJoin(job_posts, eq(proposals.job_id, job_posts.id))
-    .leftJoin(client_metadata, eq(job_posts.client_id, client_metadata.auth_id))
-    .leftJoin(client_spents, eq(job_posts.client_id, client_spents.client_id))
-    .leftJoin(conversations, eq(conversations.proposal_id, proposals.id))
-    .where(
-      and(
-        eq(proposals.sender_id, agencyId),
-        eq(proposals.sender_type, "AGENCY"),
-      ),
-    )
-    .orderBy(desc(proposals.created_at));
+  listAgencyProposals(db, agencyId);
 
 export const getClientJobProposals = async (
   clientId: string,
   jobId: string,
 ) => {
-  const rows = await db
-    .select({
-      id: proposals.id,
-      conversationId: conversations.id,
-      contractId: contracts.id,
-      contractStatus: contracts.status,
-      senderId: proposals.sender_id,
-      senderType: proposals.sender_type,
-      freelancerId: freelancer_metadata.id,
-      verified: accounts.identityVerified,
-      professionalTitle: freelancer_metadata.professional_title,
-      country: freelancer_metadata.country,
-      city: freelancer_metadata.city,
-      skills: freelancer_metadata.skills,
-      coverLetter: proposals.cover_letter,
-      bidAmountCents: proposals.bid_amount_cents,
-      duration: proposals.duration,
-      screeningAnswers: proposals.screening_answers,
-      status: proposals.status,
-      isShortlisted: proposals.is_shortlisted,
-      submittedAt: proposals.created_at,
-      jobSuccessScore: freelancer_earning.job_success_score,
-      rating: freelancer_earning.rating,
-      completedJobs: freelancer_earning.completed_jobs,
-      agencyJobSuccessScore: agency_earning.job_success_score,
-      agencyRating: agency_earning.rating,
-      agencyCompletedJobs: agency_earning.completed_jobs,
-      agencyName: agency_metadata.name,
-      agencyAvatar: agency_metadata.avatar_image,
-      agencyTags: agency_metadata.tags,
-    })
-    .from(proposals)
-    .innerJoin(job_posts, eq(proposals.job_id, job_posts.id))
-    .leftJoin(
-      freelancer_metadata,
-      eq(proposals.sender_id, freelancer_metadata.auth_id),
-    )
-    .leftJoin(accounts, eq(proposals.sender_id, accounts.auth_id))
-    .leftJoin(conversations, eq(conversations.proposal_id, proposals.id))
-    .leftJoin(contracts, eq(contracts.proposal_id, proposals.id))
-    .leftJoin(
-      freelancer_earning,
-      eq(proposals.sender_id, freelancer_earning.freelancer_id),
-    )
-    .leftJoin(
-      agency_metadata,
-      sql`${proposals.sender_id} = ${agency_metadata.id}::text`,
-    )
-    .leftJoin(
-      agency_earning,
-      sql`${proposals.sender_id} = ${agency_earning.agency_id}::text`,
-    )
-    .where(and(eq(proposals.job_id, jobId), eq(job_posts.client_id, clientId)))
-    .orderBy(desc(proposals.created_at));
+  const rows = await listClientJobProposalRows(db, clientId, jobId);
 
   return Promise.all(
     rows.map(
@@ -471,23 +316,11 @@ export const getClientJobProposals = async (
               };
 
         if (senderType === "AGENCY") {
-          const [{ count: memberCount } = { count: 0 }] = await db
-            .select({ count: sql<number>`count(*)::int` })
-            .from(agency_members)
-            .where(eq(agency_members.agency_id, senderId));
-
-          const [owner] = await db
-            .select({
-              city: freelancer_metadata.city,
-              country: freelancer_metadata.country,
-            })
-            .from(agency_metadata)
-            .leftJoin(
-              freelancer_metadata,
-              eq(agency_metadata.owner_id, freelancer_metadata.auth_id),
-            )
-            .where(eq(agency_metadata.id, senderId))
-            .limit(1);
+          const { count: memberCount } = (await countAgencyMembers(
+            db,
+            senderId,
+          )) ?? { count: 0 };
+          const owner = await findAgencyOwnerLocation(db, senderId);
 
           return {
             ...proposal,
@@ -529,29 +362,14 @@ export const getClientJobProposals = async (
 };
 
 export const updateProposal = async (proposalId: string, clientId: string) => {
-  const [existing] = await db
-    .select({
-      id: proposals.id,
-      senderId: proposals.sender_id,
-      senderType: proposals.sender_type,
-      status: proposals.status,
-      jobTitle: job_posts.title,
-    })
-    .from(proposals)
-    .innerJoin(job_posts, eq(proposals.job_id, job_posts.id))
-    .where(and(eq(proposals.id, proposalId), eq(job_posts.client_id, clientId)))
-    .limit(1);
+  const existing = await findClientProposalForView(db, proposalId, clientId);
   if (!existing) throw new ApiError(404, "Proposal not found.");
 
   if (existing.status !== "SUBMITTED") {
     return { ...existing, changed: false };
   }
 
-  const [updated] = await db
-    .update(proposals)
-    .set({ status: "VIEWED", updated_at: new Date() })
-    .where(and(eq(proposals.id, proposalId), eq(proposals.status, "SUBMITTED")))
-    .returning();
+  const updated = await markProposalViewedIfSubmitted(db, proposalId);
 
   return {
     ...existing,
@@ -564,18 +382,11 @@ export const shortlistProposal = async (
   proposalId: string,
   clientId: string,
 ) => {
-  const [proposal] = await db
-    .update(proposals)
-    .set({ is_shortlisted: true, updated_at: new Date() })
-    .from(job_posts)
-    .where(
-      and(
-        eq(proposals.id, proposalId),
-        eq(proposals.job_id, job_posts.id),
-        eq(job_posts.client_id, clientId),
-      ),
-    )
-    .returning({ id: proposals.id, isShortlisted: proposals.is_shortlisted });
+  const proposal = await markProposalShortlistedForClient(
+    db,
+    proposalId,
+    clientId,
+  );
   if (!proposal) throw new ApiError(404, "Proposal not found.");
   return proposal;
 };
@@ -586,21 +397,11 @@ export const startProposalInterview = async (
   openingMessage: string,
 ) => {
   const result = await db.transaction(async (transaction) => {
-    const [proposal] = await transaction
-      .select({
-        id: proposals.id,
-        freelancerId: proposals.sender_id,
-        senderType: proposals.sender_type,
-        coverLetter: proposals.cover_letter,
-        jobId: proposals.job_id,
-        jobTitle: job_posts.title,
-      })
-      .from(proposals)
-      .innerJoin(job_posts, eq(proposals.job_id, job_posts.id))
-      .where(
-        and(eq(proposals.id, proposalId), eq(job_posts.client_id, clientId)),
-      )
-      .limit(1);
+    const proposal = await findClientProposalForInterview(
+      transaction,
+      proposalId,
+      clientId,
+    );
     if (!proposal) throw new ApiError(404, "Proposal not found.");
 
     const isAgency = proposal.senderType === "AGENCY";
@@ -612,16 +413,10 @@ export const startProposalInterview = async (
       throw new ApiError(404, "Agency workspace not found.");
     }
 
-    const [interviewed] = await transaction
-      .update(proposals)
-      .set({ status: "INTERVIEWED", updated_at: new Date() })
-      .where(
-        and(
-          eq(proposals.id, proposal.id),
-          inArray(proposals.status, ["SUBMITTED", "VIEWED"]),
-        ),
-      )
-      .returning({ id: proposals.id });
+    const interviewed = await markProposalInterviewedIfOpen(
+      transaction,
+      proposal.id,
+    );
     if (!interviewed) {
       throw new ApiError(409, "Interview has already been started.");
     }

@@ -3,7 +3,7 @@ import {
   isAuthenticated,
   resolveAccountRole,
   verifyBearerToken,
-} from "../../shared/http/auth/auth.middleware.js";
+} from "../auth/auth.public.js";
 import { largeJsonBody } from "../../shared/http/limits/json-body.middleware.js";
 import { publicSearchLimiter } from "../../shared/http/limits/rate-limit.middleware.js";
 import { contentWriteLimiter } from "../../shared/http/limits/user-rate-limit.middleware.js";

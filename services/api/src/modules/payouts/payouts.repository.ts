@@ -7,6 +7,7 @@ import { payout_history } from "./payouts.schema.js";
 import {
   allowedFrom,
   assertTransition,
+  requireAllowedFrom,
   STUCK_CLAIM_MINUTES,
   type PayoutStatus,
 } from "./payouts.state.js";
@@ -39,10 +40,7 @@ export const buildTransitionGuard = (
   to: PayoutStatus,
   options: { from?: PayoutStatus; expectedAttempts?: number } = {},
 ): SQL => {
-  const froms = options.from ? [options.from] : allowedFrom(to);
-  if (froms.length === 0) {
-    throw new Error(`No payout transition leads to ${to}`);
-  }
+  const froms = options.from ? [options.from] : requireAllowedFrom(to);
   for (const from of froms) assertTransition(from, to);
 
   const statusList = sql.join(
