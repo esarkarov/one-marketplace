@@ -4,6 +4,8 @@ On-demand checklist for `services/api`. Rules and rationale: `services/api/AGENT
 
 ## New module
 
+Transitional: modules are being moved to the folder layout of ADR 0016 (`docs/decisions/0016-module-folder-layout.md`). New modules use the new layout from stage S1 on (once the table files are in `models/`); until then the flat layout below applies.
+
 1. Create `modules/<name>/` (kebab-case) with role-suffixed files: `<name>.route.ts`, `<name>.controller.ts`, `<name>.service.ts`, `<name>.schemas.ts`, `<name>.responses.ts`, `<name>.types.ts` when needed, and `<name>.schema.ts` when the module owns tables (drizzle tables and enums; the drizzle glob `src/modules/*/*.schema.ts` picks it up with no config change; zod stays in `<name>.schemas.ts`). Add each new table or enum to `table-ownership.ts` and `src/test/support/tables.ts`. Use `.middleware`, `.cron`, `.socket` or `.sse` suffixes for those roles.
 2. Mount the router in `routes/index.ts`. Routes that must combine two modules are wired in `routes/`, not by one module importing another's controller.
 3. Add the module to `moduleLayers` in `test/architecture/import-boundaries.test.ts`, and to the layer table in ADR 0013 in the same PR. A module may import only a strictly lower layer. Never add an entry to `test/architecture/boundary-exceptions.ts`.
