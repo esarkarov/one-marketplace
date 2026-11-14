@@ -1,16 +1,16 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
-import type { DbExecutor } from "../../database/db-executor.js";
-import { accounts } from "../auth/models/auth.model.js";
-import { contracts } from "../contracts/models/contracts.model.js";
-import { job_posts } from "../jobs/models/jobs.model.js";
-import { meetings } from "../meetings/models/meetings.model.js";
-import { proposals } from "../proposals/models/proposals.model.js";
+import type { DbExecutor } from "../../../database/db-executor.js";
+import { accounts } from "../../auth/models/auth.model.js";
+import { contracts } from "../../contracts/models/contracts.model.js";
+import { job_posts } from "../../jobs/models/jobs.model.js";
+import { meetings } from "../../meetings/models/meetings.model.js";
+import { proposals } from "../../proposals/models/proposals.model.js";
 import {
   conversation_participants,
   conversations,
   message_attachments,
   messages,
-} from "./models/messaging.model.js";
+} from "../models/messaging.model.js";
 import {
   insertMessages,
   type NewMessage,

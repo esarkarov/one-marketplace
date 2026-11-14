@@ -5,7 +5,7 @@ import {
   listMessages,
   openConversation,
   readConversation,
-} from "./messaging.controller.js";
+} from "./controllers/messaging.controller.js";
 import {
   isAuthenticated,
   resolveAccountRole,
@@ -22,8 +22,8 @@ import {
   openConversationBodySchema,
   readConversationBodySchema,
   roleOnlyQuerySchema,
-} from "./messaging.schemas.js";
-import { messagingResponses } from "./messaging.responses.js";
+} from "./schemas/messaging.schema.js";
+import { messagingResponses } from "./responses/messaging.responses.js";
 
 export const messagingRouter = Router();
 

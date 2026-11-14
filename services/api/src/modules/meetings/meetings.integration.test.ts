@@ -62,21 +62,26 @@ vi.mock("../messaging/messaging.socket.js", async (importOriginal) => ({
   emitConversationUpdate: mocks.emitConversationUpdate,
 }));
 
-vi.mock("../messaging/messaging.service.js", async (importOriginal) => {
-  const original =
-    await importOriginal<typeof import("../messaging/messaging.service.js")>();
-  const post = original.postSystemEventMessage as (
-    ...args: unknown[]
-  ) => Promise<unknown>;
-  return {
-    ...original,
-    postSystemEventMessage: async (...args: unknown[]) => {
-      const result = await post(...args);
-      if (mocks.failAfterWrite) throw new Error("message insert failed");
-      return result;
-    },
-  };
-});
+vi.mock(
+  "../messaging/services/messaging.service.js",
+  async (importOriginal) => {
+    const original =
+      await importOriginal<
+        typeof import("../messaging/services/messaging.service.js")
+      >();
+    const post = original.postSystemEventMessage as (
+      ...args: unknown[]
+    ) => Promise<unknown>;
+    return {
+      ...original,
+      postSystemEventMessage: async (...args: unknown[]) => {
+        const result = await post(...args);
+        if (mocks.failAfterWrite) throw new Error("message insert failed");
+        return result;
+      },
+    };
+  },
+);
 
 import { db, pool } from "../../database/client.js";
 import {

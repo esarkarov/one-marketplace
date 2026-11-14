@@ -1,17 +1,17 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
-vi.mock("../../infrastructure/clerk.js", () => ({
+vi.mock("../../../infrastructure/clerk.js", () => ({
   clerk: {
     users: { getUser: vi.fn().mockRejectedValue(new Error("clerk down")) },
   },
 }));
 
-vi.mock("./messaging.socket.js", () => ({
+vi.mock("../messaging.socket.js", () => ({
   emitConversationUpdate: vi.fn(),
 }));
 
-import { db, pool } from "../../database/client.js";
+import { db, pool } from "../../../database/client.js";
 import {
   accounts,
   agency_metadata,
@@ -19,9 +19,12 @@ import {
   conversation_participants,
   conversations,
   freelancer_metadata,
-} from "../../test/support/tables.js";
-import { assertTestDatabase } from "../../test/setup/assert-test-database.js";
-import { createConversation, getConversations } from "./messaging.service.js";
+} from "../../../test/support/tables.js";
+import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
+import {
+  createConversation,
+  getConversations,
+} from "../services/messaging.service.js";
 
 const PREFIX = "msg-part-it-";
 

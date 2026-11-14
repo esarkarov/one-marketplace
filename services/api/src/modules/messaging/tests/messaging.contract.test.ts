@@ -18,21 +18,22 @@ const mocks = vi.hoisted(() => ({
   emitConversationUpdate: vi.fn(),
 }));
 
-vi.mock("../../config/env.js", async (importOriginal) => {
-  const original = await importOriginal<typeof import("../../config/env.js")>();
+vi.mock("../../../config/env.js", async (importOriginal) => {
+  const original =
+    await importOriginal<typeof import("../../../config/env.js")>();
   return { ...original, env: { ...original.env, clerkSecretKey: "sk_test" } };
 });
 
-vi.mock("../../infrastructure/clerk.js", () => ({
+vi.mock("../../../infrastructure/clerk.js", () => ({
   clerk: { users: { getUser: mocks.getUser } },
   verifyToken: mocks.verifyToken,
 }));
 
-vi.mock("../../infrastructure/image-kit.js", () => ({
+vi.mock("../../../infrastructure/image-kit.js", () => ({
   imageKit: { files: { upload: vi.fn(), delete: vi.fn() } },
 }));
 
-vi.mock("../../infrastructure/redis.js", () => ({
+vi.mock("../../../infrastructure/redis.js", () => ({
   redis: {
     get: async (key: string) => mocks.store.get(key) ?? null,
     expire: async () => true,
@@ -51,12 +52,12 @@ vi.mock("../../infrastructure/redis.js", () => ({
   disconnectRedis: async () => undefined,
 }));
 
-vi.mock("./messaging.socket.js", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("./messaging.socket.js")>()),
+vi.mock("../messaging.socket.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../messaging.socket.js")>()),
   emitConversationUpdate: mocks.emitConversationUpdate,
 }));
 
-import { db, pool } from "../../database/client.js";
+import { db, pool } from "../../../database/client.js";
 import {
   accounts,
   client_metadata,
@@ -68,11 +69,11 @@ import {
   job_posts,
   meetings,
   proposals,
-} from "../../test/support/tables.js";
-import { assertTestDatabase } from "../../test/setup/assert-test-database.js";
-import { messagingResponses } from "./messaging.responses.js";
+} from "../../../test/support/tables.js";
+import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
+import { messagingResponses } from "../responses/messaging.responses.js";
 
-const { app } = await import("../../app.js");
+const { app } = await import("../../../app.js");
 
 const PREFIX = "messaging-contract-it-";
 const API = "/api/v1/conversations";

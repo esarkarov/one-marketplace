@@ -1,6 +1,6 @@
-import { clerk } from "../../infrastructure/clerk.js";
-import { env } from "../../config/env.js";
-import { db } from "../../database/client.js";
+import { clerk } from "../../../infrastructure/clerk.js";
+import { env } from "../../../config/env.js";
+import { db } from "../../../database/client.js";
 import {
   findAccountRole,
   findActiveMeetingForConversation,
@@ -10,7 +10,7 @@ import {
   listActiveMeetingsForConversations,
   listConversationRowsOfParticipant,
   setConversationLastMessage,
-} from "./messaging.conversations.repository.js";
+} from "../repositories/messaging.conversations.repository.js";
 import {
   countMessagesFromOthersAfter,
   findMessageInConversation,
@@ -19,7 +19,7 @@ import {
   listAttachmentsForMessages,
   listMessagesPage,
   listReplyPreviews,
-} from "./messaging.messages.repository.js";
+} from "../repositories/messaging.messages.repository.js";
 import {
   findParticipantByAccount,
   findParticipantByAgency,
@@ -28,20 +28,20 @@ import {
   insertConversationParticipantsIfAbsent,
   listParticipantProfileRows,
   markParticipantReadIfNotAhead,
-} from "./messaging.participants.repository.js";
-import type { messages } from "./models/messaging.model.js";
-import { ApiError } from "../../shared/http/api-error.js";
-import type { DbExecutor } from "../../database/db-executor.js";
+} from "../repositories/messaging.participants.repository.js";
+import type { messages } from "../models/messaging.model.js";
+import { ApiError } from "../../../shared/http/api-error.js";
+import type { DbExecutor } from "../../../database/db-executor.js";
 import {
   deleteDocuments,
   uploadDocuments,
-} from "../../infrastructure/upload-documents.js";
-import { emitConversationUpdate } from "./messaging.socket.js";
-import { appendConversationMessages } from "./messaging.conversations.repository.js";
+} from "../../../infrastructure/upload-documents.js";
+import { emitConversationUpdate } from "../messaging.socket.js";
+import { appendConversationMessages } from "../repositories/messaging.conversations.repository.js";
 import {
   getAgencyIdForMember,
   getAgencyTeamMemberIds,
-} from "../agency/agency.public.js";
+} from "../../agency/agency.public.js";
 
 export interface AttachmentInput {
   fileId: string;

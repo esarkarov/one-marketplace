@@ -1,6 +1,6 @@
 import { RequestHandler } from "express";
-import { asyncHandler } from "../../shared/http/async-handler.js";
-import { ApiResponse } from "../../types/common.types.js";
+import { asyncHandler } from "../../../shared/http/async-handler.js";
+import { ApiResponse } from "../../../types/common.types.js";
 import {
   ConversationScope,
   createConversation,
@@ -8,13 +8,13 @@ import {
   getMessages,
   markConversationRead,
   sendMessage,
-} from "./messaging.service.js";
-import { requireClient } from "../../shared/http/auth/role-guards.js";
-import { ApiError } from "../../shared/http/api-error.js";
+} from "../services/messaging.service.js";
+import { requireClient } from "../../../shared/http/auth/role-guards.js";
+import { ApiError } from "../../../shared/http/api-error.js";
 import {
   assertAttachmentFileName,
   validateAttachmentBatch,
-} from "../../shared/uploads/attachments.js";
+} from "../../../shared/uploads/attachments.js";
 
 export interface AttachmentInput {
   fileId: string;

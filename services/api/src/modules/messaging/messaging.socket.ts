@@ -6,7 +6,7 @@ import {
   listConversationIdsOfParticipant,
   listParticipantsOfConversations,
   markReadIfMessageInConversation,
-} from "./messaging.participants.repository.js";
+} from "./repositories/messaging.participants.repository.js";
 import { authenticateAccount } from "../auth/auth.public.js";
 import { ApiError } from "../../shared/http/api-error.js";
 import { getAgencyIdForMember } from "../agency/agency.public.js";

@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { db, pool } from "../../database/client.js";
+import { db, pool } from "../../../database/client.js";
 import {
   accounts,
   agency_metadata,
@@ -13,8 +13,8 @@ import {
   message_attachments,
   messages,
   proposals,
-} from "../../test/support/tables.js";
-import { assertTestDatabase } from "../../test/setup/assert-test-database.js";
+} from "../../../test/support/tables.js";
+import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
 import {
   appendConversationMessages,
   findAccountRole,
@@ -25,7 +25,7 @@ import {
   listActiveMeetingsForConversations,
   listConversationRowsOfParticipant,
   setConversationLastMessage,
-} from "./messaging.conversations.repository.js";
+} from "../repositories/messaging.conversations.repository.js";
 
 const PREFIX = "messaging-conversations-repo-";
 const like = `${PREFIX}%`;
