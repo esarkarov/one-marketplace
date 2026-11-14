@@ -5,7 +5,7 @@ import {
   CONNECTS_CACHE_TTL_SECONDS,
   getConnectsCacheKey,
 } from "../../../config/constants.js";
-import { redis } from "../../../infrastructure/redis.js";
+import { redis } from "../../../infrastructure/cache/redis.js";
 import { db } from "../../../database/client.js";
 import { findFreelancerConnectsBalance } from "../repositories/connects.repository.js";
 

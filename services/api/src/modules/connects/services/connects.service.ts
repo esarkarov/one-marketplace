@@ -21,9 +21,9 @@ import {
   recordConnectsHistory,
 } from "../repositories/connects.repository.js";
 import { ApiError } from "../../../shared/http/api-error.js";
-import { redis } from "../../../infrastructure/redis.js";
+import { redis } from "../../../infrastructure/cache/redis.js";
 import { env } from "../../../config/env.js";
-import { stripe } from "../../../infrastructure/stripe.js";
+import { stripe } from "../../../infrastructure/payments/stripe.js";
 
 const cacheBalance = (freelancerId: string, balance: number) =>
   redis.setEx(

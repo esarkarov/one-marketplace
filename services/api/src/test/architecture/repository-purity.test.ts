@@ -45,7 +45,7 @@ export const find = () => {
 };
 `,
       "modules/c/c.repository.ts": `
-import { redis } from "../../infrastructure/redis.js";
+import { redis } from "../../infrastructure/cache/redis.js";
 export const find = () => fetch("https://example.test");
 `,
     });

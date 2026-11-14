@@ -11,11 +11,11 @@ const mocks = vi.hoisted(() => ({
   warn: vi.fn(),
 }));
 
-vi.mock("../config/logger.js", () => ({
+vi.mock("../../config/logger.js", () => ({
   logger: { info: mocks.info, warn: mocks.warn },
 }));
 
-vi.mock("../config/env.js", () => ({
+vi.mock("../../config/env.js", () => ({
   env: {
     get rabbitmqUrl() {
       return mocks.url;

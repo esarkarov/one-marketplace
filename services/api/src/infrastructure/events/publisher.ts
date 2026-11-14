@@ -3,7 +3,7 @@ import {
   getRabbitPublishChannel,
   isRabbitConnected,
   isRabbitEnabled,
-} from "../rabbitmq.js";
+} from "./rabbitmq.js";
 import { logger } from "../../config/logger.js";
 import { errorLogAttributes } from "../../shared/logging/sanitize-log.js";
 import {

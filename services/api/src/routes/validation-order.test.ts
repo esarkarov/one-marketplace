@@ -9,11 +9,11 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@clerk/backend", () => ({ verifyToken: mocks.verifyToken }));
 
-vi.mock("../infrastructure/image-kit.js", () => ({
+vi.mock("../infrastructure/storage/image-kit.js", () => ({
   imageKit: { files: { upload: vi.fn(), delete: vi.fn() } },
 }));
 
-vi.mock("../infrastructure/redis.js", () => ({
+vi.mock("../infrastructure/cache/redis.js", () => ({
   redis: {
     get: async (key: string) => mocks.store.get(key) ?? null,
     expire: async () => true,

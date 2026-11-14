@@ -1,4 +1,4 @@
-import { env } from "../config/env.js";
+import { env } from "../../config/env.js";
 
 const DAILY_API_BASE = "https://api.daily.co/v1";
 // Rooms auto-expire this many seconds after creation as a safety net for

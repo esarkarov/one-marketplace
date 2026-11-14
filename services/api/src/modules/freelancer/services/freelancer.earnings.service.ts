@@ -11,7 +11,7 @@ import {
 } from "../repositories/freelancer.earnings.repository.js";
 import { EarningsCertificateData } from "../types/freelancer.types.js";
 import { env } from "../../../config/env.js";
-import { stripe } from "../../../infrastructure/stripe.js";
+import { stripe } from "../../../infrastructure/payments/stripe.js";
 import type { StripeRequirementsLike } from "../../../types/common.types.js";
 import { ApiError } from "../../../shared/http/api-error.js";
 import {
@@ -19,7 +19,7 @@ import {
   PLATFORM_FEE_BPS,
   STRIPE_PAYOUT_ELIGIBLE_COUNTRIES,
 } from "../../../config/constants.js";
-import { clerk } from "../../../infrastructure/clerk.js";
+import { clerk } from "../../../infrastructure/auth/clerk.js";
 
 const MONTHLY_EARNINGS_SPAN = 7;
 

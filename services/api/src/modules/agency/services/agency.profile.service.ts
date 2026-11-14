@@ -1,9 +1,9 @@
 import { randomUUID } from "crypto";
-import { clerk } from "../../../infrastructure/clerk.js";
+import { clerk } from "../../../infrastructure/auth/clerk.js";
 import { db } from "../../../database/client.js";
 import { isUniqueViolation } from "../../../database/pg-errors.js";
 import { ApiError } from "../../../shared/http/api-error.js";
-import { imageKit } from "../../../infrastructure/image-kit.js";
+import { imageKit } from "../../../infrastructure/storage/image-kit.js";
 import { env } from "../../../config/env.js";
 import { logger } from "../../../config/logger.js";
 import { errorLogAttributes } from "../../../shared/logging/sanitize-log.js";

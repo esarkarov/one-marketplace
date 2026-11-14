@@ -1,6 +1,6 @@
-import { env } from "../config/env.js";
-import { imageKit } from "./image-kit.js";
-import { ApiError } from "../shared/http/api-error.js";
+import { env } from "../../config/env.js";
+import { imageKit } from "../../infrastructure/storage/image-kit.js";
+import { ApiError } from "../http/api-error.js";
 
 interface Document {
   fileId: string;

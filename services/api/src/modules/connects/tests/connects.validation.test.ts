@@ -9,14 +9,14 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@clerk/backend", () => ({ verifyToken: mocks.verifyToken }));
 
-vi.mock("../../../infrastructure/stripe.js", () => ({
+vi.mock("../../../infrastructure/payments/stripe.js", () => ({
   stripe: {
     webhooks: { constructEvent: vi.fn() },
     checkout: { sessions: { create: vi.fn() } },
   },
 }));
 
-vi.mock("../../../infrastructure/redis.js", () => ({
+vi.mock("../../../infrastructure/cache/redis.js", () => ({
   redis: {
     get: async (key: string) => mocks.store.get(key) ?? null,
     expire: async () => true,

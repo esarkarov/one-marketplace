@@ -15,11 +15,11 @@ const mocks = vi.hoisted(() => ({
   sendNotification: vi.fn(),
 }));
 
-vi.mock("../../../infrastructure/redis.js", () => ({
+vi.mock("../../../infrastructure/cache/redis.js", () => ({
   redis: { setEx: mocks.setEx },
 }));
 
-vi.mock("../../../infrastructure/clerk.js", () => ({
+vi.mock("../../../infrastructure/auth/clerk.js", () => ({
   clerk: { users: { getUser: vi.fn() } },
 }));
 

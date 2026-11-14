@@ -11,7 +11,7 @@ import {
 import { CONNECTS_PLANS, ConnectsPlan } from "../../../config/constants.js";
 import { ApiError } from "../../../shared/http/api-error.js";
 import { env } from "../../../config/env.js";
-import { stripe } from "../../../infrastructure/stripe.js";
+import { stripe } from "../../../infrastructure/payments/stripe.js";
 
 export const getAvailableConnects: RequestHandler = async (
   request,

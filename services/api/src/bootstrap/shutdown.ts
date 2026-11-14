@@ -1,7 +1,7 @@
 import { logger, rootLogger } from "../config/logger.js";
 import { pool } from "../database/client.js";
-import { disconnectRedis } from "../infrastructure/redis.js";
-import { closeRabbit } from "../infrastructure/rabbitmq.js";
+import { disconnectRedis } from "../infrastructure/cache/redis.js";
+import { closeRabbit } from "../infrastructure/events/rabbitmq.js";
 import { stopNotificationConsumer } from "../modules/notifications/notifications.consumer.js";
 import { closeMessagingSocket } from "../modules/messaging/messaging.socket.js";
 import { stopPayoutCron } from "../modules/payouts/payouts.cron.js";

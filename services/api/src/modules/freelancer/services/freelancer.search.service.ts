@@ -6,7 +6,7 @@ import {
   PublicTalentSearchPage,
 } from "../types/freelancer.types.js";
 import { env } from "../../../config/env.js";
-import { clerk } from "../../../infrastructure/clerk.js";
+import { clerk } from "../../../infrastructure/auth/clerk.js";
 
 const PUBLIC_TALENT_PAGE_SIZE = 20;
 

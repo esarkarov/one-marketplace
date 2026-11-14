@@ -58,7 +58,7 @@ const isLocal = (() => {
 })();
 
 const { createRabbitChannel, createRabbitConnection } =
-  await import("../rabbitmq.js");
+  await import("./rabbitmq.js");
 const { createNotificationConsumer } =
   await import("../../modules/notifications/notifications.consumer.js");
 const { createNotificationEnvelope } = await import("./envelope.js");

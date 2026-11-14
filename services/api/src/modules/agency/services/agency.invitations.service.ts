@@ -1,4 +1,4 @@
-import { clerk } from "../../../infrastructure/clerk.js";
+import { clerk } from "../../../infrastructure/auth/clerk.js";
 import { db } from "../../../database/client.js";
 import { isUniqueViolation } from "../../../database/pg-errors.js";
 import { ApiError } from "../../../shared/http/api-error.js";

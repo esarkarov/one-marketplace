@@ -1,6 +1,6 @@
 import type { ChannelWrapper } from "amqp-connection-manager";
 import type { ConsumeMessage } from "amqplib";
-import { getRabbitConsumerChannel } from "../../infrastructure/rabbitmq.js";
+import { getRabbitConsumerChannel } from "../../infrastructure/events/rabbitmq.js";
 import { logger } from "../../config/logger.js";
 import { db } from "../../database/client.js";
 import {

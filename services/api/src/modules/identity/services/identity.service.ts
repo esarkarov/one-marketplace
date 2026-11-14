@@ -1,6 +1,6 @@
 import type Stripe from "stripe";
 import { env } from "../../../config/env.js";
-import { stripe } from "../../../infrastructure/stripe.js";
+import { stripe } from "../../../infrastructure/payments/stripe.js";
 import { db } from "../../../database/client.js";
 import { findAccountIdentityStatus } from "../repositories/identity.repository.js";
 import { markIdentityVerified } from "../../auth/index.js";

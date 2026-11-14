@@ -16,7 +16,7 @@ vi.mock("../../../config/logger.js", () => ({
   logger: { error: mocks.logError, info: mocks.logInfo },
 }));
 
-vi.mock("../../../infrastructure/rabbitmq.js", () => ({
+vi.mock("../../../infrastructure/events/rabbitmq.js", () => ({
   getRabbitConsumerChannel: vi.fn(),
 }));
 

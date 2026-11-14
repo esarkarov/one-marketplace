@@ -1,4 +1,4 @@
-import { clerk } from "../../../infrastructure/clerk.js";
+import { clerk } from "../../../infrastructure/auth/clerk.js";
 import { db } from "../../../database/client.js";
 import { toSafeCents } from "../../../shared/money/money.js";
 import {
@@ -25,8 +25,8 @@ import {
 } from "../repositories/client.repository.js";
 import { ApiError } from "../../../shared/http/api-error.js";
 import { env } from "../../../config/env.js";
-import { stripe } from "../../../infrastructure/stripe.js";
-import { invalidateAccountAuthCache } from "../../../infrastructure/account-auth-cache.js";
+import { stripe } from "../../../infrastructure/payments/stripe.js";
+import { invalidateAccountAuthCache } from "../../../infrastructure/cache/account-auth-cache.js";
 import type {
   ClientCompletedContract,
   ClientDashboardOverview,

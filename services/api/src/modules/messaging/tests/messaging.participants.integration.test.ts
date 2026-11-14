@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
-vi.mock("../../../infrastructure/clerk.js", () => ({
+vi.mock("../../../infrastructure/auth/clerk.js", () => ({
   clerk: {
     users: { getUser: vi.fn().mockRejectedValue(new Error("clerk down")) },
   },

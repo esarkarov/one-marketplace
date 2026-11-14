@@ -1,4 +1,4 @@
-import { redis } from "../infrastructure/redis.js";
+import { redis } from "../infrastructure/cache/redis.js";
 import { pool } from "../database/client.js";
 
 type CheckStatus = "ok" | "failed";

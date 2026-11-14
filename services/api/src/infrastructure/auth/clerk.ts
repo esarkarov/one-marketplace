@@ -2,7 +2,7 @@ import {
   createClerkClient,
   verifyToken as clerkVerifyToken,
 } from "@clerk/backend";
-import { env } from "../config/env.js";
+import { env } from "../../config/env.js";
 
 let instance: ReturnType<typeof createClerkClient> | undefined;
 

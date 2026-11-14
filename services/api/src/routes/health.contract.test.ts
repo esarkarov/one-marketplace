@@ -1,7 +1,10 @@
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { connectRedis, disconnectRedis } from "../infrastructure/redis.js";
+import {
+  connectRedis,
+  disconnectRedis,
+} from "../infrastructure/cache/redis.js";
 import { pool } from "../database/client.js";
 import { assertTestDatabase } from "../test/setup/assert-test-database.js";
 import { healthResponses } from "./health.responses.js";

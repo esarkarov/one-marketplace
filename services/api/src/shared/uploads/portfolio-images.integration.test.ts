@@ -16,7 +16,7 @@ const mocks = vi.hoisted(() => {
   return { upload: vi.fn(), remove: vi.fn() };
 });
 
-vi.mock("../../infrastructure/image-kit.js", () => ({
+vi.mock("../../infrastructure/storage/image-kit.js", () => ({
   imageKit: { files: { upload: mocks.upload, delete: mocks.remove } },
 }));
 

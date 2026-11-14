@@ -28,7 +28,7 @@ vi.mock("../../../config/logger.js", () => ({
   logger: { warn: mocks.warn },
 }));
 
-vi.mock("../../../infrastructure/redis.js", () => ({
+vi.mock("../../../infrastructure/cache/redis.js", () => ({
   redis: {
     get: async (key: string) => {
       const entry = mocks.entries.get(key);
@@ -80,7 +80,7 @@ vi.mock("../../../database/client.js", () => {
 const { authenticateAccount } =
   await import("../middleware/auth.middleware.js");
 const { invalidateAccountAuthCache } =
-  await import("../../../infrastructure/account-auth-cache.js");
+  await import("../../../infrastructure/cache/account-auth-cache.js");
 
 beforeEach(() => {
   mocks.entries.clear();

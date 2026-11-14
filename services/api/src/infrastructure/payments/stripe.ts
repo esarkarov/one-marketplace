@@ -1,5 +1,5 @@
 import Stripe from "stripe";
-import { env } from "../config/env.js";
+import { env } from "../../config/env.js";
 
 let instance: Stripe | undefined;
 

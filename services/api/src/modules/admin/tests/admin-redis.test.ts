@@ -9,7 +9,7 @@ const mocks = vi.hoisted(() => ({
   get: vi.fn(),
 }));
 
-vi.mock("../../../infrastructure/redis.js", () => ({
+vi.mock("../../../infrastructure/cache/redis.js", () => ({
   redis: {
     scan: mocks.scan,
     type: mocks.type,
@@ -18,7 +18,7 @@ vi.mock("../../../infrastructure/redis.js", () => ({
   },
 }));
 
-vi.mock("../../../infrastructure/rabbitmq.js", () => ({
+vi.mock("../../../infrastructure/events/rabbitmq.js", () => ({
   getRabbitStatus: async () => ({ ok: false }),
 }));
 

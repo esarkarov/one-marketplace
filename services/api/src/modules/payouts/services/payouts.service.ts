@@ -1,5 +1,5 @@
 import { EARNINGS_HOLD_PERIOD_MS } from "../../../config/constants.js";
-import { stripe } from "../../../infrastructure/stripe.js";
+import { stripe } from "../../../infrastructure/payments/stripe.js";
 import { db } from "../../../database/client.js";
 import { sendNotification } from "../../../infrastructure/events/publisher.js";
 import { logger } from "../../../config/logger.js";

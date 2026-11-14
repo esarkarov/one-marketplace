@@ -10,7 +10,7 @@ import {
 import { ApiError } from "../../../shared/http/api-error.js";
 import { errorLogAttributes } from "../../../shared/logging/sanitize-log.js";
 import { logger } from "../../../config/logger.js";
-import { createDailyRoom } from "../../../infrastructure/daily.js";
+import { createDailyRoom } from "../../../infrastructure/video/daily.js";
 import {
   postSystemEventMessage,
   requireMember,

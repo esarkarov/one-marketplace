@@ -2,10 +2,10 @@ import amqp, {
   type ChannelWrapper,
   type AmqpConnectionManager,
 } from "amqp-connection-manager";
-import { env } from "../config/env.js";
-import { logger } from "../config/logger.js";
-import { assertTopology, type TopologyOptions } from "./events/topology.js";
-import { errorLogAttributes } from "../shared/logging/sanitize-log.js";
+import { env } from "../../config/env.js";
+import { logger } from "../../config/logger.js";
+import { assertTopology, type TopologyOptions } from "./topology.js";
+import { errorLogAttributes } from "../../shared/logging/sanitize-log.js";
 
 let connection: AmqpConnectionManager | undefined;
 let publishChannel: ChannelWrapper | undefined;

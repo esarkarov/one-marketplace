@@ -37,12 +37,12 @@ vi.mock("../../../config/env.js", async (importOriginal) => {
   };
 });
 
-vi.mock("../../../infrastructure/clerk.js", () => ({
+vi.mock("../../../infrastructure/auth/clerk.js", () => ({
   clerk: { users: { getUser: mocks.getUser } },
   verifyToken: mocks.verifyToken,
 }));
 
-vi.mock("../../../infrastructure/stripe.js", () => ({
+vi.mock("../../../infrastructure/payments/stripe.js", () => ({
   STRIPE_TIMEOUT_MS: 30_000,
   stripe: {
     customers: { create: mocks.customersCreate },
@@ -52,11 +52,11 @@ vi.mock("../../../infrastructure/stripe.js", () => ({
   },
 }));
 
-vi.mock("../../../infrastructure/image-kit.js", () => ({
+vi.mock("../../../infrastructure/storage/image-kit.js", () => ({
   imageKit: { files: { upload: mocks.upload, delete: vi.fn() } },
 }));
 
-vi.mock("../../../infrastructure/redis.js", () => ({
+vi.mock("../../../infrastructure/cache/redis.js", () => ({
   redis: {
     get: async (key: string) => mocks.store.get(key) ?? null,
     expire: async () => true,

@@ -21,7 +21,7 @@ import { ApiError } from "../../../shared/http/api-error.js";
 import {
   deleteDocuments,
   uploadDocuments,
-} from "../../../infrastructure/upload-documents.js";
+} from "../../../shared/uploads/upload-documents.js";
 import { emitConversationUpdate } from "../messaging.socket.js";
 import { getAgencyTeamMemberIds } from "../../agency/index.js";
 import { AttachmentInput } from "../types/messaging.types.js";

@@ -4,7 +4,7 @@ import { asyncHandler } from "../../../shared/http/async-handler.js";
 import { ApiError } from "../../../shared/http/api-error.js";
 import { ApiResponse } from "../../../types/common.types.js";
 import { env } from "../../../config/env.js";
-import { redis } from "../../../infrastructure/redis.js";
+import { redis } from "../../../infrastructure/cache/redis.js";
 import { errorLogAttributes } from "../../../shared/logging/sanitize-log.js";
 import {
   endMeetingByRoomName,

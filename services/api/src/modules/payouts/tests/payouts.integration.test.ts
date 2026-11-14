@@ -19,15 +19,18 @@ const mocks = vi.hoisted(() => ({
   sendNotification: vi.fn(),
 }));
 
-vi.mock("../../../infrastructure/stripe.js", async (importOriginal) => ({
-  ...(await importOriginal<
-    typeof import("../../../infrastructure/stripe.js")
-  >()),
-  stripe: {
-    transfers: { create: mocks.transfersCreate, list: mocks.transfersList },
-    v2: { core: { accounts: { retrieve: mocks.accountsRetrieve } } },
-  },
-}));
+vi.mock(
+  "../../../infrastructure/payments/stripe.js",
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import("../../../infrastructure/payments/stripe.js")
+    >()),
+    stripe: {
+      transfers: { create: mocks.transfersCreate, list: mocks.transfersList },
+      v2: { core: { accounts: { retrieve: mocks.accountsRetrieve } } },
+    },
+  }),
+);
 
 vi.mock(
   "../../../infrastructure/events/publisher.js",

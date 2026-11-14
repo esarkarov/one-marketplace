@@ -4,8 +4,14 @@ import { env } from "../config/env.js";
 import { logger } from "../config/logger.js";
 import { app } from "../app.js";
 import { errorLogAttributes } from "../shared/logging/sanitize-log.js";
-import { connectRedis, disconnectRedis } from "../infrastructure/redis.js";
-import { closeRabbit, isRabbitEnabled } from "../infrastructure/rabbitmq.js";
+import {
+  connectRedis,
+  disconnectRedis,
+} from "../infrastructure/cache/redis.js";
+import {
+  closeRabbit,
+  isRabbitEnabled,
+} from "../infrastructure/events/rabbitmq.js";
 import { startNotificationConsumer } from "../modules/notifications/notifications.consumer.js";
 import { initializeMessagingSocket } from "../modules/messaging/messaging.socket.js";
 import { startPayoutCron } from "../modules/payouts/payouts.cron.js";

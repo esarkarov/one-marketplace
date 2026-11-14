@@ -1,8 +1,8 @@
-import { clerk } from "../../../infrastructure/clerk.js";
+import { clerk } from "../../../infrastructure/auth/clerk.js";
 import { ApiError } from "../../../shared/http/api-error.js";
 import { db } from "../../../database/client.js";
 import { insertAccountIfAbsent } from "../repositories/auth.repository.js";
-import { invalidateAccountAuthCache } from "../../../infrastructure/account-auth-cache.js";
+import { invalidateAccountAuthCache } from "../../../infrastructure/cache/account-auth-cache.js";
 
 interface SignupInput {
   userId: string;

@@ -14,7 +14,7 @@ import {
   connectRedis,
   disconnectRedis,
   redis,
-} from "./infrastructure/redis.js";
+} from "./infrastructure/cache/redis.js";
 import { pool } from "./database/client.js";
 
 const clerk = vi.hoisted(() => ({ verifyToken: vi.fn() }));

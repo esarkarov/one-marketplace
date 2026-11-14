@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({
   error: vi.fn(),
 }));
 
-vi.mock("../rabbitmq.js", () => ({
+vi.mock("./rabbitmq.js", () => ({
   isRabbitEnabled: mocks.enabled,
   isRabbitConnected: mocks.connected,
   getRabbitPublishChannel: () => ({ publish: mocks.publish }),

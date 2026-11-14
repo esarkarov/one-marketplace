@@ -14,7 +14,7 @@ import {
   getConnectsCacheKey,
   PROPOSAL_CONNECTS,
 } from "../../../config/constants.js";
-import { redis } from "../../../infrastructure/redis.js";
+import { redis } from "../../../infrastructure/cache/redis.js";
 import { getAgencyOwnerId } from "../../agency/index.js";
 import {
   emitConversationUpdate,
