@@ -19,7 +19,7 @@ import {
   creditConnects,
   debitConnects,
   recordConnectsHistory,
-} from "../../connects/connects.public.js";
+} from "../../connects/index.js";
 import { ApiError } from "../../../shared/http/api-error.js";
 import {
   CONNECTS_CACHE_TTL_SECONDS,
@@ -32,12 +32,12 @@ import { clerk } from "../../../infrastructure/clerk.js";
 import {
   getAgencyOwnerId,
   getAgencyTeamMemberIds,
-} from "../../agency/agency.public.js";
+} from "../../agency/index.js";
 import { sendNotification } from "../../../infrastructure/events/publisher.js";
 import {
   emitConversationUpdate,
   openInterviewConversation,
-} from "../../messaging/messaging.public.js";
+} from "../../messaging/index.js";
 
 export const submitProposal = async (
   freelancerId: string,

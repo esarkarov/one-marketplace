@@ -46,12 +46,12 @@ const offendingEdges = (
     const header = `${edge.importer} ${edge.access}s tables owned by ${edge.owner}`;
     if (!entry) {
       return [
-        `${header}:\n${describeSites(edge)}\n    use ${edge.owner}'s ${edge.owner}.public.ts, or add a reasoned entry to table-access-allowlist.ts for review`,
+        `${header}:\n${describeSites(edge)}\n    use ${edge.owner}'s modules/${edge.owner}/index.ts, or add a reasoned entry to table-access-allowlist.ts for review`,
       ];
     }
     if (edge.access === "write") {
       return [
-        `${header}:\n${describeSites(edge)}\n    cross-module writes must go through ${edge.owner}'s ${edge.owner}.public.ts`,
+        `${header}:\n${describeSites(edge)}\n    cross-module writes must go through ${edge.owner}'s modules/${edge.owner}/index.ts`,
       ];
     }
     return [];

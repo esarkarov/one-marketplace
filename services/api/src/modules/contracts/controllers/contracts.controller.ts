@@ -11,7 +11,7 @@ import {
 import {
   getAgencyIdForMember,
   requireAgencyPermission,
-} from "../../agency/agency.public.js";
+} from "../../agency/index.js";
 import {
   createContractCheckout,
   createMilestoneFundingCheckout,
@@ -29,7 +29,7 @@ import {
   submitContractMilestone,
 } from "../services/contracts.milestones.service.js";
 import { sendNotification } from "../../../infrastructure/events/publisher.js";
-import { emitConversationUpdate } from "../../messaging/messaging.public.js";
+import { emitConversationUpdate } from "../../messaging/index.js";
 
 export const startContractCheckout: RequestHandler = asyncHandler(
   async (request, response) => {

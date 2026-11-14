@@ -2,7 +2,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { logger } from "../src/config/logger.js";
 import { db } from "../src/database/client.js";
 import { agency_metadata } from "../src/modules/agency/models/agency.model.js";
-import { getAgencyOwnerId } from "../src/modules/agency/agency.public.js";
+import { getAgencyOwnerId } from "../src/modules/agency/index.js";
 import {
   conversation_participants,
   conversations,

@@ -1,7 +1,7 @@
 import { readdirSync } from "node:fs";
 import path from "node:path";
 
-const ROOT_ENTRY_KINDS = ["route", "public", "socket", "cron", "consumer"];
+const ROOT_ENTRY_KINDS = ["route", "socket", "cron", "consumer"];
 
 const FOLDER_FILES: Record<string, RegExp> = {
   controllers: /^[^/]+\.controller\.ts$/,
@@ -46,7 +46,7 @@ export const checkModuleLayout = (modulesDir: string): string[] => {
   );
   for (const { name: moduleName } of modules) {
     const rootEntry = new RegExp(
-      `^${moduleName}\\.(?:${ROOT_ENTRY_KINDS.join("|")})\\.ts$`,
+      `^(?:index|${moduleName}\\.(?:${ROOT_ENTRY_KINDS.join("|")}))\\.ts$`,
     );
     const modelFile = `${moduleName}.model.ts`;
     for (const file of listFiles(path.join(modulesDir, moduleName))) {
@@ -56,7 +56,7 @@ export const checkModuleLayout = (modulesDir: string): string[] => {
       if (parts.length === 1) {
         if (!rootEntry.test(name)) {
           problems.push(
-            `${key}: only ${ROOT_ENTRY_KINDS.map((kind) => `${moduleName}.${kind}.ts`).join(", ")} may sit at the module root`,
+            `${key}: only ${[...ROOT_ENTRY_KINDS.map((kind) => `${moduleName}.${kind}.ts`), "index.ts"].join(", ")} may sit at the module root`,
           );
         }
         continue;

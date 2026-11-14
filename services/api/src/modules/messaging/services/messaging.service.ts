@@ -41,7 +41,7 @@ import { appendConversationMessages } from "../repositories/messaging.conversati
 import {
   getAgencyIdForMember,
   getAgencyTeamMemberIds,
-} from "../../agency/agency.public.js";
+} from "../../agency/index.js";
 
 export interface AttachmentInput {
   fileId: string;

@@ -3,7 +3,7 @@ import { env } from "../../../config/env.js";
 import { stripe } from "../../../infrastructure/stripe.js";
 import { db } from "../../../database/client.js";
 import { findAccountIdentityStatus } from "../repositories/identity.repository.js";
-import { markIdentityVerified } from "../../auth/auth.public.js";
+import { markIdentityVerified } from "../../auth/index.js";
 import { ApiError } from "../../../shared/http/api-error.js";
 
 export const createIdentitySession = async (

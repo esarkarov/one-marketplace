@@ -1,15 +1,15 @@
 import { logger } from "../../../config/logger.js";
 import { db } from "../../../database/client.js";
 import { isUniqueViolation } from "../../../database/pg-errors.js";
-import { appendJobMilestone } from "../../jobs/jobs.public.js";
+import { appendJobMilestone } from "../../jobs/index.js";
 import { ApiError } from "../../../shared/http/api-error.js";
 import { splitFee } from "../../../shared/money/money.js";
 import { sendNotification } from "../../../infrastructure/events/publisher.js";
 import {
   appendConversationMessages,
   emitConversationUpdate,
-} from "../../messaging/messaging.public.js";
-import { getAgencyOwnerId } from "../../agency/agency.public.js";
+} from "../../messaging/index.js";
+import { getAgencyOwnerId } from "../../agency/index.js";
 import {
   findContractForNewMilestone,
   findMilestoneForReview,

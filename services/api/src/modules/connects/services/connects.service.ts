@@ -7,7 +7,7 @@ import {
   INITIAL_CONNECTS,
 } from "../../../config/constants.js";
 import { db } from "../../../database/client.js";
-import { setStripeCustomerId } from "../../auth/auth.public.js";
+import { setStripeCustomerId } from "../../auth/index.js";
 import {
   creditConnects,
   findAgencyConnectsBalance,

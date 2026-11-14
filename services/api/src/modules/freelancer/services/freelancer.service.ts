@@ -3,7 +3,7 @@ import { toSafeCents } from "../../../shared/money/money.js";
 import {
   markFreelancerOnboardingComplete,
   setStripeConnectAccountId,
-} from "../../auth/auth.public.js";
+} from "../../auth/index.js";
 import {
   countHiresForJob,
   countHiresPerJob,
@@ -54,7 +54,7 @@ import {
   STRIPE_PAYOUT_ELIGIBLE_COUNTRIES,
 } from "../../../config/constants.js";
 import { invalidateAccountAuthCache } from "../../../infrastructure/account-auth-cache.js";
-import { addConnects } from "../../connects/connects.public.js";
+import { addConnects } from "../../connects/index.js";
 import { clerk } from "../../../infrastructure/clerk.js";
 import {
   isImageDataUrl,

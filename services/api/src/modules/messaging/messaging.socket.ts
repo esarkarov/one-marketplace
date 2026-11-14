@@ -7,9 +7,9 @@ import {
   listParticipantsOfConversations,
   markReadIfMessageInConversation,
 } from "./repositories/messaging.participants.repository.js";
-import { authenticateAccount } from "../auth/auth.public.js";
+import { authenticateAccount } from "../auth/index.js";
 import { ApiError } from "../../shared/http/api-error.js";
-import { getAgencyIdForMember } from "../agency/agency.public.js";
+import { getAgencyIdForMember } from "../agency/index.js";
 
 type ConversationScope = "default" | "agency";
 

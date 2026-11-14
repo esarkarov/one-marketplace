@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { isAuthenticated } from "../modules/auth/auth.public.js";
+import { isAuthenticated } from "../modules/auth/index.js";
 import { validate } from "../shared/http/validate.middleware.js";
 import { authRoleShape } from "../shared/validation/common-schemas.js";
 import { submitProposalBodySchema } from "../shared/validation/money-schemas.js";

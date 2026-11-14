@@ -1,15 +1,15 @@
 import type Stripe from "stripe";
 import { db } from "../../../database/client.js";
 import { isUniqueViolation } from "../../../database/pg-errors.js";
-import { markPaymentMethodVerified } from "../../auth/auth.public.js";
+import { markPaymentMethodVerified } from "../../auth/index.js";
 import { ApiError } from "../../../shared/http/api-error.js";
 import { sendNotification } from "../../../infrastructure/events/publisher.js";
 import {
   appendConversationMessages,
   emitConversationUpdate,
-} from "../../messaging/messaging.public.js";
-import { getJSSContribution } from "../../freelancer/freelancer.public.js";
-import { getAgencyOwnerId } from "../../agency/agency.public.js";
+} from "../../messaging/index.js";
+import { getJSSContribution } from "../../freelancer/index.js";
+import { getAgencyOwnerId } from "../../agency/index.js";
 import {
   findContractForReview,
   findFundedContractOffer,

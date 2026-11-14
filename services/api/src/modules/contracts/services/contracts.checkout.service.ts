@@ -2,14 +2,14 @@ import type Stripe from "stripe";
 import { env } from "../../../config/env.js";
 import { stripe } from "../../../infrastructure/stripe.js";
 import { db } from "../../../database/client.js";
-import { setStripeCustomerId } from "../../auth/auth.public.js";
+import { setStripeCustomerId } from "../../auth/index.js";
 import { ApiError } from "../../../shared/http/api-error.js";
 import { sendNotification } from "../../../infrastructure/events/publisher.js";
 import {
   appendConversationMessages,
   emitConversationUpdate,
-} from "../../messaging/messaging.public.js";
-import { getAgencyOwnerId } from "../../agency/agency.public.js";
+} from "../../messaging/index.js";
+import { getAgencyOwnerId } from "../../agency/index.js";
 import {
   findMilestoneForFunding,
   findPendingMilestoneForPaymentFunding,

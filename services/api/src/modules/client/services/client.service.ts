@@ -4,7 +4,7 @@ import { toSafeCents } from "../../../shared/money/money.js";
 import {
   markClientOnboardingComplete,
   setStripeCustomerId,
-} from "../../auth/auth.public.js";
+} from "../../auth/index.js";
 import {
   countJobsOfClient,
   countPublishedJobsOfClient,

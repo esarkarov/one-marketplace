@@ -24,7 +24,7 @@ afterAll(() => {
 
 const valid = [
   "a/a.route.ts",
-  "a/a.public.ts",
+  "a/index.ts",
   "a/a.socket.ts",
   "a/a.cron.ts",
   "a/a.consumer.ts",
@@ -55,7 +55,13 @@ describe("module folder layout", () => {
 
   it("rejects a service at the module root", () => {
     expect(checkModuleLayout(tree(["a/a.service.ts"]))).toEqual([
-      "modules/a/a.service.ts: only a.route.ts, a.public.ts, a.socket.ts, a.cron.ts, a.consumer.ts may sit at the module root",
+      "modules/a/a.service.ts: only a.route.ts, a.socket.ts, a.cron.ts, a.consumer.ts, index.ts may sit at the module root",
+    ]);
+  });
+
+  it("rejects a leftover a.public.ts at the module root", () => {
+    expect(checkModuleLayout(tree(["a/a.public.ts"]))).toEqual([
+      "modules/a/a.public.ts: only a.route.ts, a.socket.ts, a.cron.ts, a.consumer.ts, index.ts may sit at the module root",
     ]);
   });
 

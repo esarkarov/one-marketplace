@@ -62,7 +62,7 @@ describe("SQL lives in repositories", () => {
 
   it("flags queries on an executor parameter and on db directly", () => {
     const root = tree({
-      "modules/a/a.public.ts": `
+      "modules/a/index.ts": `
 import type { DbExecutor } from "../../database/db-executor.js";
 export const f = (executor: DbExecutor) => executor.insert(x).values({});
 `,
@@ -72,17 +72,17 @@ export const g = () => db.select().from(x);
 `,
     });
     expect([...analyzeRepositorySql(root).keys()].sort()).toEqual([
-      "modules/a/a.public.ts",
+      "modules/a/index.ts",
       "modules/b/b.service.ts",
     ]);
   });
 
   it("flags a re-export of a table file", () => {
     const root = tree({
-      "modules/a/a.public.ts": `export { things } from "./models/a.model.js";`,
+      "modules/a/index.ts": `export { things } from "./models/a.model.js";`,
     });
     expect([...analyzeRepositorySql(root).keys()]).toEqual([
-      "modules/a/a.public.ts",
+      "modules/a/index.ts",
     ]);
   });
 

@@ -104,12 +104,23 @@ function isTestFile(key: string): boolean {
   return key.endsWith(".test.ts") || key.startsWith("test/");
 }
 
-type Rule = "module-boundary" | "module-layer" | "infrastructure-direction";
+type Rule =
+  | "module-boundary"
+  | "module-layer"
+  | "module-self-import"
+  | "infrastructure-direction";
 
 function violationRules(edge: Edge): Rule[] {
   const importerModule = moduleOf(edge.importer);
-  if (isTestFile(edge.importer)) return [];
   const importedModule = moduleOf(edge.imported);
+  if (
+    importerModule &&
+    importerModule === importedModule &&
+    edge.imported === `modules/${importedModule}/index.ts`
+  ) {
+    return ["module-self-import"];
+  }
+  if (isTestFile(edge.importer)) return [];
   if (!importedModule) return [];
   if (
     isTableFile(edge.imported) &&
@@ -119,9 +130,7 @@ function violationRules(edge: Edge): Rule[] {
   }
   if (importerModule && importerModule !== importedModule) {
     const rules: Rule[] = [];
-    if (
-      edge.imported !== `modules/${importedModule}/${importedModule}.public.ts`
-    ) {
+    if (edge.imported !== `modules/${importedModule}/index.ts`) {
       rules.push("module-boundary");
     }
     const importerLayer = moduleLayers[importerModule];
@@ -174,11 +183,18 @@ describe("import boundaries", () => {
     expect(edges.length).toBeGreaterThan(100);
   });
 
-  it("module-boundary: modules do not import other modules", () => {
+  it("module-boundary: modules import other modules only through their index.ts", () => {
     const offending = violations
       .filter((v) => v.rule === "module-boundary")
       .map((v) => pairKey(v.edge))
       .filter((key) => !exceptionKeys.has(key));
+    expect([...new Set(offending)].join("\n")).toBe("");
+  });
+
+  it("module-self-import: no file inside a module imports its own index.ts", () => {
+    const offending = violations
+      .filter((v) => v.rule === "module-self-import")
+      .map((v) => pairKey(v.edge));
     expect([...new Set(offending)].join("\n")).toBe("");
   });
 

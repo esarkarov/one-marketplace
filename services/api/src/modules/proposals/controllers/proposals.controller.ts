@@ -23,7 +23,7 @@ import {
 import {
   getAgencyIdForMember,
   requireAgencyPermission,
-} from "../../agency/agency.public.js";
+} from "../../agency/index.js";
 import type { ApiResponse } from "../../../types/common.types.js";
 import { sendNotification } from "../../../infrastructure/events/publisher.js";
 

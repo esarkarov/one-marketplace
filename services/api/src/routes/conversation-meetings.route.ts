@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { isAuthenticated } from "../modules/auth/auth.public.js";
+import { isAuthenticated } from "../modules/auth/index.js";
 import { validate } from "../shared/http/validate.middleware.js";
 import { createMeetingHandler } from "../modules/meetings/controllers/meetings.controller.js";
 import { meetingsResponses } from "../modules/meetings/responses/meetings.responses.js";

@@ -44,12 +44,12 @@ import {
   ImageInput,
   UpdateAgencyPortfolioInput,
 } from "../types/agency.types.js";
-import { getMatchedJobPostsBySkills } from "../../freelancer/freelancer.public.js";
+import { getMatchedJobPostsBySkills } from "../../freelancer/index.js";
 import {
   createAgencyConnectsCheckout,
   getAgencyConnectsBalance,
   getAgencyConnectsHistory,
-} from "../../connects/connects.public.js";
+} from "../../connects/index.js";
 import { CONNECTS_PLANS, ConnectsPlan } from "../../../config/constants.js";
 
 const requireAgencyWebsite = (
