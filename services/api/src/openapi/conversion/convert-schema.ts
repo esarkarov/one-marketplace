@@ -1,18 +1,16 @@
 import { z } from "zod";
+import { isObject, sortKeys } from "../utils/json.utils.js";
 import {
-  isObject,
-  sortKeys,
-  type Json,
-  type JsonObject,
-} from "./schema-walk.js";
+  COMPONENTS_PREFIX,
+  DEFS_PREFIX,
+  IGNORED_PROPERTY_DESCRIPTION,
+} from "../constants/openapi.constants.js";
+import type {
+  ComponentSchemas,
+  Json,
+  JsonObject,
+} from "../types/openapi.types.js";
 
-export const IGNORED_PROPERTY_DESCRIPTION =
-  "Accepted for compatibility and ignored by the server.";
-
-const DEFS_PREFIX = "#/$defs/";
-const COMPONENTS_PREFIX = "#/components/schemas/";
-
-export type ComponentSchemas = Record<string, JsonObject>;
 type Io = "input" | "output";
 
 const isEmpty = (value: Json) =>

@@ -5,12 +5,12 @@ import { z } from "zod";
 import { withIgnoredKeys } from "../../../shared/validation/common-schemas.js";
 import { validate } from "../../../shared/http/validate.middleware.js";
 import { apiRouter } from "../../../routes/index.js";
-import { contractAllowlist } from "../../../openapi/contract-allowlist.js";
+import { contractAllowlist } from "../../../openapi/introspection/contract-allowlist.js";
 import {
   collectRoutes,
   readMountPaths,
   routeKey,
-} from "../../../openapi/route-introspection.js";
+} from "../../../openapi/introspection/route-introspection.js";
 import {
   findContractAllowlistProblems,
   findContractViolations,

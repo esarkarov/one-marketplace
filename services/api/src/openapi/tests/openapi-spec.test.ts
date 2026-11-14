@@ -1,34 +1,33 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { env, parseEnv } from "../config/env.js";
+import { env, parseEnv } from "../../config/env.js";
 import {
   apiRouter,
   identifyAccount,
   isAuthenticated,
   verifyBearerToken,
-} from "../routes/index.js";
-import { contractAllowlist } from "./contract-allowlist.js";
-import { routeKey } from "./route-introspection.js";
-import { publicRoutes } from "../test/architecture/routing/validation-allowlist.js";
+} from "../../routes/index.js";
+import { contractAllowlist } from "../introspection/contract-allowlist.js";
+import { routeKey } from "../introspection/route-introspection.js";
+import { publicRoutes } from "../../test/architecture/routing/validation-allowlist.js";
 import {
   CONTROLLER_AUTH_OVERRIDES,
   DEFAULT_PORT,
-  toOpenApiPath,
-} from "./build-spec.js";
+} from "../constants/openapi.constants.js";
+import { toOpenApiPath } from "../utils/openapi-naming.utils.js";
 import {
   OPENAPI_FILE,
   collectApiRoutes,
   createOpenApiDocument,
   createOpenApiText,
-} from "./document.js";
+} from "../document.js";
+import { isObject } from "../utils/json.utils.js";
+import type { Json, JsonObject } from "../types/openapi.types.js";
 import {
   findEmptySchemas,
-  isObject,
   walkDocumentSchemas,
   walkSchema,
-  type Json,
-  type JsonObject,
-} from "./schema-walk.js";
+} from "../utils/schema-traversal.utils.js";
 
 const METHODS = ["get", "post", "put", "patch", "delete"];
 const routes = collectApiRoutes(apiRouter);

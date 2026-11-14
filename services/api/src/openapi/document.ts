@@ -4,9 +4,10 @@ import {
   collectRoutes,
   readMountPaths,
   type RouteInfo,
-} from "./route-introspection.js";
-import { buildOpenApiDocument, serializeDocument } from "./build-spec.js";
-import type { JsonObject } from "./schema-walk.js";
+} from "./introspection/route-introspection.js";
+import { buildOpenApiDocument } from "./builders/build-spec.js";
+import { formatJson } from "./utils/json.utils.js";
+import type { JsonObject } from "./types/openapi.types.js";
 
 export const OPENAPI_FILE = new URL(
   "../../../../docs/api/openapi.json",
@@ -43,4 +44,4 @@ export const createOpenApiDocument = (
 export const createOpenApiText = (
   apiRouter: Router,
   clerkGuards: readonly unknown[],
-): string => serializeDocument(createOpenApiDocument(apiRouter, clerkGuards));
+): string => formatJson(createOpenApiDocument(apiRouter, clerkGuards));

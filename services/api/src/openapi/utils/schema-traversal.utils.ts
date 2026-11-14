@@ -1,12 +1,5 @@
-export type Json =
-  null | boolean | number | string | Json[] | { [key: string]: Json };
-
-export interface JsonObject {
-  [key: string]: Json;
-}
-
-export const isObject = (value: unknown): value is JsonObject =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
+import { isObject } from "./json.utils.js";
+import type { Json, JsonObject } from "../types/openapi.types.js";
 
 const SCHEMA_KEYS = [
   "items",
@@ -144,58 +137,3 @@ export const findEmptySchemas = (document: JsonObject): string[] => {
   });
   return found;
 };
-
-export const sortKeys = (value: Json): Json => {
-  if (Array.isArray(value)) return value.map(sortKeys);
-  if (isObject(value)) {
-    const sorted: JsonObject = {};
-    for (const key of Object.keys(value).sort()) {
-      sorted[key] = sortKeys(value[key] as Json);
-    }
-    return sorted;
-  }
-  return value;
-};
-
-const PRINT_WIDTH = 80;
-
-const isScalar = (value: Json) => !Array.isArray(value) && !isObject(value);
-
-const format = (
-  value: Json,
-  depth: number,
-  lead: number,
-  tail: number,
-): string => {
-  if (Array.isArray(value)) {
-    if (value.length === 0) return "[]";
-    if (value.every(isScalar)) {
-      const inline = `[${value.map((item) => JSON.stringify(item)).join(", ")}]`;
-      if (lead + inline.length + tail <= PRINT_WIDTH) return inline;
-    }
-    const pad = "  ".repeat(depth + 1);
-    const items = value.map((item, index) =>
-      format(item, depth + 1, pad.length, index === value.length - 1 ? 0 : 1),
-    );
-    return `[\n${items.map((item) => `${pad}${item}`).join(",\n")}\n${"  ".repeat(depth)}]`;
-  }
-  if (isObject(value)) {
-    const keys = Object.keys(value);
-    if (keys.length === 0) return "{}";
-    const pad = "  ".repeat(depth + 1);
-    const entries = keys.map((key, index) => {
-      const prefix = `${JSON.stringify(key)}: `;
-      return `${pad}${prefix}${format(
-        value[key] as Json,
-        depth + 1,
-        pad.length + prefix.length,
-        index === keys.length - 1 ? 0 : 1,
-      )}`;
-    });
-    return `{\n${entries.join(",\n")}\n${"  ".repeat(depth)}}`;
-  }
-  return JSON.stringify(value);
-};
-
-export const formatJson = (value: Json): string =>
-  `${format(sortKeys(value), 0, 0, 0)}\n`;

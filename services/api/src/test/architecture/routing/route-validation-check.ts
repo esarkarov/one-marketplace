@@ -1,12 +1,12 @@
 import type { z } from "zod";
 import { getValidationSchemas } from "../../../shared/http/validate.middleware.js";
-import type { ContractAllowlist } from "../../../openapi/contract-allowlist.js";
+import type { ContractAllowlist } from "../../../openapi/introspection/contract-allowlist.js";
 import {
   routeKey,
   schemasOf,
   type RouteInfo,
   type ValidationAllowlistEntry,
-} from "../../../openapi/route-introspection.js";
+} from "../../../openapi/introspection/route-introspection.js";
 
 const BODY_METHODS = new Set(["POST", "PUT", "PATCH"]);
 

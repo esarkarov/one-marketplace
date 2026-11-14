@@ -43,7 +43,7 @@ vi.mock("../../../database/client.js", () => {
 const { app } = await import("../../../app.js");
 const { apiRouter } = await import("../../../routes/index.js");
 const { collectRoutes, readMountPaths, routeKey, schemasOf } =
-  await import("../../../openapi/route-introspection.js");
+  await import("../../../openapi/introspection/route-introspection.js");
 const { validationAllowlist } = await import("./validation-allowlist.js");
 
 const routes = collectRoutes(

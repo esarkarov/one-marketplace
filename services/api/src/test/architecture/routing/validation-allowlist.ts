@@ -1,4 +1,4 @@
-import type { ValidationAllowlistEntry } from "../../../openapi/route-introspection.js";
+import type { ValidationAllowlistEntry } from "../../../openapi/introspection/route-introspection.js";
 
 export const validationAllowlist: readonly ValidationAllowlistEntry[] = [
   {

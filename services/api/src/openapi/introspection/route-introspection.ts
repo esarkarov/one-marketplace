@@ -2,7 +2,7 @@ import type { Router } from "express";
 import {
   getValidationSchemas,
   type ValidationSchemas,
-} from "../shared/http/validate.middleware.js";
+} from "../../shared/http/validate.middleware.js";
 
 export interface ValidationAllowlistEntry {
   method: string;

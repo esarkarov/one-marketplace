@@ -1,16 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { milestoneCheckoutBodySchema } from "../modules/contracts/schemas/contracts.schema.js";
-import { withIgnoredKeys } from "../shared/validation/common-schemas.js";
-import { centsQueryParam } from "../shared/validation/money-schemas.js";
-import { searchOffsetParam } from "../shared/validation/search-schemas.js";
-import {
-  convertSchema,
-  IGNORED_PROPERTY_DESCRIPTION,
-  registerComponent,
-  type ComponentSchemas,
-} from "./convert-schema.js";
-import { findEmptySchemas, type JsonObject } from "./schema-walk.js";
+import { milestoneCheckoutBodySchema } from "../../modules/contracts/schemas/contracts.schema.js";
+import { withIgnoredKeys } from "../../shared/validation/common-schemas.js";
+import { centsQueryParam } from "../../shared/validation/money-schemas.js";
+import { searchOffsetParam } from "../../shared/validation/search-schemas.js";
+import { convertSchema, registerComponent } from "./convert-schema.js";
+import { IGNORED_PROPERTY_DESCRIPTION } from "../constants/openapi.constants.js";
+import type { ComponentSchemas, JsonObject } from "../types/openapi.types.js";
+import { findEmptySchemas } from "../utils/schema-traversal.utils.js";
 
 const input = (schema: z.ZodType) => convertSchema(schema, "input", {});
 
