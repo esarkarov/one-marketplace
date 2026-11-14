@@ -201,6 +201,8 @@ const insertContract = async (input: {
   return contract!;
 };
 
+let milestonePosition = 0;
+
 const insertEarning = async (input: {
   contractId: string;
   freelancerId: string;
@@ -216,7 +218,7 @@ const insertEarning = async (input: {
       title: "milestone",
       amount_cents: input.amountCents,
       due_date: "2030-01-01",
-      position: 1,
+      position: ++milestonePosition,
     })
     .returning({ id: contract_milestones.id });
   const [earning] = await db
@@ -237,6 +239,9 @@ const insertEarning = async (input: {
       earning_history_id: earning!.id,
       amount_cents: input.amountCents - input.feeCents,
       status: input.payout,
+      ...(input.payout === "PAID"
+        ? { stripe_transfer_id: `tr_${randomUUID()}` }
+        : {}),
     });
   }
   return earning!.id;

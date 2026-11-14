@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { db, pool } from "../../database/client.js";
 import {
   accounts,
@@ -43,6 +43,10 @@ const purge = async () => {
 
 beforeAll(async () => {
   assertTestDatabase(process.env.DATABASE_URL, process.env.POSTGRES_DB);
+  await purge();
+});
+
+beforeEach(async () => {
   await purge();
 });
 
