@@ -62,6 +62,7 @@ vi.mock("../../infrastructure/redis.js", () => ({
 import { db, pool } from "../../database/client.js";
 import {
   accounts,
+  agency_metadata,
   connects,
   connects_history,
   freelancer_metadata,
@@ -170,6 +171,28 @@ describe("GET /connects", () => {
     expect(body.data.connects).toBe(30);
   });
 
+  it("reads the requesting freelancer's own balance from the database", async () => {
+    const bystanders = [await seedFreelancer(), await seedFreelancer()];
+    const freelancerId = await seedFreelancer();
+    await pool.query(
+      "update connects set connects = 99 where freelancer_id = any($1)",
+      [bystanders],
+    );
+    await pool.query(
+      "update connects set connects = 4321 where freelancer_id = $1",
+      [freelancerId],
+    );
+    mocks.store.clear();
+
+    const response = await request(app)
+      .get(API)
+      .query({ role: "freelancer" })
+      .set(as(freelancerId));
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.connects).toBe(4321);
+  });
+
   it("matches the 403 schema for a client account", async () => {
     const clientId = await insertAccount("CLIENT");
     const response = await request(app)
@@ -274,5 +297,266 @@ describe("connects checkout account write", () => {
     expect((await accountRow(freelancerId)).updated_at).toEqual(
       stored.updated_at,
     );
+  });
+});
+
+const service = await import("./connects.service.js");
+const {
+  INITIAL_CONNECTS,
+  CONNECTS_PLANS,
+  getAgencyConnectsCacheKey,
+  getConnectsCacheKey,
+} = await import("../../config/constants.js");
+
+describe("connects service writes against real Postgres", () => {
+  const seedBareFreelancer = async () => {
+    const freelancerId = await insertAccount("FREELANCER");
+    await db.insert(freelancer_metadata).values({
+      auth_id: freelancerId,
+      professional_title: "Backend developer",
+      professional_description: "Service test freelancer",
+      hourly_rate_cents: 5000,
+      country: "US",
+      city: "Austin",
+      weekly_availability: "30+ hours",
+      experience_level: "INTERMEDIATE",
+      skills: ["TypeScript"],
+      languages: [{ language: "English", proficiency: "Fluent" }],
+    });
+    return freelancerId;
+  };
+
+  const seedAgency = async () => {
+    const ownerId = await insertAccount("FREELANCER");
+    const [agency] = await db
+      .insert(agency_metadata)
+      .values({
+        owner_id: ownerId,
+        name: `${PREFIX}agency-${randomUUID()}`,
+        size: "1-10",
+        specialty: "testing",
+        overview: "connects service test",
+      })
+      .returning({ id: agency_metadata.id });
+    return agency!.id;
+  };
+
+  const balanceOf = async (
+    owner: { freelancerId: string } | { agencyId: string },
+  ) => {
+    const [row] =
+      "agencyId" in owner
+        ? (
+            await pool.query("select * from connects where agency_id = $1", [
+              owner.agencyId,
+            ])
+          ).rows
+        : (
+            await pool.query(
+              "select * from connects where freelancer_id = $1",
+              [owner.freelancerId],
+            )
+          ).rows;
+    return row as
+      | {
+          id: string;
+          connects: number;
+          freelancer_id: string | null;
+          agency_id: string | null;
+        }
+      | undefined;
+  };
+
+  const historyOf = async (connectsId: string) =>
+    (
+      await pool.query(
+        "select type, description, amount from connects_history where connects_id = $1 order by created_at, id",
+        [connectsId],
+      )
+    ).rows;
+
+  const purchasesOf = async (connectsId: string) =>
+    (
+      await pool.query(
+        "select purchased_connects, amount_paid_cents::int as amount_paid_cents, payment_id, status, connects_id from connects_purchase_history where connects_id = $1",
+        [connectsId],
+      )
+    ).rows;
+
+  it("gives a new freelancer the onboarding bonus once", async () => {
+    const freelancerId = await seedBareFreelancer();
+
+    const created = await service.addConnects(freelancerId);
+    const repeated = await service.addConnects(freelancerId);
+
+    expect(created).toMatchObject({
+      freelancer_id: freelancerId,
+      connects: INITIAL_CONNECTS,
+    });
+    expect(repeated).toBeUndefined();
+    const balance = await balanceOf({ freelancerId });
+    expect(balance!.connects).toBe(INITIAL_CONNECTS);
+    expect(await historyOf(balance!.id)).toEqual([
+      {
+        type: "Onboarding Bonus",
+        description: "New account welcome Connects",
+        amount: INITIAL_CONNECTS,
+      },
+    ]);
+    expect(mocks.store.get(getConnectsCacheKey(freelancerId))).toBe(
+      String(INITIAL_CONNECTS),
+    );
+  });
+
+  it("gives a new agency the onboarding bonus once", async () => {
+    const agencyId = await seedAgency();
+
+    const created = await service.addAgencyConnects(agencyId);
+    const repeated = await service.addAgencyConnects(agencyId);
+
+    expect(created).toMatchObject({
+      agency_id: agencyId,
+      freelancer_id: null,
+      connects: INITIAL_CONNECTS,
+    });
+    expect(repeated).toBeUndefined();
+    const balance = await balanceOf({ agencyId });
+    expect(balance!.connects).toBe(INITIAL_CONNECTS);
+    expect(await historyOf(balance!.id)).toEqual([
+      {
+        type: "Onboarding Bonus",
+        description: "New agency welcome Connects",
+        amount: INITIAL_CONNECTS,
+      },
+    ]);
+    expect(mocks.store.get(getAgencyConnectsCacheKey(agencyId))).toBe(
+      String(INITIAL_CONNECTS),
+    );
+  });
+
+  it("reads an agency's own balance", async () => {
+    const other = await seedAgency();
+    const agencyId = await seedAgency();
+    await db.insert(connects).values({ agency_id: other, connects: 99 });
+    await db.insert(connects).values({ agency_id: agencyId, connects: 17 });
+    mocks.store.clear();
+
+    expect(await service.getAgencyConnectsBalance(agencyId)).toBe(17);
+    expect(mocks.store.get(getAgencyConnectsCacheKey(agencyId))).toBe("17");
+  });
+
+  const seedHistory = async (
+    owner: { freelancerId: string } | { agencyId: string },
+    label: string,
+  ) => {
+    const [balance] = await db
+      .insert(connects)
+      .values(
+        "agencyId" in owner
+          ? { agency_id: owner.agencyId, connects: 5 }
+          : { freelancer_id: owner.freelancerId, connects: 5 },
+      )
+      .returning({ id: connects.id });
+    for (let index = 0; index < 12; index += 1) {
+      await db.insert(connects_history).values({
+        connects_id: balance!.id,
+        type: "Test",
+        description: `${label}-${index}`,
+        amount: index,
+        created_at: new Date(Date.UTC(2024, 0, 1, 0, index)),
+      });
+    }
+  };
+
+  it("lists an agency's latest ten history rows newest first", async () => {
+    const other = await seedAgency();
+    const agencyId = await seedAgency();
+    await seedHistory({ agencyId: other }, "other");
+    await seedHistory({ agencyId }, "own");
+
+    const rows = await service.getAgencyConnectsHistory(agencyId);
+
+    expect(rows.map((row) => row.description)).toEqual(
+      Array.from({ length: 10 }, (_, index) => `own-${11 - index}`),
+    );
+  });
+
+  it("lists a freelancer's latest ten history rows newest first", async () => {
+    const other = await seedBareFreelancer();
+    const freelancerId = await seedBareFreelancer();
+    await seedHistory({ freelancerId: other }, "other");
+    await seedHistory({ freelancerId }, "own");
+
+    const rows = await service.getConnectsHistory(freelancerId);
+
+    expect(rows.map((row) => row.description)).toEqual(
+      Array.from({ length: 10 }, (_, index) => `own-${11 - index}`),
+    );
+  });
+
+  it("credits a completed freelancer purchase once and records it", async () => {
+    const freelancerId = await seedBareFreelancer();
+    const bystander = await seedBareFreelancer();
+    await db.insert(connects).values({ freelancer_id: bystander, connects: 7 });
+    await db
+      .insert(connects)
+      .values({ freelancer_id: freelancerId, connects: 10 });
+    const paymentId = `cs_${randomUUID()}`;
+
+    await service.completeConnectsPurchase(freelancerId, 40, paymentId);
+    await service.completeConnectsPurchase(freelancerId, 40, paymentId);
+
+    const balance = await balanceOf({ freelancerId });
+    expect(balance!.connects).toBe(50);
+    expect((await balanceOf({ freelancerId: bystander }))!.connects).toBe(7);
+    expect(await purchasesOf(balance!.id)).toEqual([
+      {
+        purchased_connects: 40,
+        amount_paid_cents: CONNECTS_PLANS[40],
+        payment_id: paymentId,
+        status: "COMPLETED",
+        connects_id: balance!.id,
+      },
+    ]);
+    expect(await historyOf(balance!.id)).toEqual([
+      {
+        type: "Connects purchased",
+        description: "Purchased 40 Connects",
+        amount: 40,
+      },
+    ]);
+    expect(mocks.store.get(getConnectsCacheKey(freelancerId))).toBe("50");
+  });
+
+  it("credits a completed agency purchase once and records it", async () => {
+    const agencyId = await seedAgency();
+    const bystander = await seedAgency();
+    await db.insert(connects).values({ agency_id: bystander, connects: 7 });
+    await db.insert(connects).values({ agency_id: agencyId, connects: 10 });
+    const paymentId = `cs_${randomUUID()}`;
+
+    await service.completeAgencyConnectsPurchase(agencyId, 80, paymentId);
+    await service.completeAgencyConnectsPurchase(agencyId, 80, paymentId);
+
+    const balance = await balanceOf({ agencyId });
+    expect(balance!.connects).toBe(90);
+    expect((await balanceOf({ agencyId: bystander }))!.connects).toBe(7);
+    expect(await purchasesOf(balance!.id)).toEqual([
+      {
+        purchased_connects: 80,
+        amount_paid_cents: CONNECTS_PLANS[80],
+        payment_id: paymentId,
+        status: "COMPLETED",
+        connects_id: balance!.id,
+      },
+    ]);
+    expect(await historyOf(balance!.id)).toEqual([
+      {
+        type: "Connects purchased",
+        description: "Purchased 80 Connects",
+        amount: 80,
+      },
+    ]);
+    expect(mocks.store.get(getAgencyConnectsCacheKey(agencyId))).toBe("90");
   });
 });
