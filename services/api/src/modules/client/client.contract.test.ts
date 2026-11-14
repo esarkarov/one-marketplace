@@ -67,6 +67,7 @@ vi.mock("../../infrastructure/redis.js", () => ({
 import { db, pool } from "../../database/client.js";
 import {
   accounts,
+  agency_earning,
   agency_metadata,
   client_metadata,
   client_spents,
@@ -1053,6 +1054,49 @@ describe("client queries against real Postgres", () => {
       expect(response.status).toBe(200);
       expect(response.body.data.averageResponseDays).toBeCloseTo(60 / 86400, 8);
     });
+
+    it("averages the replies of several conversations without mixing their messages", async () => {
+      const clientId = await mkClient();
+      const talent = await mkFreelancer();
+      const base = Date.UTC(2024, 0, 1);
+      const open = async () => {
+        const [row] = await db
+          .insert(conversations)
+          .values({ context_key: `${PREFIX}${randomUUID()}` })
+          .returning({ id: conversations.id });
+        await db.insert(conversation_participants).values(
+          [clientId, talent].map((accountId) => ({
+            conversation_id: row!.id,
+            account_id: accountId,
+            participant_type: "CLIENT",
+          })),
+        );
+        return (message: { sender: string; offsetSeconds: number }) =>
+          db.insert(messages).values({
+            conversation_id: row!.id,
+            sender_id: message.sender,
+            message_type: "USER",
+            body: "hi",
+            created_at: new Date(base + message.offsetSeconds * 1000),
+          });
+      };
+      const quick = await open();
+      const slow = await open();
+      const unanswered = await open();
+      await quick({ sender: talent, offsetSeconds: 0 });
+      await quick({ sender: clientId, offsetSeconds: 60 });
+      await slow({ sender: talent, offsetSeconds: 1000 });
+      await unanswered({ sender: clientId, offsetSeconds: 1100 });
+      await slow({ sender: clientId, offsetSeconds: 1180 });
+
+      const response = await get("hiring-overview", clientId);
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.averageResponseDays).toBeCloseTo(
+        120 / 86400,
+        8,
+      );
+    });
   });
 
   describe("dashboard overview", () => {
@@ -1183,6 +1227,39 @@ describe("client queries against real Postgres", () => {
         [jobs[4]!.id, 1],
         [jobs[3]!.id, 0],
         [jobs[2]!.id, 1],
+      ]);
+    });
+
+    it("leaves an active contract without milestones out of the in-progress list", async () => {
+      const clientId = await mkClient();
+      await mkSpents(clientId);
+      const talent = await mkFreelancer();
+      const bare = await mkJob(clientId);
+      const planned = await mkJob(clientId);
+      await mkContract(clientId, talent, bare.id, "ACTIVE", {
+        title: "No milestones",
+      });
+      const withMilestone = await mkContract(
+        clientId,
+        talent,
+        planned.id,
+        "ACTIVE",
+        { title: "With milestone", total_amount_cents: 10000 },
+      );
+      await db.insert(contract_milestones).values({
+        contract_id: withMilestone.id,
+        title: "done",
+        amount_cents: 5000,
+        due_date: "2026-01-01",
+        position: 0,
+        status: "COMPLETED",
+      });
+
+      const response = await get("dashboard-overview", clientId);
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.inProgressContracts).toEqual([
+        { id: withMilestone.id, title: "With milestone", progressPercent: 50 },
       ]);
     });
   });
@@ -1386,6 +1463,34 @@ describe("client queries against real Postgres", () => {
 
       expect(await searchAll("agency", hidden)).toHaveLength(0);
       expect(await searchAll("agency", shown)).toHaveLength(1);
+    });
+
+    it("matches each onboarded agency with its own earnings record", async () => {
+      const specialty = `${PREFIX}earn-${randomUUID()}`;
+      const owners = await Promise.all([mkFreelancer(), mkFreelancer()]);
+      const agencies = await db
+        .insert(agency_metadata)
+        .values(
+          owners.map((ownerId) => ({
+            owner_id: ownerId,
+            name: `${PREFIX}agency-${randomUUID()}`,
+            size: "1-10",
+            specialty,
+            overview: "overview",
+            is_onboarded: true,
+          })),
+        )
+        .returning({ id: agency_metadata.id });
+      await db.insert(agency_earning).values(
+        agencies.map((agency, index) => ({
+          agency_id: agency.id,
+          rating: ["4.10", "3.20"][index]!,
+        })),
+      );
+
+      const found = await searchAll("agency", specialty);
+
+      expect(found.map((row) => row.rating).sort()).toEqual([3.2, 4.1]);
     });
   });
 });

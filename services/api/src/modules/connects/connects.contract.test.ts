@@ -434,6 +434,42 @@ describe("connects service writes against real Postgres", () => {
     );
   });
 
+  it("credits only the given owner's balance", async () => {
+    const { creditConnects } = await import("./connects.repository.js");
+    const credited = await seedBareFreelancer();
+    const bystander = await seedBareFreelancer();
+    const creditedAgency = await seedAgency();
+    const bystanderAgency = await seedAgency();
+    await db.insert(connects).values([
+      { freelancer_id: credited, connects: 5 },
+      { freelancer_id: bystander, connects: 5 },
+      { agency_id: creditedAgency, connects: 5 },
+      { agency_id: bystanderAgency, connects: 5 },
+    ]);
+
+    const freelancerResult = await creditConnects(
+      db,
+      { freelancerId: credited },
+      3,
+    );
+    const agencyResult = await creditConnects(
+      db,
+      { agencyId: creditedAgency },
+      4,
+    );
+
+    expect(freelancerResult).toMatchObject({
+      freelancer_id: credited,
+      connects: 8,
+    });
+    expect(agencyResult).toMatchObject({
+      agency_id: creditedAgency,
+      connects: 9,
+    });
+    expect((await balanceOf({ freelancerId: bystander }))!.connects).toBe(5);
+    expect((await balanceOf({ agencyId: bystanderAgency }))!.connects).toBe(5);
+  });
+
   it("reads an agency's own balance", async () => {
     const other = await seedAgency();
     const agencyId = await seedAgency();

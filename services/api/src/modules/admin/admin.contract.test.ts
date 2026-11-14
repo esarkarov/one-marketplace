@@ -1,5 +1,5 @@
 import { createHmac, randomUUID } from "node:crypto";
-import { inArray } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import request from "supertest";
 import {
   afterAll,
@@ -991,6 +991,108 @@ describe("admin reports against real Postgres", () => {
       for (const rows of [first, second, third, fourth]) {
         expect(ids(rows)).not.toContain(seeded.pendingPayout);
       }
+    });
+  });
+
+  describe("rows with missing optional relations and payout ordering", () => {
+    const far = (month: number, date: number) =>
+      new Date(Date.UTC(2100, month - 1, date));
+
+    it("keeps job posts and contracts whose client has no company profile", async () => {
+      const [bareClient, talent] = await insertAccounts([
+        { role: "CLIENT", createdAt: OLD },
+        { role: "FREELANCER", createdAt: OLD },
+      ]);
+      const [job] = await insertJobs(bareClient!.authId, [far(5, 1)]);
+      const contractId = await insertContract({
+        clientId: bareClient!.authId,
+        freelancerId: talent!.authId,
+        jobId: job!.id,
+        status: "PENDING",
+        createdAt: far(7, 1),
+      });
+
+      const jobRows = await page("job-posts", 1, 0);
+      const contractRows = await page("contracts", 1, 0);
+
+      expect(ids(jobRows)).toEqual([job!.id]);
+      expect(jobRows[0]!.clientName).toBe("Unknown client");
+      expect(ids(contractRows)).toEqual([contractId]);
+      expect(contractRows[0]!.clientName).toBe("Unknown client");
+    });
+
+    it("names the agency behind an agency proposal and only that agency", async () => {
+      const [owner, otherOwner] = await insertAccounts([
+        { role: "FREELANCER", createdAt: OLD },
+        { role: "FREELANCER", createdAt: OLD },
+      ]);
+      const [client] = await insertAccounts([
+        { role: "CLIENT", createdAt: OLD },
+      ]);
+      const [agency, otherAgency] = await insertAgencies(
+        [owner!.authId, otherOwner!.authId],
+        [OLD, OLD],
+      );
+      const [job] = await insertJobs(client!.authId, [far(5, 2)]);
+      const [proposal] = await db
+        .insert(proposals)
+        .values({
+          job_id: job!.id,
+          sender_id: agency!.id,
+          sender_type: "AGENCY",
+          cover_letter: "agency bid",
+          bid_amount_cents: 1000,
+          duration: "1 month",
+          created_at: far(6, 1),
+          updated_at: far(6, 1),
+        })
+        .returning({ id: proposals.id });
+      const expected = await db
+        .select({ name: agency_metadata.name })
+        .from(agency_metadata)
+        .where(eq(agency_metadata.id, agency!.id));
+      expect(otherAgency!.id).not.toBe(agency!.id);
+
+      const rows = await page("proposals", 1, 0);
+
+      expect(ids(rows)).toEqual([proposal!.id]);
+      expect(rows[0]!.senderType).toBe("AGENCY");
+      expect(rows[0]!.senderName).toBe(expected[0]!.name);
+    });
+
+    it("orders PAID payouts by paid_at, falling back to created_at, before truncating", async () => {
+      const newestPaid = await qdata.createPayoutFixture({
+        payout: { status: "PAID" },
+        earning: { ageMs: 0 },
+      });
+      const unpaidDate = await qdata.createPayoutFixture({
+        payout: { status: "PAID" },
+        earning: { ageMs: 0 },
+      });
+      const olderPaid = await qdata.createPayoutFixture({
+        payout: { status: "PAID" },
+        earning: { ageMs: 0 },
+      });
+      const stamp = (
+        payoutId: string | undefined,
+        paidAt: Date | null,
+        createdAt: Date,
+      ) =>
+        pool.query(
+          "update payout_history set paid_at = $2, created_at = $3 where id = $1",
+          [payoutId, paidAt, createdAt],
+        );
+      await stamp(newestPaid.payoutId, far(3, 4), OLD);
+      await stamp(unpaidDate.payoutId, null, far(3, 3));
+      await stamp(
+        olderPaid.payoutId,
+        far(3, 2),
+        new Date(OLD.getTime() + 864e5),
+      );
+
+      const rows = await page("transactions", 2, 0);
+
+      expect(ids(rows)).toEqual([newestPaid.payoutId, unpaidDate.payoutId]);
     });
   });
 });
