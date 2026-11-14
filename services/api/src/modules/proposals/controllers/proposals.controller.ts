@@ -1,13 +1,13 @@
 import { RequestHandler } from "express";
 import type { z } from "zod";
-import { asyncHandler } from "../../shared/http/async-handler.js";
+import { asyncHandler } from "../../../shared/http/async-handler.js";
 import {
   requireClient,
   requireFreelancer,
-} from "../../shared/http/auth/role-guards.js";
-import { requireText } from "../../config/constants.js";
-import { ApiError } from "../../shared/http/api-error.js";
-import type { submitProposalBodySchema } from "../../shared/validation/money-schemas.js";
+} from "../../../shared/http/auth/role-guards.js";
+import { requireText } from "../../../config/constants.js";
+import { ApiError } from "../../../shared/http/api-error.js";
+import type { submitProposalBodySchema } from "../../../shared/validation/money-schemas.js";
 import {
   getAgencyProposalMetadata,
   getAgencyProposals,
@@ -19,13 +19,13 @@ import {
   updateProposal,
   shortlistProposal,
   startProposalInterview,
-} from "./proposals.service.js";
+} from "../services/proposals.service.js";
 import {
   getAgencyIdForMember,
   requireAgencyPermission,
-} from "../agency/agency.public.js";
-import type { ApiResponse } from "../../types/common.types.js";
-import { sendNotification } from "../../infrastructure/events/publisher.js";
+} from "../../agency/agency.public.js";
+import type { ApiResponse } from "../../../types/common.types.js";
+import { sendNotification } from "../../../infrastructure/events/publisher.js";
 
 export const createProposal: RequestHandler = asyncHandler(
   async (request, response) => {

@@ -58,7 +58,7 @@ import { uuidV5 } from "../../../shared/ids/uuid-v5.js";
 import {
   getAdminOverviewTotals,
   getAdminTransactions,
-} from "../../admin/admin.service.js";
+} from "../../admin/services/admin.service.js";
 import { getAgencyEarningsOverview } from "../../agency/services/agency.earnings.service.js";
 import { getFreelancerEarningsOverview } from "../../freelancer/services/freelancer.service.js";
 import { RETRY_BACKOFF_SECONDS } from "../utils/payouts.failure.js";

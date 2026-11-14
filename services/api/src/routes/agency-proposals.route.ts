@@ -12,7 +12,7 @@ import {
   getAgencyProposalMetadataHandler,
   getAgencyProposalsHandler,
   submitAgencyProposalHandler,
-} from "../modules/proposals/proposals.controller.js";
+} from "../modules/proposals/controllers/proposals.controller.js";
 
 export const agencyProposalsRouter = Router();
 

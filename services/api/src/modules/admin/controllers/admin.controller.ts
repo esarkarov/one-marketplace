@@ -1,8 +1,8 @@
 import { timingSafeEqual } from "crypto";
 import { RequestHandler } from "express";
-import { asyncHandler } from "../../shared/http/async-handler.js";
-import { ApiError } from "../../shared/http/api-error.js";
-import { env } from "../../config/env.js";
+import { asyncHandler } from "../../../shared/http/async-handler.js";
+import { ApiError } from "../../../shared/http/api-error.js";
+import { env } from "../../../config/env.js";
 import {
   getAdminAccounts,
   getAdminContracts,
@@ -15,7 +15,7 @@ import {
   getSystemHealth,
   Pagination,
   scanRedisKeys,
-} from "./admin.service.js";
+} from "../services/admin.service.js";
 
 const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 100;

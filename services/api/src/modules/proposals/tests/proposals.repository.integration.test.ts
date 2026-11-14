@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { db, pool } from "../../database/client.js";
+import { db, pool } from "../../../database/client.js";
 import {
   accounts,
   agency_earning,
@@ -13,8 +13,8 @@ import {
   freelancer_metadata,
   job_posts,
   proposals,
-} from "../../test/support/tables.js";
-import { assertTestDatabase } from "../../test/setup/assert-test-database.js";
+} from "../../../test/support/tables.js";
+import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
 import {
   countAgencyMembers,
   findAgencyName,
@@ -29,7 +29,7 @@ import {
   markProposalInterviewedIfOpen,
   markProposalShortlistedForClient,
   markProposalViewedIfSubmitted,
-} from "./proposals.repository.js";
+} from "../repositories/proposals.repository.js";
 
 const PREFIX = "proposals-repo-";
 const like = `${PREFIX}%`;

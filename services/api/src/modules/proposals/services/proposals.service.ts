@@ -1,4 +1,4 @@
-import { db } from "../../database/client.js";
+import { db } from "../../../database/client.js";
 import {
   countAgencyMembers,
   findAgencyName,
@@ -14,30 +14,30 @@ import {
   markProposalInterviewedIfOpen,
   markProposalShortlistedForClient,
   markProposalViewedIfSubmitted,
-} from "./proposals.repository.js";
+} from "../repositories/proposals.repository.js";
 import {
   creditConnects,
   debitConnects,
   recordConnectsHistory,
-} from "../connects/connects.public.js";
-import { ApiError } from "../../shared/http/api-error.js";
+} from "../../connects/connects.public.js";
+import { ApiError } from "../../../shared/http/api-error.js";
 import {
   CONNECTS_CACHE_TTL_SECONDS,
   getAgencyConnectsCacheKey,
   getConnectsCacheKey,
   PROPOSAL_CONNECTS,
-} from "../../config/constants.js";
-import { redis } from "../../infrastructure/redis.js";
-import { clerk } from "../../infrastructure/clerk.js";
+} from "../../../config/constants.js";
+import { redis } from "../../../infrastructure/redis.js";
+import { clerk } from "../../../infrastructure/clerk.js";
 import {
   getAgencyOwnerId,
   getAgencyTeamMemberIds,
-} from "../agency/agency.public.js";
-import { sendNotification } from "../../infrastructure/events/publisher.js";
+} from "../../agency/agency.public.js";
+import { sendNotification } from "../../../infrastructure/events/publisher.js";
 import {
   emitConversationUpdate,
   openInterviewConversation,
-} from "../messaging/messaging.public.js";
+} from "../../messaging/messaging.public.js";
 
 export const submitProposal = async (
   freelancerId: string,

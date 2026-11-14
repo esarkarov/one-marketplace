@@ -8,21 +8,21 @@ import {
   getProposals,
   interviewProposal,
   updateProposalStatus,
-} from "./proposals.controller.js";
+} from "./controllers/proposals.controller.js";
 import {
   proposalsCreateResponses,
   proposalsInterviewResponses,
   proposalsListResponses,
   proposalsMetadataResponses,
   proposalsStatusResponses,
-} from "./proposals.responses.js";
+} from "./responses/proposals.responses.js";
 import {
   interviewProposalBodySchema,
   listProposalsQuerySchema,
   proposalIdParamsSchema,
   roleOnlyQuerySchema,
   updateProposalStatusBodySchema,
-} from "./proposals.schemas.js";
+} from "./schemas/proposals.schema.js";
 
 export const proposalRouter = Router();
 

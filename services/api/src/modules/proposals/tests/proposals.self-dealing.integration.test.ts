@@ -15,23 +15,23 @@ const mocks = vi.hoisted(() => ({
   sendNotification: vi.fn(),
 }));
 
-vi.mock("../../infrastructure/redis.js", () => ({
+vi.mock("../../../infrastructure/redis.js", () => ({
   redis: { setEx: mocks.setEx },
 }));
 
-vi.mock("../../infrastructure/clerk.js", () => ({
+vi.mock("../../../infrastructure/clerk.js", () => ({
   clerk: { users: { getUser: vi.fn() } },
 }));
 
-vi.mock("../../infrastructure/events/publisher.js", () => ({
+vi.mock("../../../infrastructure/events/publisher.js", () => ({
   sendNotification: mocks.sendNotification,
 }));
 
-vi.mock("../messaging/messaging.socket.js", () => ({
+vi.mock("../../messaging/messaging.socket.js", () => ({
   emitConversationUpdate: vi.fn(),
 }));
 
-import { db, pool } from "../../database/client.js";
+import { db, pool } from "../../../database/client.js";
 import {
   accounts,
   agency_metadata,
@@ -40,9 +40,12 @@ import {
   freelancer_metadata,
   job_posts,
   proposals,
-} from "../../test/support/tables.js";
-import { assertTestDatabase } from "../../test/setup/assert-test-database.js";
-import { submitAgencyProposal, submitProposal } from "./proposals.service.js";
+} from "../../../test/support/tables.js";
+import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
+import {
+  submitAgencyProposal,
+  submitProposal,
+} from "../services/proposals.service.js";
 
 const PREFIX = "self-deal-it-";
 const STARTING_CONNECTS = 100;

@@ -7,21 +7,21 @@ const mocks = vi.hoisted(() => ({
   logError: vi.fn(),
 }));
 
-vi.mock("../../infrastructure/redis.js", () => ({
+vi.mock("../../../infrastructure/redis.js", () => ({
   redis: { ping: mocks.ping },
 }));
-vi.mock("../../infrastructure/rabbitmq.js", () => ({
+vi.mock("../../../infrastructure/rabbitmq.js", () => ({
   getRabbitStatus: mocks.rabbit,
 }));
-vi.mock("../../config/logger.js", () => ({
+vi.mock("../../../config/logger.js", () => ({
   logger: { error: mocks.logError },
 }));
-vi.mock("../../database/client.js", () => ({
+vi.mock("../../../database/client.js", () => ({
   db: { execute: mocks.execute },
   pool: { end: async () => undefined },
 }));
 
-const { getSystemHealth } = await import("./admin.service.js");
+const { getSystemHealth } = await import("../services/admin.service.js");
 
 beforeEach(() => {
   vi.resetAllMocks();

@@ -12,15 +12,18 @@ import {
   loginAdminHandler,
   scanRedisKeysHandler,
   streamLogsHandler,
-} from "./admin.controller.js";
+} from "./controllers/admin.controller.js";
 import { validate } from "../../shared/http/validate.middleware.js";
 import {
   adminListQuerySchema,
   adminLogStreamQuerySchema,
   adminLoginBodySchema,
-} from "./admin.schemas.js";
-import { adminResponses } from "./admin.responses.js";
-import { redisKeyParamsSchema, redisScanQuerySchema } from "./admin-redis.js";
+} from "./schemas/admin.schema.js";
+import { adminResponses } from "./responses/admin.responses.js";
+import {
+  redisKeyParamsSchema,
+  redisScanQuerySchema,
+} from "./schemas/admin.redis.schema.js";
 import {
   requireAdminSession,
   requireAdminSessionAllowingQueryToken,

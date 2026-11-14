@@ -15,12 +15,13 @@ const mocks = vi.hoisted(() => ({
   getUser: vi.fn(),
 }));
 
-vi.mock("../../config/env.js", async (importOriginal) => {
-  const original = await importOriginal<typeof import("../../config/env.js")>();
+vi.mock("../../../config/env.js", async (importOriginal) => {
+  const original =
+    await importOriginal<typeof import("../../../config/env.js")>();
   return { ...original, env: { ...original.env, clerkSecretKey: "sk_test" } };
 });
 
-vi.mock("../../infrastructure/clerk.js", () => ({
+vi.mock("../../../infrastructure/clerk.js", () => ({
   clerk: { users: { getUser: mocks.getUser } },
 }));
 
@@ -28,8 +29,8 @@ import {
   connectRedis,
   disconnectRedis,
   redis,
-} from "../../infrastructure/redis.js";
-import { db, pool } from "../../database/client.js";
+} from "../../../infrastructure/redis.js";
+import { db, pool } from "../../../database/client.js";
 import {
   accounts,
   agency_metadata,
@@ -41,15 +42,15 @@ import {
   freelancer_metadata,
   job_posts,
   proposals,
-} from "../../test/support/tables.js";
-import { assertTestDatabase } from "../../test/setup/assert-test-database.js";
+} from "../../../test/support/tables.js";
+import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
 import {
   createTestData,
   purgeLeftovers,
-} from "../../test/support/factories.js";
-import { adminResponses } from "./admin.responses.js";
+} from "../../../test/support/factories.js";
+import { adminResponses } from "../responses/admin.responses.js";
 
-const { app } = await import("../../app.js");
+const { app } = await import("../../../app.js");
 
 const API = "/api/v1/admin";
 const PREFIX = "admin-contract-it-";

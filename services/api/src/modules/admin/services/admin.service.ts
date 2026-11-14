@@ -1,17 +1,17 @@
-import { clerk } from "../../infrastructure/clerk.js";
-import { db } from "../../database/client.js";
-import { toSafeCents } from "../../shared/money/money.js";
-import { redis } from "../../infrastructure/redis.js";
-import { getRabbitStatus } from "../../infrastructure/rabbitmq.js";
-import { env } from "../../config/env.js";
-import { logger } from "../../config/logger.js";
-import { errorLogAttributes } from "../../shared/logging/sanitize-log.js";
-import { ApiError } from "../../shared/http/api-error.js";
+import { clerk } from "../../../infrastructure/clerk.js";
+import { db } from "../../../database/client.js";
+import { toSafeCents } from "../../../shared/money/money.js";
+import { redis } from "../../../infrastructure/redis.js";
+import { getRabbitStatus } from "../../../infrastructure/rabbitmq.js";
+import { env } from "../../../config/env.js";
+import { logger } from "../../../config/logger.js";
+import { errorLogAttributes } from "../../../shared/logging/sanitize-log.js";
+import { ApiError } from "../../../shared/http/api-error.js";
 import {
   isAllowedRedisKey,
   REDIS_REDACTED_PREFIX,
   REDIS_REDACTED_VALUE,
-} from "./admin-redis.js";
+} from "../schemas/admin.redis.schema.js";
 import {
   countAccountsByRole,
   countActiveContracts,
@@ -38,7 +38,7 @@ import {
   sumCompletedConnectsPurchaseCents,
   sumContractTotalCents,
   sumPaidPayoutCents,
-} from "./admin.repository.js";
+} from "../repositories/admin.repository.js";
 
 export interface Pagination {
   limit: number;

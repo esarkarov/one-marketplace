@@ -1,20 +1,20 @@
 import { and, count, desc, eq, inArray, sql, sum } from "drizzle-orm";
-import type { DbExecutor } from "../../database/db-executor.js";
-import { accounts } from "../auth/models/auth.model.js";
-import { agency_metadata } from "../agency/models/agency.model.js";
-import { client_metadata } from "../client/models/client.model.js";
+import type { DbExecutor } from "../../../database/db-executor.js";
+import { accounts } from "../../auth/models/auth.model.js";
+import { agency_metadata } from "../../agency/models/agency.model.js";
+import { client_metadata } from "../../client/models/client.model.js";
 import {
   connects,
   connects_purchase_history,
-} from "../connects/models/connects.model.js";
+} from "../../connects/models/connects.model.js";
 import {
   contract_milestones,
   contracts,
   earning_history,
-} from "../contracts/models/contracts.model.js";
-import { job_posts } from "../jobs/models/jobs.model.js";
-import { payout_history } from "../payouts/models/payouts.model.js";
-import { proposals } from "../proposals/models/proposals.model.js";
+} from "../../contracts/models/contracts.model.js";
+import { job_posts } from "../../jobs/models/jobs.model.js";
+import { payout_history } from "../../payouts/models/payouts.model.js";
+import { proposals } from "../../proposals/models/proposals.model.js";
 
 export const countAccountsByRole = (
   executor: DbExecutor,

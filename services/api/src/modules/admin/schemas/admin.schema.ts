@@ -1,7 +1,7 @@
 import { z } from "zod";
 
-import { pagingDigits } from "../../shared/validation/common-schemas.js";
-import { ADMIN_LIMITS } from "../../shared/validation/validation-limits.js";
+import { pagingDigits } from "../../../shared/validation/common-schemas.js";
+import { ADMIN_LIMITS } from "../../../shared/validation/validation-limits.js";
 
 export const adminLoginBodySchema = z.strictObject({
   password: z
