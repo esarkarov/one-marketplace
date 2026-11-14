@@ -12,31 +12,31 @@ vi.mock("@clerk/backend", () => ({
   createClerkClient: () => ({ users: { getUser: mocks.getUser } }),
 }));
 
-vi.mock("../../config/env.js", () => ({
+vi.mock("../../../config/env.js", () => ({
   env: { clerkSecretKey: "sk_test", imageKitPrivateKey: "ik_test" },
 }));
 
-vi.mock("../../config/logger.js", () => ({
+vi.mock("../../../config/logger.js", () => ({
   logger: { error: async () => undefined, warn: async () => undefined },
 }));
 
-vi.mock("../../infrastructure/stripe.js", () => ({ stripe: {} }));
-vi.mock("../../infrastructure/image-kit.js", () => ({ imageKit: {} }));
-vi.mock("../freelancer/freelancer.agency-identity.js", () => ({
+vi.mock("../../../infrastructure/stripe.js", () => ({ stripe: {} }));
+vi.mock("../../../infrastructure/image-kit.js", () => ({ imageKit: {} }));
+vi.mock("../../freelancer/freelancer.agency-identity.js", () => ({
   getAgencyIdentityForMember: vi.fn(),
 }));
-vi.mock("../connects/connects.service.js", () => ({
+vi.mock("../../connects/connects.service.js", () => ({
   addConnects: vi.fn(),
 }));
 
-vi.mock("../../infrastructure/account-auth-cache.js", () => ({
+vi.mock("../../../infrastructure/account-auth-cache.js", () => ({
   invalidateAccountAuthCache: async (userId: string) => {
     mocks.events.push("invalidate");
     mocks.invalidate(userId);
   },
 }));
 
-vi.mock("../../database/client.js", () => {
+vi.mock("../../../database/client.js", () => {
   const chain: Record<string, unknown> = {};
   for (const method of [
     "select",
@@ -71,10 +71,10 @@ vi.mock("../../database/client.js", () => {
   };
 });
 
-const { receiveSignup } = await import("./auth.service.js");
-const { saveClientProfile } = await import("../client/client.service.js");
+const { receiveSignup } = await import("../services/auth.service.js");
+const { saveClientProfile } = await import("../../client/client.service.js");
 const { saveFreelancerProfile } =
-  await import("../freelancer/freelancer.service.js");
+  await import("../../freelancer/freelancer.service.js");
 
 beforeEach(() => {
   mocks.events.length = 0;

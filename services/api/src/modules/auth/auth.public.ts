@@ -5,7 +5,7 @@ export {
   markPaymentMethodVerified,
   markIdentityVerified,
   setStripeConnectAccountId,
-} from "./auth.repository.js";
+} from "./repositories/auth.repository.js";
 export {
   authenticateAccount,
   getBearerToken,
@@ -13,4 +13,4 @@ export {
   isAuthenticated,
   resolveAccountRole,
   verifyBearerToken,
-} from "./auth.middleware.js";
+} from "./middleware/auth.middleware.js";
