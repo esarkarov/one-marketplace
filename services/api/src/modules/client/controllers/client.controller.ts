@@ -2,21 +2,23 @@ import { RequestHandler } from "express";
 import { asyncHandler } from "../../../shared/http/async-handler.js";
 import { ApiError } from "../../../shared/http/api-error.js";
 import {
-  ClientCompletedContract,
-  ClientDashboardOverview,
-  ClientHiringOverview,
-  ClientMetadataData,
-  ClientProfileData,
   getClientCompletedContracts,
   getClientDashboardOverview,
   getClientFinanceManagementUrl,
   getClientHiringOverview,
   getClientProfile,
-  MarketplaceSearchPage,
   saveClientProfile,
-  SaveClientProfileInput,
   searchMarketplace,
 } from "../services/client.service.js";
+import {
+  ClientCompletedContract,
+  ClientDashboardOverview,
+  ClientHiringOverview,
+  ClientMetadataData,
+  ClientProfileData,
+  MarketplaceSearchPage,
+  SaveClientProfileInput,
+} from "../types/client.types.js";
 import { ApiResponse } from "../../../types/common.types.js";
 import { requireText, requireWebsite } from "../../../config/constants.js";
 

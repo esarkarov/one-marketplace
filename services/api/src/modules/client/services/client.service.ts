@@ -27,32 +27,16 @@ import { ApiError } from "../../../shared/http/api-error.js";
 import { env } from "../../../config/env.js";
 import { stripe } from "../../../infrastructure/stripe.js";
 import { invalidateAccountAuthCache } from "../../../infrastructure/account-auth-cache.js";
-
-export interface SaveClientProfileInput {
-  userId: string;
-  professionalRole: string;
-  companyName: string;
-  companyWebsite: string;
-  companySize: string;
-  industry: string;
-  companyDescription: string;
-}
-
-export interface ClientMetadataData {
-  professionalRole: string;
-  companyName: string;
-  companyWebsite: string;
-  companySize: string;
-  industry: string;
-  companyDescription: string;
-  joinedAt: Date | null;
-  identityVerified: boolean;
-  paymentMethodVerified: boolean;
-}
-
-export interface ClientProfileData extends ClientMetadataData {
-  isOnboarded: true;
-}
+import type {
+  ClientCompletedContract,
+  ClientDashboardOverview,
+  ClientHiringOverview,
+  ClientMetadataData,
+  ClientProfileData,
+  MarketplaceSearchPage,
+  MarketplaceSearchResult,
+  SaveClientProfileInput,
+} from "../types/client.types.js";
 
 export const getClientProfile = async (
   userId: string,
@@ -105,16 +89,6 @@ export const saveClientProfile = async (
   };
 };
 
-export interface ClientHiringOverview {
-  totalSpentCents: number;
-  completedContracts: number;
-  rating: number;
-  openJobs: number;
-  totalHires: number;
-  hireRate: number;
-  averageResponseDays: number | null;
-}
-
 export const getClientHiringOverview = async (
   clientId: string,
 ): Promise<ClientHiringOverview> => {
@@ -147,30 +121,6 @@ export const getClientHiringOverview = async (
         : null,
   };
 };
-
-export interface ClientDashboardOverview {
-  openJobs: number;
-  totalProposals: number;
-  newProposals: number;
-  shortlistedProposals: number;
-  activeContracts: number;
-  totalContracts: number;
-  totalSpentCents: number;
-  currentlyFundedCents: number;
-  inProgressContracts: Array<{
-    id: string;
-    title: string;
-    progressPercent: number;
-  }>;
-  activeJobPosts: Array<{
-    id: string;
-    title: string;
-    budgetCents: number;
-    level: string;
-    duration: string;
-    proposalCount: number;
-  }>;
-}
 
 export const getClientDashboardOverview = async (
   clientId: string,
@@ -224,16 +174,6 @@ export const getClientDashboardOverview = async (
     })),
   };
 };
-
-export interface ClientCompletedContract {
-  id: string;
-  title: string;
-  talent: string;
-  budgetCents: number;
-  completedAt: string | null;
-  clientReview: { rating: number; text: string } | null;
-  talentReview: { rating: number; text: string } | null;
-}
 
 export const getClientCompletedContracts = async (
   clientId: string,
@@ -347,26 +287,8 @@ export const getClientFinanceManagementUrl = async (
   return session.url;
 };
 
-export interface MarketplaceSearchResult {
-  id: string;
-  accountType: "Freelancer" | "Agency";
-  name: string;
-  title: string;
-  location: string;
-  verified: boolean;
-  skills: string[];
-  jobSuccess: number;
-  rating: number;
-  avatarUrl: string | null;
-}
-
 const MARKETPLACE_SEARCH_PAGE_SIZE = 20;
 const regionNames = new Intl.DisplayNames(["en"], { type: "region" });
-
-export interface MarketplaceSearchPage {
-  results: MarketplaceSearchResult[];
-  hasMore: boolean;
-}
 
 export const searchMarketplace = async (
   query: string,
