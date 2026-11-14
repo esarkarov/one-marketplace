@@ -15,6 +15,10 @@ Source layout and import rules: `docs/decisions/0013-api-source-layout-and-impor
 - `src/bootstrap/`: ordered start, shutdown and readiness. `src/routes/`: route assembly and the validation and contract allowlists.
 - `src/database/`, `drizzle/`, `drizzle.config.ts`: `client.ts` (no schema argument), `db-executor.ts`, `pg-errors.ts` (`isUniqueViolation(error, constraintName)` for SQLSTATE 23505), generated migrations, config. `database/` imports no module file. Tables and enums live in the owning module as `modules/<name>/<name>.schema.ts` (drizzle; not `<name>.schemas.ts`, the zod file), found by the glob in `drizzle.config.ts`. A table file imports only drizzle-orm and other table files; controllers and routes never import one (ADR 0014 section 9). Tests import tables through `src/test/support/tables.ts`.
 
+## Layout migration
+
+Modules are being moved to the folder layout of `docs/decisions/0016-module-folder-layout.md` (controllers/, services/, repositories/, models/, schemas/, responses/, middleware/, tests/). Both layouts are accepted until the last stage; no module is converted yet. One stage per session, with the `api-module-layout-stage` skill (`.claude/skills/api-module-layout-stage/SKILL.md`). Until a module is converted, the flat file names above apply to it.
+
 ## Rules
 
 - A module may not read or write another module's tables unless the edge is in `src/test/architecture/table-access-allowlist.ts`; the allowlist type holds reads only and a detected write fails the test, so a write to another module's table is an owner function in the owner's `<name>.public.ts`. New read edges need review; `table-access.test.ts` enforces this. `<name>.schema.ts` (drizzle tables, planned in ADR 0014 section 9) is not `<name>.schemas.ts` (zod request and response schemas).

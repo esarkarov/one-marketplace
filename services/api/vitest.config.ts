@@ -7,6 +7,12 @@ const payoutTotalsFiles = [
   "src/modules/agency/agency.contract.test.ts",
   "src/modules/freelancer/freelancer.contract.test.ts",
   "src/modules/freelancer/freelancer.repository.integration.test.ts",
+  "src/modules/payouts/tests/payouts.integration.test.ts",
+  "src/modules/client/tests/client.contract.test.ts",
+  "src/modules/admin/tests/admin.contract.test.ts",
+  "src/modules/agency/tests/agency.contract.test.ts",
+  "src/modules/freelancer/tests/freelancer.contract.test.ts",
+  "src/modules/freelancer/tests/freelancer.repository.integration.test.ts",
 ];
 
 export default defineConfig({

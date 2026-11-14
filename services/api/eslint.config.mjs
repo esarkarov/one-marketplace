@@ -72,6 +72,7 @@ export default defineConfig([
     files: [
       "src/modules/jobs/**/*.ts",
       "src/modules/freelancer/freelancer.agency-identity.ts",
+      "src/modules/freelancer/services/freelancer.agency-identity.service.ts",
       "src/config/**/*.ts",
       "src/infrastructure/**/*.ts",
       "src/shared/**/*.ts",
@@ -82,6 +83,7 @@ export default defineConfig([
       "src/types/**/*.ts",
       "src/*.ts",
       "src/modules/auth/auth.middleware.ts",
+      "src/modules/auth/middleware/auth.middleware.ts",
     ],
     rules: { "@typescript-eslint/no-explicit-any": "error" },
   },

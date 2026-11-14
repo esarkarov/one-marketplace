@@ -215,7 +215,9 @@ describe("import boundaries", () => {
     const offending = edges
       .filter(
         ({ importer, imported }) =>
-          /^modules\/[^/]+\/[^/]+\.(controller|route)\.ts$/.test(importer) &&
+          /^modules\/[^/]+\/(?:controllers\/)?[^/]+\.(controller|route)\.ts$/.test(
+            importer,
+          ) &&
           (topDirOf(imported) === "database" || isTableFile(imported)),
       )
       .map(pairKey);
