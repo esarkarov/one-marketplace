@@ -12,7 +12,7 @@ import {
   startMilestoneFundingCheckout,
   createAdditionalMilestone,
   finishContract,
-} from "./contracts.controller.js";
+} from "./controllers/contracts.controller.js";
 import {
   addMilestoneBodySchema,
   contractCheckoutBodySchema,
@@ -24,8 +24,8 @@ import {
   roleOnlyQuerySchema,
   scopeQuerySchema,
   submitMilestoneBodySchema,
-} from "./contracts.schemas.js";
-import { contractsResponses } from "./contracts.responses.js";
+} from "./schemas/contracts.schema.js";
+import { contractsResponses } from "./responses/contracts.responses.js";
 
 export const contractsRouter = Router();
 

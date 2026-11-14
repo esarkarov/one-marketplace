@@ -102,7 +102,7 @@ import {
   reviews,
 } from "../../../test/support/tables.js";
 import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
-import { contractsResponses } from "../contracts.responses.js";
+import { contractsResponses } from "../responses/contracts.responses.js";
 
 const { app } = await import("../../../app.js");
 

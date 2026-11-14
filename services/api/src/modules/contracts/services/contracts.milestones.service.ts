@@ -14,7 +14,7 @@ import {
   findContractForNewMilestone,
   findMilestoneForReview,
   findMilestoneForSubmission,
-} from "../contracts.repository.js";
+} from "../repositories/contracts.repository.js";
 import {
   addAgencyEarning,
   addClientSpent,
@@ -26,7 +26,7 @@ import {
   markMilestoneReviewedIfAwaitingReview,
   markMilestoneSubmittedIfActiveAndFunded,
   readMilestoneAppendState,
-} from "../contracts.state.repository.js";
+} from "../repositories/contracts.state.repository.js";
 
 const milestoneAddNotAllowed = () =>
   new ApiError(

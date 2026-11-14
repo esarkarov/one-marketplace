@@ -17,7 +17,7 @@ Source layout and import rules: `docs/decisions/0013-api-source-layout-and-impor
 
 ## Layout migration
 
-Modules are being moved to the folder layout of `docs/decisions/0016-module-folder-layout.md` (controllers/, services/, repositories/, models/, schemas/, responses/, middleware/, tests/). Both layouts are accepted until the last stage. Done: S1, every table file is `modules/<name>/models/<name>.model.ts` (table-file checks, the eslint controller restriction and the drizzle glob accept only that path). Done: S2 `auth`; S3 and S4 `client`, `identity`, `connects`, `jobs`, `payouts`. Other modules are not converted yet. One stage per session, with the `api-module-layout-stage` skill (`.claude/skills/api-module-layout-stage/SKILL.md`). Until a module is converted, the flat file names above apply to it.
+Modules are being moved to the folder layout of `docs/decisions/0016-module-folder-layout.md` (controllers/, services/, repositories/, models/, schemas/, responses/, middleware/, tests/). Both layouts are accepted until the last stage. Done: S1, every table file is `modules/<name>/models/<name>.model.ts` (table-file checks, the eslint controller restriction and the drizzle glob accept only that path). Done: S2 `auth`; S3 and S4 `client`, `identity`, `connects`, `jobs`, `payouts`; S5 to S7 `freelancer`, `agency`, `messaging`. Other modules are not converted yet. One stage per session, with the `api-module-layout-stage` skill (`.claude/skills/api-module-layout-stage/SKILL.md`). Until a module is converted, the flat file names above apply to it.
 
 ## Rules
 

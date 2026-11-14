@@ -14,8 +14,8 @@ import {
   findMilestoneForFunding,
   findPendingMilestoneForPaymentFunding,
   findProposalOfferForCheckout,
-} from "../contracts.repository.js";
-import { markMilestoneFundedIfPending } from "../contracts.state.repository.js";
+} from "../repositories/contracts.repository.js";
+import { markMilestoneFundedIfPending } from "../repositories/contracts.state.repository.js";
 
 export const createContractCheckout = async (
   clientId: string,

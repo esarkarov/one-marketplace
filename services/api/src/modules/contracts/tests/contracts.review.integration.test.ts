@@ -67,7 +67,7 @@ import { assertTestDatabase } from "../../../test/setup/assert-test-database.js"
 import { ApiError } from "../../../shared/http/api-error.js";
 import { splitFee } from "../../../shared/money/money.js";
 import { holdRowLock, raceBlocked } from "../../../test/support/lock-holder.js";
-import { reviewMilestoneWork } from "../contracts.controller.js";
+import { reviewMilestoneWork } from "../controllers/contracts.controller.js";
 import {
   acceptContract,
   createContractFromPayment,

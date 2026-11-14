@@ -3,7 +3,7 @@ import { env } from "../../../config/env.js";
 import {
   listAgencySummariesByIds,
   listContractRows,
-} from "../contracts.repository.js";
+} from "../repositories/contracts.repository.js";
 import { db } from "../../../database/client.js";
 
 export const getAccountContracts = async (

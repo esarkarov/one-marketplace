@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { milestoneCheckoutBodySchema } from "../modules/contracts/contracts.schemas.js";
+import { milestoneCheckoutBodySchema } from "../modules/contracts/schemas/contracts.schema.js";
 import { withIgnoredKeys } from "../shared/validation/common-schemas.js";
 import { centsQueryParam } from "../shared/validation/money-schemas.js";
 import { searchOffsetParam } from "../shared/validation/search-schemas.js";

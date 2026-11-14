@@ -14,7 +14,7 @@ import {
   findContractForReview,
   findFundedContractOffer,
   findProposalOfferForContractCreation,
-} from "../contracts.repository.js";
+} from "../repositories/contracts.repository.js";
 import {
   countIncompleteMilestones,
   insertContractIfProposalUnused,
@@ -33,7 +33,7 @@ import {
   recordFreelancerJobCompleted,
   recordFreelancerJobStarted,
   recordFreelancerReviewStats,
-} from "../contracts.state.repository.js";
+} from "../repositories/contracts.state.repository.js";
 
 const REVIEW_CONTRACT_REVIEWER_UNIQUE = "reviews_contract_reviewer_unique";
 

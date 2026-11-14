@@ -15,7 +15,7 @@ import {
   markContractActiveIfPending,
   markContractCompletedIfActive,
   markMilestoneFundedIfPending,
-} from "../contracts.state.repository.js";
+} from "../repositories/contracts.state.repository.js";
 
 const PREFIX = "contracts-state-repo-";
 const like = `${PREFIX}%`;

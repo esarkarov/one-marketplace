@@ -1,35 +1,35 @@
 import { RequestHandler } from "express";
-import { env } from "../../config/env.js";
-import { stripe } from "../../infrastructure/stripe.js";
-import { ApiResponse } from "../../types/common.types.js";
-import { ApiError } from "../../shared/http/api-error.js";
-import { asyncHandler } from "../../shared/http/async-handler.js";
+import { env } from "../../../config/env.js";
+import { stripe } from "../../../infrastructure/stripe.js";
+import { ApiResponse } from "../../../types/common.types.js";
+import { ApiError } from "../../../shared/http/api-error.js";
+import { asyncHandler } from "../../../shared/http/async-handler.js";
 import {
   requireClient,
   requireFreelancer,
-} from "../../shared/http/auth/role-guards.js";
+} from "../../../shared/http/auth/role-guards.js";
 import {
   getAgencyIdForMember,
   requireAgencyPermission,
-} from "../agency/agency.public.js";
+} from "../../agency/agency.public.js";
 import {
   createContractCheckout,
   createMilestoneFundingCheckout,
   fundContractMilestoneFromPayment,
-} from "./services/contracts.checkout.service.js";
-import { getAccountContracts } from "./services/contracts.listing.service.js";
+} from "../services/contracts.checkout.service.js";
+import { getAccountContracts } from "../services/contracts.listing.service.js";
 import {
   acceptContract,
   createContractFromPayment,
   finishContractWithReview,
-} from "./services/contracts.lifecycle.service.js";
+} from "../services/contracts.lifecycle.service.js";
 import {
   addContractMilestone,
   reviewContractMilestone,
   submitContractMilestone,
-} from "./services/contracts.milestones.service.js";
-import { sendNotification } from "../../infrastructure/events/publisher.js";
-import { emitConversationUpdate } from "../messaging/messaging.public.js";
+} from "../services/contracts.milestones.service.js";
+import { sendNotification } from "../../../infrastructure/events/publisher.js";
+import { emitConversationUpdate } from "../../messaging/messaging.public.js";
 
 export const startContractCheckout: RequestHandler = asyncHandler(
   async (request, response) => {
