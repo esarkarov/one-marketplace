@@ -142,6 +142,12 @@ Outliers renamed in Phase D:
 - D: naming renames (done).
 - E: delete resolved exceptions, update `AGENTS.md`, `docs/architecture.md` and the READMEs to the new paths.
 
+### Shared and middleware layout
+
+Supersedes the `shared/http` grouping in ADR 0014 section 2. `src/middleware/` has one folder per middleware, holding the middleware and its test: `error/`, `not-found/`, `request-id/`, `http-logger/`, `validate/`, `json-body/` (parser and large-body route config), `rate-limit/` and `auth/` (admin-session guard, `role-guards.middleware.ts`). `constants/`, `types/` and `utils/` hold extracted owner-named files (`*.constants.ts`, `*.types.ts`, `*.utils.ts`, including `async-handler.utils.ts`). Modules, bootstrap and infrastructure import `middleware/`; it imports `shared/`, `infrastructure/` and `config/`, never modules. The admin-session guard stays there because `openapi/builders/build-operation.ts` also reads it.
+
+`src/shared/` holds `errors/`, `responses/` (`api-envelope.responses.ts`, `scalar.responses.ts`), `validation/` (`schemas/`, `constants/`, `utils/`), `ids/`, `logging/`, `money/` and `uploads/` (`constants/`, `types/`, `utils/`). There is no `shared/http`. Limit objects belong to the module that uses them (`modules/<m>/constants/<m>.constants.ts`); `COMMON_LIMITS`, `JOB_LIMITS` (jobs, agency, freelancer) and `MESSAGING_LIMITS` (jobs, messaging) stay in `shared/validation/constants/` because several modules import them. `src/test/architecture/shared-layout.test.ts` enforces the folders without exemptions.
+
 ## Routing
 
 `src/routes/index.ts` only imports module routers and registers them under their prefixes, in a fixed order. A module-specific router is exported from that module's `<name>.route.ts`, as `agencyProposalsRouter` is from `proposals`. `/health` and `/ready` belong to the `health` module (layer 0). Route introspection and the contract allowlist live in `src/openapi/`; the validation allowlist and the route checks live in `src/test/architecture/routing/`.

@@ -13,7 +13,7 @@ Every module follows the folder layout of ADR 0016 (`docs/decisions/0016-module-
 
 ## New route
 
-1. Request schemas in `schemas/<name>.schema.ts` (strict objects, limits from `shared/validation/validation-limits.ts`, `uuidParam` from `shared/validation/common-schemas.ts`). Apply `validate({ params, query, body, responses })` from `shared/http/validate.middleware.ts` after authentication and role guards (`shared/http/role-guards.ts`).
+1. Request schemas in `schemas/<name>.schema.ts` (strict objects, limits from the module's `constants/<name>.constants.ts` (`shared/validation/constants/` only when several modules share a limit), `uuidParam` from `shared/validation/schemas/common.schema.ts`). Apply `validate({ params, query, body, responses })` from `middleware/validate/validate.middleware.ts` after authentication and role guards (`middleware/auth/role-guards.middleware.ts`).
 2. Response schemas in `responses/<name>.responses.ts` with a 2xx entry; shared pieces in `shared/validation/response-schemas.ts`.
 3. Add a contract test (`tests/<name>.contract.test.ts`) that parses real responses with those schemas, and a validation test (`tests/<name>.validation.test.ts`).
 4. Only raw-body webhooks and event streams may use `src/test/architecture/routing/validation-allowlist.ts` and `src/openapi/contract-allowlist.ts`, each with a written reason.
