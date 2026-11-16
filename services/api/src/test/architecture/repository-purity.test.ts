@@ -34,7 +34,7 @@ describe("repositories only run SQL", () => {
   it("flags an ApiError import, a throw and non-SQL imports", () => {
     const root = tree({
       "modules/a/a.repository.ts": `
-import { ApiError } from "../../shared/http/api-error.js";
+import { ApiError } from "../../shared/errors/api-error.js";
 export const find = async () => {
   throw new ApiError(500, "no");
 };
@@ -74,7 +74,7 @@ import type { DbExecutor } from "../../database/database.types.js";
 export const find = (executor: DbExecutor) => executor.select();
 `,
       "modules/a/a.service.ts": `
-import { ApiError } from "../../shared/http/api-error.js";
+import { ApiError } from "../../shared/errors/api-error.js";
 export const run = () => {
   throw new ApiError(404, "x");
 };

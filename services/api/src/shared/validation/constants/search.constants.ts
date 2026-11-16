@@ -1,0 +1,2 @@
+export const SEARCH_QUERY_MAX_LENGTH = 100;
+export const SEARCH_OFFSET_MAX = 10_000;

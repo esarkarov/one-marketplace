@@ -1,14 +1,16 @@
 import { describe, expect, it } from "vitest";
 import {
-  ALLOWED_ATTACHMENT_TYPES,
   assertAttachmentFileName,
   assertExtensionMatchesType,
-  MAX_ATTACHMENT_BYTES,
   parseDataUrl,
   reuseStoredAttachments,
   validateAttachmentBatch,
-  type StoredAttachment,
 } from "./attachments.js";
+import {
+  ALLOWED_ATTACHMENT_TYPES,
+  MAX_ATTACHMENT_BYTES,
+} from "./constants/attachments.constants.js";
+import type { StoredAttachment } from "./types/attachments.types.js";
 
 const DOCX = ALLOWED_ATTACHMENT_TYPES[4];
 const MB = 1024 * 1024;

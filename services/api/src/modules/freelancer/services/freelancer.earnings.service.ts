@@ -13,7 +13,7 @@ import { EarningsCertificateData } from "../types/freelancer.types.js";
 import { env } from "../../../config/env.js";
 import { stripe } from "../../../infrastructure/payments/stripe.js";
 import type { StripeRequirementsLike } from "../../../types/common.types.js";
-import { ApiError } from "../../../shared/http/api-error.js";
+import { ApiError } from "../../../shared/errors/api-error.js";
 import {
   EARNINGS_HOLD_PERIOD_MS,
   PLATFORM_FEE_BPS,

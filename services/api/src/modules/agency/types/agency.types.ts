@@ -1,4 +1,4 @@
-import { type StoredImage } from "../../../shared/uploads/portfolio-images.js";
+import type { StoredImage } from "../../../shared/uploads/types/portfolio-images.types.js";
 
 export interface AgencyPortfolioItem {
   id: string;

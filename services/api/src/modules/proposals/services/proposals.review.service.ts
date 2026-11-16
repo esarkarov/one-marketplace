@@ -7,7 +7,7 @@ import {
   markProposalViewedIfSubmitted,
 } from "../repositories/proposals.repository.js";
 import { creditConnects, recordConnectsHistory } from "../../connects/index.js";
-import { ApiError } from "../../../shared/http/api-error.js";
+import { ApiError } from "../../../shared/errors/api-error.js";
 import {
   CONNECTS_CACHE_TTL_SECONDS,
   getAgencyConnectsCacheKey,

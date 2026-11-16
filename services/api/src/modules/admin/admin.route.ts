@@ -13,7 +13,7 @@ import {
   scanRedisKeysHandler,
   streamLogsHandler,
 } from "./controllers/admin.controller.js";
-import { validate } from "../../shared/http/validate.middleware.js";
+import { validate } from "../../middleware/validate/validate.middleware.js";
 import {
   adminListQuerySchema,
   adminLogStreamQuerySchema,
@@ -27,11 +27,11 @@ import {
 import {
   requireAdminSession,
   requireAdminSessionAllowingQueryToken,
-} from "../../shared/http/auth/admin-session.middleware.js";
+} from "../../middleware/auth/admin-session.middleware.js";
 import {
   adminLimiter,
   adminLoginLimiter,
-} from "../../shared/http/limits/rate-limit.middleware.js";
+} from "../../middleware/rate-limit/rate-limit.middleware.js";
 
 export const adminRouter = Router();
 

@@ -15,7 +15,7 @@ import {
   type JobUpdate,
   type PublicJobFilters,
 } from "../repositories/jobs.repository.js";
-import { ApiError } from "../../../shared/http/api-error.js";
+import { ApiError } from "../../../shared/errors/api-error.js";
 import { imageKit } from "../../../infrastructure/storage/image-kit.js";
 import { env } from "../../../config/env.js";
 import {

@@ -7,15 +7,13 @@ import {
   pagingDigits,
   uuidParams,
   withIgnoredKeys,
-} from "../../../shared/validation/common-schemas.js";
+} from "../../../shared/validation/schemas/common.schema.js";
 import { moneyCents } from "../../../shared/money/money.js";
-import { centsQueryParam } from "../../../shared/validation/money-schemas.js";
-import { searchPagingShape } from "../../../shared/validation/search-schemas.js";
-import {
-  FREELANCER_LIMITS,
-  JOB_LIMITS,
-  MAX_LIVE_URL_LENGTH,
-} from "../../../shared/validation/validation-limits.js";
+import { centsQueryParam } from "../../../shared/validation/schemas/money.schema.js";
+import { searchPagingShape } from "../../../shared/validation/schemas/search.schema.js";
+import { FREELANCER_LIMITS } from "../constants/freelancer.constants.js";
+import { JOB_LIMITS } from "../../../shared/validation/constants/job.constants.js";
+import { MAX_LIVE_URL_LENGTH } from "../../../shared/uploads/constants/portfolio-images.constants.js";
 
 export const MIN_HOURLY_RATE_CENTS = 500;
 export const MAX_HOURLY_RATE_CENTS = 100_000;

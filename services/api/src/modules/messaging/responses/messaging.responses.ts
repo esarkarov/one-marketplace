@@ -2,10 +2,10 @@ import { z } from "zod";
 import {
   ErrorBody,
   cursorPage,
-  isoDateTime,
   ok,
   BadRequestBody,
-} from "../../../shared/validation/response-schemas.js";
+} from "../../../shared/responses/api-envelope.responses.js";
+import { isoDateTime } from "../../../shared/responses/scalar.responses.js";
 
 const MessageAttachment = z
   .strictObject({

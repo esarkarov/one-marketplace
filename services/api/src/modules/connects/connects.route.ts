@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { isAuthenticated } from "../auth/index.js";
 import { availableConnects } from "./middleware/connects.middleware.js";
-import { validate } from "../../shared/http/validate.middleware.js";
+import { validate } from "../../middleware/validate/validate.middleware.js";
 import {
   buyConnects,
   connectsWebhook,

@@ -1,5 +1,5 @@
 import { RequestHandler } from "express";
-import { ApiError } from "../../../shared/http/api-error.js";
+import { ApiError } from "../../../shared/errors/api-error.js";
 import { getAgencyIdentityForOwner } from "../services/agency.profile.service.js";
 
 export const requireAgencyAuth = (request: Parameters<RequestHandler>[0]) => {

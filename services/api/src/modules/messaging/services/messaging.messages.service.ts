@@ -17,7 +17,7 @@ import {
   incrementUnreadCounts,
   markParticipantReadIfNotAhead,
 } from "../repositories/messaging.participants.repository.js";
-import { ApiError } from "../../../shared/http/api-error.js";
+import { ApiError } from "../../../shared/errors/api-error.js";
 import {
   deleteDocuments,
   uploadDocuments,

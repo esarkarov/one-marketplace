@@ -1,7 +1,7 @@
 import { RequestHandler } from "express";
-import { requireFreelancer } from "../../../shared/http/auth/role-guards.js";
+import { requireFreelancer } from "../../../middleware/auth/role-guards.middleware.js";
 import { ApiResponse } from "../../../types/common.types.js";
-import { asyncHandler } from "../../../shared/http/async-handler.js";
+import { asyncHandler } from "../../../middleware/utils/async-handler.utils.js";
 import {
   completeAgencyConnectsPurchase,
   completeConnectsPurchase,
@@ -9,7 +9,7 @@ import {
   getConnectsHistory,
 } from "../services/connects.service.js";
 import { CONNECTS_PLANS, ConnectsPlan } from "../../../config/constants.js";
-import { ApiError } from "../../../shared/http/api-error.js";
+import { ApiError } from "../../../shared/errors/api-error.js";
 import { env } from "../../../config/env.js";
 import { stripe } from "../../../infrastructure/payments/stripe.js";
 

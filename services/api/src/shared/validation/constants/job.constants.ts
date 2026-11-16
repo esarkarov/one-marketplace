@@ -1,0 +1,16 @@
+export const JOB_LIMITS = {
+  titleMax: 100,
+  descriptionMax: 5000,
+  skillsMaxItems: 30,
+  skillMaxLength: 50,
+  screeningQuestionsMaxItems: 10,
+  screeningQuestionMaxLength: 500,
+  milestonesMaxItems: 20,
+  milestoneTitleMax: 120,
+  milestoneDueDateMax: 32,
+  milestoneIdMax: 64,
+  feedLevelsMax: 256,
+  expertiseLevelMax: 50,
+  expectedDurationMax: 50,
+  statusMax: 50,
+} as const;

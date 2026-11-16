@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ok } from "../../../shared/validation/response-schemas.js";
+import { ok } from "../../../shared/responses/api-envelope.responses.js";
 
 export const identityResponses = {
   session: {

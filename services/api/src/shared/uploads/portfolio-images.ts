@@ -1,12 +1,7 @@
 import { z } from "zod";
-import { ApiError } from "../http/api-error.js";
-
-export const MAX_LIVE_URL_LENGTH = 2048;
-
-export interface StoredImage {
-  imageId: string;
-  url: string;
-}
+import { ApiError } from "../errors/api-error.js";
+import { MAX_LIVE_URL_LENGTH } from "./constants/portfolio-images.constants.js";
+import type { StoredImage } from "./types/portfolio-images.types.js";
 
 const isHttpUrl = (value: string): boolean => {
   try {

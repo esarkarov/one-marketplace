@@ -39,7 +39,7 @@ const { app } = await import("../../../app.js");
 const { isAuthenticated, resolveAccountRole, verifyBearerToken } =
   await import("../middleware/auth.middleware.js");
 const { errorHandler } =
-  await import("../../../app-middleware/error.middleware.js");
+  await import("../../../middleware/error/error.middleware.js");
 
 const id = "123e4567-e89b-42d3-a456-426614174000";
 const bearer = { Authorization: "Bearer test-token" };

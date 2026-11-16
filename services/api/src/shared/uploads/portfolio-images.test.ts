@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { MAX_LIVE_URL_LENGTH } from "./constants/portfolio-images.constants.js";
 import {
   liveUrlSchema,
-  MAX_LIVE_URL_LENGTH,
   parseLiveUrl,
   reuseStoredImage,
 } from "./portfolio-images.js";

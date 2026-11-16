@@ -21,14 +21,14 @@ vi.mock("../../../database/client.js", () => ({
   pool: { end: async () => undefined },
 }));
 
-vi.mock("../../../shared/http/limits/rate-limit.middleware.js", () => ({
+vi.mock("../../../middleware/rate-limit/rate-limit.middleware.js", () => ({
   adminLimiter: (_req: unknown, _res: unknown, next: () => void) => next(),
   adminLoginLimiter: (_req: unknown, _res: unknown, next: () => void) => next(),
 }));
 
 const { adminRouter } = await import("../admin.route.js");
 const { errorHandler } =
-  await import("../../../app-middleware/error.middleware.js");
+  await import("../../../middleware/error/error.middleware.js");
 
 const app = express();
 app.use((req, _res, next) => {

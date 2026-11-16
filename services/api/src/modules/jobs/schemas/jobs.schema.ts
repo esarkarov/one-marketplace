@@ -7,16 +7,16 @@ import {
   pagingDigits,
   uuidParam,
   withIgnoredKeys,
-} from "../../../shared/validation/common-schemas.js";
+} from "../../../shared/validation/schemas/common.schema.js";
 import { moneyCents } from "../../../shared/money/money.js";
+import { COMMON_LIMITS } from "../../../shared/validation/constants/validation.constants.js";
+import { JOB_LIMITS } from "../../../shared/validation/constants/job.constants.js";
+import { MESSAGING_LIMITS } from "../../../shared/validation/constants/messaging.constants.js";
 import {
-  COMMON_LIMITS,
-  JOB_LIMITS,
-  MESSAGING_LIMITS,
   MAX_ATTACHMENT_FILE_NAME_LENGTH,
   MAX_ATTACHMENTS,
-  SEARCH_QUERY_MAX_LENGTH,
-} from "../../../shared/validation/validation-limits.js";
+} from "../../../shared/uploads/constants/attachments.constants.js";
+import { SEARCH_QUERY_MAX_LENGTH } from "../../../shared/validation/constants/search.constants.js";
 
 const BUDGET_ERROR = "Every milestone needs a valid budget.";
 

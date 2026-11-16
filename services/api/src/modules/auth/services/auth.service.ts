@@ -1,5 +1,5 @@
 import { clerk } from "../../../infrastructure/auth/clerk.js";
-import { ApiError } from "../../../shared/http/api-error.js";
+import { ApiError } from "../../../shared/errors/api-error.js";
 import { db } from "../../../database/client.js";
 import { insertAccountIfAbsent } from "../repositories/auth.repository.js";
 import { invalidateAccountAuthCache } from "../../../infrastructure/cache/account-auth-cache.js";

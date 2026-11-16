@@ -92,7 +92,7 @@ import {
   messages,
   meetings,
 } from "../../../test/support/tables.js";
-import { errorHandler } from "../../../app-middleware/error.middleware.js";
+import { errorHandler } from "../../../middleware/error/error.middleware.js";
 import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
 import { dailyWebhookHandler } from "../controllers/meetings.controller.js";
 import { endMeetingByRoomName } from "../services/meetings.service.js";

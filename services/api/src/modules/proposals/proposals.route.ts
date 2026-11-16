@@ -1,8 +1,8 @@
 import { Router } from "express";
-import { validate } from "../../shared/http/validate.middleware.js";
+import { validate } from "../../middleware/validate/validate.middleware.js";
 import { isAuthenticated } from "../auth/index.js";
-import { authRoleShape } from "../../shared/validation/common-schemas.js";
-import { submitProposalBodySchema } from "../../shared/validation/money-schemas.js";
+import { authRoleShape } from "../../shared/validation/schemas/common.schema.js";
+import { submitProposalBodySchema } from "./schemas/proposals.schema.js";
 import {
   agencyProposalMetadataResponses,
   agencyProposalsResponses,

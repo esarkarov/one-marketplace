@@ -16,7 +16,7 @@ vi.mock("../../../infrastructure/payments/stripe.js", () => ({
   stripe: { webhooks: { constructEvent: mocks.constructEvent } },
 }));
 
-vi.mock("../../../shared/http/auth/role-guards.js", () => ({
+vi.mock("../../../middleware/auth/role-guards.middleware.js", () => ({
   requireFreelancer: vi.fn(),
 }));
 
@@ -30,7 +30,7 @@ vi.mock("../services/connects.service.js", () => ({
 const { connectsWebhook } =
   await import("../controllers/connects.controller.js");
 const { errorHandler } =
-  await import("../../../app-middleware/error.middleware.js");
+  await import("../../../middleware/error/error.middleware.js");
 
 const app = express();
 app.use((req, _res, next) => {

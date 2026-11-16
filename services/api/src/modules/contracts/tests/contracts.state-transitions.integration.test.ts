@@ -55,7 +55,7 @@ import {
   raceBlocked,
   waitForBlocked,
 } from "../../../test/support/lock-holder.js";
-import { ApiError } from "../../../shared/http/api-error.js";
+import { ApiError } from "../../../shared/errors/api-error.js";
 import {
   acceptContract,
   finishContractWithReview,

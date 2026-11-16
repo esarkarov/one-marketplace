@@ -22,7 +22,7 @@ import { getAgencyIdentityForMember } from "./freelancer.agency-identity.service
 import { env } from "../../../config/env.js";
 import { logger } from "../../../config/logger.js";
 import { errorLogAttributes } from "../../../shared/logging/sanitize-log.js";
-import { ApiError } from "../../../shared/http/api-error.js";
+import { ApiError } from "../../../shared/errors/api-error.js";
 import { imageKit } from "../../../infrastructure/storage/image-kit.js";
 import { randomUUID } from "crypto";
 import { invalidateAccountAuthCache } from "../../../infrastructure/cache/account-auth-cache.js";

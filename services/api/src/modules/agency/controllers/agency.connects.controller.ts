@@ -1,6 +1,6 @@
 import { RequestHandler } from "express";
-import { asyncHandler } from "../../../shared/http/async-handler.js";
-import { ApiError } from "../../../shared/http/api-error.js";
+import { asyncHandler } from "../../../middleware/utils/async-handler.utils.js";
+import { ApiError } from "../../../shared/errors/api-error.js";
 import { ApiResponse } from "../../../types/common.types.js";
 import {
   getAgencyIdForMember,

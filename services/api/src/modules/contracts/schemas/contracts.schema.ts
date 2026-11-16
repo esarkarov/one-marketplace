@@ -4,9 +4,9 @@ import {
   boundedText,
   scopeField,
   uuidParam,
-} from "../../../shared/validation/common-schemas.js";
+} from "../../../shared/validation/schemas/common.schema.js";
 import { MAX_MONEY_CENTS } from "../../../shared/money/money.js";
-import { CONTRACT_LIMITS } from "../../../shared/validation/validation-limits.js";
+import { CONTRACT_LIMITS } from "../constants/contracts.constants.js";
 
 export const MIN_MILESTONE_CENTS = 1000;
 

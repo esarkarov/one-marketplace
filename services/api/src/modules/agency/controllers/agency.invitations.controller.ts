@@ -1,7 +1,7 @@
 import { RequestHandler } from "express";
-import { asyncHandler } from "../../../shared/http/async-handler.js";
-import { ApiError } from "../../../shared/http/api-error.js";
-import { isValidEmail } from "../../../shared/validation/email.js";
+import { asyncHandler } from "../../../middleware/utils/async-handler.utils.js";
+import { ApiError } from "../../../shared/errors/api-error.js";
+import { isValidEmail } from "../../../shared/validation/utils/email.utils.js";
 import { requireText } from "../../../config/constants.js";
 import {
   cancelAgencyInvitation,

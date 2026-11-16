@@ -2,7 +2,7 @@ import { logger } from "../../../config/logger.js";
 import { db } from "../../../database/client.js";
 import { isUniqueViolation } from "../../../database/pg-errors.js";
 import { appendJobMilestone } from "../../jobs/index.js";
-import { ApiError } from "../../../shared/http/api-error.js";
+import { ApiError } from "../../../shared/errors/api-error.js";
 import { splitFee } from "../../../shared/money/money.js";
 import { sendNotification } from "../../../infrastructure/events/publisher.js";
 import {

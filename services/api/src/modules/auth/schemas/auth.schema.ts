@@ -3,7 +3,7 @@ import { z } from "zod";
 import {
   authRoleShape,
   roleField,
-} from "../../../shared/validation/common-schemas.js";
+} from "../../../shared/validation/schemas/common.schema.js";
 
 export const signUpBodySchema = z.strictObject({ role: roleField });
 

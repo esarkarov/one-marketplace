@@ -1,7 +1,7 @@
 import { RequestHandler } from "express";
-import { ApiError } from "../../../shared/http/api-error.js";
+import { ApiError } from "../../../shared/errors/api-error.js";
 import { ApiResponse } from "../../../types/common.types.js";
-import { asyncHandler } from "../../../shared/http/async-handler.js";
+import { asyncHandler } from "../../../middleware/utils/async-handler.utils.js";
 import { receiveSignup } from "../services/auth.service.js";
 import {
   authenticateAccount,

@@ -1,13 +1,13 @@
 import { RequestHandler } from "express";
 import type { z } from "zod";
-import { asyncHandler } from "../../../shared/http/async-handler.js";
+import { asyncHandler } from "../../../middleware/utils/async-handler.utils.js";
 import {
   requireClient,
   requireFreelancer,
-} from "../../../shared/http/auth/role-guards.js";
+} from "../../../middleware/auth/role-guards.middleware.js";
 import { requireText } from "../../../config/constants.js";
-import { ApiError } from "../../../shared/http/api-error.js";
-import type { submitProposalBodySchema } from "../../../shared/validation/money-schemas.js";
+import { ApiError } from "../../../shared/errors/api-error.js";
+import type { submitProposalBodySchema } from "../schemas/proposals.schema.js";
 import {
   getAgencyProposalMetadata,
   getAgencyProposals,

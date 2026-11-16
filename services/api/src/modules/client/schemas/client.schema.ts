@@ -4,9 +4,9 @@ import {
   authRoleShape,
   optionalBoundedText,
   withIgnoredKeys,
-} from "../../../shared/validation/common-schemas.js";
-import { searchPagingShape } from "../../../shared/validation/search-schemas.js";
-import { CLIENT_LIMITS } from "../../../shared/validation/validation-limits.js";
+} from "../../../shared/validation/schemas/common.schema.js";
+import { searchPagingShape } from "../../../shared/validation/schemas/search.schema.js";
+import { CLIENT_LIMITS } from "../constants/client.constants.js";
 
 export const marketplaceSearchQuerySchema = z.strictObject({
   ...authRoleShape,

@@ -20,7 +20,7 @@ import {
   insertFreelancerPurchaseIfNew,
   recordConnectsHistory,
 } from "../repositories/connects.repository.js";
-import { ApiError } from "../../../shared/http/api-error.js";
+import { ApiError } from "../../../shared/errors/api-error.js";
 import { redis } from "../../../infrastructure/cache/redis.js";
 import { env } from "../../../config/env.js";
 import { stripe } from "../../../infrastructure/payments/stripe.js";

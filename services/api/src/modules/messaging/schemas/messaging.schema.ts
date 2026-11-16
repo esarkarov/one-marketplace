@@ -6,12 +6,12 @@ import {
   pagingDigits,
   scopeField,
   uuidParam,
-} from "../../../shared/validation/common-schemas.js";
+} from "../../../shared/validation/schemas/common.schema.js";
 import {
   MAX_ATTACHMENT_FILE_NAME_LENGTH,
   MAX_ATTACHMENTS,
-  MESSAGING_LIMITS,
-} from "../../../shared/validation/validation-limits.js";
+} from "../../../shared/uploads/constants/attachments.constants.js";
+import { MESSAGING_LIMITS } from "../../../shared/validation/constants/messaging.constants.js";
 
 const ATTACHMENT_ERROR = "Attachment metadata is invalid.";
 

@@ -3,7 +3,7 @@ import type { z } from "zod";
 import {
   requireAdminSession,
   requireAdminSessionAllowingQueryToken,
-} from "../../shared/http/auth/admin-session.middleware.js";
+} from "../../middleware/auth/admin-session.middleware.js";
 import { convertSchema } from "../conversion/convert-schema.js";
 import { isObject } from "../utils/json.utils.js";
 import {
@@ -22,7 +22,7 @@ import {
   routeKey,
   type RouteInfo,
 } from "../introspection/route-introspection.js";
-import type { ValidationSchemas } from "../../shared/http/validate.middleware.js";
+import type { ValidationSchemas } from "../../middleware/types/validate.types.js";
 
 const ADMIN_GUARDS: ReadonlySet<unknown> = new Set([
   requireAdminSession,

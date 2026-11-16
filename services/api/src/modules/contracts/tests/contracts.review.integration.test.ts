@@ -62,9 +62,9 @@ import {
   job_posts,
   proposals,
 } from "../../../test/support/tables.js";
-import { errorHandler } from "../../../app-middleware/error.middleware.js";
+import { errorHandler } from "../../../middleware/error/error.middleware.js";
 import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
-import { ApiError } from "../../../shared/http/api-error.js";
+import { ApiError } from "../../../shared/errors/api-error.js";
 import { splitFee } from "../../../shared/money/money.js";
 import { holdRowLock, raceBlocked } from "../../../test/support/lock-holder.js";
 import { reviewMilestoneWork } from "../controllers/contracts.controller.js";

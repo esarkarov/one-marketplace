@@ -2,12 +2,12 @@ import { RequestHandler } from "express";
 import { env } from "../../../config/env.js";
 import { stripe } from "../../../infrastructure/payments/stripe.js";
 import { ApiResponse } from "../../../types/common.types.js";
-import { ApiError } from "../../../shared/http/api-error.js";
-import { asyncHandler } from "../../../shared/http/async-handler.js";
+import { ApiError } from "../../../shared/errors/api-error.js";
+import { asyncHandler } from "../../../middleware/utils/async-handler.utils.js";
 import {
   requireClient,
   requireFreelancer,
-} from "../../../shared/http/auth/role-guards.js";
+} from "../../../middleware/auth/role-guards.middleware.js";
 import {
   getAgencyIdForMember,
   requireAgencyPermission,

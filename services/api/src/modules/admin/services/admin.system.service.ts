@@ -3,7 +3,7 @@ import { redis } from "../../../infrastructure/cache/redis.js";
 import { getRabbitStatus } from "../../../infrastructure/events/rabbitmq.js";
 import { logger } from "../../../config/logger.js";
 import { errorLogAttributes } from "../../../shared/logging/sanitize-log.js";
-import { ApiError } from "../../../shared/http/api-error.js";
+import { ApiError } from "../../../shared/errors/api-error.js";
 import {
   isAllowedRedisKey,
   REDIS_REDACTED_PREFIX,

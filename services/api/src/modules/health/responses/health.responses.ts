@@ -1,8 +1,6 @@
 import { z } from "zod";
-import {
-  isoDateTime,
-  ok,
-} from "../../../shared/validation/response-schemas.js";
+import { ok } from "../../../shared/responses/api-envelope.responses.js";
+import { isoDateTime } from "../../../shared/responses/scalar.responses.js";
 
 export const healthResponses = {
   health: {

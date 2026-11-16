@@ -1,13 +1,15 @@
 import { z } from "zod";
 import {
   ErrorBody,
-  cents,
-  isoDateTime,
   ok,
   okNoData,
   offsetPage,
   BadRequestBody,
-} from "../../../shared/validation/response-schemas.js";
+} from "../../../shared/responses/api-envelope.responses.js";
+import {
+  cents,
+  isoDateTime,
+} from "../../../shared/responses/scalar.responses.js";
 
 const nullableDateTime = isoDateTime.nullable();
 

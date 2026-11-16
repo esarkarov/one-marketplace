@@ -7,7 +7,7 @@ import {
   insertActiveMeeting,
   setMeetingMessageId,
 } from "../repositories/meetings.repository.js";
-import { ApiError } from "../../../shared/http/api-error.js";
+import { ApiError } from "../../../shared/errors/api-error.js";
 import { errorLogAttributes } from "../../../shared/logging/sanitize-log.js";
 import { logger } from "../../../config/logger.js";
 import { createDailyRoom } from "../../../infrastructure/video/daily.js";

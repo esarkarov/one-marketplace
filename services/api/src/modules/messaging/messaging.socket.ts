@@ -8,7 +8,7 @@ import {
   markReadIfMessageInConversation,
 } from "./repositories/messaging.participants.repository.js";
 import { authenticateAccount } from "../auth/index.js";
-import { ApiError } from "../../shared/http/api-error.js";
+import { ApiError } from "../../shared/errors/api-error.js";
 import { getAgencyIdForMember } from "../agency/index.js";
 import { ConversationScope } from "./types/messaging.types.js";
 

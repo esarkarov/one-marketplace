@@ -1,13 +1,15 @@
 import { z } from "zod";
 import {
-  cents,
   ErrorBody,
-  isoDateTime,
   offsetPage,
   ok,
   okNoData,
   BadRequestBody,
-} from "../../../shared/validation/response-schemas.js";
+} from "../../../shared/responses/api-envelope.responses.js";
+import {
+  cents,
+  isoDateTime,
+} from "../../../shared/responses/scalar.responses.js";
 
 const jobPostFields = {
   id: z.uuid(),

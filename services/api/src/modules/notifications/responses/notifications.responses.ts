@@ -1,10 +1,10 @@
 import { z } from "zod";
 import {
   ErrorBody,
-  isoDateTime,
   ok,
   okNoData,
-} from "../../../shared/validation/response-schemas.js";
+} from "../../../shared/responses/api-envelope.responses.js";
+import { isoDateTime } from "../../../shared/responses/scalar.responses.js";
 
 const Notification = z
   .strictObject({

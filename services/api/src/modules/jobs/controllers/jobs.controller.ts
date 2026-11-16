@@ -1,7 +1,7 @@
 import { RequestHandler } from "express";
-import { ApiError } from "../../../shared/http/api-error.js";
+import { ApiError } from "../../../shared/errors/api-error.js";
 import { randomUUID } from "crypto";
-import { asyncHandler } from "../../../shared/http/async-handler.js";
+import { asyncHandler } from "../../../middleware/utils/async-handler.utils.js";
 import {
   createJobPost,
   deleteJobPost,
@@ -17,7 +17,7 @@ import {
 import {
   requireClient,
   requireFreelancer,
-} from "../../../shared/http/auth/role-guards.js";
+} from "../../../middleware/auth/role-guards.middleware.js";
 import { MAX_JOB_BUDGET_CENTS, type JobBody } from "../schemas/jobs.schema.js";
 import {
   assertAttachmentFileName,

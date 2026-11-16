@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { DbExecutor } from "../../../database/database.types.js";
-import { ApiError } from "../../../shared/http/api-error.js";
+import { ApiError } from "../../../shared/errors/api-error.js";
 import { openInterviewConversation } from "../services/messaging.interview.service.js";
 
 const queuedExecutor = (results: unknown[][]) => {

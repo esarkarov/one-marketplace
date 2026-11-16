@@ -2,7 +2,7 @@ import { randomUUID } from "crypto";
 import { clerk } from "../../../infrastructure/auth/clerk.js";
 import { db } from "../../../database/client.js";
 import { isUniqueViolation } from "../../../database/pg-errors.js";
-import { ApiError } from "../../../shared/http/api-error.js";
+import { ApiError } from "../../../shared/errors/api-error.js";
 import { imageKit } from "../../../infrastructure/storage/image-kit.js";
 import { env } from "../../../config/env.js";
 import { logger } from "../../../config/logger.js";
@@ -14,8 +14,8 @@ import { getJSSContribution } from "../../freelancer/index.js";
 import {
   isImageDataUrl,
   reuseStoredImage,
-  type StoredImage,
 } from "../../../shared/uploads/portfolio-images.js";
+import type { StoredImage } from "../../../shared/uploads/types/portfolio-images.types.js";
 import {
   AgencyPortfolioItem,
   AgencyMember,

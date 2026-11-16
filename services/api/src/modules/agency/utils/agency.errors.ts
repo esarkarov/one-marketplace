@@ -1,4 +1,4 @@
-import { ApiError } from "../../../shared/http/api-error.js";
+import { ApiError } from "../../../shared/errors/api-error.js";
 
 export const AGENCY_MEMBER_UNIQUE = "agency_members_freelancer_id_unique";
 export const AGENCY_OWNER_UNIQUE = "agency_metadata_owner_id_unique";

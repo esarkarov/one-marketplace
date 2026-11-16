@@ -4,7 +4,7 @@ import { stripe } from "../../../infrastructure/payments/stripe.js";
 import { db } from "../../../database/client.js";
 import { findAccountIdentityStatus } from "../repositories/identity.repository.js";
 import { markIdentityVerified } from "../../auth/index.js";
-import { ApiError } from "../../../shared/http/api-error.js";
+import { ApiError } from "../../../shared/errors/api-error.js";
 
 export const createIdentitySession = async (
   accountId: string,

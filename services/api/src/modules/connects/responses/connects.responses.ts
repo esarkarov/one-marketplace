@@ -1,9 +1,9 @@
 import { z } from "zod";
 import {
   ErrorBody,
-  isoDateTime,
   ok,
-} from "../../../shared/validation/response-schemas.js";
+} from "../../../shared/responses/api-envelope.responses.js";
+import { isoDateTime } from "../../../shared/responses/scalar.responses.js";
 
 const HistoryEntry = z
   .strictObject({

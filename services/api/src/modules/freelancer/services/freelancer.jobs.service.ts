@@ -10,7 +10,7 @@ import {
 import { findFreelancerSkills } from "../repositories/freelancer.repository.js";
 import { JobFeedFilters } from "../types/freelancer.types.js";
 import { env } from "../../../config/env.js";
-import { ApiError } from "../../../shared/http/api-error.js";
+import { ApiError } from "../../../shared/errors/api-error.js";
 import { clerk } from "../../../infrastructure/auth/clerk.js";
 
 const getClientCountry = async (clientId: string) => {

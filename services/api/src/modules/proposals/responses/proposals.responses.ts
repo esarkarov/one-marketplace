@@ -1,11 +1,13 @@
 import { z } from "zod";
 import {
-  cents,
   ErrorBody,
-  isoDateTime,
   ok,
   BadRequestBody,
-} from "../../../shared/validation/response-schemas.js";
+} from "../../../shared/responses/api-envelope.responses.js";
+import {
+  cents,
+  isoDateTime,
+} from "../../../shared/responses/scalar.responses.js";
 
 const ProposalsRow = z
   .strictObject({

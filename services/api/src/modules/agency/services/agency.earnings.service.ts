@@ -1,6 +1,6 @@
 import { db } from "../../../database/client.js";
 import { toSafeCents } from "../../../shared/money/money.js";
-import { ApiError } from "../../../shared/http/api-error.js";
+import { ApiError } from "../../../shared/errors/api-error.js";
 import { env } from "../../../config/env.js";
 import { stripe } from "../../../infrastructure/payments/stripe.js";
 import type { StripeRequirementsLike } from "../../../types/common.types.js";

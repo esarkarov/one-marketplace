@@ -3,7 +3,7 @@ import {
   InternalErrorBody,
   RateLimitBody,
   ValidationErrorBody,
-} from "../../shared/validation/response-schemas.js";
+} from "../../shared/responses/api-envelope.responses.js";
 import {
   buildBody,
   buildParameters,

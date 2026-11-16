@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ADMIN_LIMITS } from "../../../shared/validation/validation-limits.js";
+import { ADMIN_LIMITS } from "../constants/admin.constants.js";
 
 export const REDIS_ALLOWED_PREFIXES = [
   "account:auth:",
