@@ -6,30 +6,39 @@ import { errorLogAttributes } from "../../shared/logging/sanitize-log.js";
 const PAYOUT_CRON_EXPRESSION = "0 * * * *";
 
 let payoutTask: ReturnType<typeof cron.schedule> | undefined;
+let inFlightRun: Promise<void> | undefined;
+
+const runScheduledPayouts = async (): Promise<void> => {
+  try {
+    await processDuePayouts();
+  } catch (error) {
+    await logger.error({
+      message: "Scheduled task failed",
+      eventName: "task.failed",
+      attributes: {
+        "task.name": "freelancer-payouts",
+        "error.type": error instanceof Error ? error.name : "UnknownError",
+        ...errorLogAttributes(error),
+      },
+    });
+  }
+};
+
+const trackRun = (): Promise<void> => {
+  const run: Promise<void> = runScheduledPayouts().finally(() => {
+    if (inFlightRun === run) {
+      inFlightRun = undefined;
+    }
+  });
+  inFlightRun = run;
+  return run;
+};
 
 export const startPayoutCron = () => {
-  payoutTask = cron.schedule(
-    PAYOUT_CRON_EXPRESSION,
-    async () => {
-      try {
-        await processDuePayouts();
-      } catch (error) {
-        await logger.error({
-          message: "Scheduled task failed",
-          eventName: "task.failed",
-          attributes: {
-            "task.name": "freelancer-payouts",
-            "error.type": error instanceof Error ? error.name : "UnknownError",
-            ...errorLogAttributes(error),
-          },
-        });
-      }
-    },
-    {
-      name: "freelancer-payouts",
-      noOverlap: true,
-    },
-  );
+  payoutTask = cron.schedule(PAYOUT_CRON_EXPRESSION, trackRun, {
+    name: "freelancer-payouts",
+    noOverlap: true,
+  });
 
   void logger.info({
     message: "Hourly payout cron scheduled",
@@ -42,4 +51,8 @@ export const stopPayoutCron = async (): Promise<void> => {
   const task = payoutTask;
   payoutTask = undefined;
   await task?.destroy();
+};
+
+export const waitForPayoutRun = async (): Promise<void> => {
+  await inFlightRun;
 };

@@ -4,14 +4,48 @@ import { disconnectRedis } from "../infrastructure/cache/redis.client.js";
 import { closeRabbit } from "../infrastructure/events/rabbitmq.client.js";
 import { stopNotificationConsumer } from "../modules/notifications/notifications.consumer.js";
 import { closeMessagingSocket } from "../modules/messaging/messaging.socket.js";
-import { stopPayoutCron } from "../modules/payouts/payouts.cron.js";
+import {
+  stopPayoutCron,
+  waitForPayoutRun,
+} from "../modules/payouts/payouts.cron.js";
 import { errorLogAttributes } from "../shared/logging/sanitize-log.js";
 import { getHttpServer } from "./http-server.js";
 
 let isShuttingDown = false;
+let crashed = false;
+
+export type ShutdownReason =
+  NodeJS.Signals | "uncaughtException" | "unhandledRejection" | "serverError";
 
 export const SHUTDOWN_TIMEOUT_MS = 10_000;
 const CONNECTION_GRACE_MS = 3_000;
+export const PAYOUT_DRAIN_TIMEOUT_MS =
+  SHUTDOWN_TIMEOUT_MS - 2 * CONNECTION_GRACE_MS;
+
+export const isShutdownInProgress = (): boolean => isShuttingDown;
+
+export const markShutdownFailed = (): void => {
+  crashed = true;
+};
+
+const drainPayoutRun = async (): Promise<void> => {
+  let timer: NodeJS.Timeout | undefined;
+  const timedOut = new Promise<boolean>((resolve) => {
+    timer = setTimeout(() => resolve(true), PAYOUT_DRAIN_TIMEOUT_MS);
+  });
+  try {
+    const finished = waitForPayoutRun().then(() => false);
+    if (await Promise.race([finished, timedOut])) {
+      await logger.warn({
+        message: "Payout run still in flight at shutdown. Continuing.",
+        eventName: "system.shutdown.payout_run_timeout",
+        attributes: { "shutdown.timeout_ms": PAYOUT_DRAIN_TIMEOUT_MS },
+      });
+    }
+  } finally {
+    clearTimeout(timer);
+  }
+};
 
 const closeHttpServer = async (): Promise<void> => {
   const current = getHttpServer();
@@ -61,7 +95,7 @@ export const exitWithFlush = async (code: number): Promise<never> => {
   process.exit(code);
 };
 
-export const shutdown = async (signal: NodeJS.Signals): Promise<void> => {
+export const shutdown = async (reason: ShutdownReason): Promise<void> => {
   if (isShuttingDown) {
     return;
   }
@@ -70,7 +104,7 @@ export const shutdown = async (signal: NodeJS.Signals): Promise<void> => {
   await logger.info({
     message: "Shutdown signal received. Closing services.",
     eventName: "system.shutdown",
-    attributes: { "process.signal": signal },
+    attributes: { "process.signal": reason },
   });
 
   const forceExitTimer = setTimeout(() => {
@@ -104,6 +138,7 @@ export const shutdown = async (signal: NodeJS.Signals): Promise<void> => {
   };
 
   await runStep("payout cron", stopPayoutCron);
+  await runStep("payout run", drainPayoutRun);
   await runStep("http server", closeHttpServer);
   await runStep("notification consumer", () =>
     stopNotificationConsumer(CONNECTION_GRACE_MS),
@@ -113,5 +148,5 @@ export const shutdown = async (signal: NodeJS.Signals): Promise<void> => {
   await runStep("database pool", () => pool.end());
 
   clearTimeout(forceExitTimer);
-  await exitWithFlush(failed ? 1 : 0);
+  await exitWithFlush(failed || crashed ? 1 : 0);
 };
