@@ -157,15 +157,15 @@ Supersedes the `shared/http` grouping in ADR 0014 section 2. `src/middleware/` h
 
 `src/routes/index.ts` only imports module routers and registers them under their prefixes, in a fixed order. A module-specific router is exported from that module's `<name>.route.ts`, as `agencyProposalsRouter` is from `proposals`. `/health` and `/ready` belong to the `health` module (layer 0). Route introspection and the contract allowlist live in `src/openapi/`; the validation allowlist and the route checks live in `src/test/architecture/routing/`.
 
-## Findings reported, not fixed here
+## Lifecycle hardening (Stage 11)
 
-For the Stage 11 lifecycle hardening, in this order of priority:
+Items 1 to 4 are fixed; item 5 is still open. They change process startup and shutdown only: no request path, API contract, OpenAPI output or schema changed.
 
-1. `stopPayoutCron` does not wait for an in-flight `processDuePayouts` before `pool.end()` (do first).
-2. No `unhandledRejection` or `uncaughtException` handler.
-3. `server.listen` errors are unhandled, and the cron and socket start before `listen` succeeds.
-4. The DB pool is not checked at startup.
-5. SSE streams (notifications, admin) have no close function and are cut by `closeAllConnections` after 3 s.
+1. Fixed. `payouts.cron.ts` tracks the in-flight run and exposes `waitForPayoutRun`. Shutdown stops the cron (no new runs), waits for a run in flight for at most `PAYOUT_DRAIN_TIMEOUT_MS` (`SHUTDOWN_TIMEOUT_MS` minus two connection grace periods, so it ends before the forced exit), logs a warning if it times out and continues, and only then runs the later steps, ending with `pool.end()`.
+2. Fixed. `bootstrap/crash-handlers.ts` registers `unhandledRejection` and `uncaughtException` once, from `server.ts` only (never on import). Each logs `system.crash` at fatal level with `errorLogAttributes`, starts the same graceful `shutdown` and exits non-zero. A crash during shutdown is logged and marks the exit non-zero without starting a second shutdown; the existing forced-exit timer ends the process.
+3. Fixed. `start.ts` waits for `listen` to succeed. A listen error (`EADDRINUSE` and similar) rejects `start`, so `handleStartupFailure` logs and exits 1; an error after listening goes to the crash handler as `serverError`. The notification consumer, messaging socket and payout cron start only after the server is listening, in that order.
+4. Fixed. `start.ts` calls `pingDatabase` (health module, exported through `modules/health/index.ts`) before Redis, RabbitMQ or listening; a failure follows the startup failure path and exits 1 without starting cron or sockets.
+5. Open. SSE streams (notifications, admin) have no close function and are cut by `closeAllConnections` after 3 s.
 
 The `AGENTS.md` wording on RabbitMQ (optional, enabled by `RABBITMQ_URL`) is correct (ADR 0004).
 
