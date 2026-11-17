@@ -186,6 +186,7 @@ const createFixture = async (
       cover_letter: "integration",
       bid_amount_cents: amountCents,
       duration: "1 week",
+      status: "INTERVIEWED",
     })
     .returning({ id: proposals.id });
   created.proposalIds.push(proposal!.id);

@@ -38,6 +38,7 @@ import {
 } from "../repositories/contracts.state.repository.js";
 import {
   logPaymentMismatch,
+  refundUnfulfillablePayment,
   refundUnrecordedPayment,
 } from "./contracts.checkout.service.js";
 
@@ -305,7 +306,19 @@ export const createContractFromPayment = async (
     clientId,
   );
 
-  if (!offer) throw new ApiError(404, "Contract offer data not found.");
+  if (!offer) {
+    await refundUnfulfillablePayment(session, "offer_not_found", {
+      proposalId,
+    });
+    return;
+  }
+  if (offer.proposal.status !== "INTERVIEWED") {
+    await refundUnfulfillablePayment(session, "proposal_not_interviewed", {
+      proposalId,
+      jobId: offer.job.id,
+    });
+    return;
+  }
   const isAgency = offer.proposal.sender_type === "AGENCY";
 
   const milestones = offer.job.milestones;
@@ -316,7 +329,11 @@ export const createContractFromPayment = async (
     amounts.some((amount) => !Number.isSafeInteger(amount) || amount < 1) ||
     !Number.isSafeInteger(totalAmountCents)
   ) {
-    throw new ApiError(400, "Contract milestones are invalid.");
+    await refundUnfulfillablePayment(session, "milestones_invalid", {
+      proposalId,
+      jobId: offer.job.id,
+    });
+    return;
   }
 
   const stripeCustomerId =
@@ -330,7 +347,10 @@ export const createContractFromPayment = async (
     session.currency !== "usd"
   ) {
     await logPaymentMismatch(session, firstMilestoneAmount);
-    await refundUnrecordedPayment(session, "amount_mismatch");
+    await refundUnfulfillablePayment(session, "amount_mismatch", {
+      proposalId,
+      jobId: offer.job.id,
+    });
     return;
   }
 

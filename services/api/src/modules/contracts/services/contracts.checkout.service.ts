@@ -13,6 +13,7 @@ import {
 import { getAgencyOwnerId } from "../../agency/index.js";
 import {
   findContractIdByProposal,
+  findMilestoneFundingState,
   findMilestoneForFunding,
   findMilestoneIdByCheckoutSession,
   findPendingMilestoneForPaymentFunding,
@@ -25,8 +26,16 @@ const CHECKOUT_SESSION_TTL_SECONDS = 35 * 60;
 const checkoutExpiresAt = () =>
   Math.floor(Date.now() / 1000) + CHECKOUT_SESSION_TTL_SECONDS;
 
-export type PaymentRefundCause =
-  "duplicate_session" | "job_already_hired" | "amount_mismatch";
+export type PaymentRefundCause = "duplicate_session" | "job_already_hired";
+
+export type UnfulfillableReason =
+  | "offer_not_found"
+  | "proposal_not_interviewed"
+  | "milestones_invalid"
+  | "amount_mismatch"
+  | "milestone_not_fundable";
+
+type RefundReason = "duplicate" | "requested_by_customer";
 
 const paymentIntentIdOf = (session: Stripe.Checkout.Session) =>
   typeof session.payment_intent === "string"
@@ -39,9 +48,10 @@ const isChargeAlreadyRefunded = (error: unknown) =>
   "code" in error &&
   error.code === "charge_already_refunded";
 
-export const refundDuplicatePayment = async (
+const issueRefund = async (
   session: Stripe.Checkout.Session,
-  cause: PaymentRefundCause,
+  reason: RefundReason,
+  cause: string,
 ): Promise<void> => {
   const paymentIntentId = paymentIntentIdOf(session);
   const attributes = {
@@ -54,16 +64,16 @@ export const refundDuplicatePayment = async (
   if (!paymentIntentId) {
     await logger.error({
       message: "Payment could not be refunded: payment intent is missing.",
-      eventName: "payment.refund.failed",
+      eventName: "payment.refund.unavailable",
       attributes,
     });
-    throw new ApiError(500, "Payment intent is missing for refund.");
+    return;
   }
 
   try {
     await stripe.refunds.create(
-      { payment_intent: paymentIntentId, reason: "duplicate" },
-      { idempotencyKey: `refund:${paymentIntentId}` },
+      { payment_intent: paymentIntentId, reason },
+      { idempotencyKey: `refund:${paymentIntentId}:${reason}` },
     );
   } catch (error) {
     if (isChargeAlreadyRefunded(error)) return;
@@ -85,6 +95,11 @@ export const refundDuplicatePayment = async (
   });
 };
 
+export const refundDuplicatePayment = (
+  session: Stripe.Checkout.Session,
+  cause: PaymentRefundCause,
+) => issueRefund(session, "duplicate", cause);
+
 export const refundUnrecordedPayment = async (
   session: Stripe.Checkout.Session,
   cause: PaymentRefundCause,
@@ -92,6 +107,34 @@ export const refundUnrecordedPayment = async (
   const [recorded] = await findMilestoneIdByCheckoutSession(db, session.id);
   if (recorded) return;
   await refundDuplicatePayment(session, cause);
+};
+
+export const refundUnfulfillablePayment = async (
+  session: Stripe.Checkout.Session,
+  reason: UnfulfillableReason,
+  ids: {
+    proposalId?: string;
+    jobId?: string;
+    contractId?: string;
+    milestoneId?: string;
+  },
+): Promise<void> => {
+  const [recorded] = await findMilestoneIdByCheckoutSession(db, session.id);
+  if (recorded) return;
+  await logger.error({
+    message: "Paid checkout session cannot be fulfilled. Refunding.",
+    eventName: "payment.unfulfillable",
+    attributes: {
+      "stripe.checkout_session_id": session.id,
+      "stripe.payment_intent_id": paymentIntentIdOf(session) ?? null,
+      "payment.unfulfillable_reason": reason,
+      "proposal.id": ids.proposalId ?? null,
+      "job.id": ids.jobId ?? null,
+      "contract.id": ids.contractId ?? null,
+      "milestone.id": ids.milestoneId ?? null,
+    },
+  });
+  await issueRefund(session, "requested_by_customer", reason);
 };
 
 export const logPaymentMismatch = (
@@ -275,7 +318,18 @@ export const fundContractMilestoneFromPayment = async (
     milestoneId,
   });
   if (!milestone) {
-    await refundUnrecordedPayment(session, "duplicate_session");
+    const [state] = await findMilestoneFundingState(db, {
+      contractId,
+      milestoneId,
+    });
+    if (state?.fundedAt) {
+      await refundUnrecordedPayment(session, "duplicate_session");
+    } else {
+      await refundUnfulfillablePayment(session, "milestone_not_fundable", {
+        contractId,
+        milestoneId,
+      });
+    }
     return;
   }
 
@@ -295,7 +349,10 @@ export const fundContractMilestoneFromPayment = async (
     session.currency !== "usd"
   ) {
     await logPaymentMismatch(session, milestone.milestoneAmountCents);
-    await refundUnrecordedPayment(session, "amount_mismatch");
+    await refundUnfulfillablePayment(session, "amount_mismatch", {
+      contractId,
+      milestoneId,
+    });
     return;
   }
 

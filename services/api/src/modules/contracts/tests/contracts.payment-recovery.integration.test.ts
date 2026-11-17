@@ -299,9 +299,12 @@ const proposalStatusOf = async (proposalId: string) =>
 const contractsOfJob = (jobId: string) =>
   db.select().from(contracts).where(eq(contracts.job_id, jobId));
 
-const refundedWith = (session: Stripe.Checkout.Session) => [
-  { payment_intent: session.payment_intent, reason: "duplicate" },
-  { idempotencyKey: `refund:${session.payment_intent}` },
+const refundedWith = (
+  session: Stripe.Checkout.Session,
+  reason: "duplicate" | "requested_by_customer" = "duplicate",
+) => [
+  { payment_intent: session.payment_intent, reason },
+  { idempotencyKey: `refund:${session.payment_intent}:${reason}` },
 ];
 
 describe("job locking when the contract is created from payment", () => {
@@ -464,7 +467,9 @@ describe("duplicate and mismatched payments", () => {
     await expect(createContractFromPayment(session)).resolves.toBeUndefined();
 
     expect(mocks.refundCreate).toHaveBeenCalledTimes(1);
-    expect(mocks.refundCreate).toHaveBeenCalledWith(...refundedWith(session));
+    expect(mocks.refundCreate).toHaveBeenCalledWith(
+      ...refundedWith(session, "requested_by_customer"),
+    );
     expect(mocks.loggerWarn).toHaveBeenCalledWith(
       expect.objectContaining({
         eventName: "payment.mismatch",
@@ -535,6 +540,309 @@ describe("duplicate and mismatched payments", () => {
     );
 
     await expect(createContractFromPayment(session)).resolves.toBeUndefined();
+  });
+});
+
+describe("unfulfillable payments", () => {
+  const withoutIntent = (session: Stripe.Checkout.Session) =>
+    ({
+      ...session,
+      payment_intent: null,
+    }) as unknown as Stripe.Checkout.Session;
+
+  const unfulfillableLogged = (
+    session: Stripe.Checkout.Session,
+    reason: string,
+  ) =>
+    expect(mocks.loggerError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventName: "payment.unfulfillable",
+        attributes: expect.objectContaining({
+          "stripe.checkout_session_id": session.id,
+          "stripe.payment_intent_id": session.payment_intent,
+          "payment.unfulfillable_reason": reason,
+        }),
+      }),
+    );
+
+  const expectRefundedOnce = (session: Stripe.Checkout.Session) => {
+    expect(mocks.refundCreate).toHaveBeenCalledTimes(1);
+    expect(mocks.refundCreate).toHaveBeenCalledWith(
+      ...refundedWith(session, "requested_by_customer"),
+    );
+  };
+
+  const expectSameKeyOnReplay = async (
+    run: () => Promise<void>,
+    session: Stripe.Checkout.Session,
+  ) => {
+    await run();
+    await run();
+    const keys = mocks.refundCreate.mock.calls.map(
+      (call) => call[1].idempotencyKey,
+    );
+    expect(new Set(keys)).toEqual(
+      new Set([`refund:${session.payment_intent}:requested_by_customer`]),
+    );
+  };
+
+  const unfulfillableContractCases = [
+    [
+      "the offer no longer exists",
+      "offer_not_found",
+      async (offer: Offer) =>
+        paymentSession(offer, { proposalId: randomUUID() }),
+    ],
+    [
+      "the proposal is no longer INTERVIEWED",
+      "proposal_not_interviewed",
+      async (offer: Offer) => {
+        await db
+          .update(proposals)
+          .set({ status: "SUBMITTED" })
+          .where(eq(proposals.id, offer.proposalId));
+        return paymentSession(offer);
+      },
+    ],
+    [
+      "the job has no milestones",
+      "milestones_invalid",
+      async (offer: Offer) => {
+        await db
+          .update(job_posts)
+          .set({ milestones: [] })
+          .where(eq(job_posts.id, offer.jobId));
+        return paymentSession(offer);
+      },
+    ],
+    [
+      "a milestone amount is zero",
+      "milestones_invalid",
+      async (offer: Offer) => {
+        await db
+          .update(job_posts)
+          .set({
+            milestones: [
+              {
+                id: randomUUID(),
+                title: "Zero",
+                budgetCents: 0,
+                dueDate: "2030-01-01",
+              },
+            ],
+          })
+          .where(eq(job_posts.id, offer.jobId));
+        return paymentSession(offer);
+      },
+    ],
+    [
+      "the first milestone no longer equals the amount paid",
+      "amount_mismatch",
+      async (offer: Offer) => {
+        await db
+          .update(job_posts)
+          .set({
+            milestones: [
+              {
+                id: randomUUID(),
+                title: "Changed",
+                budgetCents: FIRST + 100,
+                dueDate: "2030-01-01",
+              },
+            ],
+          })
+          .where(eq(job_posts.id, offer.jobId));
+        return paymentSession(offer);
+      },
+    ],
+  ] as const;
+
+  it.each(unfulfillableContractCases)(
+    "refunds once, creates no contract and answers success when %s",
+    async (_name, reason, prepare) => {
+      const offer = await seedOffer();
+      const session = await prepare(offer);
+
+      await expect(createContractFromPayment(session)).resolves.toBeUndefined();
+
+      expectRefundedOnce(session);
+      unfulfillableLogged(session, reason);
+      expect(await contractsOfJob(offer.jobId)).toHaveLength(0);
+      expect(await jobStatusOf(offer.jobId)).toBe("PUBLISHED");
+    },
+  );
+
+  it.each(unfulfillableContractCases)(
+    "replays a webhook where %s with the same idempotency key and no contract",
+    async (_name, _reason, prepare) => {
+      const offer = await seedOffer();
+      const session = await prepare(offer);
+
+      await expectSameKeyOnReplay(
+        () => createContractFromPayment(session),
+        session,
+      );
+
+      expect(await contractsOfJob(offer.jobId)).toHaveLength(0);
+    },
+  );
+
+  const fundingTarget = async () => {
+    const offer = await seedOffer();
+    await createContractFromPayment(paymentSession(offer));
+    const [contract] = await contractsOfJob(offer.jobId);
+    await acceptContract(contract!.id, offer.ownerId);
+    const second = await readyForSecondFunding(contract!.id);
+    return { offer, contract: contract!, second };
+  };
+
+  it("refunds once and answers success when the funded milestone does not exist", async () => {
+    const { offer, contract } = await fundingTarget();
+    const session = fundingSession(offer, contract.id, randomUUID());
+
+    await expect(
+      fundContractMilestoneFromPayment(session),
+    ).resolves.toBeUndefined();
+
+    expectRefundedOnce(session);
+    unfulfillableLogged(session, "milestone_not_fundable");
+  });
+
+  it("refunds once and answers success when the milestone is not fundable, and keeps the same key on replay", async () => {
+    const { offer, contract, second } = await fundingTarget();
+    await db
+      .update(contract_milestones)
+      .set({ status: "COMPLETED", completed_at: new Date() })
+      .where(eq(contract_milestones.id, second.id));
+    const session = fundingSession(offer, contract.id, second.id);
+
+    await expectSameKeyOnReplay(
+      () => fundContractMilestoneFromPayment(session),
+      session,
+    );
+
+    expect(mocks.refundCreate).toHaveBeenCalledWith(
+      ...refundedWith(session, "requested_by_customer"),
+    );
+    unfulfillableLogged(session, "milestone_not_fundable");
+  });
+
+  it("does not refund or flag a replay of a successful contract webhook, even after acceptance", async () => {
+    const offer = await seedOffer();
+    const session = paymentSession(offer);
+    await createContractFromPayment(session);
+    const [contract] = await contractsOfJob(offer.jobId);
+    await acceptContract(contract!.id, offer.ownerId);
+    mocks.loggerError.mockClear();
+
+    await createContractFromPayment(session);
+
+    expect(mocks.refundCreate).not.toHaveBeenCalled();
+    expect(mocks.loggerError).not.toHaveBeenCalled();
+    expect(await contractsOfJob(offer.jobId)).toHaveLength(1);
+  });
+
+  it("keeps throwing and does not refund on a transient failure of the offer lookup", async () => {
+    const offer = await seedOffer();
+    const spy = vi.spyOn(db, "select").mockImplementationOnce(() => {
+      throw new Error("connection reset");
+    });
+
+    await expect(
+      createContractFromPayment(paymentSession(offer)),
+    ).rejects.toThrow("connection reset");
+
+    spy.mockRestore();
+    expect(mocks.refundCreate).not.toHaveBeenCalled();
+    expect(await contractsOfJob(offer.jobId)).toHaveLength(0);
+  });
+
+  it("keeps throwing and does not refund when the contract transaction fails", async () => {
+    const offer = await seedOffer();
+    const spy = vi
+      .spyOn(db, "transaction")
+      .mockRejectedValueOnce(new Error("deadlock detected"));
+
+    await expect(
+      createContractFromPayment(paymentSession(offer)),
+    ).rejects.toThrow("deadlock detected");
+
+    spy.mockRestore();
+    expect(mocks.refundCreate).not.toHaveBeenCalled();
+    expect(await contractsOfJob(offer.jobId)).toHaveLength(0);
+  });
+
+  it("keeps throwing and does not refund when the funding transaction fails", async () => {
+    const { offer, contract, second } = await fundingTarget();
+    const spy = vi
+      .spyOn(db, "transaction")
+      .mockRejectedValueOnce(new Error("deadlock detected"));
+
+    await expect(
+      fundContractMilestoneFromPayment(
+        fundingSession(offer, contract.id, second.id),
+      ),
+    ).rejects.toThrow("deadlock detected");
+
+    spy.mockRestore();
+    expect(mocks.refundCreate).not.toHaveBeenCalled();
+  });
+
+  const expectUnavailable = (session: Stripe.Checkout.Session) => {
+    expect(mocks.refundCreate).not.toHaveBeenCalled();
+    expect(mocks.loggerError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventName: "payment.refund.unavailable",
+        attributes: expect.objectContaining({
+          "stripe.checkout_session_id": session.id,
+        }),
+      }),
+    );
+  };
+
+  it("logs and answers success without refunding when the intent is missing on the duplicate path", async () => {
+    const offer = await seedOffer();
+    await createContractFromPayment(paymentSession(offer));
+    const duplicate = withoutIntent(paymentSession(offer));
+
+    await expect(createContractFromPayment(duplicate)).resolves.toBeUndefined();
+
+    expectUnavailable(duplicate);
+  });
+
+  it("logs and answers success without refunding when the intent is missing on the mismatch path", async () => {
+    const offer = await seedOffer();
+    const session = withoutIntent(paymentSession(offer, { amount: FIRST + 1 }));
+
+    await expect(createContractFromPayment(session)).resolves.toBeUndefined();
+
+    expectUnavailable(session);
+  });
+
+  it("logs and answers success without refunding when the intent is missing on the unfulfillable path", async () => {
+    const offer = await seedOffer();
+    await db
+      .update(proposals)
+      .set({ status: "SUBMITTED" })
+      .where(eq(proposals.id, offer.proposalId));
+    const session = withoutIntent(paymentSession(offer));
+
+    await expect(createContractFromPayment(session)).resolves.toBeUndefined();
+
+    expectUnavailable(session);
+  });
+
+  it("logs and answers success without refunding when the intent is missing for a funding payment", async () => {
+    const { offer, contract } = await fundingTarget();
+    const session = withoutIntent(
+      fundingSession(offer, contract.id, randomUUID()),
+    );
+
+    await expect(
+      fundContractMilestoneFromPayment(session),
+    ).resolves.toBeUndefined();
+
+    expectUnavailable(session);
   });
 });
 

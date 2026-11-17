@@ -254,6 +254,21 @@ export const findMilestoneIdByCheckoutSession = (
     )
     .limit(1);
 
+export const findMilestoneFundingState = (
+  executor: DbExecutor,
+  input: { contractId: string; milestoneId: string },
+) =>
+  executor
+    .select({ fundedAt: contract_milestones.funded_at })
+    .from(contract_milestones)
+    .where(
+      and(
+        eq(contract_milestones.id, input.milestoneId),
+        eq(contract_milestones.contract_id, input.contractId),
+      ),
+    )
+    .limit(1);
+
 export const findProposalOfferForCheckout = (
   executor: DbExecutor,
   proposalId: string,
