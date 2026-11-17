@@ -42,7 +42,7 @@ Every module under `src/modules/<name>/` follows `docs/decisions/0016-module-fol
 - No `console.*`; use the pino logger.
 - Webhook routes need the raw body, registered before `express.json`.
 - RabbitMQ is optional; the API must start and work with only Postgres and Redis. It is enabled by `RABBITMQ_URL`.
-- Job and payment flow: the payment webhook creates the contract and sets the job HIRED in one transaction (`markJobHired`, jobs owner); a HIRED job answers 409 `JOB_LOCKED` on edit and delete. Duplicate or mismatched paid sessions are refunded with `refundDuplicatePayment` (ADR 0008, M2), never ignored or retried forever.
+- Job and payment flow: the payment webhook creates the contract and sets the job HIRED in one transaction (`markJobHired`, jobs owner); a HIRED job answers 409 `JOB_LOCKED` on edit and delete. Duplicate paid sessions are refunded with `refundDuplicatePayment`; paid sessions that permanently cannot be fulfilled (missing offer, invalid milestones, mismatch, unfundable milestone) with `refundUnfulfillablePayment` and a 200; transient failures still throw so Stripe retries (ADR 0008, M2).
 - The RabbitMQ connection is created at startup by `src/bootstrap/start.ts`; new entry points that publish must start it first.
 - Redis is configured with `REDIS_URL`.
 - Extend `@onemarketplace/tsconfig/node.json` and `@onemarketplace/eslint-config/node`.
