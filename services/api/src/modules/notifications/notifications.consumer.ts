@@ -17,7 +17,7 @@ import {
 } from "../../shared/logging/sanitize-log.js";
 import { notificationEnvelopeSchema } from "../../infrastructure/events/notification.envelope.js";
 import { topologyNames } from "../../infrastructure/events/notification.topology.js";
-import { DEFAULT_DELIVERY_LIMIT } from "../../infrastructure/events/constants/events.constants.js";
+import { DEFAULT_DELIVERY_LIMIT } from "../../infrastructure/constants/index.js";
 
 const PREFETCH = 10;
 const MIN_BACKOFF_MS = 1_000;

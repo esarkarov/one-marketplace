@@ -77,27 +77,8 @@ describe("notification envelope", () => {
   const parsed = (value: unknown) =>
     notificationEnvelopeSchema.safeParse(value);
 
-  it("converts a v1 amount to amountCents and emits the v2 shape", () => {
-    const result = parsed(withMetadata(1, { amount: 19.99, a: 1 }));
-
-    expect(result.success).toBe(true);
-    expect(result.data?.version).toBe(2);
-    expect(result.data?.payload.metadata).toEqual({ amountCents: 1999, a: 1 });
-  });
-
-  it("passes a v1 message without amount through", () => {
-    const result = parsed(withMetadata(1, { a: 1 }));
-
-    expect(result.success).toBe(true);
-    expect(result.data?.payload.metadata).toEqual({ a: 1 });
-  });
-
-  it.each([
-    ["three decimals", { amount: 1.005 }],
-    ["non-numeric", { amount: "5" }],
-    ["negative", { amount: -1 }],
-  ])("rejects a v1 amount with %s", (_name, metadata) => {
-    expect(parsed(withMetadata(1, metadata)).success).toBe(false);
+  it("rejects a version 1 envelope", () => {
+    expect(parsed(withMetadata(1, { a: 1 })).success).toBe(false);
   });
 
   it("accepts a v2 amountCents integer", () => {

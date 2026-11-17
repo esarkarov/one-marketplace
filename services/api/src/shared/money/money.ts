@@ -58,28 +58,3 @@ export const formatUsdGrouped = (cents: number): string => {
   const whole = Math.trunc(cents / 100).toLocaleString("en-US");
   return `$${whole}.${String(cents % 100).padStart(2, "0")}`;
 };
-
-const DECIMAL_DOLLARS = /^(\d{1,15})(?:\.(\d{1,2}))?$/;
-
-/**
- * Converts a legacy dollar amount (envelope v1 only) to integer cents.
- * Uses the shortest decimal form of the number, so no float arithmetic is
- * involved. Throws RangeError for negatives, non-finite values, exponent
- * notation and anything with more than 2 decimals.
- */
-export const legacyDollarsToCents = (dollars: number): number => {
-  if (typeof dollars !== "number" || !Number.isFinite(dollars)) {
-    throw new RangeError("Amount is not a finite number.");
-  }
-  const match = DECIMAL_DOLLARS.exec(String(dollars));
-  if (!match) {
-    throw new RangeError("Amount is negative or has more than 2 decimals.");
-  }
-  const whole = match[1]!;
-  const fraction = (match[2] ?? "").padEnd(2, "0");
-  const cents = Number(whole) * 100 + Number(fraction);
-  if (!Number.isSafeInteger(cents)) {
-    throw new RangeError("Amount exceeds the safe integer range.");
-  }
-  return cents;
-};

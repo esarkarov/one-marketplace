@@ -5,15 +5,20 @@ import { srcDir } from "./table-access.js";
 
 const infrastructureDir = path.join(srcDir, "infrastructure");
 
-const INFRASTRUCTURE_FOLDERS = [
+const SERVICE_FOLDERS = [
   "auth",
   "cache",
   "events",
   "payments",
   "storage",
-  "utils",
   "video",
 ];
+
+const SHARED_FOLDERS = ["constants", "types", "utils"];
+
+const INFRASTRUCTURE_FOLDERS = [...SERVICE_FOLDERS, ...SHARED_FOLDERS];
+
+const BARREL_FOLDERS = ["constants", "types"];
 
 const CLIENT_FILES = [
   "auth/clerk.client.ts",
@@ -23,8 +28,6 @@ const CLIENT_FILES = [
   "storage/image-kit.client.ts",
   "video/daily.client.ts",
 ];
-
-const EXTRACTED_FOLDERS = ["constants", "types", "utils"];
 
 const FORBIDDEN_NAMES = ["helpers", "common", "misc"];
 
@@ -50,8 +53,14 @@ const valueImportsOf = (file: string): string[] => {
     .filter((specifier) => CLIENT_PACKAGES.test(specifier));
 };
 
+const SHARED_SUFFIX: Record<string, RegExp> = {
+  constants: /^(index|.+\.constants)\.ts$/,
+  types: /^(index|.+\.types)\.ts$/,
+  utils: /^.+\.utils(\.test)?\.ts$/,
+};
+
 describe("infrastructure layout", () => {
-  it("contains only the approved service folders and no loose files", () => {
+  it("contains only the approved folders and no loose files", () => {
     const entries = readdirSync(infrastructureDir).sort();
     expect(entries).toEqual([...INFRASTRUCTURE_FOLDERS].sort());
     expect(
@@ -64,7 +73,9 @@ describe("infrastructure layout", () => {
   it("every third-party client file is <service>.client.ts in its service folder", () => {
     const clients = sourceFiles.filter((f) => f.endsWith(".client.ts")).sort();
     expect(clients).toEqual([...CLIENT_FILES].sort());
-    const misplaced = clients.filter((f) => f.split("/").length !== 2);
+    const misplaced = clients.filter(
+      (f) => !SERVICE_FOLDERS.includes(f.split("/")[0]!),
+    );
     expect(misplaced).toEqual([]);
   });
 
@@ -77,27 +88,15 @@ describe("infrastructure layout", () => {
 
   it("constants, types and utils hold only suffixed files", () => {
     const wrong = files.filter((f) => {
-      const parts = f.split("/");
-      const folderIndex = parts.findIndex((p) => EXTRACTED_FOLDERS.includes(p));
-      if (folderIndex < 0) return false;
-      const folder = parts[folderIndex]!;
-      const name = parts[parts.length - 1]!;
-      if (parts.length !== folderIndex + 2) return true;
-      if (folder === "constants") return !/\.constants\.ts$/.test(name);
-      if (folder === "types") return !/\.types\.ts$/.test(name);
-      return !/\.utils(\.test)?\.ts$/.test(name);
+      const [folder, name] = f.split("/") as [string, string];
+      const suffix = SHARED_SUFFIX[folder];
+      return suffix ? !suffix.test(name) : false;
     });
     expect(wrong).toEqual([]);
   });
 
-  it("service folders nest only constants, types and utils", () => {
-    const wrong = files.filter((f) => {
-      const parts = f.split("/");
-      if (parts[0] === "utils") return parts.length !== 2;
-      if (parts.length === 2) return false;
-      return parts.length !== 3 || !EXTRACTED_FOLDERS.includes(parts[1]!);
-    });
-    expect(wrong).toEqual([]);
+  it("every folder holds files directly and nests nothing", () => {
+    expect(files.filter((f) => f.split("/").length !== 2)).toEqual([]);
   });
 
   it("every test sits next to the file it tests", () => {
@@ -117,7 +116,11 @@ describe("infrastructure layout", () => {
     expect(offending).toEqual([]);
   });
 
-  it("has no barrel index.ts", () => {
-    expect(files.filter((f) => f.endsWith("index.ts"))).toEqual([]);
+  it("index.ts exists only in constants/ and types/", () => {
+    const misplaced = files.filter(
+      (f) =>
+        f.endsWith("index.ts") && !BARREL_FOLDERS.includes(f.split("/")[0]!),
+    );
+    expect(misplaced).toEqual([]);
   });
 });

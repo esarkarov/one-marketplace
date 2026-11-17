@@ -67,7 +67,7 @@ const { publishNotificationEnvelope } =
   await import("./notification.publisher.js");
 const { topologyNames } = await import("./notification.topology.js");
 const { NOTIFICATIONS_CREATED_ROUTING_KEY } =
-  await import("./constants/events.constants.js");
+  await import("../constants/index.js");
 
 const prefix = `it-${randomUUID().slice(0, 8)}.`;
 const names = topologyNames(prefix);

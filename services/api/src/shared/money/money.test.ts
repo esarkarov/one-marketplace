@@ -3,7 +3,6 @@ import {
   formatUsd,
   formatUsdGrouped,
   toSafeCents,
-  legacyDollarsToCents,
   MAX_MONEY_CENTS,
   splitFee,
 } from "./money.js";
@@ -68,28 +67,6 @@ describe("splitFee", () => {
   it.each([-1, 10_000, 1.5])("rejects fee bps %s", (bps) => {
     expect(() => splitFee(100, bps)).toThrow(RangeError);
   });
-});
-
-describe("legacyDollarsToCents", () => {
-  it.each([
-    [0, 0],
-    [0.01, 1],
-    [0.07, 7],
-    [19.99, 1999],
-    [0.29, 29],
-    [1234.5, 123450],
-    [1234.56, 123456],
-    [9999999999.99, 999999999999],
-  ])("converts %s to %s", (dollars, cents) => {
-    expect(legacyDollarsToCents(dollars)).toBe(cents);
-  });
-
-  it.each([1.005, 0.001, -1, Number.NaN, Infinity, 1e21, 1e-7])(
-    "rejects %s",
-    (dollars) => {
-      expect(() => legacyDollarsToCents(dollars)).toThrow(RangeError);
-    },
-  );
 });
 
 describe("formatUsdGrouped", () => {

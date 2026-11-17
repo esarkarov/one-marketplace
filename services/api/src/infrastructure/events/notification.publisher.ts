@@ -11,9 +11,12 @@ import { topologyNames } from "./notification.topology.js";
 import {
   NOTIFICATION_CREATED_TYPE,
   NOTIFICATIONS_CREATED_ROUTING_KEY,
+  PUBLISH_TIMEOUT_MS,
 } from "../constants/index.js";
-import { NotificationEnvelope, NotificationInput } from "../types/index.js";
-import { PUBLISH_TIMEOUT_MS } from "../constants/index.js";
+import type {
+  NotificationEnvelope,
+  NotificationInput,
+} from "../types/index.js";
 
 export const publishNotificationEnvelope = async (
   channel: ChannelWrapper,
