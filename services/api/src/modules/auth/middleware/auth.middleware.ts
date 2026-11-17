@@ -8,8 +8,8 @@ import {
   ACCOUNT_AUTH_NEGATIVE_CACHE_TTL_SECONDS,
   getAccountAuthCacheKey,
 } from "../../../config/constants.js";
-import { verifyToken } from "../../../infrastructure/auth/clerk.js";
-import { redis } from "../../../infrastructure/cache/redis.js";
+import { verifyToken } from "../../../infrastructure/auth/clerk.client.js";
+import { redis } from "../../../infrastructure/cache/redis.client.js";
 import { db } from "../../../database/client.js";
 import { findAccountOnboardingState } from "../repositories/auth.repository.js";
 

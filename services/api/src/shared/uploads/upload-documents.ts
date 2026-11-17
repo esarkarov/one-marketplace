@@ -1,5 +1,5 @@
 import { env } from "../../config/env.js";
-import { imageKit } from "../../infrastructure/storage/image-kit.js";
+import { imageKit } from "../../infrastructure/storage/image-kit.client.js";
 import { ApiError } from "../errors/api-error.js";
 
 interface Document {

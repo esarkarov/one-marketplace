@@ -27,7 +27,7 @@ vi.mock("../../../config/logger.js", async (importOriginal) => {
   };
 });
 
-vi.mock("../../../infrastructure/video/daily.js", () => ({
+vi.mock("../../../infrastructure/video/daily.client.js", () => ({
   createDailyRoom: mocks.createDailyRoom,
 }));
 

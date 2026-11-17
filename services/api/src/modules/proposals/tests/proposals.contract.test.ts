@@ -25,17 +25,17 @@ vi.mock("../../../config/env.js", async (importOriginal) => {
   return { ...original, env: { ...original.env, clerkSecretKey: "sk_test" } };
 });
 
-vi.mock("../../../infrastructure/auth/clerk.js", () => ({
+vi.mock("../../../infrastructure/auth/clerk.client.js", () => ({
   clerk: { users: { getUser: mocks.getUser } },
   verifyToken: mocks.verifyToken,
 }));
 
 vi.mock(
-  "../../../infrastructure/events/publisher.js",
+  "../../../infrastructure/events/notification.publisher.js",
   async (importOriginal) => {
     const original =
       await importOriginal<
-        typeof import("../../../infrastructure/events/publisher.js")
+        typeof import("../../../infrastructure/events/notification.publisher.js")
       >();
     return { ...original, sendNotification: mocks.sendNotification };
   },
@@ -49,7 +49,7 @@ vi.mock("../../messaging/messaging.socket.js", async (importOriginal) => {
   return { ...original, emitConversationUpdate: mocks.emitConversationUpdate };
 });
 
-vi.mock("../../../infrastructure/cache/redis.js", () => ({
+vi.mock("../../../infrastructure/cache/redis.client.js", () => ({
   redis: {
     get: async (key: string) => mocks.store.get(key) ?? null,
     expire: async () => true,

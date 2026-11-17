@@ -7,7 +7,7 @@ import {
   listFreelancerProposals,
   listProposalStatusesBySender,
 } from "../repositories/proposals.repository.js";
-import { clerk } from "../../../infrastructure/auth/clerk.js";
+import { clerk } from "../../../infrastructure/auth/clerk.client.js";
 
 const ACTIVE_PROPOSAL_STATUSES = new Set([
   "SUBMITTED",

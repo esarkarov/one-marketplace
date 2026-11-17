@@ -29,7 +29,7 @@ import {
   requireAgencyPermission,
 } from "../../agency/index.js";
 import type { ApiResponse } from "../../../types/common.types.js";
-import { sendNotification } from "../../../infrastructure/events/publisher.js";
+import { sendNotification } from "../../../infrastructure/events/notification.publisher.js";
 
 export const createProposal: RequestHandler = asyncHandler(
   async (request, response) => {

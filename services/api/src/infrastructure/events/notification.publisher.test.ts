@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({
   error: vi.fn(),
 }));
 
-vi.mock("./rabbitmq.js", () => ({
+vi.mock("./rabbitmq.client.js", () => ({
   isRabbitEnabled: mocks.enabled,
   isRabbitConnected: mocks.connected,
   getRabbitPublishChannel: () => ({ publish: mocks.publish }),
@@ -18,7 +18,7 @@ vi.mock("../../config/logger.js", () => ({
   logger: { warn: mocks.warn, error: mocks.error },
 }));
 
-const { sendNotification } = await import("./publisher.js");
+const { sendNotification } = await import("./notification.publisher.js");
 
 const input = {
   recipientId: "user_1",

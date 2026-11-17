@@ -4,7 +4,7 @@ import { app } from "../../../app.js";
 import {
   connectRedis,
   disconnectRedis,
-} from "../../../infrastructure/cache/redis.js";
+} from "../../../infrastructure/cache/redis.client.js";
 import { pool } from "../../../database/client.js";
 
 const id = "123e4567-e89b-42d3-a456-426614174000";

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { assertTopology, topologyNames } from "./topology.js";
+import { assertTopology, topologyNames } from "./notification.topology.js";
 
 const channel = () => ({
   assertExchange: vi.fn().mockResolvedValue({}),

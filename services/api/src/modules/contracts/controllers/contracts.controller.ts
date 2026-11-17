@@ -1,6 +1,6 @@
 import { RequestHandler } from "express";
 import { env } from "../../../config/env.js";
-import { stripe } from "../../../infrastructure/payments/stripe.js";
+import { stripe } from "../../../infrastructure/payments/stripe.client.js";
 import { ApiResponse } from "../../../types/common.types.js";
 import { ApiError } from "../../../shared/errors/api-error.js";
 import { asyncHandler } from "../../../middleware/utils/async-handler.utils.js";
@@ -28,7 +28,7 @@ import {
   reviewContractMilestone,
   submitContractMilestone,
 } from "../services/contracts.milestones.service.js";
-import { sendNotification } from "../../../infrastructure/events/publisher.js";
+import { sendNotification } from "../../../infrastructure/events/notification.publisher.js";
 import { emitConversationUpdate } from "../../messaging/index.js";
 
 export const startContractCheckout: RequestHandler = asyncHandler(

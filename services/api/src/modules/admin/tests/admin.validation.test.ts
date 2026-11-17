@@ -3,7 +3,7 @@ import express from "express";
 import request from "supertest";
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("../../../infrastructure/cache/redis.js", () => ({
+vi.mock("../../../infrastructure/cache/redis.client.js", () => ({
   redis: {
     scan: vi.fn(),
     type: vi.fn(),
@@ -12,7 +12,7 @@ vi.mock("../../../infrastructure/cache/redis.js", () => ({
   },
 }));
 
-vi.mock("../../../infrastructure/events/rabbitmq.js", () => ({
+vi.mock("../../../infrastructure/events/rabbitmq.client.js", () => ({
   getRabbitStatus: async () => ({ ok: false }),
 }));
 

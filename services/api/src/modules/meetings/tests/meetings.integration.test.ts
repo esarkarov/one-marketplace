@@ -40,7 +40,7 @@ vi.mock("../../../config/env.js", async (importOriginal) => {
   };
 });
 
-vi.mock("../../../infrastructure/cache/redis.js", () => ({
+vi.mock("../../../infrastructure/cache/redis.client.js", () => ({
   redis: {
     isReady: true,
     set: async (key: string, value: string) => {

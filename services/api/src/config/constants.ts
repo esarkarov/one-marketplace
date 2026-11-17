@@ -65,6 +65,13 @@ export const EARNINGS_HOLD_PERIOD_DAYS = 5;
 export const EARNINGS_HOLD_PERIOD_MS =
   EARNINGS_HOLD_PERIOD_DAYS * 24 * 60 * 60 * 1000;
 
+export const WEBHOOK_PATHS = [
+  "/connects/webhook",
+  "/contracts/webhook",
+  "/identity/webhook",
+  "/meetings/webhook",
+] as const;
+
 export const STRIPE_PAYOUT_ELIGIBLE_COUNTRIES = new Set([
   "US",
   "GB",

@@ -1,7 +1,7 @@
 import { EARNINGS_HOLD_PERIOD_MS } from "../../../config/constants.js";
-import { stripe } from "../../../infrastructure/payments/stripe.js";
+import { stripe } from "../../../infrastructure/payments/stripe.client.js";
 import { db } from "../../../database/client.js";
-import { sendNotification } from "../../../infrastructure/events/publisher.js";
+import { sendNotification } from "../../../infrastructure/events/notification.publisher.js";
 import { logger } from "../../../config/logger.js";
 import { formatUsd } from "../../../shared/money/money.js";
 import { uuidV5 } from "../../../shared/ids/uuid-v5.js";

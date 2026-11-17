@@ -58,13 +58,16 @@ const isLocal = (() => {
 })();
 
 const { createRabbitChannel, createRabbitConnection } =
-  await import("./rabbitmq.js");
+  await import("./rabbitmq.client.js");
 const { createNotificationConsumer } =
   await import("../../modules/notifications/notifications.consumer.js");
-const { createNotificationEnvelope } = await import("./envelope.js");
-const { publishNotificationEnvelope } = await import("./publisher.js");
-const { NOTIFICATIONS_CREATED_ROUTING_KEY, topologyNames } =
-  await import("./topology.js");
+const { createNotificationEnvelope } =
+  await import("./notification.envelope.js");
+const { publishNotificationEnvelope } =
+  await import("./notification.publisher.js");
+const { topologyNames } = await import("./notification.topology.js");
+const { NOTIFICATIONS_CREATED_ROUTING_KEY } =
+  await import("./constants/events.constants.js");
 
 const prefix = `it-${randomUUID().slice(0, 8)}.`;
 const names = topologyNames(prefix);

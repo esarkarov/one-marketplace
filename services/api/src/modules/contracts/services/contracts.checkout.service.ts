@@ -1,10 +1,10 @@
 import type Stripe from "stripe";
 import { env } from "../../../config/env.js";
-import { stripe } from "../../../infrastructure/payments/stripe.js";
+import { stripe } from "../../../infrastructure/payments/stripe.client.js";
 import { db } from "../../../database/client.js";
 import { setStripeCustomerId } from "../../auth/index.js";
 import { ApiError } from "../../../shared/errors/api-error.js";
-import { sendNotification } from "../../../infrastructure/events/publisher.js";
+import { sendNotification } from "../../../infrastructure/events/notification.publisher.js";
 import {
   appendConversationMessages,
   emitConversationUpdate,

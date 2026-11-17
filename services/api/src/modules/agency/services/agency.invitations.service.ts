@@ -1,4 +1,4 @@
-import { clerk } from "../../../infrastructure/auth/clerk.js";
+import { clerk } from "../../../infrastructure/auth/clerk.client.js";
 import { db } from "../../../database/client.js";
 import { isUniqueViolation } from "../../../database/pg-errors.js";
 import { ApiError } from "../../../shared/errors/api-error.js";
@@ -6,7 +6,7 @@ import type { DbExecutor } from "../../../database/database.types.js";
 import { env } from "../../../config/env.js";
 import { logger } from "../../../config/logger.js";
 import { errorLogAttributes } from "../../../shared/logging/sanitize-log.js";
-import { sendNotification } from "../../../infrastructure/events/publisher.js";
+import { sendNotification } from "../../../infrastructure/events/notification.publisher.js";
 import {
   AGENCY_MEMBER_UNIQUE,
   alreadyInAgencyError,

@@ -23,11 +23,11 @@ import { env } from "../../../config/env.js";
 import { logger } from "../../../config/logger.js";
 import { errorLogAttributes } from "../../../shared/logging/sanitize-log.js";
 import { ApiError } from "../../../shared/errors/api-error.js";
-import { imageKit } from "../../../infrastructure/storage/image-kit.js";
+import { imageKit } from "../../../infrastructure/storage/image-kit.client.js";
 import { randomUUID } from "crypto";
-import { invalidateAccountAuthCache } from "../../../infrastructure/cache/account-auth-cache.js";
+import { invalidateAccountAuthCache } from "../../../infrastructure/cache/account-auth.cache.js";
 import { addConnects } from "../../connects/index.js";
-import { clerk } from "../../../infrastructure/auth/clerk.js";
+import { clerk } from "../../../infrastructure/auth/clerk.client.js";
 import {
   isImageDataUrl,
   reuseStoredImage,

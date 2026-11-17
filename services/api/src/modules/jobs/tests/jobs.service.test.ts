@@ -19,7 +19,7 @@ vi.mock("../../../config/logger.js", () => ({
   logger: { error: mocks.logError, warn: async () => undefined },
 }));
 
-vi.mock("../../../infrastructure/storage/image-kit.js", () => ({
+vi.mock("../../../infrastructure/storage/image-kit.client.js", () => ({
   imageKit: {
     files: { upload: mocks.upload, delete: mocks.deleteFile },
   },

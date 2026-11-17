@@ -1,6 +1,6 @@
 import { db } from "../../../database/client.js";
-import { redis } from "../../../infrastructure/cache/redis.js";
-import { getRabbitStatus } from "../../../infrastructure/events/rabbitmq.js";
+import { redis } from "../../../infrastructure/cache/redis.client.js";
+import { getRabbitStatus } from "../../../infrastructure/events/rabbitmq.client.js";
 import { logger } from "../../../config/logger.js";
 import { errorLogAttributes } from "../../../shared/logging/sanitize-log.js";
 import { ApiError } from "../../../shared/errors/api-error.js";

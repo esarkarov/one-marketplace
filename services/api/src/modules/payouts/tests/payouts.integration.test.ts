@@ -20,10 +20,10 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock(
-  "../../../infrastructure/payments/stripe.js",
+  "../../../infrastructure/payments/stripe.client.js",
   async (importOriginal) => ({
     ...(await importOriginal<
-      typeof import("../../../infrastructure/payments/stripe.js")
+      typeof import("../../../infrastructure/payments/stripe.client.js")
     >()),
     stripe: {
       transfers: { create: mocks.transfersCreate, list: mocks.transfersList },
@@ -33,10 +33,10 @@ vi.mock(
 );
 
 vi.mock(
-  "../../../infrastructure/events/publisher.js",
+  "../../../infrastructure/events/notification.publisher.js",
   async (importOriginal) => ({
     ...(await importOriginal<
-      typeof import("../../../infrastructure/events/publisher.js")
+      typeof import("../../../infrastructure/events/notification.publisher.js")
     >()),
     sendNotification: mocks.sendNotification,
   }),

@@ -1,9 +1,5 @@
 import { legacyDollarsToCents } from "../../shared/money/money.js";
 
-/**
- * Exists only for messages published before the cents migration. Remove once
- * no v1 message can remain in any queue or the DLQ.
- */
 export const upgradeV1Metadata = (
   metadata: Record<string, unknown> | undefined,
 ): Record<string, unknown> | undefined => {

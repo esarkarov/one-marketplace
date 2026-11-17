@@ -3,21 +3,17 @@ import {
   getRabbitPublishChannel,
   isRabbitConnected,
   isRabbitEnabled,
-} from "./rabbitmq.js";
+} from "./rabbitmq.client.js";
 import { logger } from "../../config/logger.js";
 import { errorLogAttributes } from "../../shared/logging/sanitize-log.js";
+import { createNotificationEnvelope } from "./notification.envelope.js";
+import { topologyNames } from "./notification.topology.js";
 import {
-  createNotificationEnvelope,
   NOTIFICATION_CREATED_TYPE,
-  type NotificationEnvelope,
-  type NotificationInput,
-} from "./envelope.js";
-import {
   NOTIFICATIONS_CREATED_ROUTING_KEY,
-  topologyNames,
-} from "./topology.js";
-
-export const PUBLISH_TIMEOUT_MS = 2_000;
+} from "../constants/index.js";
+import { NotificationEnvelope, NotificationInput } from "../types/index.js";
+import { PUBLISH_TIMEOUT_MS } from "../constants/index.js";
 
 export const publishNotificationEnvelope = async (
   channel: ChannelWrapper,

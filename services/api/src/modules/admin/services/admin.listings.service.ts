@@ -1,4 +1,4 @@
-import { clerk } from "../../../infrastructure/auth/clerk.js";
+import { clerk } from "../../../infrastructure/auth/clerk.client.js";
 import { db } from "../../../database/client.js";
 import { env } from "../../../config/env.js";
 import {

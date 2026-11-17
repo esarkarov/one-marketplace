@@ -5,7 +5,7 @@ import { env } from "./config/env.js";
 import { corsOptions } from "./config/cors.js";
 import { ApiResponse } from "./types/common.types.js";
 import { API_PREFIX } from "./config/constants.js";
-import { WEBHOOK_PATHS } from "./config/webhooks.js";
+import { WEBHOOK_PATHS } from "./config/constants.js";
 import { apiRouter } from "./routes/index.js";
 import { notFoundHandler } from "./middleware/not-found/not-found.middleware.js";
 import { errorHandler } from "./middleware/error/error.middleware.js";

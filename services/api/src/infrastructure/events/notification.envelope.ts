@@ -1,9 +1,12 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { isMoneyCents } from "../../shared/money/money.js";
-import { upgradeV1Metadata } from "./legacy-v1.js";
-
-export const NOTIFICATION_CREATED_TYPE = "notifications.created";
+import { upgradeV1Metadata } from "./notification.legacy-v1.js";
+import { NOTIFICATION_CREATED_TYPE } from "../constants/index.js";
+import type {
+  NotificationEnvelope,
+  NotificationInput,
+} from "../types/index.js";
 
 const target = z.union([
   z.object({
@@ -52,7 +55,7 @@ const envelopeV2 = z.object({
   ...envelopeFields,
   version: z.literal(2),
   payload: notificationPayload,
-});
+}) satisfies z.ZodType<NotificationEnvelope>;
 
 const envelopeV1 = z
   .object({
@@ -74,10 +77,6 @@ const envelopeV1 = z
   .pipe(envelopeV2);
 
 export const notificationEnvelopeSchema = z.union([envelopeV2, envelopeV1]);
-
-type NotificationPayload = z.infer<typeof notificationPayload>;
-export type NotificationEnvelope = z.infer<typeof envelopeV2>;
-export type NotificationInput = NotificationPayload & { eventId?: string };
 
 export const createNotificationEnvelope = (
   input: NotificationInput,

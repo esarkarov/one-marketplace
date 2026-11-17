@@ -12,9 +12,9 @@ import {
   getConnectsCacheKey,
   PROPOSAL_CONNECTS,
 } from "../../../config/constants.js";
-import { redis } from "../../../infrastructure/cache/redis.js";
+import { redis } from "../../../infrastructure/cache/redis.client.js";
 import { getAgencyTeamMemberIds } from "../../agency/index.js";
-import { sendNotification } from "../../../infrastructure/events/publisher.js";
+import { sendNotification } from "../../../infrastructure/events/notification.publisher.js";
 
 export const submitProposal = async (
   freelancerId: string,

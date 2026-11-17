@@ -25,11 +25,11 @@ vi.mock("../../../config/env.js", async (importOriginal) => {
   return { ...original, env: { ...original.env, clerkSecretKey: "sk_test" } };
 });
 
-vi.mock("../../../infrastructure/video/daily.js", () => ({
+vi.mock("../../../infrastructure/video/daily.client.js", () => ({
   createDailyRoom: mocks.createDailyRoom,
 }));
 
-vi.mock("../../../infrastructure/cache/redis.js", () => ({
+vi.mock("../../../infrastructure/cache/redis.client.js", () => ({
   redis: {
     get: async (key: string) => mocks.store.get(key) ?? null,
     expire: async () => true,

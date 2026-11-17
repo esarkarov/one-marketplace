@@ -12,7 +12,7 @@ vi.mock("../../../config/env.js", () => ({
   env: { stripeConnectsWebhookSecret: "whsec_test" },
 }));
 
-vi.mock("../../../infrastructure/payments/stripe.js", () => ({
+vi.mock("../../../infrastructure/payments/stripe.client.js", () => ({
   stripe: { webhooks: { constructEvent: mocks.constructEvent } },
 }));
 

@@ -2,7 +2,7 @@ import { db } from "../../../database/client.js";
 import { toSafeCents } from "../../../shared/money/money.js";
 import { ApiError } from "../../../shared/errors/api-error.js";
 import { env } from "../../../config/env.js";
-import { stripe } from "../../../infrastructure/payments/stripe.js";
+import { stripe } from "../../../infrastructure/payments/stripe.client.js";
 import type { StripeRequirementsLike } from "../../../types/common.types.js";
 import {
   EARNINGS_HOLD_PERIOD_MS,

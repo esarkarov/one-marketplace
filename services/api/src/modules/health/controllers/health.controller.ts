@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import { SERVICE_NAME } from "../../../config/constants.js";
-import { redis } from "../../../infrastructure/cache/redis.js";
+import { redis } from "../../../infrastructure/cache/redis.client.js";
 import { errorLogAttributes } from "../../../shared/logging/sanitize-log.js";
 import { ApiResponse } from "../../../types/common.types.js";
 import { pingDatabase } from "../repositories/health.repository.js";

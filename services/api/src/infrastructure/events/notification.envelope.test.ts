@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   createNotificationEnvelope,
   notificationEnvelopeSchema,
-} from "./envelope.js";
+} from "./notification.envelope.js";
 
 const agencyId = "3f2b8c1e-9a4d-4e7f-8b21-5c6d7e8f9a0b";
 

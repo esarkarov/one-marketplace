@@ -1,12 +1,8 @@
-import type { Channel } from "amqplib";
-
-export const NOTIFICATIONS_CREATED_ROUTING_KEY = "notifications.created";
-export const DEFAULT_DELIVERY_LIMIT = 5;
-
-export interface TopologyOptions {
-  prefix?: string;
-  deliveryLimit?: number;
-}
+import { TopologyChannel, TopologyOptions } from "../types/index.js";
+import {
+  DEFAULT_DELIVERY_LIMIT,
+  NOTIFICATIONS_CREATED_ROUTING_KEY,
+} from "../constants/index.js";
 
 export const topologyNames = (prefix = "") => ({
   exchange: `${prefix}notifications`,
@@ -14,11 +10,6 @@ export const topologyNames = (prefix = "") => ({
   deadLetterExchange: `${prefix}notifications.dlx`,
   deadLetterQueue: `${prefix}notifications.dead`,
 });
-
-type TopologyChannel = Pick<
-  Channel,
-  "assertExchange" | "assertQueue" | "bindQueue"
->;
 
 export const assertTopology = async (
   channel: TopologyChannel,

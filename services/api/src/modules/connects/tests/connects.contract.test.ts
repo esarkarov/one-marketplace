@@ -33,7 +33,7 @@ vi.mock("../../../config/env.js", async (importOriginal) => {
   };
 });
 
-vi.mock("../../../infrastructure/payments/stripe.js", () => ({
+vi.mock("../../../infrastructure/payments/stripe.client.js", () => ({
   STRIPE_TIMEOUT_MS: 30_000,
   stripe: {
     customers: { create: mocks.customersCreate },
@@ -41,7 +41,7 @@ vi.mock("../../../infrastructure/payments/stripe.js", () => ({
   },
 }));
 
-vi.mock("../../../infrastructure/cache/redis.js", () => ({
+vi.mock("../../../infrastructure/cache/redis.client.js", () => ({
   redis: {
     get: async (key: string) => mocks.store.get(key) ?? null,
     expire: async () => true,

@@ -45,7 +45,7 @@ const {
   getRabbitStatus,
   isRabbitConnected,
   isRabbitEnabled,
-} = await import("./rabbitmq.js");
+} = await import("./rabbitmq.client.js");
 
 beforeEach(async () => {
   await closeRabbit(1);

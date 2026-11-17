@@ -16,14 +16,14 @@ import {
   type PublicJobFilters,
 } from "../repositories/jobs.repository.js";
 import { ApiError } from "../../../shared/errors/api-error.js";
-import { imageKit } from "../../../infrastructure/storage/image-kit.js";
+import { imageKit } from "../../../infrastructure/storage/image-kit.client.js";
 import { env } from "../../../config/env.js";
 import {
   deleteDocuments,
   uploadDocuments,
 } from "../../../shared/uploads/upload-documents.js";
 import { reuseStoredAttachments } from "../../../shared/uploads/attachments.js";
-import { clerk } from "../../../infrastructure/auth/clerk.js";
+import { clerk } from "../../../infrastructure/auth/clerk.client.js";
 
 export type { PublicJobFilters } from "../repositories/jobs.repository.js";
 

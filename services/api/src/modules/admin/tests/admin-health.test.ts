@@ -7,10 +7,10 @@ const mocks = vi.hoisted(() => ({
   logError: vi.fn(),
 }));
 
-vi.mock("../../../infrastructure/cache/redis.js", () => ({
+vi.mock("../../../infrastructure/cache/redis.client.js", () => ({
   redis: { ping: mocks.ping },
 }));
-vi.mock("../../../infrastructure/events/rabbitmq.js", () => ({
+vi.mock("../../../infrastructure/events/rabbitmq.client.js", () => ({
   getRabbitStatus: mocks.rabbit,
 }));
 vi.mock("../../../config/logger.js", () => ({

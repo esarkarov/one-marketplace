@@ -23,7 +23,7 @@ vi.mock("../../../config/env.js", () => ({
   },
 }));
 
-vi.mock("../../../infrastructure/cache/redis.js", () => ({
+vi.mock("../../../infrastructure/cache/redis.client.js", () => ({
   redis: {
     get isReady() {
       return mocks.ready;

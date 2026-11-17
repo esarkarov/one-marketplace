@@ -3,7 +3,7 @@ import { db } from "../../../database/client.js";
 import { isUniqueViolation } from "../../../database/pg-errors.js";
 import { markPaymentMethodVerified } from "../../auth/index.js";
 import { ApiError } from "../../../shared/errors/api-error.js";
-import { sendNotification } from "../../../infrastructure/events/publisher.js";
+import { sendNotification } from "../../../infrastructure/events/notification.publisher.js";
 import {
   appendConversationMessages,
   emitConversationUpdate,

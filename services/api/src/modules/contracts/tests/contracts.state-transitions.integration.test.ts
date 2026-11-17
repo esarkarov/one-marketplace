@@ -17,10 +17,10 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock(
-  "../../../infrastructure/events/publisher.js",
+  "../../../infrastructure/events/notification.publisher.js",
   async (importOriginal) => ({
     ...(await importOriginal<
-      typeof import("../../../infrastructure/events/publisher.js")
+      typeof import("../../../infrastructure/events/notification.publisher.js")
     >()),
     sendNotification: mocks.sendNotification,
   }),

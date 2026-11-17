@@ -33,19 +33,19 @@ vi.mock("../../../config/env.js", async (importOriginal) => {
   };
 });
 
-vi.mock("../../../infrastructure/auth/clerk.js", () => ({
+vi.mock("../../../infrastructure/auth/clerk.client.js", () => ({
   clerk: { users: { getUser: mocks.getUser } },
   verifyToken: mocks.verifyToken,
 }));
 
-vi.mock("../../../infrastructure/payments/stripe.js", () => ({
+vi.mock("../../../infrastructure/payments/stripe.client.js", () => ({
   stripe: {
     customers: { create: mocks.customersCreate },
     billingPortal: { sessions: { create: mocks.portalCreate } },
   },
 }));
 
-vi.mock("../../../infrastructure/cache/redis.js", () => ({
+vi.mock("../../../infrastructure/cache/redis.client.js", () => ({
   redis: {
     get: async (key: string) => mocks.store.get(key) ?? null,
     expire: async () => true,

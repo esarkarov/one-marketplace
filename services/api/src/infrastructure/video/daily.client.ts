@@ -1,16 +1,6 @@
 import { env } from "../../config/env.js";
-
-const DAILY_API_BASE = "https://api.daily.co/v1";
-// Rooms auto-expire this many seconds after creation as a safety net for
-// abandoned meetings that never get an explicit "ended" webhook.
-const ROOM_TTL_SECONDS = 60 * 60 * 6;
-
-interface DailyRoom {
-  id: string;
-  name: string;
-  url: string;
-  created_at: string;
-}
+import { DAILY_API_BASE, ROOM_TTL_SECONDS } from "../constants/index.js";
+import type { DailyErrorBody, DailyRoom } from "../types/index.js";
 
 const dailyRequest = async <T>(
   path: string,
@@ -31,9 +21,10 @@ const dailyRequest = async <T>(
 
   const body = await response.json().catch(() => null);
   if (!response.ok) {
+    const errorBody = body as DailyErrorBody | null;
     const message =
-      (body as { error?: string; info?: string } | null)?.info ??
-      (body as { error?: string } | null)?.error ??
+      errorBody?.info ??
+      errorBody?.error ??
       `Daily API request failed (${response.status}).`;
     throw new Error(message);
   }

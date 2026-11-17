@@ -7,11 +7,11 @@ import { errorLogAttributes } from "../shared/logging/sanitize-log.js";
 import {
   connectRedis,
   disconnectRedis,
-} from "../infrastructure/cache/redis.js";
+} from "../infrastructure/cache/redis.client.js";
 import {
   closeRabbit,
   isRabbitEnabled,
-} from "../infrastructure/events/rabbitmq.js";
+} from "../infrastructure/events/rabbitmq.client.js";
 import { startNotificationConsumer } from "../modules/notifications/notifications.consumer.js";
 import { initializeMessagingSocket } from "../modules/messaging/messaging.socket.js";
 import { startPayoutCron } from "../modules/payouts/payouts.cron.js";

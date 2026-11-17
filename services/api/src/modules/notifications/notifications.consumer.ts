@@ -1,6 +1,6 @@
 import type { ChannelWrapper } from "amqp-connection-manager";
 import type { ConsumeMessage } from "amqplib";
-import { getRabbitConsumerChannel } from "../../infrastructure/events/rabbitmq.js";
+import { getRabbitConsumerChannel } from "../../infrastructure/events/rabbitmq.client.js";
 import { logger } from "../../config/logger.js";
 import { db } from "../../database/client.js";
 import {
@@ -15,11 +15,9 @@ import {
   errorCodeForLog,
   errorLogAttributes,
 } from "../../shared/logging/sanitize-log.js";
-import { notificationEnvelopeSchema } from "../../infrastructure/events/envelope.js";
-import {
-  DEFAULT_DELIVERY_LIMIT,
-  topologyNames,
-} from "../../infrastructure/events/topology.js";
+import { notificationEnvelopeSchema } from "../../infrastructure/events/notification.envelope.js";
+import { topologyNames } from "../../infrastructure/events/notification.topology.js";
+import { DEFAULT_DELIVERY_LIMIT } from "../../infrastructure/events/constants/events.constants.js";
 
 const PREFETCH = 10;
 const MIN_BACKOFF_MS = 1_000;

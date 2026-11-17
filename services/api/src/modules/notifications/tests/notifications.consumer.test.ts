@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ConsumeMessage } from "amqplib";
-import { createNotificationEnvelope } from "../../../infrastructure/events/envelope.js";
+import { createNotificationEnvelope } from "../../../infrastructure/events/notification.envelope.js";
 
 const mocks = vi.hoisted(() => ({
   returning: vi.fn(),
@@ -16,7 +16,7 @@ vi.mock("../../../config/logger.js", () => ({
   logger: { error: mocks.logError, info: mocks.logInfo },
 }));
 
-vi.mock("../../../infrastructure/events/rabbitmq.js", () => ({
+vi.mock("../../../infrastructure/events/rabbitmq.client.js", () => ({
   getRabbitConsumerChannel: vi.fn(),
 }));
 
