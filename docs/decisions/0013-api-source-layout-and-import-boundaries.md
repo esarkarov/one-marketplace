@@ -39,14 +39,17 @@ One file per third-party client under `src/infrastructure/`, none created anywhe
 
 ### Infrastructure layout
 
-- `auth/`: Clerk client and `verifyToken`.
-- `cache/`: Redis client and `account-auth-cache`.
-- `events/`: RabbitMQ connection, envelope, topology, publisher, legacy-v1.
-- `payments/`: Stripe client.
-- `storage/`: ImageKit client.
-- `video/`: Daily client.
+`src/infrastructure/` has one folder per third-party service plus `utils/`, and no loose files:
 
-Each third-party service has one lazy client in its folder. Upload logic (`upload-documents`) is not infrastructure and lives in `shared/uploads`.
+- `auth/`: `clerk.client.ts` (Clerk client and `verifyToken`).
+- `cache/`: `redis.client.ts` and `account-auth.cache.ts`.
+- `events/`: `rabbitmq.client.ts`, `notification.publisher.ts`, `notification.envelope.ts`, `notification.topology.ts`, `notification.legacy-v1.ts`, `constants/events.constants.ts` and `types/events.types.ts`.
+- `payments/`: `stripe.client.ts`.
+- `storage/`: `image-kit.client.ts`.
+- `video/`: `daily.client.ts` and `types/video.types.ts`.
+- `utils/`: `lazy-client.utils.ts` (`createLazyClient`, used by the Clerk and Stripe clients).
+
+Every third-party client file is `<service>.client.ts` in its service folder. `constants/`, `types/` and `utils/` subfolders exist only when a file lives in them and hold only `*.constants.ts`, `*.types.ts` and `*.utils.ts`. A constant, type or helper is extracted when another file imports it or it is a reusable group; small private ones stay unexported in their file. Tests sit next to their code. There are no barrels and no `helpers`, `common` or `misc` files. `src/test/architecture/infrastructure-layout.test.ts` enforces this without exemptions. Upload logic (`upload-documents`) is not infrastructure and lives in `shared/uploads`.
 
 ### 3. Dependency direction
 
@@ -125,7 +128,7 @@ Outliers renamed in Phase D:
 - `freelancer/@types.ts` to `freelancer.types.ts`
 - `notifications/notification.sse.ts` to `notifications.sse.ts`
 - `payouts/payout-state.ts` and `payout-failure.ts` to `payouts.state.ts` and `payouts.failure.ts`
-- `config/imageKit.ts` to `infrastructure/storage/image-kit.ts`
+- `config/imageKit.ts` to `infrastructure/storage/image-kit.client.ts`
 - `middleware/connects.middleware.ts` moves into the connects module
 
 ### 6. Enforcement

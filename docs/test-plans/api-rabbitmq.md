@@ -2,7 +2,7 @@
 
 ## Scope
 
-`services/api` notification events on RabbitMQ (ADR 0004): `infrastructure/events/rabbitmq.ts`, `infrastructure/events/topology.ts`, `infrastructure/events/envelope.ts`, `infrastructure/events/publisher.ts`, `modules/notifications/notifications.consumer.ts`, startup and shutdown in `server.ts`, and `getSystemHealth` in `admin.service.ts`. Unit tests use stubs; nothing below needs real code changes, but it needs Docker and a running API.
+`services/api` notification events on RabbitMQ (ADR 0004): `infrastructure/events/rabbitmq.client.ts`, `infrastructure/events/notification.topology.ts`, `infrastructure/events/notification.envelope.ts`, `infrastructure/events/notification.publisher.ts`, `modules/notifications/notifications.consumer.ts`, startup and shutdown in `server.ts`, and `getSystemHealth` in `admin.service.ts`. Unit tests use stubs; nothing below needs real code changes, but it needs Docker and a running API.
 
 Use throwaway credentials only. Never use or print the real `.env`.
 
