@@ -133,15 +133,23 @@ export const jobsGetResponses = {
   403: ErrorBody,
 };
 
+const JobLockedBody = z.strictObject({
+  success: z.literal(false),
+  message: z.string(),
+  code: z.literal("JOB_LOCKED"),
+});
+
 export const jobsUpdateResponses = {
   200: ok(JobsPost),
   400: BadRequestBody,
   403: ErrorBody,
   404: ErrorBody,
+  409: JobLockedBody,
 };
 
 export const jobsDeleteResponses = {
   200: okNoData,
   403: ErrorBody,
   404: ErrorBody,
+  409: JobLockedBody,
 };

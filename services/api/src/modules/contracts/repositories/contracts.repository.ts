@@ -232,6 +232,28 @@ export const listContractRows = (
     )
     .orderBy(desc(contracts.created_at), asc(contract_milestones.position));
 
+export const findContractIdByProposal = (
+  executor: DbExecutor,
+  proposalId: string,
+) =>
+  executor
+    .select({ id: contracts.id })
+    .from(contracts)
+    .where(eq(contracts.proposal_id, proposalId))
+    .limit(1);
+
+export const findMilestoneIdByCheckoutSession = (
+  executor: DbExecutor,
+  checkoutSessionId: string,
+) =>
+  executor
+    .select({ id: contract_milestones.id })
+    .from(contract_milestones)
+    .where(
+      eq(contract_milestones.stripe_checkout_session_id, checkoutSessionId),
+    )
+    .limit(1);
+
 export const findProposalOfferForCheckout = (
   executor: DbExecutor,
   proposalId: string,
@@ -296,6 +318,7 @@ export const findFundedContractOffer = (
   executor
     .select({
       id: contracts.id,
+      proposalId: contracts.proposal_id,
       title: contracts.title,
       status: contracts.status,
       clientId: contracts.client_id,

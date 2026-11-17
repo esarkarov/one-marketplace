@@ -133,6 +133,28 @@ export const deleteJobPostIfEditable = async (
   return job;
 };
 
+export const findOwnedJobStatus = async (
+  executor: DbExecutor,
+  userId: string,
+  jobId: string,
+) => {
+  const [job] = await executor
+    .select({ status: job_posts.status })
+    .from(job_posts)
+    .where(and(eq(job_posts.id, jobId), eq(job_posts.client_id, userId)))
+    .limit(1);
+  return job;
+};
+
+export const markJobHired = async (executor: DbExecutor, jobId: string) => {
+  const [job] = await executor
+    .update(job_posts)
+    .set({ status: "HIRED", updated_at: new Date() })
+    .where(and(eq(job_posts.id, jobId), eq(job_posts.status, "PUBLISHED")))
+    .returning({ id: job_posts.id });
+  return job;
+};
+
 export const findPublishedJobId = async (
   executor: DbExecutor,
   jobId: string,

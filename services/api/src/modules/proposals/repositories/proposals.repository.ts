@@ -320,6 +320,20 @@ export const findClientProposalForInterview = async (
   return proposal;
 };
 
+export const markProposalHired = async (
+  executor: DbExecutor,
+  proposalId: string,
+) => {
+  const [hired] = await executor
+    .update(proposals)
+    .set({ status: "HIRED", updated_at: new Date() })
+    .where(
+      and(eq(proposals.id, proposalId), eq(proposals.status, "INTERVIEWED")),
+    )
+    .returning({ id: proposals.id });
+  return hired;
+};
+
 export const markProposalInterviewedIfOpen = async (
   executor: DbExecutor,
   proposalId: string,

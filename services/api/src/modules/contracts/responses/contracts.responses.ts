@@ -112,6 +112,7 @@ export const contractsResponses = {
     400: BadRequestBody,
     403: ErrorBody,
     404: ErrorBody,
+    409: codedError(["CONTRACT_EXISTS", "JOB_ALREADY_HIRED"]),
   },
   milestoneCheckout: {
     200: ok(checkoutUrl),

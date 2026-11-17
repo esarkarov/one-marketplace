@@ -289,6 +289,12 @@ const seed = async (
   };
 };
 
+const seedOffer = async () => {
+  const fixture = await seed({ proposalStatus: "INTERVIEWED" });
+  await pool.query("delete from contracts where id = $1", [fixture.contractId]);
+  return fixture;
+};
+
 const purge = async () => {
   const like = `${PREFIX}%`;
   await pool.query("delete from conversations where context_key like $1", [
@@ -1036,7 +1042,7 @@ describe("POST /contracts/checkout", () => {
       .send({ proposalId });
 
   it("matches the 200 schema", async () => {
-    const fixture = await seed({ proposalStatus: "INTERVIEWED" });
+    const fixture = await seedOffer();
     const response = await checkout(fixture.proposalId, fixture.clientId);
     expect(response.status).toBe(200);
     contractsResponses.checkout[200].parse(response.body);
@@ -1292,8 +1298,8 @@ describe("POST /contracts/checkout account write", () => {
   const OLD = new Date("2000-01-01T00:00:00.000Z");
 
   it("creates a Stripe customer once and stores its id with a fresh updated_at", async () => {
-    const fixture = await seed({ proposalStatus: "INTERVIEWED" });
-    const other = await seed({ proposalStatus: "INTERVIEWED" });
+    const fixture = await seedOffer();
+    const other = await seedOffer();
     await pool.query(
       "update accounts set stripe_customer_id = null, updated_at = $1 where auth_id = any($2)",
       [OLD, [fixture.clientId, other.clientId]],

@@ -10,6 +10,8 @@ import {
 } from "../../messaging/index.js";
 import { getJSSContribution } from "../../freelancer/index.js";
 import { getAgencyOwnerId } from "../../agency/index.js";
+import { markJobHired } from "../../jobs/index.js";
+import { markProposalHired } from "../../proposals/index.js";
 import {
   findContractForReview,
   findFundedContractOffer,
@@ -34,6 +36,12 @@ import {
   recordFreelancerJobStarted,
   recordFreelancerReviewStats,
 } from "../repositories/contracts.state.repository.js";
+import {
+  logPaymentMismatch,
+  refundUnrecordedPayment,
+} from "./contracts.checkout.service.js";
+
+class JobAlreadyHired extends Error {}
 
 const REVIEW_CONTRACT_REVIEWER_UNIQUE = "reviews_contract_reviewer_unique";
 
@@ -243,6 +251,8 @@ export const acceptContract = async (
     );
     if (!activated) throw offerNotAcceptable();
 
+    await markProposalHired(transaction, offer.proposalId);
+
     if (agencyId) {
       await recordAgencyJobStarted(transaction, agencyId, now);
     } else {
@@ -319,7 +329,9 @@ export const createContractFromPayment = async (
     session.amount_total !== firstMilestoneAmount ||
     session.currency !== "usd"
   ) {
-    throw new ApiError(400, "Stripe contract payment does not match.");
+    await logPaymentMismatch(session, firstMilestoneAmount);
+    await refundUnrecordedPayment(session, "amount_mismatch");
+    return;
   }
 
   const paymentIntentId =
@@ -327,65 +339,82 @@ export const createContractFromPayment = async (
       ? session.payment_intent
       : session.payment_intent?.id;
 
-  const result = await db.transaction(async (transaction) => {
-    const [contract] = await insertContractIfProposalUnused(transaction, {
-      proposal_id: offer.proposal.id,
-      job_id: offer.job.id,
-      client_id: clientId,
-      freelancer_id: isAgency ? null : offer.proposal.sender_id,
-      agency_id: isAgency ? offer.proposal.sender_id : null,
-      title: offer.job.title,
-      total_amount_cents: totalAmountCents,
-      status: "PENDING",
-    });
+  const result = await db
+    .transaction(async (transaction) => {
+      const [contract] = await insertContractIfProposalUnused(transaction, {
+        proposal_id: offer.proposal.id,
+        job_id: offer.job.id,
+        client_id: clientId,
+        freelancer_id: isAgency ? null : offer.proposal.sender_id,
+        agency_id: isAgency ? offer.proposal.sender_id : null,
+        title: offer.job.title,
+        total_amount_cents: totalAmountCents,
+        status: "PENDING",
+      });
 
-    if (!contract) return;
+      if (!contract) return { kind: "duplicate" as const };
 
-    await insertContractMilestones(
-      transaction,
-      milestones.map((milestone, position) => ({
-        contract_id: contract.id,
-        title: milestone.title,
-        amount_cents: amounts[position]!,
-        due_date: milestone.dueDate,
-        position,
-        stripe_checkout_session_id: position === 0 ? session.id : undefined,
-        stripe_payment_intent_id: position === 0 ? paymentIntentId : undefined,
-        funded_at: position === 0 ? new Date() : undefined,
-      })),
-    );
+      const hiredJob = await markJobHired(transaction, offer.job.id);
+      if (!hiredJob) throw new JobAlreadyHired();
 
-    await markPaymentMethodVerified(transaction, clientId);
+      await insertContractMilestones(
+        transaction,
+        milestones.map((milestone, position) => ({
+          contract_id: contract.id,
+          title: milestone.title,
+          amount_cents: amounts[position]!,
+          due_date: milestone.dueDate,
+          position,
+          stripe_checkout_session_id: position === 0 ? session.id : undefined,
+          stripe_payment_intent_id:
+            position === 0 ? paymentIntentId : undefined,
+          funded_at: position === 0 ? new Date() : undefined,
+        })),
+      );
 
-    const [message] = await appendConversationMessages(transaction, {
-      conversationId: offer.conversationId,
-      messages: [
-        {
-          sender_id: clientId,
-          message_type: "SYSTEM_EVENT",
-          body: "Contract offer sent",
-          event_type: "CONTRACT_OFFER",
-          event_payload: {
-            contractId: contract.id,
-            proposalId: offer.proposal.id,
-            title: offer.job.title,
-            firstMilestone: {
-              title: milestones[0]!.title,
-              amountCents: amounts[0],
+      await markPaymentMethodVerified(transaction, clientId);
+
+      const [message] = await appendConversationMessages(transaction, {
+        conversationId: offer.conversationId,
+        messages: [
+          {
+            sender_id: clientId,
+            message_type: "SYSTEM_EVENT",
+            body: "Contract offer sent",
+            event_type: "CONTRACT_OFFER",
+            event_payload: {
+              contractId: contract.id,
+              proposalId: offer.proposal.id,
+              title: offer.job.title,
+              firstMilestone: {
+                title: milestones[0]!.title,
+                amountCents: amounts[0],
+              },
             },
           },
-        },
-      ],
-      updatedAt: new Date(),
-      unread: { allExceptType: "CLIENT" },
+        ],
+        updatedAt: new Date(),
+        unread: { allExceptType: "CLIENT" },
+      });
+      if (!message)
+        throw new ApiError(500, "Contract message could not be sent.");
+
+      return { kind: "created" as const, contractId: contract.id };
+    })
+    .catch((error: unknown) => {
+      if (error instanceof JobAlreadyHired)
+        return { kind: "job-hired" as const };
+      throw error;
     });
-    if (!message)
-      throw new ApiError(500, "Contract message could not be sent.");
 
-    return { contractId: contract.id };
-  });
-
-  if (!result) return;
+  if (result.kind === "job-hired") {
+    await refundUnrecordedPayment(session, "job_already_hired");
+    return;
+  }
+  if (result.kind === "duplicate") {
+    await refundUnrecordedPayment(session, "duplicate_session");
+    return;
+  }
 
   await sendNotification(
     isAgency

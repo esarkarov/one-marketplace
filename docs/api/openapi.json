@@ -12562,6 +12562,31 @@
             },
             "description": "Not Found"
           },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "code": {
+                      "enum": ["CONTRACT_EXISTS", "JOB_ALREADY_HIRED"],
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "success": {
+                      "const": false,
+                      "type": "boolean"
+                    }
+                  },
+                  "required": ["success", "message", "code"],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
           "429": {
             "content": {
               "application/json": {
@@ -17577,6 +17602,31 @@
             },
             "description": "Not Found"
           },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "code": {
+                      "const": "JOB_LOCKED",
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "success": {
+                      "const": false,
+                      "type": "boolean"
+                    }
+                  },
+                  "required": ["success", "message", "code"],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
           "429": {
             "content": {
               "application/json": {
@@ -17999,6 +18049,31 @@
               }
             },
             "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "code": {
+                      "const": "JOB_LOCKED",
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "success": {
+                      "const": false,
+                      "type": "boolean"
+                    }
+                  },
+                  "required": ["success", "message", "code"],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Conflict"
           },
           "429": {
             "content": {

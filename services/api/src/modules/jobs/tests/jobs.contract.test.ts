@@ -625,6 +625,25 @@ describe("jobs queries against real Postgres", () => {
       expect((await readJob(other.id))!.title).toBe("Untouched");
     });
 
+    it("answers 409 JOB_LOCKED for a hired job before uploading anything", async () => {
+      const clientId = await seedClientWith();
+      const job = await insertJob(clientId, {
+        title: "Hired",
+        status: "HIRED",
+      });
+
+      const response = await request(app)
+        .put(`${API}/${job.id}`)
+        .set(as(clientId))
+        .send(jobBody({ title: "Changed" }));
+
+      expect(response.status).toBe(409);
+      jobsUpdateResponses[409].parse(response.body);
+      expect(response.body.code).toBe("JOB_LOCKED");
+      expect(mocks.upload).not.toHaveBeenCalled();
+      expect((await readJob(job.id))!.title).toBe("Hired");
+    });
+
     it("answers 404 for another client's job before uploading anything", async () => {
       const owner = await seedClientWith();
       const intruder = await seedClientWith();
@@ -640,7 +659,7 @@ describe("jobs queries against real Postgres", () => {
       expect((await readJob(job.id))!.title).toBe("Mine");
     });
 
-    it("answers 404 and removes the upload when the job is hired during the upload", async () => {
+    it("answers 409 and removes the upload when the job is hired during the upload", async () => {
       const clientId = await seedClientWith();
       const job = await insertJob(clientId, { title: "Before" });
       mocks.upload.mockImplementation(async () => {
@@ -656,7 +675,8 @@ describe("jobs queries against real Postgres", () => {
         .set(as(clientId))
         .send(jobBody({ title: "After" }));
 
-      expect(response.status).toBe(404);
+      expect(response.status).toBe(409);
+      expect(response.body.code).toBe("JOB_LOCKED");
       expect(mocks.remove).toHaveBeenCalledWith("file_hired");
       expect((await readJob(job.id))!.title).toBe("Before");
     });
@@ -692,7 +712,8 @@ describe("jobs queries against real Postgres", () => {
         .query(asClient)
         .set(as(clientId));
 
-      expect(response.status).toBe(404);
+      expect(response.status).toBe(409);
+      expect(response.body.code).toBe("JOB_LOCKED");
       expect(await readJob(job.id)).toBeDefined();
     });
 

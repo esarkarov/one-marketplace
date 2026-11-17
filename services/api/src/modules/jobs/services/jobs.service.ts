@@ -4,6 +4,7 @@ import {
   deleteSavedJob,
   findEditableJobPost,
   findJobPostsWithCounts,
+  findOwnedJobStatus,
   findPublishedJobFeedRows,
   findPublishedJobId,
   findSavedJob,
@@ -51,6 +52,21 @@ export const getJobPosts = async (userId: string, jobId?: string) => {
   return findJobPostsWithCounts(db, userId, jobId);
 };
 
+const jobNotEditable = async (
+  userId: string,
+  jobId: string,
+  message: string,
+) => {
+  const owned = await findOwnedJobStatus(db, userId, jobId);
+  return owned?.status === "HIRED"
+    ? new ApiError(
+        409,
+        "This job has a hire and can no longer be changed.",
+        "JOB_LOCKED",
+      )
+    : new ApiError(404, message);
+};
+
 export const updateJobPost = async (
   userId: string,
   jobId: string,
@@ -58,7 +74,9 @@ export const updateJobPost = async (
 ) => {
   const existingJob = await findEditableJobPost(db, userId, jobId);
 
-  if (!existingJob) throw new ApiError(404, "Editable job post not found.");
+  if (!existingJob) {
+    throw await jobNotEditable(userId, jobId, "Editable job post not found.");
+  }
 
   const { documents: attachments, uploadedIds } = await uploadDocuments(
     userId,
@@ -84,7 +102,7 @@ export const updateJobPost = async (
 
   if (!job) {
     await cleanupUploads();
-    throw new ApiError(404, "Editable job post not found.");
+    throw await jobNotEditable(userId, jobId, "Editable job post not found.");
   }
 
   const retainedIds = new Set(attachments.map(({ fileId }) => fileId));
@@ -98,7 +116,9 @@ export const updateJobPost = async (
 export const deleteJobPost = async (userId: string, jobId: string) => {
   const job = await deleteJobPostIfEditable(db, userId, jobId);
 
-  if (!job) throw new ApiError(404, "Deleteable job post not found.");
+  if (!job) {
+    throw await jobNotEditable(userId, jobId, "Deleteable job post not found.");
+  }
 
   await deleteDocuments(job.attachments ?? []);
   return job;

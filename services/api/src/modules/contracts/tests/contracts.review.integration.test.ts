@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => ({
   sendNotification: vi.fn(),
   emitConversationUpdate: vi.fn(),
   loggerWarn: vi.fn(),
+  refundCreate: vi.fn(),
 }));
 
 vi.mock("../../../config/logger.js", async (importOriginal) => {
@@ -28,6 +29,10 @@ vi.mock("../../../config/logger.js", async (importOriginal) => {
     logger: { ...original.logger, warn: mocks.loggerWarn },
   };
 });
+
+vi.mock("../../../infrastructure/payments/stripe.client.js", () => ({
+  stripe: { refunds: { create: mocks.refundCreate } },
+}));
 
 vi.mock(
   "../../../infrastructure/events/notification.publisher.js",
@@ -856,9 +861,11 @@ describe("money in cents", () => {
       const fixture = await createFixture("freelancer", 1234);
       const session = await prepareFunding(fixture);
 
-      await expect(
-        fundContractMilestoneFromPayment(session(1235)),
-      ).rejects.toMatchObject({ statusCode: 400 });
+      mocks.refundCreate.mockClear();
+
+      await fundContractMilestoneFromPayment(session(1235));
+
+      expect(mocks.refundCreate).toHaveBeenCalledTimes(1);
       expect((await readState(fixture)).milestone.status).toBe("PENDING");
     });
   });
@@ -912,6 +919,7 @@ describe("money in cents", () => {
     await db
       .update(job_posts)
       .set({
+        status: "PUBLISHED",
         milestones: [
           {
             id: randomUUID(),
@@ -948,9 +956,9 @@ describe("money in cents", () => {
         },
       }) as unknown as Stripe.Checkout.Session;
 
-    await expect(
-      createContractFromPayment(session(1233)),
-    ).rejects.toMatchObject({ statusCode: 400 });
+    mocks.refundCreate.mockClear();
+    await createContractFromPayment(session(1233));
+    expect(mocks.refundCreate).toHaveBeenCalledTimes(1);
     await createContractFromPayment(session(1234));
 
     const [contract] = await db
@@ -1215,6 +1223,7 @@ describe("conversation writes by site", () => {
     await db
       .update(job_posts)
       .set({
+        status: "PUBLISHED",
         milestones: [
           {
             id: randomUUID(),
@@ -1632,6 +1641,7 @@ describe("offer transaction account write", () => {
     await db
       .update(job_posts)
       .set({
+        status: "PUBLISHED",
         milestones: [
           {
             id: randomUUID(),
@@ -1698,9 +1708,9 @@ describe("offer transaction account write", () => {
   it("leaves the payment method unverified when the payment does not match", async () => {
     const { fixture, session } = await prepareOffer();
 
-    await expect(
-      createContractFromPayment(session(1233)),
-    ).rejects.toMatchObject({ statusCode: 400 });
+    mocks.refundCreate.mockClear();
+    await createContractFromPayment(session(1233));
+    expect(mocks.refundCreate).toHaveBeenCalledTimes(1);
 
     const client = await accountOf(fixture.clientId);
     expect(client.paymentMethodVerified).toBe(false);
