@@ -60,8 +60,8 @@ Not run: dropping the partial unique index (needs a DB change; the index is exer
 ## Not covered
 
 - Agency double review by two teammates (ADR 0007, item a).
-- HIRED status, decline and withdraw (no such transitions), proposal past INTERVIEWED.
-- Double-paid checkouts: the second webhook is ignored, the double charge is not tested.
+- Decline and withdraw (no such transitions), proposal past HIRED.
+- Contracts created before the HIRED lock keep their job PUBLISHED (no backfill).
 - Daily room cleanup after a lost `startMeeting` race (only logged as `task.meeting.room_orphaned`).
 - Real Daily and Stripe, several API processes, more than three parallel requests.
 - Frontend behavior on the new 409 codes (no app calls the API yet).
@@ -101,3 +101,14 @@ Test file: `modules/agency/agency.team.integration.test.ts` (real `_test` databa
 | M9 `createAgency` sequential pre-check removed alone                                            | equivalent mutant: same 409 through the 23505 mapping, not a gap |
 
 `resolveAccountRole` 403 was already covered by an existing test in `auth.middleware.body-order.test.ts`, so it needed no new mutation.
+
+## M2: HIRED lock and duplicate payments (ADR 0008)
+
+Real Postgres, mocked Stripe client, scoped data per file.
+
+- `contracts.payment-recovery.integration.test.ts`: contract creation sets the job HIRED; a replay leaves it unchanged and refunds nothing; a second proposal on a HIRED job cannot start checkout (409 `JOB_ALREADY_HIRED`) and a paid session for it is refunded with no contract; a job that is not PUBLISHED is refunded; acceptance sets the proposal HIRED and the dashboard counts it; a duplicate session is refunded once with the `refund:<pi>` key, also under concurrency, and never the winner; a milestone double payment is refunded once and a replay of the winner is not; an amount mismatch logs `payment.mismatch`, refunds and resolves, for contracts and funding; an unpaid session is ignored; a failed refund is logged and rethrown; `charge_already_refunded` is accepted; 409 `CONTRACT_EXISTS`; sessions expire between 30 minutes and 24 hours, carry `client_reference_id` and have no idempotency key.
+- `jobs.hired-guard.integration.test.ts`: `markJobHired` is conditional on `PUBLISHED`, idempotent and wins exactly once under concurrency; `findOwnedJobStatus` is owner-scoped. `jobs.contract.test.ts`: update and delete of a HIRED job answer 409 `JOB_LOCKED`.
+- `proposals.hired-guard.integration.test.ts`: `markProposalHired` only changes INTERVIEWED proposals.
+- Existing tests adjusted: the two HIRED job tests in `jobs.contract.test.ts` (404 to 409), the mismatch tests in `contracts.review.integration.test.ts` (reject 400 to refund and resolve, plus the stripe client mock and PUBLISHED jobs for contract creation), and the checkout tests in `contracts.contract.test.ts` (offer seeded without a contract).
+
+Mutation check (hand mutants, all killed, files restored and checksum-verified): `markJobHired` without the `PUBLISHED` guard (5 tests failed); refund when the session id is already recorded (inverted check, 9 failed); skipping the refund on an amount mismatch (2 failed).

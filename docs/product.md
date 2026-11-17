@@ -26,7 +26,7 @@ Describes what the five apps show today. Every screen is a static mock: data is 
 - Fields: title (10 to 100 characters), description (80 to 5000), expertise level (Entry level, Intermediate, Expert), expected duration (Less than 1 month, 1-2 months, 3-6 months, 6+ months), skills (comma separated), screening questions (optional), project brief attachments.
 - Budget is fixed price only in the form. It is a list of milestones, each with title (min 3 characters), budget in USD (min 10) and due date (after today and after the previous milestone). The total budget is the sum. At least one milestone is required.
 - Buttons: "Save draft" (no handler), "Publish job", and "Save changes" when editing. Posts are described as publicly visible in the talent marketplace.
-- Job statuses: Open, Draft, Closed. A job cannot be edited once a hire exists ("Editing locked").
+- Job statuses: Open (`PUBLISHED`), Draft, Closed, Hired. A job is single-hire: it becomes Hired when its contract is created from the first payment, leaves the feeds, accepts no proposals and cannot be edited or deleted ("Editing locked", API answer 409 `JOB_LOCKED`). A proposal becomes Hired when the freelancer accepts the contract.
 - Freelancer-side job data also includes hourly jobs, client rating, client spend, location, verified and featured flags. How hourly jobs are posted is **to confirm**.
 
 ## Finding work (freelancer and agency)
