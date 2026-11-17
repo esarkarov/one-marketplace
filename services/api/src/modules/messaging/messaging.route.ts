@@ -27,7 +27,7 @@ import { messagingResponses } from "./responses/messaging.responses.js";
 
 export const messagingRouter = Router();
 
-const sendMessageLimiter = messageWriteLimiter();
+const sendMessageLimiter = messageWriteLimiter("message-send");
 
 messagingRouter.get(
   "/",

@@ -43,7 +43,7 @@ import {
 
 export const freelancerRouter = Router();
 
-const profileWriteLimiter = contentWriteLimiter();
+const profileWriteLimiter = contentWriteLimiter("freelancer-profile-write");
 
 freelancerRouter.get(
   "/profile",

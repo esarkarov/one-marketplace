@@ -37,8 +37,8 @@ import {
 
 export const jobRouter = Router();
 
-const createJobLimiter = contentWriteLimiter();
-const updateJobLimiter = contentWriteLimiter();
+const createJobLimiter = contentWriteLimiter("job-create");
+const updateJobLimiter = contentWriteLimiter("job-update");
 
 jobRouter.post(
   "/",

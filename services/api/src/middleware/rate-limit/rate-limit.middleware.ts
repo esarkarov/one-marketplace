@@ -10,11 +10,13 @@ import {
   isRateLimitExempt,
   rateLimitBaseOptions,
 } from "../utils/rate-limit.utils.js";
+import { createRedisRateLimitStore } from "../utils/redis-rate-limit-store.utils.js";
 
 const isTestEnvironment = () => env.nodeEnv === "test";
 
 export const globalLimiter = rateLimit({
   ...rateLimitBaseOptions,
+  store: createRedisRateLimitStore("global"),
   windowMs: FIFTEEN_MINUTES,
   limit: 300,
   skip: (request) =>
@@ -23,6 +25,7 @@ export const globalLimiter = rateLimit({
 
 export const adminLoginLimiter = rateLimit({
   ...rateLimitBaseOptions,
+  store: createRedisRateLimitStore("admin-login"),
   windowMs: FIFTEEN_MINUTES,
   limit: 20,
   skipSuccessfulRequests: true,
@@ -31,6 +34,7 @@ export const adminLoginLimiter = rateLimit({
 
 export const adminLimiter = rateLimit({
   ...rateLimitBaseOptions,
+  store: createRedisRateLimitStore("admin"),
   windowMs: FIFTEEN_MINUTES,
   limit: 150,
   skip: isTestEnvironment,
@@ -38,6 +42,7 @@ export const adminLimiter = rateLimit({
 
 export const publicSearchLimiter = rateLimit({
   ...rateLimitBaseOptions,
+  store: createRedisRateLimitStore("public-search"),
   windowMs: PUBLIC_SEARCH_WINDOW_MS,
   limit: PUBLIC_SEARCH_LIMIT,
   skip: isTestEnvironment,
@@ -45,6 +50,7 @@ export const publicSearchLimiter = rateLimit({
 
 export const signUpLimiter = rateLimit({
   ...rateLimitBaseOptions,
+  store: createRedisRateLimitStore("sign-up"),
   windowMs: ONE_HOUR,
   limit: 10,
   skip: isTestEnvironment,

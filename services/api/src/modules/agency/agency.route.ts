@@ -82,7 +82,7 @@ import {
 
 export const agencyRouter = Router();
 
-const agencyWriteLimiter = contentWriteLimiter();
+const agencyWriteLimiter = contentWriteLimiter("agency-content-write");
 
 agencyRouter.get(
   "/search",

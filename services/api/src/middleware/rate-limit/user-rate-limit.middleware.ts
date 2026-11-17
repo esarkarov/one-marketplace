@@ -8,13 +8,16 @@ import {
   MESSAGE_WRITE_LIMIT,
 } from "../constants/rate-limit.constants.js";
 import { rateLimitBaseOptions } from "../utils/rate-limit.utils.js";
+import { createRedisRateLimitStore } from "../utils/redis-rate-limit-store.utils.js";
 
 interface UserRateLimitOptions {
+  name: string;
   limit: number;
   windowMs?: number;
 }
 
 export const createUserRateLimiter = ({
+  name,
   limit,
   windowMs = FIFTEEN_MINUTES,
 }: UserRateLimitOptions) =>
@@ -22,6 +25,7 @@ export const createUserRateLimiter = ({
     windowMs,
     limit,
     ...rateLimitBaseOptions,
+    store: createRedisRateLimitStore(name),
     skip: () => env.nodeEnv === "test",
     keyGenerator: (request) =>
       request.auth?.userId ??
@@ -30,12 +34,13 @@ export const createUserRateLimiter = ({
   });
 
 export const inviteWriteLimiter = createUserRateLimiter({
+  name: "agency-invite-write",
   limit: INVITE_WRITE_LIMIT,
   windowMs: INVITE_WRITE_WINDOW_MS,
 });
 
-export const messageWriteLimiter = () =>
-  createUserRateLimiter({ limit: MESSAGE_WRITE_LIMIT });
+export const messageWriteLimiter = (name: string) =>
+  createUserRateLimiter({ name, limit: MESSAGE_WRITE_LIMIT });
 
-export const contentWriteLimiter = () =>
-  createUserRateLimiter({ limit: CONTENT_WRITE_LIMIT });
+export const contentWriteLimiter = (name: string) =>
+  createUserRateLimiter({ name, limit: CONTENT_WRITE_LIMIT });

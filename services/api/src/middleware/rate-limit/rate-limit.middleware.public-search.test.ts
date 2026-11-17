@@ -6,6 +6,10 @@ import {
   PUBLIC_SEARCH_WINDOW_MS,
 } from "../constants/rate-limit.constants.js";
 
+vi.mock("../../infrastructure/cache/redis.client.js", () => ({
+  redis: { isReady: false },
+}));
+
 vi.mock("../../config/env.js", () => ({ env: { nodeEnv: "production" } }));
 
 const { publicSearchLimiter } = await import("./rate-limit.middleware.js");

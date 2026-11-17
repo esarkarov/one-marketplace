@@ -10,6 +10,10 @@ import {
 
 const mocks = vi.hoisted(() => ({ nodeEnv: "production" }));
 
+vi.mock("../../infrastructure/cache/redis.client.js", () => ({
+  redis: { isReady: false },
+}));
+
 vi.mock("../../config/env.js", () => ({
   env: {
     get nodeEnv() {
@@ -52,7 +56,7 @@ describe("user rate limiter", () => {
   });
 
   it("allows the content limit then returns 429 in the standard shape", async () => {
-    const app = createApp(contentWriteLimiter());
+    const app = createApp(contentWriteLimiter("test-content"));
 
     const allowed = await hit(app, "user_1", CONTENT_WRITE_LIMIT);
     expect(allowed.every((response) => response.status === 200)).toBe(true);
@@ -66,7 +70,7 @@ describe("user rate limiter", () => {
   });
 
   it("allows 120 message writes and blocks the 121st", async () => {
-    const app = createApp(messageWriteLimiter());
+    const app = createApp(messageWriteLimiter("test-message"));
 
     const allowed = await hit(app, "user_1", MESSAGE_WRITE_LIMIT);
     expect(allowed.every((response) => response.status === 200)).toBe(true);
@@ -76,7 +80,7 @@ describe("user rate limiter", () => {
   });
 
   it("counts each user separately regardless of IP", async () => {
-    const app = createApp(createUserRateLimiter({ limit: 2 }));
+    const app = createApp(createUserRateLimiter({ name: "test-a", limit: 2 }));
 
     await hit(app, "user_1", 2);
     const blocked = await request(app).post("/").set("x-test-user", "user_1");
@@ -87,8 +91,12 @@ describe("user rate limiter", () => {
   });
 
   it("keeps separate limiter instances independent", async () => {
-    const first = createApp(createUserRateLimiter({ limit: 1 }));
-    const second = createApp(createUserRateLimiter({ limit: 1 }));
+    const first = createApp(
+      createUserRateLimiter({ name: "test-first", limit: 1 }),
+    );
+    const second = createApp(
+      createUserRateLimiter({ name: "test-second", limit: 1 }),
+    );
 
     await hit(first, "user_1", 1);
 
@@ -137,7 +145,9 @@ describe("user rate limiter", () => {
   it("is skipped in the test environment", async () => {
     mocks.nodeEnv = "test";
     try {
-      const app = createApp(createUserRateLimiter({ limit: 1 }));
+      const app = createApp(
+        createUserRateLimiter({ name: "test-b", limit: 1 }),
+      );
       const responses = await hit(app, "user_1", 5);
       expect(responses.every((response) => response.status === 200)).toBe(true);
     } finally {
