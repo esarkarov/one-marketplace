@@ -39,17 +39,19 @@ One file per third-party client under `src/infrastructure/`, none created anywhe
 
 ### Infrastructure layout
 
-`src/infrastructure/` has one folder per third-party service plus `utils/`, and no loose files:
+`src/infrastructure/` has one folder per third-party service, three shared folders, and no loose files:
 
 - `auth/`: `clerk.client.ts` (Clerk client and `verifyToken`).
 - `cache/`: `redis.client.ts` and `account-auth.cache.ts`.
-- `events/`: `rabbitmq.client.ts`, `notification.publisher.ts`, `notification.envelope.ts`, `notification.topology.ts`, `notification.legacy-v1.ts`, `constants/events.constants.ts` and `types/events.types.ts`.
+- `events/`: `rabbitmq.client.ts`, `notification.publisher.ts`, `notification.envelope.ts` and `notification.topology.ts`.
 - `payments/`: `stripe.client.ts`.
 - `storage/`: `image-kit.client.ts`.
-- `video/`: `daily.client.ts` and `types/video.types.ts`.
-- `utils/`: `lazy-client.utils.ts` (`createLazyClient`, used by the Clerk and Stripe clients).
+- `video/`: `daily.client.ts`.
+- `constants/`: constants shared across services, with an `index.ts` barrel; other files are `*.constants.ts`.
+- `types/`: types shared across services, with an `index.ts` barrel; other files are `*.types.ts`.
+- `utils/`: `*.utils.ts` (`lazy-client.utils.ts`, `createLazyClient`, used by the Clerk and Stripe clients).
 
-Every third-party client file is `<service>.client.ts` in its service folder. `constants/`, `types/` and `utils/` subfolders exist only when a file lives in them and hold only `*.constants.ts`, `*.types.ts` and `*.utils.ts`. A constant, type or helper is extracted when another file imports it or it is a reusable group; small private ones stay unexported in their file. Tests sit next to their code. There are no barrels and no `helpers`, `common` or `misc` files. `src/test/architecture/infrastructure-layout.test.ts` enforces this without exemptions. Upload logic (`upload-documents`) is not infrastructure and lives in `shared/uploads`.
+Every third-party client file is `<service>.client.ts` inside its service folder, and only `.client.ts` files import a client package (type imports are exempt; use `import type` for type-only imports). `index.ts` is allowed only in `constants/` and `types/`, which are imported as `../constants/index.js` and `../types/index.js`. Folders are flat. Tests sit next to their code. There are no `helpers`, `common` or `misc` files. `src/test/architecture/infrastructure-layout.test.ts` enforces this without exemptions. Upload logic (`upload-documents`) is not infrastructure and lives in `shared/uploads`.
 
 ### 3. Dependency direction
 
