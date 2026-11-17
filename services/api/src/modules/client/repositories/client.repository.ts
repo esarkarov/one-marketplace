@@ -1,4 +1,4 @@
-import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, sql } from "drizzle-orm";
 import type { DbExecutor } from "../../../database/database.types.js";
 import type { SaveClientProfileInput } from "../types/client.types.js";
 import { accounts } from "../../auth/models/auth.model.js";
@@ -293,6 +293,7 @@ export const findFreelancerSearchRows = (
       freelancer_earning,
       eq(freelancer_earning.freelancer_id, freelancer_metadata.auth_id),
     )
+    .orderBy(asc(freelancer_metadata.created_at), asc(freelancer_metadata.id))
     .limit(limit)
     .offset(offset);
 };
@@ -324,6 +325,7 @@ export const findOnboardedAgencySearchRows = (
     )
     .leftJoin(agency_earning, eq(agency_earning.agency_id, agency_metadata.id))
     .where(eq(agency_metadata.is_onboarded, true))
+    .orderBy(asc(agency_metadata.created_at), asc(agency_metadata.id))
     .limit(limit)
     .offset(offset);
 };

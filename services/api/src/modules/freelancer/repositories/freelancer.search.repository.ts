@@ -85,7 +85,7 @@ export const searchFreelancerRows = (
       eq(freelancer_earning.freelancer_id, freelancer_metadata.auth_id),
     )
     .where(conditions.length ? and(...conditions) : undefined)
-    .orderBy(orderBy)
+    .orderBy(orderBy, asc(freelancer_metadata.id))
     .limit(page.limit)
     .offset(page.offset);
 };

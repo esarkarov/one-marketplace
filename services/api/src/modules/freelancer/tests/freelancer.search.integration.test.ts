@@ -244,6 +244,57 @@ describe("searchFreelancerRows", () => {
   });
 });
 
+describe("searchFreelancerRows paging with tied sort values", () => {
+  const SORTS = [
+    "recommended",
+    "rating",
+    "success",
+    "projects",
+    "rate-low",
+  ] as const;
+
+  const seedTies = async (withEarning: boolean) => {
+    const ids: string[] = [];
+    for (let index = 0; index < 7; index += 1) {
+      ids.push(
+        await seedTalent({
+          rate: 9_000_100,
+          verified: true,
+          status: "AVAILABLE",
+          earning: withEarning
+            ? { rating: "4.00", success: "80.00", completed: 5 }
+            : null,
+        }),
+      );
+    }
+    return ids;
+  };
+
+  it.each(
+    SORTS.flatMap((sort) => [[sort, true] as const, [sort, false] as const]),
+  )(
+    "pages every row exactly once for sort %s (earning rows: %s)",
+    async (sort, withEarning) => {
+      const seeded = await seedTies(withEarning);
+      const criteria = { ...BAND, sort };
+      const everything = await searchFreelancerRows(db, criteria, EVERYTHING);
+
+      const paged: string[] = [];
+      for (let offset = 0; offset < seeded.length; offset += 3) {
+        const page = await searchFreelancerRows(db, criteria, {
+          limit: 3,
+          offset,
+        });
+        paged.push(...page.map((row) => row.authId));
+      }
+
+      expect(new Set(paged).size).toBe(paged.length);
+      expect([...paged].sort()).toEqual([...seeded].sort());
+      expect(paged).toEqual(everything.map((row) => row.authId));
+    },
+  );
+});
+
 describe("job feed reads", () => {
   const seedClient = async (options: { metadata: boolean; spent: boolean }) => {
     const clientId = await insertAccount("CLIENT", {

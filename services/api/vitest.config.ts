@@ -3,6 +3,7 @@ import { defineConfig } from "vitest/config";
 const payoutTotalsFiles = [
   "src/modules/payouts/tests/payouts.integration.test.ts",
   "src/modules/client/tests/client.contract.test.ts",
+  "src/modules/client/tests/client.search.integration.test.ts",
   "src/modules/admin/tests/admin.contract.test.ts",
   "src/modules/agency/tests/agency.contract.test.ts",
   "src/modules/freelancer/tests/freelancer.contract.test.ts",

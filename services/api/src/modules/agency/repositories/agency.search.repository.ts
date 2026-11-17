@@ -86,7 +86,7 @@ export const searchAgencyRows = (
     )
     .leftJoin(agency_earning, eq(agency_earning.agency_id, agency_metadata.id))
     .where(and(...conditions))
-    .orderBy(orderBy)
+    .orderBy(orderBy, asc(agency_metadata.id))
     .limit(page.limit)
     .offset(page.offset);
 };
