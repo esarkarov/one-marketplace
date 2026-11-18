@@ -5,6 +5,7 @@ const payoutTotalsFiles = [
   "src/modules/client/tests/client.contract.test.ts",
   "src/modules/client/tests/client.search.integration.test.ts",
   "src/modules/admin/tests/admin.contract.test.ts",
+  "src/modules/admin/tests/admin.listings.integration.test.ts",
   "src/modules/agency/tests/agency.contract.test.ts",
   "src/modules/freelancer/tests/freelancer.contract.test.ts",
   "src/modules/freelancer/tests/freelancer.repository.integration.test.ts",
