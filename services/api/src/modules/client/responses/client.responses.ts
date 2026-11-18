@@ -1,3 +1,4 @@
+import { MARKETPLACE_ACCOUNT_TYPE } from "../constants/client.constants.js";
 import { z } from "zod";
 import {
   ErrorBody,
@@ -94,7 +95,7 @@ const ClientFinanceLink = z
 const ClientMarketplaceResult = z
   .strictObject({
     id: z.uuid(),
-    accountType: z.enum(["Freelancer", "Agency"]),
+    accountType: z.enum(MARKETPLACE_ACCOUNT_TYPE),
     name: z.string(),
     title: z.string(),
     location: z.string(),

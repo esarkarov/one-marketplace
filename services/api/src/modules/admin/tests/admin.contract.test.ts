@@ -209,7 +209,7 @@ describe("GET /admin/accounts", () => {
       .set(admin());
     expect(response.status).toBe(200);
     const body = adminResponses.accounts[200].parse(response.body);
-    expect(body.data.results.map((item) => item.type)).toContain("Agency");
+    expect(body.data.results.map((item) => item.type)).toContain("AGENCY");
   });
 });
 
@@ -246,8 +246,8 @@ describe("GET /admin/contracts", () => {
     expect(response.status).toBe(200);
     const body = adminResponses.contracts[200].parse(response.body);
     const kinds = body.data.results.map((item) => item.talentKind);
-    expect(kinds).toContain("Agency");
-    expect(kinds).toContain("Freelancer");
+    expect(kinds).toContain("AGENCY");
+    expect(kinds).toContain("FREELANCER");
   });
 });
 
@@ -932,12 +932,12 @@ describe("admin reports against real Postgres", () => {
       const rows = await page("accounts", 8, 0);
 
       const expectedPeople = rows
-        .filter((row) => row.type !== "Agency")
+        .filter((row) => row.type !== "AGENCY")
         .map((row) => row.id);
       expect(
-        rows.filter((row) => row.type === "Agency").map((row) => row.id),
+        rows.filter((row) => row.type === "AGENCY").map((row) => row.id),
       ).toEqual(seeded.agencies);
-      expect(rows.slice(0, 3).every((row) => row.type === "Agency")).toBe(true);
+      expect(rows.slice(0, 3).every((row) => row.type === "AGENCY")).toBe(true);
       expect(expectedPeople).toHaveLength(5);
       expect(
         rows

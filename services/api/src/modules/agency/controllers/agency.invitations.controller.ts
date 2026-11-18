@@ -1,3 +1,7 @@
+import {
+  MEMBER_ROLE,
+  toStoredMemberRole,
+} from "../constants/agency.constants.js";
 import { RequestHandler } from "express";
 import { asyncHandler } from "../../../middleware/utils/async-handler.utils.js";
 import { ApiError } from "../../../shared/errors/api-error.js";
@@ -44,7 +48,9 @@ export const inviteAgencyMemberHandler: RequestHandler = asyncHandler(
     const agency = await requireAgencyOwner(auth.userId);
 
     const email = requireText(request.body?.email, "Email").toLowerCase();
-    const role = request.body?.memberRole ?? "Agency member";
+    const role = toStoredMemberRole(
+      request.body?.memberRole ?? MEMBER_ROLE.AGENCY_MEMBER,
+    );
     if (!isValidEmail(email)) {
       throw new ApiError(400, "Enter a valid email address.");
     }
@@ -90,7 +96,9 @@ export const updateAgencyInvitationRoleHandler: RequestHandler = asyncHandler(
     const auth = requireAgencyAuth(request);
     const agency = await requireAgencyOwner(auth.userId);
 
-    const role = request.body?.memberRole ?? "Agency member";
+    const role = toStoredMemberRole(
+      request.body?.memberRole ?? MEMBER_ROLE.AGENCY_MEMBER,
+    );
 
     await updateAgencyInvitationRole(
       agency.id,
@@ -130,7 +138,9 @@ export const updateAgencyMemberRoleHandler: RequestHandler = asyncHandler(
     const auth = requireAgencyAuth(request);
     const agency = await requireAgencyOwner(auth.userId);
 
-    const role = request.body?.memberRole ?? "Agency member";
+    const role = toStoredMemberRole(
+      request.body?.memberRole ?? MEMBER_ROLE.AGENCY_MEMBER,
+    );
 
     await updateAgencyMemberRole(
       agency.id,

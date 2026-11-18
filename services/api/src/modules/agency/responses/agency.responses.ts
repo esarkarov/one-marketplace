@@ -1,3 +1,9 @@
+import { MEMBER_ROLE } from "../constants/agency.constants.js";
+import {
+  INVITATION_STATUSES,
+  JOB_STATUSES,
+  PROPOSAL_STATUSES,
+} from "../../../shared/validation/constants/status.constants.js";
 import { z } from "zod";
 import {
   ErrorBody,
@@ -168,7 +174,7 @@ const AgencyJobFeedItem = z
         }),
       )
       .nullable(),
-    status: z.string(),
+    status: z.enum(JOB_STATUSES),
     publishedAt: isoDateTime.nullable(),
     hiredAt: isoDateTime.nullable(),
     createdAt: isoDateTime.nullable(),
@@ -207,7 +213,7 @@ const AgencyProposalListItem = z
     jobId: z.uuid(),
     title: z.string(),
     company: z.string().nullable(),
-    status: z.string(),
+    status: z.enum(PROPOSAL_STATUSES),
     submittedAt: isoDateTime.nullable(),
     budgetCents: cents,
     bidAmountCents: cents,
@@ -232,7 +238,7 @@ const AgencyProposalRow = z.strictObject({
   screeningAnswers: z.array(
     z.strictObject({ question: z.string(), answer: z.string() }),
   ),
-  status: z.string(),
+  status: z.enum(PROPOSAL_STATUSES),
   isShortlisted: z.boolean(),
   createdAt: isoDateTime.nullable(),
   updatedAt: isoDateTime.nullable(),
@@ -253,7 +259,7 @@ const AgencyProposalMetadata = z
     proposals: z.array(
       z.strictObject({
         jobId: z.uuid(),
-        status: z.string(),
+        status: z.enum(PROPOSAL_STATUSES),
         submittedAt: isoDateTime.nullable(),
       }),
     ),
@@ -302,8 +308,8 @@ const AgencyInvitation = z
   .strictObject({
     id: z.uuid(),
     email: z.string(),
-    role: z.string(),
-    status: z.string(),
+    role: z.enum(MEMBER_ROLE),
+    status: z.enum(INVITATION_STATUSES),
     createdAt: isoDateTime,
     avatarUrl: z.null(),
   })
@@ -315,7 +321,7 @@ const AgencyMyInvitation = z
     agencyId: z.uuid(),
     agencyName: z.string(),
     agencyAvatar: StoredImage.nullable(),
-    role: z.string(),
+    role: z.enum(MEMBER_ROLE),
     createdAt: isoDateTime,
   })
   .meta({ id: "AgencyMyInvitation" });

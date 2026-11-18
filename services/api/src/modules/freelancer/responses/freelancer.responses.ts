@@ -1,3 +1,4 @@
+import { JOB_STATUSES } from "../../../shared/validation/constants/status.constants.js";
 import { z } from "zod";
 import {
   ErrorBody,
@@ -197,7 +198,7 @@ const jobPostFields = {
       }),
     )
     .nullable(),
-  status: z.string(),
+  status: z.enum(JOB_STATUSES),
   publishedAt: isoDateTime.nullable(),
   hiredAt: isoDateTime.nullable(),
   createdAt: isoDateTime.nullable(),

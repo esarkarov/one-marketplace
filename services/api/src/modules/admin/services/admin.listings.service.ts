@@ -1,3 +1,8 @@
+import {
+  ADMIN_ACCOUNT_TYPE,
+  type AdminAccountType,
+  ADMIN_TALENT_KIND,
+} from "../constants/admin.constants.js";
 import { clerk } from "../../../infrastructure/auth/clerk.client.js";
 import { db } from "../../../database/client.js";
 import { env } from "../../../config/env.js";
@@ -45,6 +50,11 @@ const clerkNames = async (authIds: string[]) => {
   return names;
 };
 
+const personAccountType = (role: string): AdminAccountType =>
+  role === "FREELANCER"
+    ? ADMIN_ACCOUNT_TYPE.FREELANCER
+    : ADMIN_ACCOUNT_TYPE.CLIENT;
+
 export const getAdminAccounts = async (pagination: Pagination) => {
   const fetchLimit = pagination.offset + pagination.limit;
 
@@ -57,7 +67,7 @@ export const getAdminAccounts = async (pagination: Pagination) => {
 
   const people = personalRows.map((row) => ({
     id: row.authId,
-    type: row.role === "FREELANCER" ? "Freelancer" : "Client",
+    type: personAccountType(row.role),
     name:
       row.role === "CLIENT" && row.companyName
         ? row.companyName
@@ -72,7 +82,7 @@ export const getAdminAccounts = async (pagination: Pagination) => {
 
   const agencies = agencyRows.map((row) => ({
     id: row.id,
-    type: "Agency" as const,
+    type: ADMIN_ACCOUNT_TYPE.AGENCY,
     name: row.name,
     avatarUrl: row.avatarImage?.url ?? null,
     email: row.ownerEmail,
@@ -178,7 +188,9 @@ export const getAdminContracts = async ({ limit, offset }: Pagination) => {
       talentEmail: row.agencyId ? null : (freelancer?.email ?? null),
       agencySpecialty: row.agencyId ? row.agencySpecialty : null,
       agencyWebsite: row.agencyId ? row.agencyWebsite : null,
-      talentKind: row.agencyId ? "Agency" : "Freelancer",
+      talentKind: row.agencyId
+        ? ADMIN_TALENT_KIND.AGENCY
+        : ADMIN_TALENT_KIND.FREELANCER,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
       startedAt: row.startedAt,

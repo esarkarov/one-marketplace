@@ -449,7 +449,7 @@ describe("client contract", () => {
       .set(as(clientId));
     expect(
       agencies.body.data.results.some(
-        (item: { accountType: string }) => item.accountType === "Agency",
+        (item: { accountType: string }) => item.accountType === "AGENCY",
       ),
     ).toBe(true);
     clientMarketplaceSearchResponses[200].parse(agencies.body);

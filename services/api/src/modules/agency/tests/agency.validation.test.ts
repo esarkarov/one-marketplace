@@ -362,7 +362,7 @@ describe("agency body validation", () => {
     const response = await authed(
       "post",
       "/api/v1/agency/team/invitations",
-    ).send({ email: "a@b.test", memberRole: "Business manager" });
+    ).send({ email: "a@b.test", memberRole: "BUSINESS_MANAGER" });
 
     expect(response.status).not.toBe(400);
   });
@@ -377,9 +377,17 @@ describe("agency body validation", () => {
     });
     const unknown = await authed(method, path).send({ extra: 1 });
     const valid = await authed(method, path).send({
+      memberRole: "BUSINESS_MANAGER",
+    });
+    const oldValue = await authed(method, path).send({
       memberRole: "Business manager",
     });
+    const oldDefault = await authed(method, path).send({
+      memberRole: "Agency member",
+    });
 
+    expect(oldValue.status).toBe(400);
+    expect(oldDefault.status).toBe(400);
     expect(invalid.status).toBe(400);
     expect(unknownRole.status).toBe(400);
     expect(unknown.status).toBe(400);

@@ -588,10 +588,11 @@ describe("agency contract: team", () => {
       .send({
         role: "freelancer",
         email: emailOf(inviteeId),
-        memberRole: "Business manager",
+        memberRole: "BUSINESS_MANAGER",
       });
     expect(invite.status).toBe(201);
     agencyInviteResponses[201].parse(invite.body);
+    expect(invite.body.data.role).toBe("BUSINESS_MANAGER");
     const invitationId = invite.body.data.id as string;
 
     const pending = await request(app)
@@ -609,13 +610,24 @@ describe("agency contract: team", () => {
     expect(list.status).toBe(200);
     expect(list.body.data).toHaveLength(1);
     agencyTeamInvitationsResponses[200].parse(list.body);
+    expect(list.body.data[0].role).toBe("BUSINESS_MANAGER");
+    const [storedInvite] = await db
+      .select({ role: agency_invitations.role })
+      .from(agency_invitations)
+      .where(eq(agency_invitations.id, invitationId));
+    expect(storedInvite!.role).toBe("Business manager");
 
     const retitled = await request(app)
       .patch(`${API}/team/invitations/${invitationId}`)
       .set(as(ownerId))
-      .send({ role: "freelancer", memberRole: "Business manager" });
+      .send({ role: "freelancer", memberRole: "BUSINESS_MANAGER" });
     expect(retitled.status).toBe(200);
     agencyInvitationMutationResponses[200].parse(retitled.body);
+    const [retitledInvite] = await db
+      .select({ role: agency_invitations.role })
+      .from(agency_invitations)
+      .where(eq(agency_invitations.id, invitationId));
+    expect(retitledInvite!.role).toBe("Business manager");
 
     await db
       .update(agency_invitations)
@@ -689,9 +701,14 @@ describe("agency contract: team", () => {
     const roleChanged = await request(app)
       .patch(`${API}/team/members/${member!.id}`)
       .set(as(ownerId))
-      .send({ role: "freelancer", memberRole: "Agency member" });
+      .send({ role: "freelancer", memberRole: "AGENCY_MEMBER" });
     expect(roleChanged.status).toBe(200);
     agencyMemberMutationResponses[200].parse(roleChanged.body);
+    const [storedMember] = await db
+      .select({ role: agency_members.role })
+      .from(agency_members)
+      .where(eq(agency_members.id, member!.id));
+    expect(storedMember!.role).toBe("Agency member");
 
     const removed = await request(app)
       .delete(`${API}/team/members/${member!.id}`)
@@ -710,7 +727,7 @@ describe("agency contract: team", () => {
     const missingMemberRole = await request(app)
       .patch(`${API}/team/members/${randomUUID()}`)
       .set(as(ownerId))
-      .send({ role: "freelancer", memberRole: "Agency member" });
+      .send({ role: "freelancer", memberRole: "AGENCY_MEMBER" });
     expect(missingMemberRole.status).toBe(404);
     agencyMemberMutationResponses[404].parse(missingMemberRole.body);
 
@@ -736,7 +753,7 @@ describe("agency contract: team", () => {
     const missingRole = await request(app)
       .patch(`${API}/team/invitations/${randomUUID()}`)
       .set(as(ownerId))
-      .send({ role: "freelancer", memberRole: "Agency member" });
+      .send({ role: "freelancer", memberRole: "AGENCY_MEMBER" });
     expect(missingRole.status).toBe(404);
     agencyInvitationMutationResponses[404].parse(missingRole.body);
 
@@ -755,7 +772,7 @@ describe("agency contract: team", () => {
     const ownerRole = await request(app)
       .patch(`${API}/team/members/${ownerMember!.id}`)
       .set(as(ownerId))
-      .send({ role: "freelancer", memberRole: "Agency member" });
+      .send({ role: "freelancer", memberRole: "AGENCY_MEMBER" });
     expect(ownerRole.status).toBe(400);
     agencyMemberMutationResponses[400].parse(ownerRole.body);
 

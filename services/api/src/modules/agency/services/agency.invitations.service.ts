@@ -1,3 +1,4 @@
+import { toApiMemberRole } from "../constants/agency.constants.js";
 import { clerk } from "../../../infrastructure/auth/clerk.client.js";
 import { db } from "../../../database/client.js";
 import { isUniqueViolation } from "../../../database/pg-errors.js";
@@ -48,7 +49,11 @@ export const getAgencyInvitations = async (
 ): Promise<AgencyInvitationData[]> => {
   const rows = await listPendingInvitationsOfAgency(db, agencyId);
 
-  return rows.map((row) => ({ ...row, avatarUrl: null }));
+  return rows.map((row) => ({
+    ...row,
+    role: toApiMemberRole(row.role),
+    avatarUrl: null,
+  }));
 };
 
 const INVITATION_RESEND_COOLDOWN_SECONDS = 60;
@@ -124,7 +129,11 @@ export const inviteAgencyMember = async (
 
   await notifyInvitee(email, agencyId, agencyName);
 
-  return { ...invitation, avatarUrl: null };
+  return {
+    ...invitation,
+    role: toApiMemberRole(invitation.role),
+    avatarUrl: null,
+  };
 };
 
 export const cancelAgencyInvitation = async (
@@ -190,7 +199,8 @@ export const getMyAgencyInvitations = async (
   const account = await findAccountEmail(db, userId);
   if (!account) return [];
 
-  return listPendingInvitationsForEmail(db, account.email);
+  const rows = await listPendingInvitationsForEmail(db, account.email);
+  return rows.map((row) => ({ ...row, role: toApiMemberRole(row.role) }));
 };
 
 export const respondToAgencyInvitation = async (

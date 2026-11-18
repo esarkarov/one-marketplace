@@ -1,3 +1,4 @@
+import { MARKETPLACE_ACCOUNT_TYPE } from "../constants/client.constants.js";
 import { clerk } from "../../../infrastructure/auth/clerk.client.js";
 import { db } from "../../../database/client.js";
 import { toSafeCents } from "../../../shared/money/money.js";
@@ -338,7 +339,7 @@ export const searchMarketplace = async (
 
         results.push({
           id: row.id,
-          accountType: "Freelancer",
+          accountType: MARKETPLACE_ACCOUNT_TYPE.FREELANCER,
           name,
           title: row.professionalTitle || "Freelancer",
           location,
@@ -372,7 +373,7 @@ export const searchMarketplace = async (
 
       results.push({
         id: row.id,
-        accountType: "Agency",
+        accountType: MARKETPLACE_ACCOUNT_TYPE.AGENCY,
         name: row.name,
         title,
         location,

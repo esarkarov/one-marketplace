@@ -1,3 +1,4 @@
+import { PROPOSAL_STATUSES } from "../../../shared/validation/constants/status.constants.js";
 import { z } from "zod";
 import {
   ErrorBody,
@@ -21,7 +22,7 @@ const ProposalsRow = z
     screeningAnswers: z.array(
       z.strictObject({ question: z.string(), answer: z.string() }),
     ),
-    status: z.string(),
+    status: z.enum(PROPOSAL_STATUSES),
     isShortlisted: z.boolean(),
     createdAt: isoDateTime.nullable(),
     updatedAt: isoDateTime.nullable(),
@@ -42,7 +43,7 @@ const ProposalsMetadata = z
     proposals: z.array(
       z.strictObject({
         jobId: z.uuid(),
-        status: z.string(),
+        status: z.enum(PROPOSAL_STATUSES),
         submittedAt: isoDateTime.nullable(),
       }),
     ),
@@ -61,7 +62,7 @@ const ProposalsFreelancerItem = z
     jobId: z.uuid(),
     title: z.string(),
     company: z.string().nullable(),
-    status: z.string(),
+    status: z.enum(PROPOSAL_STATUSES),
     submittedAt: isoDateTime.nullable(),
     budgetCents: cents,
     bidAmountCents: cents,
@@ -88,7 +89,7 @@ const clientItemFields = {
   screeningAnswers: z.array(
     z.strictObject({ question: z.string(), answer: z.string() }),
   ),
-  status: z.string(),
+  status: z.enum(PROPOSAL_STATUSES),
   isShortlisted: z.boolean(),
   submittedAt: isoDateTime.nullable(),
   jobSuccessScore: z.number(),
@@ -135,7 +136,7 @@ const ProposalsViewed = z
     id: z.uuid(),
     senderId: z.string(),
     senderType: z.string(),
-    status: z.string(),
+    status: z.enum(PROPOSAL_STATUSES),
     jobTitle: z.string(),
     changed: z.boolean(),
   })

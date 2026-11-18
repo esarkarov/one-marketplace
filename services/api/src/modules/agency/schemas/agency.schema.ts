@@ -10,7 +10,7 @@ import {
 } from "../../../shared/validation/schemas/common.schema.js";
 import { centsQueryParam } from "../../../shared/validation/schemas/money.schema.js";
 import { searchPagingShape } from "../../../shared/validation/schemas/search.schema.js";
-import { AGENCY_LIMITS } from "../constants/agency.constants.js";
+import { AGENCY_LIMITS, MEMBER_ROLE } from "../constants/agency.constants.js";
 import { COMMON_LIMITS } from "../../../shared/validation/constants/validation.constants.js";
 import { JOB_LIMITS } from "../../../shared/validation/constants/job.constants.js";
 import { MAX_LIVE_URL_LENGTH } from "../../../shared/uploads/constants/portfolio-images.constants.js";
@@ -154,7 +154,7 @@ export const connectsCheckoutBodySchema = z.strictObject({
   connects: z.number({ error: "Select a valid Connects package." }),
 });
 
-const memberRoleField = z.enum(["Agency member", "Business manager"], {
+const memberRoleField = z.enum(MEMBER_ROLE, {
   error: "Member role is invalid.",
 });
 

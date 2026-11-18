@@ -1,3 +1,4 @@
+import { toApiMemberRole } from "../constants/agency.constants.js";
 import { randomUUID } from "crypto";
 import { clerk } from "../../../infrastructure/auth/clerk.client.js";
 import { db } from "../../../database/client.js";
@@ -198,7 +199,7 @@ const attachOwnerProfile = async (
       avatarUrl: avatars.get(row.freelancerId) ?? null,
       role: isOwner
         ? ["Founder", row.professionalTitle].filter(Boolean).join(" · ")
-        : row.role,
+        : toApiMemberRole(row.role),
       skills: row.skills ?? [],
       isOwner,
       rating: Number(row.rating ?? 0),

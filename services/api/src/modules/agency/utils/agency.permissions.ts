@@ -1,5 +1,6 @@
+import { STORED_MEMBER_ROLE } from "../constants/agency.constants.js";
 const OWNER_ENTRY = "owner";
-const BUSINESS_MANAGER_ROLE = "Business manager";
+const BUSINESS_MANAGER_ROLE = STORED_MEMBER_ROLE.BUSINESS_MANAGER;
 
 export const AGENCY_PERMISSIONS = {
   "proposal.send": [OWNER_ENTRY, BUSINESS_MANAGER_ROLE],

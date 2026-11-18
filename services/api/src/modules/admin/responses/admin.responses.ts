@@ -1,3 +1,11 @@
+import {
+  ADMIN_ACCOUNT_TYPE,
+  ADMIN_TALENT_KIND,
+} from "../constants/admin.constants.js";
+import {
+  JOB_STATUSES,
+  PROPOSAL_STATUSES,
+} from "../../../shared/validation/constants/status.constants.js";
 import { z } from "zod";
 import {
   ErrorBody,
@@ -24,7 +32,7 @@ const ActivityItem = z
 const AccountItem = z
   .strictObject({
     id: z.string(),
-    type: z.enum(["Freelancer", "Client", "Agency"]),
+    type: z.enum(ADMIN_ACCOUNT_TYPE),
     name: z.string(),
     avatarUrl: z.string().nullable(),
     email: z.string(),
@@ -40,7 +48,7 @@ const JobPostItem = z
     id: z.uuid(),
     title: z.string(),
     description: z.string(),
-    status: z.string(),
+    status: z.enum(JOB_STATUSES),
     totalBudgetCents: cents,
     expertiseLevel: z.string(),
     expectedDuration: z.string(),
@@ -101,7 +109,7 @@ const ProposalItem = z
     screeningAnswers: z.array(
       z.strictObject({ question: z.string(), answer: z.string() }),
     ),
-    status: z.string(),
+    status: z.enum(PROPOSAL_STATUSES),
     isShortlisted: z.boolean(),
     createdAt: nullableDateTime,
     updatedAt: nullableDateTime,
@@ -143,7 +151,7 @@ const ContractItem = z
     talentEmail: z.string().nullable(),
     agencySpecialty: z.string().nullable(),
     agencyWebsite: z.string().nullable(),
-    talentKind: z.enum(["Agency", "Freelancer"]),
+    talentKind: z.enum(ADMIN_TALENT_KIND),
     createdAt: isoDateTime,
     updatedAt: isoDateTime,
     startedAt: nullableDateTime,

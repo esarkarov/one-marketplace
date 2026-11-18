@@ -26,7 +26,7 @@
             "type": "boolean"
           },
           "type": {
-            "enum": ["Freelancer", "Client", "Agency"],
+            "enum": ["FREELANCER", "CLIENT", "AGENCY"],
             "type": "string"
           },
           "verified": {
@@ -143,7 +143,7 @@
             "type": ["string", "null"]
           },
           "talentKind": {
-            "enum": ["Agency", "Freelancer"],
+            "enum": ["AGENCY", "FREELANCER"],
             "type": "string"
           },
           "talentName": {
@@ -419,6 +419,7 @@
             "type": "array"
           },
           "status": {
+            "enum": ["DRAFT", "PUBLISHED", "HIRED"],
             "type": "string"
           },
           "title": {
@@ -549,6 +550,7 @@
             "type": "string"
           },
           "status": {
+            "enum": ["SUBMITTED", "VIEWED", "INTERVIEWED", "HIRED"],
             "type": "string"
           },
           "updatedAt": {
@@ -819,9 +821,11 @@
             "type": "string"
           },
           "role": {
+            "enum": ["AGENCY_MEMBER", "BUSINESS_MANAGER"],
             "type": "string"
           },
           "status": {
+            "enum": ["PENDING", "ACCEPTED", "DECLINED", "CANCELLED"],
             "type": "string"
           }
         },
@@ -1023,6 +1027,7 @@
             "type": "array"
           },
           "status": {
+            "enum": ["DRAFT", "PUBLISHED", "HIRED"],
             "type": "string"
           },
           "title": {
@@ -1129,6 +1134,7 @@
             "type": "string"
           },
           "role": {
+            "enum": ["AGENCY_MEMBER", "BUSINESS_MANAGER"],
             "type": "string"
           }
         },
@@ -1553,6 +1559,7 @@
             "type": "array"
           },
           "status": {
+            "enum": ["SUBMITTED", "VIEWED", "INTERVIEWED", "HIRED"],
             "type": "string"
           },
           "submittedAt": {
@@ -1628,6 +1635,7 @@
                   "type": "string"
                 },
                 "status": {
+                  "enum": ["SUBMITTED", "VIEWED", "INTERVIEWED", "HIRED"],
                   "type": "string"
                 },
                 "submittedAt": {
@@ -1725,6 +1733,7 @@
                 "type": "string"
               },
               "status": {
+                "enum": ["SUBMITTED", "VIEWED", "INTERVIEWED", "HIRED"],
                 "type": "string"
               },
               "updatedAt": {
@@ -2158,7 +2167,7 @@
         "additionalProperties": false,
         "properties": {
           "accountType": {
-            "enum": ["Freelancer", "Agency"],
+            "enum": ["FREELANCER", "AGENCY"],
             "type": "string"
           },
           "avatarUrl": {
@@ -2863,6 +2872,7 @@
             "type": "array"
           },
           "status": {
+            "enum": ["DRAFT", "PUBLISHED", "HIRED"],
             "type": "string"
           },
           "title": {
@@ -3079,6 +3089,7 @@
             "type": "array"
           },
           "status": {
+            "enum": ["DRAFT", "PUBLISHED", "HIRED"],
             "type": "string"
           },
           "title": {
@@ -4056,6 +4067,7 @@
             "type": "array"
           },
           "status": {
+            "enum": ["DRAFT", "PUBLISHED", "HIRED"],
             "type": "string"
           },
           "title": {
@@ -4242,6 +4254,7 @@
             "type": "array"
           },
           "status": {
+            "enum": ["DRAFT", "PUBLISHED", "HIRED"],
             "type": "string"
           },
           "title": {
@@ -4545,6 +4558,7 @@
             "type": "array"
           },
           "status": {
+            "enum": ["DRAFT", "PUBLISHED", "HIRED"],
             "type": "string"
           },
           "title": {
@@ -5195,6 +5209,7 @@
                 ]
               },
               "status": {
+                "enum": ["SUBMITTED", "VIEWED", "INTERVIEWED", "HIRED"],
                 "type": "string"
               },
               "submittedAt": {
@@ -5362,6 +5377,7 @@
                 ]
               },
               "status": {
+                "enum": ["SUBMITTED", "VIEWED", "INTERVIEWED", "HIRED"],
                 "type": "string"
               },
               "submittedAt": {
@@ -5527,6 +5543,7 @@
                 ]
               },
               "status": {
+                "enum": ["SUBMITTED", "VIEWED", "INTERVIEWED", "HIRED"],
                 "type": "string"
               },
               "submittedAt": {
@@ -5608,6 +5625,7 @@
             "type": "array"
           },
           "status": {
+            "enum": ["SUBMITTED", "VIEWED", "INTERVIEWED", "HIRED"],
             "type": "string"
           },
           "submittedAt": {
@@ -5730,6 +5748,7 @@
                   "type": "string"
                 },
                 "status": {
+                  "enum": ["SUBMITTED", "VIEWED", "INTERVIEWED", "HIRED"],
                   "type": "string"
                 },
                 "submittedAt": {
@@ -5810,6 +5829,7 @@
             "type": "string"
           },
           "status": {
+            "enum": ["SUBMITTED", "VIEWED", "INTERVIEWED", "HIRED"],
             "type": "string"
           },
           "updatedAt": {
@@ -5896,6 +5916,7 @@
             "type": "string"
           },
           "status": {
+            "enum": ["SUBMITTED", "VIEWED", "INTERVIEWED", "HIRED"],
             "type": "string"
           }
         },
@@ -10503,7 +10524,7 @@
                     "type": "string"
                   },
                   "memberRole": {
-                    "enum": ["Agency member", "Business manager"],
+                    "enum": ["AGENCY_MEMBER", "BUSINESS_MANAGER"],
                     "type": "string"
                   },
                   "role": {
@@ -10783,7 +10804,7 @@
                 "additionalProperties": false,
                 "properties": {
                   "memberRole": {
-                    "enum": ["Agency member", "Business manager"],
+                    "enum": ["AGENCY_MEMBER", "BUSINESS_MANAGER"],
                     "type": "string"
                   },
                   "role": {
@@ -11163,7 +11184,7 @@
                 "additionalProperties": false,
                 "properties": {
                   "memberRole": {
-                    "enum": ["Agency member", "Business manager"],
+                    "enum": ["AGENCY_MEMBER", "BUSINESS_MANAGER"],
                     "type": "string"
                   },
                   "role": {

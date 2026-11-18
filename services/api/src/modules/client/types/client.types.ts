@@ -1,3 +1,4 @@
+import type { MarketplaceAccountType } from "../constants/client.constants.js";
 export interface SaveClientProfileInput {
   userId: string;
   professionalRole: string;
@@ -70,7 +71,7 @@ export interface ClientCompletedContract {
 
 export interface MarketplaceSearchResult {
   id: string;
-  accountType: "Freelancer" | "Agency";
+  accountType: MarketplaceAccountType;
   name: string;
   title: string;
   location: string;
