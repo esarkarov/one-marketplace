@@ -40,7 +40,8 @@ Every module under `src/modules/<name>/` follows `docs/decisions/0016-module-fol
 - Money is always integer cents, never floats: `bigint` `*_cents` columns, `*Cents` API and JSON fields, no `toFixed`, `/ 100` or `Math.round(x * 100)` on money. Use `splitFee`, `toSafeCents`, `moneyCents` and `formatUsd` from `src/shared/money/money.ts`; shared zod pieces are in `src/shared/validation/schemas/money.schema.ts` (ADR 0006).
 - API request and response fields are lowerCamelCase and domain enum values are UPPER_SNAKE; `src/openapi/tests/openapi-naming.test.ts` enforces the field names.
 - Read configuration only through the config module. Never hardcode secrets or URLs.
-- Error responses are `{ success: false, message }`. Never return stack traces, SQL errors or internal messages for 5xx.
+- Error responses are `{ success: false, message, code, requestId, errors? }`. Never return stack traces, SQL errors or internal messages for 5xx.
+- Pagination (ADR 0012): offset lists take `limit` (integer, default 20, 1 to 100) and `offset` (integer, default 0, 0 to 10000) from `paginationQuerySchema` in `src/shared/validation/schemas/pagination.schema.ts` and return `data: { results, hasMore }` (`offsetPage`), computing `hasMore` by fetching `limit + 1` rows (`fetchSize`, `toOffsetPage`); cursor lists take `cursor` and an integer `limit` and return `data: { results, nextCursor }` (`cursorPage`); the messages list is the one documented exception on limit numbers (default 30, max 50). Every paginated query ends its ORDER BY with the primary key.
 - No `console.*`; use the pino logger.
 - Webhook routes need the raw body, registered before `express.json`.
 - RabbitMQ is optional; the API must start and work with only Postgres and Redis. It is enabled by `RABBITMQ_URL`.

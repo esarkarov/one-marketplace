@@ -29,7 +29,7 @@ Every module follows the folder layout of ADR 0016 (`docs/decisions/0016-module-
 - Events: publish through `infrastructure/events`. Consumers live in the module that owns the data they write. RabbitMQ stays optional.
 - Third-party clients (Stripe, Clerk, Daily, ImageKit, Redis, RabbitMQ) exist only in `infrastructure/`; modules import them from there. Config comes from `config/`.
 - Schema changes go only through `/db-change`; never edit `database/` or `drizzle/` by hand.
-- Errors are `{ success: false, message }`; log with pino, never `console.*`.
+- Errors are `{ success: false, message, code, requestId, errors? }`; log with pino, never `console.*`.
 
 ## Tests
 
