@@ -1,3 +1,5 @@
+import { EventEmitter } from "node:events";
+import type { Response } from "express";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const hoisted = vi.hoisted(() => ({
@@ -5,6 +7,19 @@ const hoisted = vi.hoisted(() => ({
   waitForPayoutRun: vi.fn(),
   poolEnd: vi.fn(),
   warn: vi.fn(),
+  server: {
+    current: undefined as
+      | {
+          close: ReturnType<typeof vi.fn>;
+          closeIdleConnections: ReturnType<typeof vi.fn>;
+          closeAllConnections: ReturnType<typeof vi.fn>;
+        }
+      | undefined,
+  },
+}));
+
+vi.mock("../http-server.js", () => ({
+  getHttpServer: () => hoisted.server.current,
 }));
 
 vi.mock("../../config/logger.js", () => ({
@@ -113,5 +128,130 @@ describe("shutdown payout drain", () => {
       await import("../shutdown.js");
     expect(PAYOUT_DRAIN_TIMEOUT_MS).toBeGreaterThan(0);
     expect(PAYOUT_DRAIN_TIMEOUT_MS).toBeLessThan(SHUTDOWN_TIMEOUT_MS);
+  });
+});
+
+describe("shutdown SSE streams", () => {
+  let exit: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    vi.resetModules();
+    hoisted.order.length = 0;
+    hoisted.warn.mockReset().mockResolvedValue(undefined);
+    hoisted.poolEnd.mockReset().mockResolvedValue(undefined);
+    hoisted.waitForPayoutRun.mockReset().mockImplementation(async () => {
+      hoisted.order.push("drain-start");
+    });
+    hoisted.server.current = {
+      close: vi.fn((done: (error?: Error) => void) => {
+        hoisted.order.push("server-close");
+        done();
+      }),
+      closeIdleConnections: vi.fn(() => {
+        hoisted.order.push("close-idle");
+      }),
+      closeAllConnections: vi.fn(() => {
+        hoisted.order.push("close-all");
+      }),
+    };
+    exit = vi
+      .spyOn(process, "exit")
+      .mockImplementation((() => undefined) as never);
+  });
+
+  afterEach(() => {
+    hoisted.server.current = undefined;
+    vi.useRealTimers();
+    exit.mockRestore();
+  });
+
+  const fakeStream = () => {
+    const stream = Object.assign(new EventEmitter(), {
+      write: vi.fn(() => {
+        hoisted.order.push("sse-write");
+      }),
+      end: vi.fn(() => {
+        hoisted.order.push("sse-end");
+      }),
+    });
+    return stream;
+  };
+
+  it("stops listening, ends streams, then drains payouts", async () => {
+    const sse = await import("../../middleware/utils/sse-streams.utils.js");
+    const { shutdown } = await import("../shutdown.js");
+    const stream = fakeStream();
+    sse.registerSseStream(stream as unknown as Response);
+
+    await shutdown("SIGTERM");
+
+    expect(stream.write).toHaveBeenCalledWith(
+      "retry: 1000\nevent: shutdown\ndata: {}\n\n",
+    );
+    expect(hoisted.order.slice(0, 5)).toEqual([
+      "server-close",
+      "sse-write",
+      "sse-end",
+      "close-idle",
+      "stop-cron",
+    ]);
+    expect(hoisted.order.indexOf("sse-end")).toBeLessThan(
+      hoisted.order.indexOf("drain-start"),
+    );
+    expect(hoisted.order).not.toContain("close-all");
+    expect(exit).toHaveBeenCalledWith(0);
+  });
+
+  it("closes streams before the grace timer can start", async () => {
+    vi.useFakeTimers();
+    hoisted.waitForPayoutRun.mockReturnValue(
+      new Promise<void>(() => undefined),
+    );
+    const sse = await import("../../middleware/utils/sse-streams.utils.js");
+    const { shutdown, PAYOUT_DRAIN_TIMEOUT_MS } =
+      await import("../shutdown.js");
+    const stream = fakeStream();
+    sse.registerSseStream(stream as unknown as Response);
+
+    const done = shutdown("SIGTERM");
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(stream.end).toHaveBeenCalledTimes(1);
+    expect(hoisted.server.current?.closeAllConnections).not.toHaveBeenCalled();
+    expect(hoisted.poolEnd).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(PAYOUT_DRAIN_TIMEOUT_MS);
+    await done;
+  });
+
+  it("does not write twice when shutdown runs twice", async () => {
+    const sse = await import("../../middleware/utils/sse-streams.utils.js");
+    const { shutdown } = await import("../shutdown.js");
+    const stream = fakeStream();
+    sse.registerSseStream(stream as unknown as Response);
+
+    await Promise.all([shutdown("SIGTERM"), shutdown("uncaughtException")]);
+
+    expect(stream.write).toHaveBeenCalledTimes(1);
+    expect(stream.end).toHaveBeenCalledTimes(1);
+    expect(hoisted.server.current?.close).toHaveBeenCalledTimes(1);
+  });
+
+  it("answers new SSE requests with 503 and Retry-After once shutdown started", async () => {
+    const sse = await import("../../middleware/utils/sse-streams.utils.js");
+    const { shutdown } = await import("../shutdown.js");
+    await shutdown("SIGTERM");
+
+    const headers: Record<string, string> = {};
+    const response = {
+      set: (name: string, value: string) => {
+        headers[name] = value;
+      },
+    } as unknown as Response;
+
+    expect(() => sse.assertSseAvailable(response)).toThrow(
+      expect.objectContaining({ statusCode: 503 }),
+    );
+    expect(headers["Retry-After"]).toBe("1");
   });
 });

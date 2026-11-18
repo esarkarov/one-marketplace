@@ -8,6 +8,7 @@ import {
   stopPayoutCron,
   waitForPayoutRun,
 } from "../modules/payouts/payouts.cron.js";
+import { closeAllSseStreams } from "../middleware/utils/sse-streams.utils.js";
 import { errorLogAttributes } from "../shared/logging/sanitize-log.js";
 import { getHttpServer } from "./http-server.js";
 
@@ -47,6 +48,29 @@ const drainPayoutRun = async (): Promise<void> => {
   }
 };
 
+let httpClosed: Promise<Error | undefined> | undefined;
+
+const stopAcceptingConnections = (): void => {
+  const current = getHttpServer();
+  if (!current || httpClosed) {
+    return;
+  }
+
+  httpClosed = new Promise<Error | undefined>((resolve) => {
+    current.close((error) => {
+      const ignored =
+        (error as NodeJS.ErrnoException | undefined)?.code ===
+        "ERR_SERVER_NOT_RUNNING";
+      resolve(ignored ? undefined : (error ?? undefined));
+    });
+  });
+};
+
+const closeSseStreams = (): void => {
+  closeAllSseStreams();
+  getHttpServer()?.closeIdleConnections?.();
+};
+
 const closeHttpServer = async (): Promise<void> => {
   const current = getHttpServer();
   if (!current) {
@@ -54,19 +78,7 @@ const closeHttpServer = async (): Promise<void> => {
   }
 
   const socketClosed = closeMessagingSocket();
-  const httpClosed = new Promise<void>((resolve, reject) => {
-    current.close((error) => {
-      if (
-        error &&
-        (error as NodeJS.ErrnoException).code !== "ERR_SERVER_NOT_RUNNING"
-      ) {
-        reject(error);
-        return;
-      }
-
-      resolve();
-    });
-  });
+  stopAcceptingConnections();
 
   current.closeIdleConnections();
   const graceTimer = setTimeout(
@@ -75,7 +87,11 @@ const closeHttpServer = async (): Promise<void> => {
   );
 
   try {
-    await Promise.all([socketClosed, httpClosed]);
+    await socketClosed;
+    const error = await httpClosed;
+    if (error) {
+      throw error;
+    }
   } finally {
     clearTimeout(graceTimer);
   }
@@ -137,6 +153,8 @@ export const shutdown = async (reason: ShutdownReason): Promise<void> => {
     }
   };
 
+  await runStep("stop accepting connections", stopAcceptingConnections);
+  await runStep("sse streams", closeSseStreams);
   await runStep("payout cron", stopPayoutCron);
   await runStep("payout run", drainPayoutRun);
   await runStep("http server", closeHttpServer);

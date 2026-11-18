@@ -12,6 +12,10 @@ import {
   addNotificationClient,
 } from "../services/notifications.sse.js";
 import { ApiError } from "../../../shared/errors/api-error.js";
+import {
+  assertSseAvailable,
+  registerSseStream,
+} from "../../../middleware/utils/sse-streams.utils.js";
 
 type Scope = "agency" | "default";
 
@@ -75,6 +79,8 @@ export const markNotificationRead: RequestHandler = asyncHandler(
 );
 
 export const notificationStream: RequestHandler = async (request, response) => {
+  assertSseAvailable(response);
+
   response.set({
     "Content-Type": "text/event-stream",
     "Cache-Control": "no-cache",
@@ -82,12 +88,12 @@ export const notificationStream: RequestHandler = async (request, response) => {
   });
 
   response.flushHeaders();
+  registerSseStream(response);
   response.write("event: connected\ndata: {}\n\n");
 
-  const heartbeat = setInterval(
-    () => response.write(": heartbeat\n\n"),
-    25_000,
-  );
+  const heartbeat = setInterval(() => {
+    if (!response.writableEnded) response.write(": heartbeat\n\n");
+  }, 25_000);
 
   const scope = requestedScope(request.query.scope);
   const agencyId = await resolveScopeAgencyId(

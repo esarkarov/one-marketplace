@@ -32,7 +32,9 @@ const write = (
   notification: unknown,
 ) => {
   const data = `event: notification\ndata: ${JSON.stringify(notification)}\n\n`;
-  registry.get(key)?.forEach((client) => client.write(data));
+  registry.get(key)?.forEach((client) => {
+    if (!client.writableEnded) client.write(data);
+  });
 };
 
 export const emitNotification = (userId: string, notification: unknown) =>
