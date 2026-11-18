@@ -169,7 +169,7 @@ export const getClientJobPosts: RequestHandler = asyncHandler(
     const jobs = await getJobPosts(auth.userId, jobId);
     response.status(200).json({
       success: true,
-      message: "Job posts retrived.",
+      message: "Job posts retrieved.",
       data: jobId ? (jobs[0] ?? null) : jobs,
     });
   },

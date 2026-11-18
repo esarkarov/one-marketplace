@@ -151,7 +151,7 @@ export const createConnectsCheckout = async (
       freelancerId,
       purchasedConnects: String(purchasedConnects),
     },
-    success_url: `${env.freelancerDashboard}/settings?section=connects&payment=succes`,
+    success_url: `${env.freelancerDashboard}/settings?section=connects&payment=success`,
     cancel_url: `${env.freelancerDashboard}/settings?section=connects`,
   });
   if (!session.url) throw new ApiError(502, "Stripe Checkout could not start.");

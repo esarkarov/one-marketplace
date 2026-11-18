@@ -1231,15 +1231,21 @@ describe("client queries against real Postgres", () => {
       ]);
     });
 
-    it("leaves an active contract without milestones out of the in-progress list", async () => {
+    it("lists an active contract without milestones with zero progress", async () => {
       const clientId = await mkClient();
-      await mkSpents(clientId);
+      await mkSpents(clientId, { ongoing_contracts: 2 });
       const talent = await mkFreelancer();
       const bare = await mkJob(clientId);
       const planned = await mkJob(clientId);
-      await mkContract(clientId, talent, bare.id, "ACTIVE", {
-        title: "No milestones",
-      });
+      const bareContract = await mkContract(
+        clientId,
+        talent,
+        bare.id,
+        "ACTIVE",
+        {
+          title: "No milestones",
+        },
+      );
       const withMilestone = await mkContract(
         clientId,
         talent,
@@ -1259,9 +1265,20 @@ describe("client queries against real Postgres", () => {
       const response = await get("dashboard-overview", clientId);
 
       expect(response.status).toBe(200);
-      expect(response.body.data.inProgressContracts).toEqual([
-        { id: withMilestone.id, title: "With milestone", progressPercent: 50 },
-      ]);
+      const inProgress = response.body.data.inProgressContracts;
+      expect(inProgress).toHaveLength(2);
+      expect(inProgress).toEqual(
+        expect.arrayContaining([
+          {
+            id: withMilestone.id,
+            title: "With milestone",
+            progressPercent: 50,
+          },
+          { id: bareContract.id, title: "No milestones", progressPercent: 0 },
+        ]),
+      );
+      expect(response.body.data.currentlyFundedCents).toBe(0);
+      expect(response.body.data.activeContracts).toBe(2);
     });
   });
 

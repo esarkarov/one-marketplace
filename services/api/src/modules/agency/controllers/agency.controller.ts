@@ -14,6 +14,7 @@ import {
 import { searchPublicAgencies } from "../services/agency.search.service.js";
 import {
   AgencyData,
+  PublicAgencyData,
   ImageInput,
   PublicAgencyFeedPage,
   PublicAgencyFilters,
@@ -259,7 +260,7 @@ export const getPublicAgencyHandler: RequestHandler = asyncHandler(
     );
     if (!profile) throw new ApiError(404, "Agency profile not found.");
 
-    const body: ApiResponse<AgencyData> = {
+    const body: ApiResponse<PublicAgencyData> = {
       success: true,
       message: "Agency profile retrieved.",
       data: profile,

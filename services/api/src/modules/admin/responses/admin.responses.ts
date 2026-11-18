@@ -2,7 +2,6 @@ import { z } from "zod";
 import {
   ErrorBody,
   ok,
-  okNoData,
   offsetPage,
   BadRequestBody,
 } from "../../../shared/responses/api-envelope.responses.js";
@@ -204,7 +203,12 @@ export const adminResponses = {
     503: ErrorBody,
   },
   login: {
-    200: okNoData,
+    200: ok(
+      z.strictObject({
+        token: z.string(),
+        expiresAt: isoDateTime,
+      }),
+    ),
     401: ErrorBody,
     503: ErrorBody,
   },

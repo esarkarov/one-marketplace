@@ -45,6 +45,8 @@ export interface AgencyStats {
   rating: number | null;
 }
 
+export type PublicAgencyMember = Omit<AgencyMember, "freelancerId">;
+
 export interface AgencyData {
   id: string;
   name: string;
@@ -65,6 +67,10 @@ export interface AgencyData {
   stats: AgencyStats;
   workHistory: AgencyWorkHistoryItem[];
 }
+
+export type PublicAgencyData = Omit<AgencyData, "members"> & {
+  members: PublicAgencyMember[];
+};
 
 export interface CreateAgencyInput {
   ownerId: string;

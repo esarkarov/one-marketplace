@@ -40,6 +40,23 @@ describe("http logger", () => {
     expect(text).not.toContain("test-query-value");
   });
 
+  it("logs the path of a stream request without its token query value", async () => {
+    const { stream, output } = captureLogs();
+    const app = express();
+    app.use(requestIdMiddleware);
+    app.use(createHttpLogger(createRootLogger(stream, "info")));
+    app.get("/api/v1/admin/logs/stream", (_req, res) => {
+      res.json({ ok: true });
+    });
+
+    await request(app).get("/api/v1/admin/logs/stream?token=1.deadbeef");
+
+    const text = output();
+    expect(text).toContain("/api/v1/admin/logs/stream");
+    expect(text).not.toContain("deadbeef");
+    expect(text).not.toContain("token=");
+  });
+
   it("does not log health checks", async () => {
     const { app, output } = build();
     await request(app).get("/api/v1/health");

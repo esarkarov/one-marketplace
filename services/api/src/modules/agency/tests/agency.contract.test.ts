@@ -510,6 +510,12 @@ describe("agency contract: profile", () => {
     const publicProfile = await request(app).get(`${API}/profile/${agencyId}`);
     expect(publicProfile.status).toBe(200);
     agencyPublicProfileResponses[200].parse(publicProfile.body);
+    expect(publicProfile.body.data.members).toHaveLength(2);
+    for (const member of publicProfile.body.data.members) {
+      expect(member).not.toHaveProperty("freelancerId");
+      expect(member).toHaveProperty("profileId");
+    }
+    expect(mine.body.data.members[0]).toHaveProperty("freelancerId");
 
     const missingProfile = await request(app).get(
       `${API}/profile/${randomUUID()}`,

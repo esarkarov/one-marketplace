@@ -5901,6 +5901,341 @@
         ],
         "type": "object"
       },
+      "PublicAgencyProfile": {
+        "additionalProperties": false,
+        "properties": {
+          "avatarImage": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "imageId": {
+                    "type": "string"
+                  },
+                  "url": {
+                    "type": "string"
+                  }
+                },
+                "required": ["imageId", "url"],
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "createdAt": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IsoDateTime"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "id": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string"
+          },
+          "isOnboarded": {
+            "type": "boolean"
+          },
+          "members": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "avatarUrl": {
+                  "type": ["string", "null"]
+                },
+                "completedProjects": {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer"
+                },
+                "id": {
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "type": "string"
+                },
+                "isOwner": {
+                  "type": "boolean"
+                },
+                "jobSuccessScore": {
+                  "type": "number"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "profileId": {
+                  "anyOf": [
+                    {
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "rating": {
+                  "type": "number"
+                },
+                "role": {
+                  "type": "string"
+                },
+                "skills": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "id",
+                "profileId",
+                "name",
+                "avatarUrl",
+                "role",
+                "skills",
+                "isOwner",
+                "rating",
+                "jobSuccessScore",
+                "completedProjects"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "name": {
+            "type": "string"
+          },
+          "overview": {
+            "type": "string"
+          },
+          "ownerLanguageDetails": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "language": {
+                  "type": "string"
+                },
+                "proficiency": {
+                  "type": "string"
+                }
+              },
+              "required": ["language", "proficiency"],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "ownerLanguages": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "ownerLocation": {
+            "type": ["string", "null"]
+          },
+          "portfolio": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "category": {
+                  "type": "string"
+                },
+                "coverImage": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "imageId": {
+                      "type": "string"
+                    },
+                    "url": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["imageId", "url"],
+                  "type": "object"
+                },
+                "description": {
+                  "type": "string"
+                },
+                "id": {
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "type": "string"
+                },
+                "liveUrl": {
+                  "type": ["string", "null"]
+                },
+                "title": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "title",
+                "category",
+                "description",
+                "liveUrl",
+                "coverImage"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "professionalTitle": {
+            "type": ["string", "null"]
+          },
+          "size": {
+            "type": "string"
+          },
+          "specialty": {
+            "type": "string"
+          },
+          "stats": {
+            "additionalProperties": false,
+            "properties": {
+              "completedJobs": {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer"
+              },
+              "jobSuccessScore": {
+                "type": "number"
+              },
+              "ongoingJobs": {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer"
+              },
+              "rating": {
+                "type": ["number", "null"]
+              },
+              "reviewCount": {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer"
+              },
+              "totalEarningCents": {
+                "$ref": "#/components/schemas/Cents"
+              }
+            },
+            "required": [
+              "totalEarningCents",
+              "completedJobs",
+              "ongoingJobs",
+              "reviewCount",
+              "jobSuccessScore",
+              "rating"
+            ],
+            "type": "object"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "website": {
+            "type": ["string", "null"]
+          },
+          "workHistory": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "amountCents": {
+                  "$ref": "#/components/schemas/Cents"
+                },
+                "client": {
+                  "type": "string"
+                },
+                "clientHasReviewed": {
+                  "type": "boolean"
+                },
+                "completed": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/IsoDateTime"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "freelancerHasReviewed": {
+                  "type": "boolean"
+                },
+                "id": {
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "type": "string"
+                },
+                "rating": {
+                  "anyOf": [
+                    {
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "review": {
+                  "type": ["string", "null"]
+                },
+                "status": {
+                  "enum": ["ACTIVE", "COMPLETED"],
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "title",
+                "client",
+                "status",
+                "completed",
+                "amountCents",
+                "rating",
+                "review",
+                "clientHasReviewed",
+                "freelancerHasReviewed"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "professionalTitle",
+          "size",
+          "specialty",
+          "website",
+          "overview",
+          "tags",
+          "avatarImage",
+          "isOnboarded",
+          "portfolio",
+          "ownerLocation",
+          "ownerLanguages",
+          "ownerLanguageDetails",
+          "members",
+          "createdAt",
+          "stats",
+          "workHistory"
+        ],
+        "type": "object"
+      },
       "RateLimitBody": {
         "additionalProperties": false,
         "properties": {
@@ -6118,6 +6453,19 @@
                 "schema": {
                   "additionalProperties": false,
                   "properties": {
+                    "data": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "expiresAt": {
+                          "$ref": "#/components/schemas/IsoDateTime"
+                        },
+                        "token": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["token", "expiresAt"],
+                      "type": "object"
+                    },
                     "message": {
                       "type": "string"
                     },
@@ -6126,7 +6474,7 @@
                       "type": "boolean"
                     }
                   },
-                  "required": ["success", "message"],
+                  "required": ["success", "message", "data"],
                   "type": "object"
                 }
               }
@@ -9414,7 +9762,7 @@
                   "additionalProperties": false,
                   "properties": {
                     "data": {
-                      "$ref": "#/components/schemas/AgencyProfile"
+                      "$ref": "#/components/schemas/PublicAgencyProfile"
                     },
                     "message": {
                       "type": "string"

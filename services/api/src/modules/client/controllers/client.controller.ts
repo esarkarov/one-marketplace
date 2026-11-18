@@ -36,7 +36,7 @@ export const getLoggedInClientProfile: RequestHandler = asyncHandler(
     const responseBody: ApiResponse<ClientMetadataData | null> = {
       success: true,
       message: profile
-        ? "Client profile retrived"
+        ? "Client profile retrieved"
         : "Client profile has not been completed.",
       data: profile,
     };

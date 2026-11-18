@@ -3,6 +3,7 @@ import { RequestHandler } from "express";
 import { asyncHandler } from "../../../middleware/utils/async-handler.utils.js";
 import { ApiError } from "../../../shared/errors/api-error.js";
 import { env } from "../../../config/env.js";
+import { signToken } from "../../../middleware/utils/admin-session.utils.js";
 import {
   getAdminAccounts,
   getAdminContracts,
@@ -51,7 +52,7 @@ const passwordsMatch = (provided: string, expected: string) => {
 
 export const loginAdminHandler: RequestHandler = asyncHandler(
   async (request, response) => {
-    if (!env.adminDashboardPassword) {
+    if (!env.adminDashboardPassword || !env.adminSessionSecret) {
       throw new ApiError(503, "Admin authentication is not configured.");
     }
 
@@ -80,7 +81,13 @@ export const loginAdminHandler: RequestHandler = asyncHandler(
       },
     });
 
-    response.status(200).json({ success: true, message: "Password verified." });
+    const { token, expiresAt } = signToken(env.adminSessionSecret);
+
+    response.status(200).json({
+      success: true,
+      message: "Password verified.",
+      data: { token, expiresAt: new Date(expiresAt).toISOString() },
+    });
   },
 );
 

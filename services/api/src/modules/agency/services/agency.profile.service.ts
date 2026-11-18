@@ -22,6 +22,7 @@ import {
   AgencyWorkHistoryItem,
   AgencyStats,
   AgencyData,
+  PublicAgencyData,
   CreateAgencyInput,
   ImageInput,
   UpdateAgencyInput,
@@ -235,7 +236,7 @@ export const getAgencyByOwner = async (
   });
 };
 
-export const getPublicAgencyProfile = async (
+const getAgencyProfileById = async (
   agencyId: string,
 ): Promise<AgencyData | null> => {
   const agency = await findAgencyWithOwnerId(db, agencyId);
@@ -252,12 +253,27 @@ export const getPublicAgencyProfile = async (
   });
 };
 
+export const getPublicAgencyProfile = async (
+  agencyId: string,
+): Promise<PublicAgencyData | null> => {
+  const profile = await getAgencyProfileById(agencyId);
+
+  if (!profile) return null;
+
+  return {
+    ...profile,
+    members: profile.members.map(
+      ({ freelancerId: _freelancerId, ...member }) => member,
+    ),
+  };
+};
+
 export const getAgencyForMember = async (
   freelancerId: string,
 ): Promise<AgencyData | null> => {
   const agencyId = await getAgencyIdForMember(freelancerId);
   if (!agencyId) return null;
-  return getPublicAgencyProfile(agencyId);
+  return getAgencyProfileById(agencyId);
 };
 
 export const createAgency = async (

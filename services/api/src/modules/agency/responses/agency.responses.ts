@@ -103,6 +103,12 @@ const AgencyProfile = z
   })
   .meta({ id: "AgencyProfile" });
 
+const PublicAgencyMember = AgencyMember.omit({ freelancerId: true });
+
+const PublicAgencyProfile = AgencyProfile.extend({
+  members: z.array(PublicAgencyMember),
+}).meta({ id: "PublicAgencyProfile" });
+
 const AgencySummary = z
   .strictObject({
     id: z.uuid(),
@@ -325,7 +331,7 @@ export const agencySearchResponses = {
 };
 
 export const agencyPublicProfileResponses = {
-  200: ok(AgencyProfile),
+  200: ok(PublicAgencyProfile),
   404: ErrorBody,
 };
 

@@ -165,7 +165,8 @@ describe("POST /admin/auth/login", () => {
       .post(`${API}/auth/login`)
       .send({ password: process.env.ADMIN_DASHBOARD_PASSWORD });
     expect(response.status).toBe(200);
-    adminResponses.login[200].parse(response.body);
+    const body = adminResponses.login[200].parse(response.body);
+    expect(body.data.token).toMatch(/^\d+\.[0-9a-f]{64}$/);
   });
 
   it("matches the 401 schema for a wrong password", async () => {

@@ -177,7 +177,7 @@ export const findActiveContractProgressRows = (
       fundedAmountCents: sql<string>`coalesce(sum(${contract_milestones.amount_cents}) filter (where ${contract_milestones.funded_at} is not null and ${contract_milestones.status} <> 'COMPLETED'), 0)`,
     })
     .from(contracts)
-    .innerJoin(
+    .leftJoin(
       contract_milestones,
       eq(contract_milestones.contract_id, contracts.id),
     )
