@@ -107,7 +107,7 @@ These are documented, not fixed.
 - Agency connects checkout bills the requester's Stripe customer instead of the owner's. Product decision for the Stripe verification stage.
 - Resolved: admin login now returns `data.token` and `data.expiresAt` (a two-hour `<expiresAtMs>.<hmac>` token signed with `ADMIN_SESSION_SECRET`, verified by the admin session guard).
 - `hasMore` off-by-one: `rows.length === limit` is a false positive on an exactly full last page. Fix with the `limit + 1` pattern; messaging already does it.
-- The freelancer Connects checkout `success_url` has the typo `payment=succes` (`connects.service.ts:254`); the agency one is spelled correctly.
+- Resolved: the freelancer Connects checkout `success_url` typo `payment=succes` is fixed; it now reads `payment=success`, like the agency one.
 - `BadRequestBody` is a union that is functionally `ErrorBody`.
 - On Windows the PDF certificate render prints "fetch failed" on stderr in tests (font fetch).
 

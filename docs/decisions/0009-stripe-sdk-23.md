@@ -25,4 +25,4 @@ Nothing here touched real Stripe. The onboarding link without `configurations` a
 
 ## Debt
 
-`connects.service.ts` builds a `success_url` ending in `payment=succes` (missing "s"). It is left unchanged and belongs to the frontend wiring work.
+`connects.service.ts` built a `success_url` ending in `payment=succes` (missing "s"). It now ends in `payment=success`.
