@@ -7,6 +7,7 @@ export interface SaveClientProfileInput {
   companySize: string;
   industry: string;
   companyDescription: string;
+  country?: string | null;
 }
 
 export interface ClientMetadataData {
@@ -16,6 +17,7 @@ export interface ClientMetadataData {
   companySize: string;
   industry: string;
   companyDescription: string;
+  country: string | null;
   joinedAt: Date | null;
   identityVerified: boolean;
   paymentMethodVerified: boolean;

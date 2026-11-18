@@ -9,6 +9,7 @@ export const client_metadata = pgTable("client_metadata", {
   company_size: text("company_size").notNull(),
   industry: text("industry").notNull(),
   company_description: text("company_description").notNull(),
+  country: text("country"),
   created_at: timestamp("created_at", { withTimezone: true }),
   updated_at: timestamp("updated_at", { withTimezone: true }),
 });

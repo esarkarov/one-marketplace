@@ -46,12 +46,16 @@ vi.mock("../../../infrastructure/cache/account-auth.cache.js", () => ({
   invalidateAccountAuthCache: async () => undefined,
 }));
 
+import { env } from "../../../config/env.js";
 import { db, pool } from "../../../database/client.js";
 import { accounts, freelancer_metadata } from "../../../test/support/tables.js";
 import { buildFreelancerSearchFields } from "../utils/freelancer.search-text.js";
 import { searchPublicFreelancers } from "../services/freelancer.search.service.js";
 import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
-import { saveFreelancerProfile } from "../services/freelancer.profile.service.js";
+import {
+  getPublicFreelancerProfile,
+  saveFreelancerProfile,
+} from "../services/freelancer.profile.service.js";
 import {
   listFreelancerAuthIds,
   rebuildFreelancerSearchText,
@@ -282,9 +286,13 @@ describe("searchPublicFreelancers text query", () => {
     city?: string;
     country?: string;
     name?: string | null;
+    avatar?: string | null;
   }) => {
     const name = options.name ?? null;
-    const authId = await insertAccount({ display_name: name });
+    const authId = await insertAccount({
+      display_name: name,
+      avatar_url: options.avatar ?? null,
+    });
     const [row] = await db
       .insert(freelancer_metadata)
       .values({
@@ -312,6 +320,46 @@ describe("searchPublicFreelancers text query", () => {
 
   const search = async (query: string, limit = 100, offset = 0) =>
     searchPublicFreelancers({ query }, { limit, offset });
+
+  it("returns the stored name and avatar with the existing placeholders, without calling Clerk", async () => {
+    const token = newToken();
+    const named = await seed({
+      title: `${token} named`,
+      name: "Stored Person",
+      avatar: "https://img.test/stored.png",
+    });
+    const bare = await seed({ title: `${token} bare` });
+
+    const byId = new Map(
+      (await search(token)).results.map((result) => [result.id, result]),
+    );
+
+    expect(byId.get(named)).toMatchObject({
+      name: "Stored Person",
+      avatarUrl: "https://img.test/stored.png",
+    });
+    expect(byId.get(bare)).toMatchObject({
+      name: "Freelancer",
+      avatarUrl: null,
+    });
+    expect(mocks.getUser).not.toHaveBeenCalled();
+  });
+
+  it("does not depend on the Clerk key being configured", async () => {
+    const token = newToken();
+    const id = await seed({ title: `${token} keyless`, name: "Keyless Kim" });
+    const configured = env.clerkSecretKey;
+    Object.assign(env, { clerkSecretKey: undefined });
+    try {
+      const found = (await search(token)).results;
+      expect(found.map((result) => [result.id, result.name])).toEqual([
+        [id, "Keyless Kim"],
+      ]);
+    } finally {
+      Object.assign(env, { clerkSecretKey: configured });
+    }
+    expect(mocks.getUser).not.toHaveBeenCalled();
+  });
 
   it("filters before the page so matches on later offsets are returned", async () => {
     const token = newToken();
@@ -409,5 +457,60 @@ describe("searchPublicFreelancers text query", () => {
       expect(page.results).toHaveLength(1);
       expect(page.hasMore).toBe(true);
     }
+  });
+});
+
+describe("getPublicFreelancerProfile display data", () => {
+  const seedProfile = async (display: {
+    display_name: string | null;
+    avatar_url: string | null;
+  }) => {
+    const authId = await insertAccount(display);
+    const [row] = await db
+      .insert(freelancer_metadata)
+      .values({
+        auth_id: authId,
+        professional_title: "Engineer",
+        professional_description: "x",
+        hourly_rate_cents: 1000,
+        country: "DE",
+        city: "Berlin",
+        weekly_availability: "10",
+        experience_level: "EXPERT",
+        skills: [],
+        languages: [],
+      })
+      .returning({ id: freelancer_metadata.id });
+    return row!.id;
+  };
+
+  it("returns the stored name and avatar without calling Clerk", async () => {
+    const id = await seedProfile({
+      display_name: "Stored Person",
+      avatar_url: "https://img.test/stored.png",
+    });
+    mocks.getUser.mockRejectedValue(new Error("clerk down"));
+
+    const profile = await getPublicFreelancerProfile(id);
+
+    expect(profile).toMatchObject({
+      id,
+      name: "Stored Person",
+      avatarUrl: "https://img.test/stored.png",
+    });
+    expect(mocks.getUser).not.toHaveBeenCalled();
+  });
+
+  it("falls back to the placeholder name and no avatar when nothing is stored", async () => {
+    const id = await seedProfile({ display_name: null, avatar_url: null });
+
+    const profile = await getPublicFreelancerProfile(id);
+
+    expect(profile).toMatchObject({ id, name: "Freelancer", avatarUrl: null });
+    expect(mocks.getUser).not.toHaveBeenCalled();
+  });
+
+  it("answers null for an unknown profile id", async () => {
+    await expect(getPublicFreelancerProfile(randomUUID())).resolves.toBeNull();
   });
 });

@@ -153,7 +153,9 @@ const insertAccount = async (
   return authId;
 };
 
-const insertFreelancer = async (extra: { identityVerified?: boolean } = {}) => {
+const insertFreelancer = async (
+  extra: Partial<typeof accounts.$inferInsert> = {},
+) => {
   const authId = await insertAccount(newAuthId(), "FREELANCER", extra);
   await db.insert(freelancer_metadata).values({
     auth_id: authId,
@@ -235,7 +237,10 @@ const seedAgency = async (
 };
 
 const addMember = async (agencyId: string, role: string) => {
-  const freelancerId = await insertFreelancer();
+  const freelancerId = await insertFreelancer({
+    display_name: "Teammate Tina",
+    avatar_url: "https://example.test/tina.png",
+  });
   const [member] = await db
     .insert(agency_members)
     .values({ agency_id: agencyId, freelancer_id: freelancerId, role })
@@ -257,6 +262,7 @@ const seedClientWithJob = async (
     company_size: "11-50",
     industry: "Software",
     company_description: "We build things.",
+    country: "DE",
     created_at: new Date(),
     updated_at: new Date(),
   });
@@ -424,7 +430,7 @@ beforeEach(() => {
     lastName: "User",
     fullName: "Test User",
     imageUrl: "https://example.test/u.png",
-    unsafeMetadata: { country: "US" },
+    unsafeMetadata: { country: "FR" },
   });
   mocks.upload.mockImplementation(async () => ({
     fileId: `file_${randomUUID()}`,
@@ -500,6 +506,7 @@ describe("agency contract: profile", () => {
     const teammate = await addMember(agencyId, "Agency member");
     await seedAgencyWork(agencyId, ownerId);
     const memberClerkIds = [ownerId, teammate.freelancerId];
+    mocks.getUser.mockClear();
 
     const mine = await request(app)
       .get(`${API}/mine`)
@@ -507,6 +514,17 @@ describe("agency contract: profile", () => {
       .set(as(ownerId));
     expect(mine.status).toBe(200);
     expect(mine.body.data.members).toHaveLength(2);
+    expect(
+      mine.body.data.members
+        .map((member: { name: string; avatarUrl: string | null }) => [
+          member.name,
+          member.avatarUrl,
+        ])
+        .sort(),
+    ).toEqual([
+      ["Teammate Tina", "https://example.test/tina.png"],
+      ["Test User", "https://example.test/u.png"],
+    ]);
     expect(mine.body.data.workHistory).toHaveLength(1);
     expect(mine.body.data.portfolio).toHaveLength(1);
     agencyMineResponses[200].parse(mine.body);
@@ -515,6 +533,7 @@ describe("agency contract: profile", () => {
     expect(publicProfile.status).toBe(200);
     agencyPublicProfileResponses[200].parse(publicProfile.body);
     expect(publicProfile.body.data.members).toHaveLength(2);
+    expect(mocks.getUser).not.toHaveBeenCalled();
     for (const member of publicProfile.body.data.members) {
       expect(member).not.toHaveProperty("freelancerId");
       expect(member).not.toHaveProperty("accountId");
@@ -922,6 +941,10 @@ describe("agency contract: jobs, proposals and connects", () => {
     expectNoClerkIds(feed.body, [ownerId, feedClientId]);
     expect(feed.body.data.results.length).toBeGreaterThan(0);
     expect(feed.body.data.results[0].matchScore).toBeGreaterThan(0);
+    expect(
+      feed.body.data.results.find((job: { id: string }) => job.id === jobId)
+        ?.clientCountry,
+    ).toBe("DE");
     agencyJobFeedResponses[200].parse(feed.body);
 
     const recent = await request(app)
@@ -930,6 +953,7 @@ describe("agency contract: jobs, proposals and connects", () => {
       .set(as(ownerId));
     expect(recent.status).toBe(200);
     agencyJobFeedResponses[200].parse(recent.body);
+    expect(mocks.getUser).not.toHaveBeenCalled();
 
     const lonely = await insertFreelancer();
     const noAgencyFeed = await request(app)

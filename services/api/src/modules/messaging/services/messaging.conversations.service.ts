@@ -1,5 +1,3 @@
-import { clerk } from "../../../infrastructure/auth/clerk.client.js";
-import { env } from "../../../config/env.js";
 import { db } from "../../../database/client.js";
 import {
   fetchSize,
@@ -22,6 +20,7 @@ import {
 } from "../repositories/messaging.participants.repository.js";
 import { ApiError } from "../../../shared/errors/api-error.js";
 import type { DbExecutor } from "../../../database/database.types.js";
+import { findAccountDisplays } from "../../auth/index.js";
 import {
   getAgencyIdForMember,
   getAgencyTeamMemberIds,
@@ -59,46 +58,24 @@ const getParticipantProfiles = async (conversationIds: string[]) => {
 
   const rows = await listParticipantProfileRows(db, conversationIds);
 
-  const clerkUsers = new Map<
-    string,
-    { name: string | null; avatarUrl: string | null }
-  >();
-  if (env.clerkSecretKey) {
-    const accountIds = [
-      ...new Set(
-        rows
-          .map(({ accountId }) => accountId)
-          .filter((accountId): accountId is string => Boolean(accountId)),
-      ),
-    ];
-    await Promise.all(
-      accountIds.map(async (accountId) => {
-        try {
-          const user = await clerk.users.getUser(accountId);
-          clerkUsers.set(accountId, {
-            name:
-              [user.firstName, user.lastName].filter(Boolean).join(" ") || null,
-            avatarUrl: user.imageUrl || null,
-          });
-        } catch {
-          clerkUsers.set(accountId, { name: null, avatarUrl: null });
-        }
-      }),
-    );
-  }
+  const displays = await findAccountDisplays(
+    rows
+      .map(({ accountId }) => accountId)
+      .filter((accountId): accountId is string => Boolean(accountId)),
+  );
 
   const profiles = new Map<string, unknown[]>();
   for (const row of rows) {
     const isAgency = row.participantType === "AGENCY";
-    const clerkUser = row.accountId ? clerkUsers.get(row.accountId) : undefined;
+    const display = row.accountId ? displays.get(row.accountId) : undefined;
     const profile = {
       participantType: row.participantType,
       name: isAgency
         ? (row.agencyName ?? "Agency")
-        : (clerkUser?.name ?? row.companyName ?? "Member"),
+        : display?.displayName || row.companyName || "Member",
       avatarUrl: isAgency
         ? (row.agencyAvatar?.url ?? null)
-        : (clerkUser?.avatarUrl ?? null),
+        : display?.avatarUrl || null,
       professionalTitle: row.professionalTitle ?? null,
       companyName: row.companyName ?? null,
     };

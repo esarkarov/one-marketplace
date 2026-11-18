@@ -1,12 +1,24 @@
 import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { expectNoClerkIds } from "../../../test/support/clerk-id-scan.js";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
+
+const mocks = vi.hoisted(() => ({
+  getUser: vi.fn(() => {
+    throw new Error("Clerk must not be called on messaging list paths");
+  }),
+}));
 
 vi.mock("../../../infrastructure/auth/clerk.client.js", () => ({
-  clerk: {
-    users: { getUser: vi.fn().mockRejectedValue(new Error("clerk down")) },
-  },
+  clerk: { users: { getUser: mocks.getUser } },
 }));
 
 vi.mock("../messaging.socket.js", () => ({
@@ -58,7 +70,10 @@ const countLeftovers = async () => {
   return Number(result.rows[0]?.total ?? 0);
 };
 
-const createAccount = async (role: "CLIENT" | "FREELANCER") => {
+const createAccount = async (
+  role: "CLIENT" | "FREELANCER",
+  display: { display_name?: string | null; avatar_url?: string | null } = {},
+) => {
   const authId = `${PREFIX}${randomUUID()}`;
   const email = `${authId}@example.test`;
   const [account] = await db
@@ -67,6 +82,7 @@ const createAccount = async (role: "CLIENT" | "FREELANCER") => {
       auth_id: authId,
       email,
       role,
+      ...display,
       created_at: new Date(),
       updated_at: new Date(),
     })
@@ -89,6 +105,10 @@ const collectKeys = (value: unknown, keys = new Set<string>()) => {
 beforeAll(async () => {
   assertTestDatabase(process.env.DATABASE_URL, process.env.POSTGRES_DB);
   await purgeLeftovers();
+});
+
+afterEach(() => {
+  expect(mocks.getUser).not.toHaveBeenCalled();
 });
 
 afterAll(async () => {
@@ -218,6 +238,110 @@ describe("messaging participant profiles", () => {
         participantType: "FREELANCER",
         name: "Member",
         professionalTitle: "Staff Engineer",
+      }),
+    );
+  });
+});
+
+describe("messaging participant display data", () => {
+  const talk = async (
+    caller: { authId: string },
+    others: Array<{ authId: string; type: "CLIENT" | "FREELANCER" }>,
+  ) => {
+    const [conversation] = await db
+      .insert(conversations)
+      .values({ context_key: `${PREFIX}${randomUUID()}` })
+      .returning({ id: conversations.id });
+    await db.insert(conversation_participants).values([
+      {
+        conversation_id: conversation!.id,
+        account_id: caller.authId,
+        participant_type: "CLIENT" as const,
+      },
+      ...others.map((other) => ({
+        conversation_id: conversation!.id,
+        account_id: other.authId,
+        participant_type: other.type,
+      })),
+    ]);
+    const data = await getConversations(caller.authId, "default", {
+      limit: 20,
+      offset: 0,
+    });
+    return data.results.flatMap(
+      (result) => result.participants as Array<Record<string, unknown>>,
+    );
+  };
+
+  it("uses the stored name and avatar, then the company name, then Member", async () => {
+    const caller = await createAccount("CLIENT", {
+      display_name: "Caller Stored",
+      avatar_url: "https://img.example.test/caller.png",
+    });
+    const named = await createAccount("FREELANCER", {
+      display_name: "Stored Freelancer",
+      avatar_url: "https://img.example.test/stored.png",
+    });
+    await db.insert(client_metadata).values({
+      auth_id: caller.authId,
+      role: "CLIENT",
+      company_name: "Caller Co",
+      company_website: "https://caller.example.test",
+      company_size: "1-10",
+      industry: "testing",
+      company_description: "integration",
+    });
+
+    const participants = await talk(caller, [
+      { authId: named.authId, type: "FREELANCER" },
+    ]);
+
+    expect(participants).toContainEqual(
+      expect.objectContaining({
+        participantType: "FREELANCER",
+        name: "Stored Freelancer",
+        avatarUrl: "https://img.example.test/stored.png",
+      }),
+    );
+    expect(participants).toContainEqual(
+      expect.objectContaining({
+        participantType: "CLIENT",
+        name: "Caller Stored",
+        companyName: "Caller Co",
+        avatarUrl: "https://img.example.test/caller.png",
+      }),
+    );
+  });
+
+  it("falls back to the company name for a blank stored name and to Member without one", async () => {
+    const caller = await createAccount("CLIENT", { display_name: "" });
+    const unnamed = await createAccount("FREELANCER");
+    await db.insert(client_metadata).values({
+      auth_id: caller.authId,
+      role: "CLIENT",
+      company_name: "Fallback Co",
+      company_website: "https://fallback.example.test",
+      company_size: "1-10",
+      industry: "testing",
+      company_description: "integration",
+    });
+
+    const participants = await talk(caller, [
+      { authId: unnamed.authId, type: "FREELANCER" },
+    ]);
+
+    expect(participants).toContainEqual(
+      expect.objectContaining({
+        participantType: "CLIENT",
+        name: "Fallback Co",
+        avatarUrl: null,
+      }),
+    );
+    expect(participants).toContainEqual(
+      expect.objectContaining({
+        participantType: "FREELANCER",
+        name: "Member",
+        avatarUrl: null,
       }),
     );
   });

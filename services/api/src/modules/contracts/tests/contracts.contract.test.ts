@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import request from "supertest";
 import {
   afterAll,
+  afterEach,
   beforeAll,
   beforeEach,
   describe,
@@ -137,6 +138,8 @@ const insertAccount = async (
   await db.insert(accounts).values({
     auth_id: authId,
     email: `${authId}@example.test`,
+    display_name: "Test User",
+    avatar_url: "https://example.test/avatar.png",
     role,
     identityVerified: options.identityVerified ?? true,
     stripe_customer_id: options.customer ? `cus_${randomUUID()}` : null,
@@ -370,6 +373,10 @@ beforeAll(async () => {
   await purge();
 });
 
+afterEach(() => {
+  expect(mocks.getUser).not.toHaveBeenCalled();
+});
+
 afterAll(async () => {
   await purge();
   await pool.end();
@@ -384,10 +391,8 @@ beforeEach(() => {
   mocks.emitConversationUpdate.mockReset();
   mocks.customersCreate.mockReset();
   mocks.sessionsCreate.mockReset();
-  mocks.getUser.mockResolvedValue({
-    firstName: "Test",
-    lastName: "User",
-    imageUrl: "https://example.test/avatar.png",
+  mocks.getUser.mockImplementation(() => {
+    throw new Error("Clerk must not be called on contract list paths");
   });
   mocks.verifyToken.mockImplementation(async (token: string) => ({
     sub: token,
@@ -585,6 +590,7 @@ describe("contract listing counterparty and review flags", () => {
   interface ListedContract {
     id: string;
     counterpartyName: string;
+    counterpartyAvatar: string | null;
     reviewedByCurrentUser: boolean;
     milestones: { id: string }[];
   }
@@ -730,18 +736,27 @@ describe("contract listing counterparty and review flags", () => {
       await insertCompany(fixture.clientId, "Client Co");
       const view = await asClient(fixture.clientId);
       expect(view.map((c) => c.counterpartyName)).toEqual(["Test User"]);
+      expect(view.map((c) => c.counterpartyAvatar)).toEqual([
+        "https://example.test/avatar.png",
+      ]);
     });
 
-    it("falls back to the Clerk name, then to a generic name, when the client has no company", async () => {
+    it("falls back to the stored name, then to a generic name, when the client has no company", async () => {
       const fixture = await seed();
       expect(
         (await asFreelancer(fixture.ownerId)).map((c) => c.counterpartyName),
       ).toEqual(["Test User"]);
 
-      mocks.getUser.mockRejectedValue(new Error("clerk unavailable"));
+      await db
+        .update(accounts)
+        .set({ display_name: null, avatar_url: null })
+        .where(eq(accounts.auth_id, fixture.clientId));
       expect(
         (await asFreelancer(fixture.ownerId)).map((c) => c.counterpartyName),
       ).toEqual(["Marketplace user"]);
+      expect(
+        (await asFreelancer(fixture.ownerId)).map((c) => c.counterpartyAvatar),
+      ).toEqual([null]);
     });
   });
 

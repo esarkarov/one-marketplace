@@ -1,0 +1,1 @@
+ALTER TABLE "client_metadata" ADD COLUMN "country" text;

@@ -1,7 +1,9 @@
 import { randomUUID } from "node:crypto";
+import { eq } from "drizzle-orm";
 import request from "supertest";
 import {
   afterAll,
+  afterEach,
   beforeAll,
   beforeEach,
   describe,
@@ -154,6 +156,8 @@ const purge = async () => {
 const seedCompletedWork = async (clientId: string) => {
   const freelancerId = await insertAccount(newAuthId(), "FREELANCER", {
     identityVerified: true,
+    display_name: "Fiona Freelancer",
+    avatar_url: "https://example.test/f.png",
   });
   const agencyOwnerId = await insertAccount(newAuthId(), "FREELANCER");
   const [agency] = await db
@@ -347,10 +351,10 @@ beforeEach(() => {
     sid: `sess_${token}`,
   }));
   mocks.getUser.mockResolvedValue({
-    firstName: "Fiona",
-    lastName: "Freelancer",
-    fullName: "Fiona Freelancer",
-    imageUrl: "https://example.test/f.png",
+    firstName: "Clerk",
+    lastName: "Sentinel",
+    fullName: "Clerk Sentinel",
+    imageUrl: "https://example.test/clerk-sentinel.png",
   });
 });
 
@@ -396,6 +400,53 @@ describe("client contract", () => {
     clientProfileGetResponses[200].parse(full.body);
   });
 
+  it("stores the optional country: omitted keeps it, null clears it, a code sets it", async () => {
+    const clientId = await insertAccount(newAuthId(), "CLIENT");
+    const put = (body: object) =>
+      request(app).put(`${API}/profile`).set(as(clientId)).send(body);
+    const get = () =>
+      request(app).get(`${API}/profile`).query(q).set(as(clientId));
+    const storedCountry = async () =>
+      (
+        await pool.query(
+          "select country from client_metadata where auth_id = $1",
+          [clientId],
+        )
+      ).rows[0]?.country;
+
+    const first = await put(profileBody);
+    expect(first.status).toBe(200);
+    expect(first.body.data.country).toBeNull();
+    clientProfilePutResponses[200].parse(first.body);
+
+    const set = await put({ ...profileBody, country: "DE" });
+    expect(set.status).toBe(200);
+    expect(set.body.data.country).toBe("DE");
+    clientProfilePutResponses[200].parse(set.body);
+    expect(await storedCountry()).toBe("DE");
+    const read = await get();
+    expect(read.body.data.country).toBe("DE");
+    clientProfileGetResponses[200].parse(read.body);
+
+    const omitted = await put({ ...profileBody, companyName: "Renamed" });
+    expect(omitted.body.data.country).toBe("DE");
+    expect(omitted.body.data.companyName).toBe("Renamed");
+    expect(await storedCountry()).toBe("DE");
+
+    const changed = await put({ ...profileBody, country: "JP" });
+    expect(changed.body.data.country).toBe("JP");
+
+    const cleared = await put({ ...profileBody, country: null });
+    expect(cleared.status).toBe(200);
+    expect(cleared.body.data.country).toBeNull();
+    expect(await storedCountry()).toBeNull();
+    expect((await get()).body.data.country).toBeNull();
+
+    const invalid = await put({ ...profileBody, country: "usa" });
+    expect(invalid.status).toBe(400);
+    expect(await storedCountry()).toBeNull();
+  });
+
   it("answers 403 with the declared body without a client account", async () => {
     const freelancerId = await insertAccount(newAuthId(), "FREELANCER");
 
@@ -420,6 +471,7 @@ describe("client contract", () => {
       .put(`${API}/profile`)
       .set(as(clientId))
       .send(profileBody);
+    mocks.getUser.mockClear();
     await db.insert(client_spents).values({
       client_id: clientId,
       total_spent_cents: 120000,
@@ -455,6 +507,7 @@ describe("client contract", () => {
     expect(completed.body.data.results).toHaveLength(1);
     expect(completed.body.data.results[0].clientReview).not.toBeNull();
     expect(completed.body.data.results[0].talentReview).not.toBeNull();
+    expect(completed.body.data.results[0].talent).toBe("Fiona Freelancer");
     clientCompletedContractsResponses[200].parse(completed.body);
 
     const freelancers = await request(app)
@@ -463,6 +516,10 @@ describe("client contract", () => {
       .set(as(clientId));
     expect(freelancers.status).toBe(200);
     expect(freelancers.body.data.results.length).toBeGreaterThan(0);
+    expect(freelancers.body.data.results[0]).toMatchObject({
+      name: "Fiona Freelancer",
+      avatarUrl: "https://example.test/f.png",
+    });
     clientMarketplaceSearchResponses[200].parse(freelancers.body);
 
     const agencies = await request(app)
@@ -475,6 +532,7 @@ describe("client contract", () => {
       ),
     ).toBe(true);
     clientMarketplaceSearchResponses[200].parse(agencies.body);
+    expect(mocks.getUser).not.toHaveBeenCalled();
   });
 
   it("GET /finances/manage-link answers the declared 200 with a mocked Stripe", async () => {
@@ -1305,6 +1363,47 @@ describe("client queries against real Postgres", () => {
   });
 
   describe("completed contracts", () => {
+    afterEach(() => {
+      expect(mocks.getUser).not.toHaveBeenCalled();
+    });
+
+    it("names the talent from the stored display name with the existing fallback", async () => {
+      const clientId = await mkClient();
+      const named = await insertAccount(newAuthId(), "FREELANCER", {
+        display_name: "Stored Name",
+      });
+      const unnamed = await mkFreelancer();
+      const blank = await insertAccount(newAuthId(), "FREELANCER", {
+        display_name: "",
+      });
+      const job = await mkJob(clientId);
+      const at = (day: string) => new Date(`2024-01-${day}`);
+      await mkContract(clientId, named, job.id, "COMPLETED", {
+        title: "Named",
+        completed_at: at("03"),
+      });
+      await mkContract(clientId, unnamed, job.id, "COMPLETED", {
+        title: "Unnamed",
+        completed_at: at("02"),
+      });
+      await mkContract(clientId, blank, job.id, "COMPLETED", {
+        title: "Blank",
+        completed_at: at("01"),
+      });
+
+      const response = await get("completed-contracts", clientId);
+
+      expect(
+        response.body.data.results.map(
+          (row: { title: string; talent: string }) => [row.title, row.talent],
+        ),
+      ).toEqual([
+        ["Named", "Stored Name"],
+        ["Unnamed", "Marketplace user"],
+        ["Blank", "Marketplace user"],
+      ]);
+    });
+
     it("lists only the client's completed contracts, newest completion first", async () => {
       const clientId = await mkClient();
       const bystander = await mkClient();
@@ -1380,6 +1479,10 @@ describe("client queries against real Postgres", () => {
   });
 
   describe("marketplace search", () => {
+    afterEach(() => {
+      expect(mocks.getUser).not.toHaveBeenCalled();
+    });
+
     const search = (query: Record<string, string | number>) =>
       request(app)
         .get(`${API}/marketplace/search`)
@@ -1493,6 +1596,34 @@ describe("client queries against real Postgres", () => {
       expect(first.body.data.hasMore).toBe(true);
       expect(last.body.data.hasMore).toBe(false);
       expect(last.body.data.results.length).toBeLessThanOrEqual(1);
+    });
+
+    it("returns the stored name and avatar and the placeholder for a missing name", async () => {
+      const token = `tok${randomUUID().replaceAll("-", "").slice(0, 12)}`;
+      const stored = await seedFreelancers(1, `${token} stored`);
+      const bare = await seedFreelancers(1, `${token} bare`);
+      await db
+        .update(accounts)
+        .set({
+          display_name: "Stored Person",
+          avatar_url: "https://example.test/stored.png",
+        })
+        .where(eq(accounts.auth_id, stored[0]!));
+
+      const found = await searchAll("freelancer", token);
+      const byTitle = new Map(
+        found.map((row) => [row.title as string, row] as const),
+      );
+
+      expect(byTitle.get(`${token} stored`)).toMatchObject({
+        name: "Stored Person",
+        avatarUrl: "https://example.test/stored.png",
+      });
+      expect(byTitle.get(`${token} bare`)).toMatchObject({
+        name: "Freelancer",
+        avatarUrl: null,
+      });
+      expect(bare).toHaveLength(1);
     });
 
     it("lists freelancers that have no earnings record yet", async () => {

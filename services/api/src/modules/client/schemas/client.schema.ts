@@ -5,6 +5,7 @@ import {
   optionalBoundedText,
   withIgnoredKeys,
 } from "../../../shared/validation/schemas/common.schema.js";
+import { countryCodeSchema } from "../../../shared/validation/schemas/country.schema.js";
 import { searchPagingShape } from "../../../shared/validation/schemas/search.schema.js";
 import { CLIENT_LIMITS } from "../constants/client.constants.js";
 
@@ -43,6 +44,7 @@ export const clientProfileBodySchema = withIgnoredKeys(
       "Company description",
       CLIENT_LIMITS.companyDescriptionMax,
     ).optional(),
+    country: countryCodeSchema.nullable().optional(),
   },
   ["id", "imageId", "createdAt", "updatedAt"],
 );

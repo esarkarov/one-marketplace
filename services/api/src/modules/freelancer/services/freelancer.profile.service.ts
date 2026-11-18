@@ -1,5 +1,6 @@
 import { db } from "../../../database/client.js";
 import {
+  findAccountDisplays,
   findAccountIdByAuthId,
   markFreelancerOnboardingComplete,
   syncAccountDisplay,
@@ -33,7 +34,6 @@ import { requirePublicId } from "../../../shared/ids/public-ids.js";
 import { freelancerPortfolioFolder } from "../../../shared/uploads/storage-paths.js";
 import { invalidateAccountAuthCache } from "../../../infrastructure/cache/account-auth.cache.js";
 import { addConnects } from "../../connects/index.js";
-import { clerk } from "../../../infrastructure/auth/clerk.client.js";
 import {
   isImageDataUrl,
   reuseStoredImage,
@@ -349,16 +349,13 @@ export const getPublicFreelancerProfile = async (profileId: string) => {
   const profile = await getFreelancerProfile(freelancer.userId);
   if (!profile) return null;
 
-  let user;
-  try {
-    user = await clerk.users.getUser(freelancer.userId);
-  } catch {
-    return null;
-  }
+  const display = (await findAccountDisplays([freelancer.userId])).get(
+    freelancer.userId,
+  );
   return {
     ...profile,
     id: profileId,
-    name: user.fullName ?? "Freelancer",
-    avatarUrl: user.imageUrl || null,
+    name: display?.displayName || "Freelancer",
+    avatarUrl: display?.avatarUrl || null,
   };
 };

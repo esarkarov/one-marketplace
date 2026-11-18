@@ -10,8 +10,7 @@ import {
   PublicTalentSearchFilters,
   PublicTalentSearchPage,
 } from "../types/freelancer.types.js";
-import { env } from "../../../config/env.js";
-import { clerk } from "../../../infrastructure/auth/clerk.client.js";
+import { findAccountDisplays } from "../../auth/index.js";
 import { countryDisplayName } from "../../../shared/search/search-text.js";
 
 export const searchPublicFreelancers = async (
@@ -28,23 +27,14 @@ export const searchPublicFreelancers = async (
     }),
     limit,
   );
-  if (!rows.length || !env.clerkSecretKey)
-    return { results: [], hasMore: false };
+  if (!rows.length) return { results: [], hasMore: false };
 
-  const clerkUsers = await Promise.all(
-    rows.map(async (row) => {
-      try {
-        return await clerk.users.getUser(row.authId);
-      } catch {
-        return null;
-      }
-    }),
-  );
+  const displays = await findAccountDisplays(rows.map((row) => row.authId));
 
   const results: PublicTalentSummary[] = [];
-  rows.forEach((row, index) => {
-    const user = clerkUsers[index];
-    const name = user?.fullName ?? "Freelancer";
+  rows.forEach((row) => {
+    const display = displays.get(row.authId);
+    const name = display?.displayName || "Freelancer";
     const countryName = row.country ? countryDisplayName(row.country) : null;
     const location =
       [row.city, countryName].filter(Boolean).join(", ") ||
@@ -53,7 +43,7 @@ export const searchPublicFreelancers = async (
     results.push({
       id: row.id,
       name,
-      avatarUrl: user?.imageUrl || null,
+      avatarUrl: display?.avatarUrl || null,
       title: row.professionalTitle || "Freelancer",
       location,
       verified: row.identityVerified === true,

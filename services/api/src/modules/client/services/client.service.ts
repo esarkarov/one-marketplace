@@ -4,11 +4,11 @@ import {
   fetchSize,
   toOffsetPage,
 } from "../../../shared/validation/utils/pagination.utils.js";
-import { clerk } from "../../../infrastructure/auth/clerk.client.js";
 import { db } from "../../../database/client.js";
 import { countryDisplayName } from "../../../shared/search/search-text.js";
 import { toSafeCents } from "../../../shared/money/money.js";
 import {
+  findAccountDisplays,
   markClientOnboardingComplete,
   setStripeCustomerId,
   syncAccountDisplay,
@@ -217,23 +217,7 @@ export const getClientCompletedContracts = async (
         .filter((id): id is string => Boolean(id)),
     ),
   ];
-  const names = new Map<string, string>();
-  if (env.clerkSecretKey && freelancerIds.length) {
-    await Promise.all(
-      freelancerIds.map(async (freelancerId) => {
-        try {
-          const user = await clerk.users.getUser(freelancerId);
-          names.set(
-            freelancerId,
-            [user.firstName, user.lastName].filter(Boolean).join(" ") ||
-              "Marketplace user",
-          );
-        } catch {
-          names.set(freelancerId, "Marketplace user");
-        }
-      }),
-    );
-  }
+  const displays = await findAccountDisplays(freelancerIds);
 
   const agencyIds = [
     ...new Set(
@@ -255,7 +239,7 @@ export const getClientCompletedContracts = async (
       (review) => review.reviewerId !== clientId,
     );
     const talentName = row.freelancerId
-      ? (names.get(row.freelancerId) ?? "Marketplace user")
+      ? displays.get(row.freelancerId)?.displayName || "Marketplace user"
       : row.agencyId
         ? (agencyNames.get(row.agencyId) ?? "Agency")
         : "Marketplace user";
@@ -320,9 +304,7 @@ export const searchMarketplace = async (
       db,
       {
         query,
-        includeFreelancers:
-          Boolean(env.clerkSecretKey) &&
-          (type === "all" || type === "freelancer"),
+        includeFreelancers: type === "all" || type === "freelancer",
         includeAgencies: type === "all" || type === "agency",
       },
       { limit: fetchSize(limit), offset },
@@ -345,25 +327,19 @@ export const searchMarketplace = async (
     ? await findOnboardedAgencySearchRowsByIds(db, agencyIds)
     : [];
 
-  const clerkUsers = await Promise.all(
-    freelancerRows.map(async (row) => {
-      try {
-        return await clerk.users.getUser(row.authId);
-      } catch {
-        return null;
-      }
-    }),
+  const displays = await findAccountDisplays(
+    freelancerRows.map((row) => row.authId),
   );
 
   const byId = new Map<string, MarketplaceSearchResult>();
 
-  freelancerRows.forEach((row, index) => {
-    const user = clerkUsers[index];
+  freelancerRows.forEach((row) => {
+    const display = displays.get(row.authId);
     const countryName = row.country ? countryDisplayName(row.country) : null;
     byId.set(row.id, {
       id: row.id,
       accountType: MARKETPLACE_ACCOUNT_TYPE.FREELANCER,
-      name: user?.fullName ?? "Freelancer",
+      name: display?.displayName || "Freelancer",
       title: row.professionalTitle || "Freelancer",
       location:
         [row.city, countryName].filter(Boolean).join(", ") ||
@@ -372,7 +348,7 @@ export const searchMarketplace = async (
       skills: row.skills,
       jobSuccess: Math.round(Number(row.jobSuccessScore ?? 0)),
       rating: Number(row.rating ?? 0),
-      avatarUrl: user?.imageUrl || null,
+      avatarUrl: display?.avatarUrl || null,
     });
   });
 

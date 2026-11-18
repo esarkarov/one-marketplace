@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import type { DbExecutor } from "../../../database/database.types.js";
 import { accounts } from "../models/auth.model.js";
 
@@ -125,6 +125,16 @@ export const findAccountDisplay = async (
     .limit(1);
   return row;
 };
+
+export const listAccountDisplays = (executor: DbExecutor, authIds: string[]) =>
+  executor
+    .select({
+      authId: accounts.auth_id,
+      displayName: accounts.display_name,
+      avatarUrl: accounts.avatar_url,
+    })
+    .from(accounts)
+    .where(inArray(accounts.auth_id, authIds));
 
 export const updateAccountDisplay = async (
   executor: DbExecutor,

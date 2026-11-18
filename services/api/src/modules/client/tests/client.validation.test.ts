@@ -151,6 +151,12 @@ describe("PUT /client/profile validation", () => {
       ],
       ["a wrong type", (body) => ({ ...body, industry: 5 })],
       ["an invalid role", (body) => ({ ...body, role: "admin" })],
+      ["a lowercase country", (body) => ({ ...body, country: "us" })],
+      ["a three letter country", (body) => ({ ...body, country: "USA" })],
+      ["an unknown region", (body) => ({ ...body, country: "XX" })],
+      ["the unknown-region code", (body) => ({ ...body, country: "ZZ" })],
+      ["an empty country", (body) => ({ ...body, country: "" })],
+      ["a numeric country", (body) => ({ ...body, country: 5 })],
     ];
 
   it.each(cases)("answers 400 for %s", async (_name, mutate) => {
@@ -170,6 +176,28 @@ describe("PUT /client/profile validation", () => {
 
     expect(response.status).toBe(400);
     expect(response.body.code).toBe("VALIDATION_ERROR");
+  });
+
+  it.each([["US"], ["DE"], [null]])(
+    "passes validation for country %s",
+    async (country) => {
+      const response = await authed("put", "/api/v1/client/profile").send({
+        ...validProfile(),
+        country,
+      });
+
+      expect(response.status).not.toBe(400);
+    },
+  );
+
+  it("reports the country field in the validation errors", async () => {
+    const response = await authed("put", "/api/v1/client/profile").send({
+      ...validProfile(),
+      country: "usa",
+    });
+
+    expect(response.status).toBe(400);
+    expect(JSON.stringify(response.body)).toContain("country");
   });
 
   it("passes validation for a valid body with ignored keys", async () => {

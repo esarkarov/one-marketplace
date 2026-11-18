@@ -1,6 +1,6 @@
 # 0019: Searchable text denormalization
 
-Status: accepted. Batch 1 (schema and write paths) and batch 2 (SQL matching) are implemented.
+Status: accepted. Batch 1 (schema and write paths), batch 2 (SQL matching) and batch 3 (stored display data on list paths, client country) are implemented.
 
 ## Context
 
@@ -15,7 +15,9 @@ Text search on freelancers, agencies and public jobs filters in memory after the
 5. **Clerk failure never fails a user write.** On any failure (error, timeout, key unset, user missing) it logs `account.display_sync.failed` without personal data and returns the stored values. A missing name stays null.
 6. **Staleness accepted.** A name or image changed in Clerk is picked up at the next signup or profile save. An optional Clerk `user.updated` webhook may close this gap later.
 7. **Matching.** `toSearchTerms` trims, lowercases and splits the query on whitespace (at most 10 terms; the 100-character cap stays). Every term must match (AND) as `ILIKE '%term%' ESCAPE '\'` with `\`, `%` and `_` escaped in the term, built by `matchAllTerms` (`src/shared/search/search-conditions.repository.ts`). Freelancer search matches `freelancer_metadata.search_text`. Agency search matches, per term, `agency_metadata.search_text` or the owner's `freelancer_metadata.location_text`. Public jobs match title, description, skills and the client company name. The marketplace search matches both kinds in one `UNION ALL` ordered by `created_at, id` with a single `LIMIT` and `OFFSET`. A blank query is no filter. A plain `ILIKE` is enough for now. `pg_trgm` (extension available in `postgres:18-alpine`) with a GIN index per table is deferred until a table has thousands of rows.
-8. **Backfill.** `scripts/backfill-search-text.ts [--dry-run]` refreshes display data and rebuilds the columns through the owner functions. It is idempotent. No real rows exist yet, so it is needed only if rows are created before batch 2 ships.
+8. **Stored display data on list paths (batch 3).** `findAccountDisplays(authIds)` (auth `index.ts`) is one batched `SELECT` on `accounts` (ids deduplicated, empty input answers an empty map without querying) and returns a `Map` from the Clerk id to `{ displayName, avatarUrl }`. It never calls Clerk. These paths use it instead of a Clerk lookup per id: freelancer search, marketplace freelancer rows, contract counterparties, the client completed-work list, the agency member list, messaging participants, client job proposals and the public freelancer profile. The name is the stored `display_name`; a null or empty name falls back to the placeholder each path already used ("Freelancer", "Marketplace user", "Member", or `null` for a proposal sender), and the avatar is the stored `avatar_url` or `null`. There is no lazy heal: a list path never writes the display columns. A missing name stays a placeholder until `syncAccountDisplay` stores one (signup, profile save, invitation answer, backfill). Freelancer search and the marketplace no longer depend on `CLERK_SECRET_KEY`: the "return nothing when the key is unset" behaviour and its SQL condition are gone. Unchanged Clerk users: admin account listings, the earnings certificate, signup, `syncAccountDisplay` and the invitation flow.
+9. **Client country (batch 3).** `client_metadata.country` (`text`, nullable) holds an ISO 3166-1 alpha-2 code. `PUT /client/profile` takes an optional `country` validated by `countryCodeSchema` (`src/shared/validation/schemas/country.schema.ts`: uppercase two letters and a region `Intl.DisplayNames` knows, `ZZ` rejected). Omitted keeps the stored value, an explicit `null` clears it and a code sets it; `GET` and the save response return `country` (string or null). The public job feed and the freelancer and agency job feeds read the stored value through the jobs and freelancer repositories' existing `client_metadata` join and no longer read `unsafeMetadata.country` from Clerk. The shown name still comes from `countryDisplayName`, and a client without a stored country shows `null`, as a client without one in Clerk did.
+10. **Backfill.** `scripts/backfill-search-text.ts [--dry-run]` refreshes display data and rebuilds the columns through the owner functions. It is idempotent. No real rows exist yet, so it is needed only if rows are created before batch 2 ships.
 
 ## Consequences
 
@@ -23,7 +25,10 @@ Text search on freelancers, agencies and public jobs filters in memory after the
 - No API request or response shape change. The `query` parameter descriptions in OpenAPI now say terms must all match.
 - Old accidental matches are dropped: the literal "Location unavailable", the `, ` separator and bare country codes no longer match. Non-adjacent words in a multi-word query now match.
 - The marketplace `all` type is one list ordered by `created_at, id`, so freelancers and agencies interleave instead of freelancers coming first.
-- Per-row Clerk calls for response fields (names, avatars, client country) remain until batch 3.
+- The remaining `clerk.users.getUser` call sites in `services/api/src` are signup (`auth.service.ts`), `syncAccountDisplay` (`auth.display.service.ts`), the admin account and listing names (`admin.listings.service.ts`) and the earnings certificate (`freelancer.earnings.service.ts`). No other list path calls Clerk.
+- One additive migration for batch 3 (`0006_client_country`): `client_metadata.country text null`, no index.
+- A client that had a country only in Clerk `unsafeMetadata` shows no location until the client saves the profile with `country`; there is no source to backfill it from. A freelancer or member whose name was never synced shows the placeholder until `syncAccountDisplay` runs for them.
+- `user.updated` webhook support stays optional and deferred; staleness is as accepted in item 6.
 - Rows written before this change have `search_text = ''` until saved again or backfilled.
 - Display refreshes do not change `accounts.updated_at`.
 - `src/shared/search/` is a new approved `shared/` folder.

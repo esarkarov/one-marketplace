@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import {
   afterAll,
+  afterEach,
   beforeAll,
   beforeEach,
   describe,
@@ -64,7 +65,13 @@ afterAll(async () => {
 beforeEach(() => {
   assertTestDatabase(process.env.DATABASE_URL, process.env.POSTGRES_DB);
   mocks.getUser.mockReset();
-  mocks.getUser.mockResolvedValue({ unsafeMetadata: { country: "DE" } });
+  mocks.getUser.mockImplementation(() => {
+    throw new Error("Clerk must not be called on the public job feed");
+  });
+});
+
+afterEach(() => {
+  expect(mocks.getUser).not.toHaveBeenCalled();
 });
 
 const seed = async (options: {
@@ -73,6 +80,7 @@ const seed = async (options: {
   skills?: string[];
   company?: string;
   status?: string;
+  country?: string | null;
 }) => {
   const clientId = `${PREFIX}${randomUUID()}`;
   await db.insert(accounts).values({
@@ -89,6 +97,7 @@ const seed = async (options: {
     company_size: "1-10",
     industry: "Software",
     company_description: "x",
+    country: options.country === undefined ? "DE" : options.country,
   });
   const [job] = await db
     .insert(job_posts)
@@ -215,12 +224,29 @@ describe("getPublicJobFeed text query", () => {
     }
   });
 
-  it("keeps showing the client country from Clerk", async () => {
+  it("shows the stored client country without calling Clerk", async () => {
     const token = newToken();
     await seed({ title: `${token} located` });
+    await seed({ title: `${token} elsewhere`, country: "JP" });
+
+    const results = (await search(token)).results;
+
+    expect(
+      results.map((result) => [result.title, result.clientLocation]).sort(),
+    ).toEqual([
+      [`${token} elsewhere`, "Japan"],
+      [`${token} located`, "Germany"],
+    ]);
+    expect(mocks.getUser).not.toHaveBeenCalled();
+  });
+
+  it("shows no location for a client without a stored country", async () => {
+    const token = newToken();
+    await seed({ title: `${token} unlocated`, country: null });
 
     const [result] = (await search(token)).results;
 
-    expect(result?.clientLocation).toBe("Germany");
+    expect(result?.clientLocation).toBeNull();
+    expect(mocks.getUser).not.toHaveBeenCalled();
   });
 });

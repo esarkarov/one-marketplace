@@ -2283,6 +2283,9 @@
           "companyWebsite": {
             "type": "string"
           },
+          "country": {
+            "type": ["string", "null"]
+          },
           "identityVerified": {
             "type": "boolean"
           },
@@ -2313,6 +2316,7 @@
           "companySize",
           "industry",
           "companyDescription",
+          "country",
           "joinedAt",
           "identityVerified",
           "paymentMethodVerified"
@@ -2333,6 +2337,9 @@
           },
           "companyWebsite": {
             "type": "string"
+          },
+          "country": {
+            "type": ["string", "null"]
           },
           "identityVerified": {
             "type": "boolean"
@@ -2368,6 +2375,7 @@
           "companySize",
           "industry",
           "companyDescription",
+          "country",
           "joinedAt",
           "identityVerified",
           "paymentMethodVerified",
@@ -12816,6 +12824,18 @@
                   "companyWebsite": {
                     "maxLength": 2048,
                     "type": "string"
+                  },
+                  "country": {
+                    "anyOf": [
+                      {
+                        "description": "ISO 3166-1 alpha-2 country code, uppercase.",
+                        "pattern": "^[A-Z]{2}$",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   },
                   "createdAt": {
                     "description": "Accepted for compatibility and ignored by the server."

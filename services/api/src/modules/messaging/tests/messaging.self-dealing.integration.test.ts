@@ -1,10 +1,22 @@
 import { randomUUID } from "node:crypto";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
+
+const mocks = vi.hoisted(() => ({
+  getUser: vi.fn(() => {
+    throw new Error("Clerk must not be called on messaging paths");
+  }),
+}));
 
 vi.mock("../../../infrastructure/auth/clerk.client.js", () => ({
-  clerk: {
-    users: { getUser: vi.fn().mockRejectedValue(new Error("clerk down")) },
-  },
+  clerk: { users: { getUser: mocks.getUser } },
 }));
 
 vi.mock("../messaging.socket.js", () => ({
@@ -95,6 +107,10 @@ const conversationCount = async (proposalId: string) => {
 beforeAll(async () => {
   assertTestDatabase(process.env.DATABASE_URL, process.env.POSTGRES_DB);
   await purge();
+});
+
+afterEach(() => {
+  expect(mocks.getUser).not.toHaveBeenCalled();
 });
 
 afterAll(async () => {

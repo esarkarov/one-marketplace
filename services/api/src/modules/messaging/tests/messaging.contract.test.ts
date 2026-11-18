@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import request from "supertest";
 import {
   afterAll,
+  afterEach,
   beforeAll,
   beforeEach,
   describe,
@@ -103,6 +104,8 @@ const insertAccount = async (role: "CLIENT" | "FREELANCER") => {
   await db.insert(accounts).values({
     auth_id: authId,
     email: `${authId}@example.test`,
+    display_name: "Test User",
+    avatar_url: "https://example.test/avatar.png",
     role,
     created_at: new Date(),
     updated_at: new Date(),
@@ -265,6 +268,10 @@ beforeAll(async () => {
   await purge();
 });
 
+afterEach(() => {
+  expect(mocks.getUser).not.toHaveBeenCalled();
+});
+
 afterAll(async () => {
   await purge();
   await pool.end();
@@ -284,10 +291,8 @@ beforeEach(() => {
       url: `https://ik.example.test${folder}/${fileName}`,
     }),
   );
-  mocks.getUser.mockResolvedValue({
-    firstName: "Test",
-    lastName: "User",
-    imageUrl: "https://example.test/avatar.png",
+  mocks.getUser.mockImplementation(() => {
+    throw new Error("Clerk must not be called on messaging paths");
   });
   mocks.verifyToken.mockImplementation(async (token: string) => ({
     sub: token,
@@ -314,6 +319,15 @@ describe("GET /conversations", () => {
     expect(body.data.results).toHaveLength(1);
     expect(body.data.results[0]?.activeMeeting).not.toBeNull();
     expect(body.data.results[0]?.lastMessage).not.toBeNull();
+    expect(
+      body.data.results[0]?.participants.map((participant) => [
+        participant.name,
+        participant.avatarUrl,
+      ]),
+    ).toEqual([
+      ["Test User", "https://example.test/avatar.png"],
+      ["Test User", "https://example.test/avatar.png"],
+    ]);
     expectNoClerkIds(response.body, [fixture.clientId, fixture.freelancerId]);
     expect(body.data.results[0]?.activeMeeting?.startedByAccountId).toBe(
       await publicIdOf(fixture.clientId),

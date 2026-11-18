@@ -20,7 +20,13 @@ vi.mock("../../../infrastructure/cache/redis.client.js", () => ({
 }));
 
 vi.mock("../../../infrastructure/auth/clerk.client.js", () => ({
-  clerk: { users: { getUser: vi.fn() } },
+  clerk: {
+    users: {
+      getUser: vi.fn(() => {
+        throw new Error("Clerk must not be called on proposal paths");
+      }),
+    },
+  },
 }));
 
 vi.mock("../../../infrastructure/events/notification.publisher.js", () => ({

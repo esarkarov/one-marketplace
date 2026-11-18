@@ -57,6 +57,7 @@ interface ClientProfileBody {
   companySize?: string;
   industry?: string;
   companyDescription?: string;
+  country?: string | null;
 }
 
 export const upsertClientProfile: RequestHandler = asyncHandler(
@@ -81,6 +82,7 @@ export const upsertClientProfile: RequestHandler = asyncHandler(
         body.companyDescription,
         "Company description",
       ),
+      country: body.country,
     };
 
     const profile = await saveClientProfile(input);

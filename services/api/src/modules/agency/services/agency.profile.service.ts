@@ -1,8 +1,7 @@
 import { toApiMemberRole } from "../constants/agency.constants.js";
 import { randomUUID } from "crypto";
-import { syncAccountDisplay } from "../../auth/index.js";
+import { findAccountDisplays, syncAccountDisplay } from "../../auth/index.js";
 import { buildAgencySearchText } from "../utils/agency.search-text.js";
-import { clerk } from "../../../infrastructure/auth/clerk.client.js";
 import { db } from "../../../database/client.js";
 import { isUniqueViolation } from "../../../database/pg-errors.js";
 import { requirePublicId } from "../../../shared/ids/public-ids.js";
@@ -171,27 +170,7 @@ const attachOwnerProfile = async (
   const ownerLanguageDetails = ownerRow?.languages ?? [];
 
   const freelancerIds = memberRows.map((row) => row.freelancerId);
-  const names = new Map<string, string>();
-  const avatars = new Map<string, string | null>();
-
-  if (env.clerkSecretKey) {
-    await Promise.all(
-      freelancerIds.map(async (freelancerId) => {
-        try {
-          const user = await clerk.users.getUser(freelancerId);
-          names.set(
-            freelancerId,
-            [user.firstName, user.lastName].filter(Boolean).join(" ") ||
-              "Marketplace user",
-          );
-          avatars.set(freelancerId, user.imageUrl || null);
-        } catch {
-          names.set(freelancerId, "Marketplace user");
-          avatars.set(freelancerId, null);
-        }
-      }),
-    );
-  }
+  const displays = await findAccountDisplays(freelancerIds);
 
   const members: AgencyMember[] = memberRows.map((row) => {
     const isOwner = row.freelancerId === ownerId;
@@ -199,8 +178,8 @@ const attachOwnerProfile = async (
       id: row.id,
       accountId: requirePublicId(row.accountId, "agency_members", row.id),
       profileId: row.profileId,
-      name: names.get(row.freelancerId) ?? "Marketplace user",
-      avatarUrl: avatars.get(row.freelancerId) ?? null,
+      name: displays.get(row.freelancerId)?.displayName || "Marketplace user",
+      avatarUrl: displays.get(row.freelancerId)?.avatarUrl || null,
       role: isOwner
         ? ["Founder", row.professionalTitle].filter(Boolean).join(" · ")
         : toApiMemberRole(row.role),

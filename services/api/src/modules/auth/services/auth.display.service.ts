@@ -5,6 +5,7 @@ import { clerk } from "../../../infrastructure/auth/clerk.client.js";
 import { CLERK_DISPLAY_SYNC_TIMEOUT_MS } from "../constants/auth.constants.js";
 import {
   findAccountDisplay,
+  listAccountDisplays,
   updateAccountDisplay,
 } from "../repositories/auth.repository.js";
 import type { AccountDisplay } from "../types/auth.types.js";
@@ -28,6 +29,21 @@ export const toAccountDisplay = (user: ClerkDisplaySource): AccountDisplay => ({
 });
 
 const EMPTY_DISPLAY: AccountDisplay = { displayName: null, avatarUrl: null };
+
+export const findAccountDisplays = async (
+  authIds: string[],
+): Promise<Map<string, AccountDisplay>> => {
+  const unique = [...new Set(authIds)];
+  if (unique.length === 0) return new Map();
+
+  const rows = await listAccountDisplays(db, unique);
+  return new Map(
+    rows.map(({ authId, displayName, avatarUrl }) => [
+      authId,
+      { displayName, avatarUrl },
+    ]),
+  );
+};
 
 const fetchWithTimeout = async (authId: string) => {
   let timer: NodeJS.Timeout | undefined;

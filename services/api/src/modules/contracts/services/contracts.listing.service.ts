@@ -1,5 +1,4 @@
-import { clerk } from "../../../infrastructure/auth/clerk.client.js";
-import { env } from "../../../config/env.js";
+import { findAccountDisplays } from "../../auth/index.js";
 import {
   listAccountContractIds,
   listAgencySummariesByIds,
@@ -52,26 +51,7 @@ export const getAccountContracts = async (
         ])
       : [],
   );
-  const names = new Map<string, string>();
-  const avatars = new Map<string, string | null>();
-  if (env.clerkSecretKey && counterpartyIds.length) {
-    await Promise.all(
-      counterpartyIds.map(async (accountId) => {
-        try {
-          const user = await clerk.users.getUser(accountId);
-          names.set(
-            accountId,
-            [user.firstName, user.lastName].filter(Boolean).join(" ") ||
-              "Marketplace user",
-          );
-          avatars.set(accountId, user.imageUrl || null);
-        } catch {
-          names.set(accountId, "Marketplace user");
-          avatars.set(accountId, null);
-        }
-      }),
-    );
-  }
+  const displays = await findAccountDisplays(counterpartyIds);
 
   const agencyIds = [
     ...new Set(
@@ -164,11 +144,11 @@ export const getAccountContracts = async (
         : ((role === "freelancer" || role === "agency"
             ? row.clientCompanyName
             : null) ??
-          names.get(counterpartyAuthId ?? "") ??
-          "Marketplace user"),
+          (displays.get(counterpartyAuthId ?? "")?.displayName ||
+            "Marketplace user")),
       counterpartyAvatar: isAgencyCounterparty
         ? (agencyAvatars.get(row.agencyId!) ?? null)
-        : (avatars.get(counterpartyAuthId ?? "") ?? null),
+        : displays.get(counterpartyAuthId ?? "")?.avatarUrl || null,
       reviewedByCurrentUser: row.reviewedByCurrentUser,
       milestones: [],
     };

@@ -34,6 +34,7 @@ export const findClientProfile = async (
       companySize: client_metadata.company_size,
       industry: client_metadata.industry,
       companyDescription: client_metadata.company_description,
+      country: client_metadata.country,
       joinedAt: client_metadata.created_at,
       identityVerified: accounts.identityVerified,
       paymentMethodVerified: accounts.paymentMethodVerified,
@@ -66,6 +67,7 @@ export const upsertClientMetadata = async (
       company_size: input.companySize,
       industry: input.industry,
       company_description: input.companyDescription,
+      country: input.country ?? null,
       created_at: now,
       updated_at: now,
     })
@@ -78,6 +80,7 @@ export const upsertClientMetadata = async (
         company_size: input.companySize,
         industry: input.industry,
         company_description: input.companyDescription,
+        ...(input.country !== undefined && { country: input.country }),
         updated_at: now,
       },
     })
@@ -88,6 +91,7 @@ export const upsertClientMetadata = async (
       companySize: client_metadata.company_size,
       industry: client_metadata.industry,
       companyDescription: client_metadata.company_description,
+      country: client_metadata.country,
       joinedAt: client_metadata?.created_at,
     });
   return savedProfile;

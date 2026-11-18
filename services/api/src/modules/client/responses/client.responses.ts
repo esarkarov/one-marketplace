@@ -19,6 +19,7 @@ const ClientProfile = z
     companySize: z.string(),
     industry: z.string(),
     companyDescription: z.string(),
+    country: z.string().nullable(),
     joinedAt: isoDateTime.nullable(),
     identityVerified: z.boolean(),
     paymentMethodVerified: z.boolean(),

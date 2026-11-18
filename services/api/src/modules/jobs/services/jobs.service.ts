@@ -19,7 +19,6 @@ import {
 import { ApiError } from "../../../shared/errors/api-error.js";
 import { findAccountIdByAuthId } from "../../auth/index.js";
 import { imageKit } from "../../../infrastructure/storage/image-kit.client.js";
-import { env } from "../../../config/env.js";
 import {
   deleteDocuments,
   uploadDocuments,
@@ -32,7 +31,6 @@ import {
   fetchSize,
   toOffsetPage,
 } from "../../../shared/validation/utils/pagination.utils.js";
-import { clerk } from "../../../infrastructure/auth/clerk.client.js";
 import { countryDisplayName } from "../../../shared/search/search-text.js";
 import {
   toJobPostResponse,
@@ -270,29 +268,11 @@ export const getPublicJobFeed = async (
   );
   if (!rows.length) return { results: [], hasMore: false };
 
-  const clientCountries = new Map<string, string | null>();
-  if (env.clerkSecretKey) {
-    const uniqueClientIds = [...new Set(rows.map((row) => row.job.client_id))];
-    await Promise.all(
-      uniqueClientIds.map(async (clientId) => {
-        try {
-          const user = await clerk.users.getUser(clientId);
-          const country = user.unsafeMetadata.country;
-          clientCountries.set(
-            clientId,
-            typeof country === "string" ? country : null,
-          );
-        } catch {
-          clientCountries.set(clientId, null);
-        }
-      }),
-    );
-  }
-
   const results: PublicJobSummary[] = [];
   for (const row of rows) {
-    const countryCode = clientCountries.get(row.job.client_id) ?? null;
-    const clientLocation = countryCode ? countryDisplayName(countryCode) : null;
+    const clientLocation = row.clientCountry
+      ? countryDisplayName(row.clientCountry)
+      : null;
 
     results.push({
       id: row.job.id,

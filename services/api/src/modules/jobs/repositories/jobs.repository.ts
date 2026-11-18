@@ -319,6 +319,7 @@ export const findPublishedJobFeedRows = (
     .select({
       job: job_posts,
       companyName: client_metadata.company_name,
+      clientCountry: client_metadata.country,
       paymentVerified: accounts.paymentMethodVerified,
       totalSpentCents: client_spents.total_spent_cents,
       clientRating: client_spents.rating,

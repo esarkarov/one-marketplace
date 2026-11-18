@@ -13,7 +13,7 @@ import {
   toOffsetPage,
 } from "../../../shared/validation/utils/pagination.utils.js";
 import { toProposalSenderId } from "../utils/proposals.mappers.js";
-import { clerk } from "../../../infrastructure/auth/clerk.client.js";
+import { findAccountDisplays } from "../../auth/index.js";
 
 const ACTIVE_PROPOSAL_STATUSES = new Set([
   "SUBMITTED",
@@ -119,6 +119,12 @@ export const getClientJobProposals = async (
     limit,
   );
 
+  const displays = await findAccountDisplays(
+    rows
+      .filter((row) => row.senderType !== "AGENCY")
+      .map((row) => row.senderId),
+  );
+
   const results = await Promise.all(
     rows.map(
       async ({
@@ -175,26 +181,15 @@ export const getClientJobProposals = async (
           };
         }
 
-        try {
-          const user = await clerk.users.getUser(senderId);
-          return {
-            ...proposal,
-            ...stats,
-            senderId: publicSenderId,
-            senderType,
-            senderName: user.fullName,
-            avatar: user.imageUrl || null,
-          };
-        } catch {
-          return {
-            ...proposal,
-            ...stats,
-            senderId: publicSenderId,
-            senderType,
-            senderName: null,
-            avatarUrl: null,
-          };
-        }
+        const display = displays.get(senderId);
+        return {
+          ...proposal,
+          ...stats,
+          senderId: publicSenderId,
+          senderType,
+          senderName: display?.displayName || null,
+          avatar: display?.avatarUrl || null,
+        };
       },
     ),
   );

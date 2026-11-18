@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import request from "supertest";
 import {
   afterAll,
+  afterEach,
   beforeAll,
   beforeEach,
   describe,
@@ -138,6 +139,7 @@ const seedClient = async () => {
     company_size: "11-50",
     industry: "Software",
     company_description: "We build things.",
+    country: "DE",
     created_at: new Date(),
     updated_at: new Date(),
   });
@@ -183,6 +185,10 @@ beforeAll(async () => {
   await purge();
 });
 
+afterEach(() => {
+  expect(mocks.getUser).not.toHaveBeenCalled();
+});
+
 afterAll(async () => {
   await purge();
   await pool.end();
@@ -199,7 +205,9 @@ beforeEach(() => {
     sub: token,
     sid: `sess_${token}`,
   }));
-  mocks.getUser.mockResolvedValue({ unsafeMetadata: { country: "DE" } });
+  mocks.getUser.mockImplementation(() => {
+    throw new Error("Clerk must not be called on job list paths");
+  });
   mocks.upload.mockImplementation(async () => ({
     fileId: `file_${randomUUID()}`,
     url: "https://ik.example.test/brief.png",
@@ -320,6 +328,10 @@ describe("jobs contract", () => {
     expect(feed.status).toBe(200);
     expect(feed.body.data.results.length).toBeGreaterThan(0);
     jobsPublicResponses[200].parse(feed.body);
+    const listed = (
+      feed.body.data.results as { id: string; clientLocation: string | null }[]
+    ).find((row) => row.id === jobId);
+    expect(listed?.clientLocation).toBe("Germany");
 
     const saved = await request(app)
       .post(`${API}/saved/${jobId}`)

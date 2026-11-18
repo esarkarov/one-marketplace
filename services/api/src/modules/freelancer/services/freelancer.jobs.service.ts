@@ -9,25 +9,12 @@ import {
 } from "../repositories/freelancer.jobs.repository.js";
 import { findFreelancerSkills } from "../repositories/freelancer.repository.js";
 import { JobFeedFilters } from "../types/freelancer.types.js";
-import { env } from "../../../config/env.js";
 import { ApiError } from "../../../shared/errors/api-error.js";
-import { clerk } from "../../../infrastructure/auth/clerk.client.js";
 import { toJobPostResponse } from "../../jobs/index.js";
 import {
   fetchSize,
   toOffsetPage,
 } from "../../../shared/validation/utils/pagination.utils.js";
-
-const getClientCountry = async (clientId: string) => {
-  if (!env.clerkSecretKey) {
-    throw new ApiError(503, "Authentication is not configured.");
-  }
-
-  const client = await clerk.users.getUser(clientId);
-  const country = client.unsafeMetadata.country;
-
-  return typeof country === "string" ? country : null;
-};
 
 export const getJSSContribution = (rating: number): number => {
   const r = Math.round(rating);
@@ -72,6 +59,7 @@ const matchJobPostsBySkills = async (
         job,
         clientAccountId,
         companyName,
+        clientCountry,
         paymentVerified,
         totalSpentCents,
         clientRating,
@@ -80,6 +68,7 @@ const matchJobPostsBySkills = async (
         ...job,
         clientAccountId,
         companyName,
+        clientCountry,
         paymentVerified: paymentVerified === true,
         proposalCount: counts?.get(job.id) ?? 0,
         hireCount: hires.get(job.id) ?? 0,
@@ -149,19 +138,10 @@ export const getMatchedJobPostsBySkills = async (
     limit,
   );
 
-  const clientCountries = new Map(
-    await Promise.all(
-      [...new Set(rows.map((job) => job.client_id))].map(
-        async (clientId) =>
-          [clientId, await getClientCountry(clientId)] as const,
-      ),
-    ),
-  );
-
   return {
-    results: rows.map(({ clientAccountId, ...job }) => ({
+    results: rows.map(({ clientAccountId, clientCountry, ...job }) => ({
       ...toJobPostResponse(job, clientAccountId, operation),
-      clientCountry: clientCountries.get(job.client_id) ?? null,
+      clientCountry: clientCountry ?? null,
     })),
     hasMore,
   };
@@ -192,8 +172,6 @@ export const getFreelancerJobPost = async (jobId: string) => {
   const proposalTotal = await countProposalsForJob(db, jobId);
   const hireTotal = await countHiresForJob(db, jobId);
 
-  const clientCountry = await getClientCountry(result.job.client_id);
-
   return {
     ...toJobPostResponse(
       result.job,
@@ -202,7 +180,7 @@ export const getFreelancerJobPost = async (jobId: string) => {
     ),
     companyName: result.companyName,
     companyDescription: result.companyDescription,
-    clientCountry,
+    clientCountry: result.clientCountry ?? null,
     paymentVerified: result.paymentVerified === true,
     clientJoinedAt: result.clientJoinedAt,
     proposalCount: Number(proposalTotal?.count ?? 0),

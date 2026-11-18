@@ -15,5 +15,8 @@ export {
   resolveAccountRole,
   verifyBearerToken,
 } from "./middleware/auth.middleware.js";
-export { syncAccountDisplay } from "./services/auth.display.service.js";
+export {
+  findAccountDisplays,
+  syncAccountDisplay,
+} from "./services/auth.display.service.js";
 export type { AccountDisplay } from "./types/auth.types.js";

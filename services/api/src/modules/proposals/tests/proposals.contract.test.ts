@@ -3,6 +3,7 @@ import { asc, eq } from "drizzle-orm";
 import request from "supertest";
 import {
   afterAll,
+  afterEach,
   beforeAll,
   beforeEach,
   describe,
@@ -149,9 +150,13 @@ const purge = async () => {
   await pool.query("delete from accounts where auth_id like $1", [like]);
 };
 
-const createFreelancer = async (ratingScore = "4.50") => {
+const createFreelancer = async (
+  ratingScore = "4.50",
+  display: { display_name?: string; avatar_url?: string } = {},
+) => {
   const authId = await insertAccount(newAuthId(), "FREELANCER", {
     identityVerified: true,
+    ...display,
   });
   await db.insert(freelancer_metadata).values({
     auth_id: authId,
@@ -258,16 +263,22 @@ beforeEach(() => {
     sub: token,
     sid: `sess_${token}`,
   }));
-  mocks.getUser.mockResolvedValue({
-    fullName: "Fiona Freelancer",
-    imageUrl: "https://example.test/f.png",
+  mocks.getUser.mockImplementation(() => {
+    throw new Error("Clerk must not be called on proposal list paths");
   });
+});
+
+afterEach(() => {
+  expect(mocks.getUser).not.toHaveBeenCalled();
 });
 
 describe("proposals contract", () => {
   it("covers submit, metadata, client list, status changes and interviews", async () => {
     const { clientId, jobId } = await createClientWithJob();
-    const freelancerId = await createFreelancer();
+    const freelancerId = await createFreelancer("4.50", {
+      display_name: "Fiona Freelancer",
+      avatar_url: "https://example.test/f.png",
+    });
     const brokenFreelancerId = await createFreelancer();
     const { agencyId, ownerId } = await createAgency();
 
@@ -343,10 +354,6 @@ describe("proposals contract", () => {
         screening_answers: [{ question: "Why you?", answer: "Because" }],
       })
       .returning({ id: proposals.id });
-    mocks.getUser.mockImplementation(async (id: string) => {
-      if (id === brokenFreelancerId) throw new Error("clerk down");
-      return { fullName: "Fiona Freelancer", imageUrl: "" };
-    });
 
     const metadata = await request(app)
       .get(`${API}/metadata`)
@@ -385,6 +392,14 @@ describe("proposals contract", () => {
       await accountUuid(brokenFreelancerId),
     );
     expect(senderOf(agencyProposal!.id)?.senderId).toBe(agencyId);
+    expect(senderOf(proposalId)).toMatchObject({
+      senderName: "Fiona Freelancer",
+      avatar: "https://example.test/f.png",
+    });
+    expect(senderOf(brokenProposal!.id)).toMatchObject({
+      senderName: null,
+      avatar: null,
+    });
     for (const item of listed) {
       expect(item).toHaveProperty("profileId");
       expect(item).not.toHaveProperty("freelancerId");

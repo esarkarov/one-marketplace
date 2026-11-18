@@ -204,6 +204,7 @@ const seedMarket = async (freelancerId: string) => {
     company_size: "11-50",
     industry: "Software",
     company_description: "We build things.",
+    country: "US",
     created_at: new Date(),
     updated_at: new Date(),
   });
@@ -426,7 +427,7 @@ beforeEach(() => {
     lastName: "Freelancer",
     fullName: "Fiona Freelancer",
     imageUrl: "https://example.test/f.png",
-    unsafeMetadata: { country: "US" },
+    unsafeMetadata: { country: "FR" },
   });
   mocks.upload.mockImplementation(async () => ({
     fileId: `file_${randomUUID()}`,
@@ -525,6 +526,7 @@ describe("freelancer contract", () => {
     const { freelancerId } = await seedFreelancer();
     const { openJobId, clientId: marketClientId } =
       await seedMarket(freelancerId);
+    mocks.getUser.mockClear();
 
     const [metadata] = await pool
       .query<{ id: string }>(
@@ -538,12 +540,20 @@ describe("freelancer contract", () => {
     );
     expect(publicProfile.status).toBe(200);
     freelancerPublicProfileResponses[200].parse(publicProfile.body);
+    expect(publicProfile.body.data).toMatchObject({
+      name: "Fiona Freelancer",
+      avatarUrl: "https://example.test/f.png",
+    });
 
     const search = await request(app)
       .get(`${API}/search`)
       .query({ query: "fiona" });
     expect(search.status).toBe(200);
     expect(search.body.data.results.length).toBeGreaterThan(0);
+    expect(search.body.data.results[0]).toMatchObject({
+      name: "Fiona Freelancer",
+      avatarUrl: "https://example.test/f.png",
+    });
     freelancerSearchResponses[200].parse(search.body);
 
     const feed = await request(app)
@@ -562,6 +572,7 @@ describe("freelancer contract", () => {
       (job: { id: string }) => job.id === openJobId,
     );
     expect(feedJob.clientId).toBe(marketAccount[0].id);
+    expect(feedJob.clientCountry).toBe("US");
     expectNoClerkIds(feed.body, [marketClientId, freelancerId]);
 
     const recent = await request(app)
@@ -578,7 +589,9 @@ describe("freelancer contract", () => {
     expect(detail.status).toBe(200);
     freelancerJobDetailResponses[200].parse(detail.body);
     expect(detail.body.data.clientId).toBe(marketAccount[0].id);
+    expect(detail.body.data.clientCountry).toBe("US");
     expectNoClerkIds(detail.body, [marketClientId, freelancerId]);
+    expect(mocks.getUser).not.toHaveBeenCalled();
 
     const summary = await request(app)
       .get(`${API}/earnings/summary`)
