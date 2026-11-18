@@ -10668,6 +10668,7 @@
             "name": "query",
             "required": false,
             "schema": {
+              "description": "Case-insensitive; space-separated terms must all match.",
               "maxLength": 100,
               "type": "string"
             }
@@ -12537,6 +12538,7 @@
             "name": "query",
             "required": false,
             "schema": {
+              "description": "Case-insensitive; space-separated terms must all match.",
               "maxLength": 100,
               "type": "string"
             }
@@ -17815,6 +17817,7 @@
             "name": "query",
             "required": false,
             "schema": {
+              "description": "Case-insensitive; space-separated terms must all match.",
               "maxLength": 100,
               "type": "string"
             }
@@ -18708,6 +18711,7 @@
             "name": "query",
             "required": false,
             "schema": {
+              "description": "Case-insensitive; space-separated terms must all match.",
               "maxLength": 100,
               "type": "string"
             }

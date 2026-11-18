@@ -48,6 +48,8 @@ vi.mock("../../../infrastructure/cache/account-auth.cache.js", () => ({
 
 import { db, pool } from "../../../database/client.js";
 import { accounts, freelancer_metadata } from "../../../test/support/tables.js";
+import { buildFreelancerSearchFields } from "../utils/freelancer.search-text.js";
+import { searchPublicFreelancers } from "../services/freelancer.search.service.js";
 import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
 import { saveFreelancerProfile } from "../services/freelancer.profile.service.js";
 import {
@@ -55,7 +57,7 @@ import {
   rebuildFreelancerSearchText,
 } from "../services/freelancer.search-index.service.js";
 
-const PREFIX = "freelancer-search-text-";
+const PREFIX = "freelancer-stext-it-";
 const newAuthId = () => `${PREFIX}${randomUUID()}`;
 
 const clerkUser = {
@@ -268,5 +270,144 @@ describe("rebuildFreelancerSearchText", () => {
       false,
     );
     expect(await listFreelancerAuthIds()).toContain(authId);
+  });
+});
+
+describe("searchPublicFreelancers text query", () => {
+  const newToken = () => `tok${randomUUID().replaceAll("-", "").slice(0, 12)}`;
+
+  const seed = async (options: {
+    title: string;
+    skills?: string[];
+    city?: string;
+    country?: string;
+    name?: string | null;
+  }) => {
+    const name = options.name ?? null;
+    const authId = await insertAccount({ display_name: name });
+    const [row] = await db
+      .insert(freelancer_metadata)
+      .values({
+        auth_id: authId,
+        professional_title: options.title,
+        professional_description: "x",
+        hourly_rate_cents: 1000,
+        country: options.country ?? "DE",
+        city: options.city ?? "Berlin",
+        weekly_availability: "10",
+        experience_level: "EXPERT",
+        skills: options.skills ?? [],
+        languages: [],
+        ...buildFreelancerSearchFields({
+          displayName: name,
+          professionalTitle: options.title,
+          city: options.city ?? "Berlin",
+          country: options.country ?? "DE",
+          skills: options.skills ?? [],
+        }),
+      })
+      .returning({ id: freelancer_metadata.id });
+    return row!.id;
+  };
+
+  const search = async (query: string, limit = 100, offset = 0) =>
+    searchPublicFreelancers({ query }, { limit, offset });
+
+  it("filters before the page so matches on later offsets are returned", async () => {
+    const token = newToken();
+    for (let index = 0; index < 5; index += 1) {
+      await seed({ title: `${token} developer ${index}` });
+    }
+    await seed({ title: "unrelated designer" });
+
+    const first = await search(token, 2, 0);
+    const second = await search(token, 2, 2);
+    const third = await search(token, 2, 4);
+
+    expect(first.results).toHaveLength(2);
+    expect(first.hasMore).toBe(true);
+    expect(second.results).toHaveLength(2);
+    expect(second.hasMore).toBe(true);
+    expect(third.results).toHaveLength(1);
+    expect(third.hasMore).toBe(false);
+    const ids = [first, second, third].flatMap((page) =>
+      page.results.map((result) => result.id),
+    );
+    expect(new Set(ids).size).toBe(5);
+  });
+
+  it("is case-insensitive and matches non-adjacent words", async () => {
+    const token = newToken();
+    const id = await seed({ title: `Senior ${token} Backend Developer` });
+
+    for (const query of [
+      token.toUpperCase(),
+      `developer SENIOR ${token}`,
+      `  senior   developer  `,
+    ]) {
+      const found = (await search(`${query} ${token}`)).results;
+      expect(found.map((result) => result.id)).toEqual([id]);
+    }
+  });
+
+  it("reaches name, title, skill, city and country name", async () => {
+    const token = newToken();
+    const id = await seed({
+      title: `${token} Engineer`,
+      skills: ["Rust", "WebAssembly"],
+      city: "Lisbon",
+      country: "PT",
+      name: "Quincy Zephyr",
+    });
+    await seed({ title: `${token} Designer`, city: "Oslo", country: "NO" });
+
+    for (const term of [
+      "quincy",
+      "zephyr",
+      "engineer",
+      "rust",
+      "webassembly",
+      "lisbon",
+      "portugal",
+    ]) {
+      const found = (await search(`${token} ${term}`)).results;
+      expect(
+        found.map((result) => result.id),
+        term,
+      ).toEqual([id]);
+    }
+    expect((await search(`${token} norway`)).results).toHaveLength(1);
+  });
+
+  it("treats percent, underscore and backslash literally", async () => {
+    const token = newToken();
+    const percent = await seed({ title: `${token} 100% sure` });
+    await seed({ title: `${token} 1000 sure` });
+    const underscore = await seed({ title: `${token} snake_case` });
+    await seed({ title: `${token} snakexcase` });
+    const backslash = await seed({ title: String.raw`${token} dir\file` });
+    await seed({ title: `${token} dirxfile` });
+
+    const ids = async (term: string) =>
+      (await search(`${token} ${term}`)).results.map((result) => result.id);
+    expect(await ids("100%")).toEqual([percent]);
+    expect(await ids("snake_case")).toEqual([underscore]);
+    expect(await ids(String.raw`dir\file`)).toEqual([backslash]);
+    expect((await search(`${token} %`)).results.length).toBe(1);
+  });
+
+  it("excludes non-matching rows and treats blank queries as no filter", async () => {
+    const token = newToken();
+    await seed({ title: `${token} alpha` });
+    await seed({ title: `${token} beta` });
+
+    expect((await search(`${token} gamma`)).results).toHaveLength(0);
+    expect((await search(`${token} alpha beta`)).results).toHaveLength(0);
+
+    for (const blank of ["", "   ", "\t \n"]) {
+      const page = await search(blank, 1, 0);
+      expect(page.results).toHaveLength(1);
+      expect(page.hasMore).toBe(true);
+    }
   });
 });

@@ -6,6 +6,7 @@ import {
 } from "../../../shared/validation/utils/pagination.utils.js";
 import { clerk } from "../../../infrastructure/auth/clerk.client.js";
 import { db } from "../../../database/client.js";
+import { countryDisplayName } from "../../../shared/search/search-text.js";
 import { toSafeCents } from "../../../shared/money/money.js";
 import {
   markClientOnboardingComplete,
@@ -23,9 +24,10 @@ import {
   findClientSpendForDashboard,
   findClientSpendForOverview,
   findCompletedContractsOfClient,
-  findFreelancerSearchRows,
+  findFreelancerSearchRowsByIds,
   findLatestPublishedJobsWithProposalCounts,
-  findOnboardedAgencySearchRows,
+  findMarketplacePage,
+  findOnboardedAgencySearchRowsByIds,
   findProposalStatsOfClient,
   findReviewsForContracts,
   upsertClientMetadata,
@@ -305,8 +307,6 @@ export const getClientFinanceManagementUrl = async (
   return session.url;
 };
 
-const regionNames = new Intl.DisplayNames(["en"], { type: "region" });
-
 export const searchMarketplace = async (
   query: string,
   type: "all" | "freelancer" | "agency",
@@ -314,104 +314,89 @@ export const searchMarketplace = async (
 ): Promise<MarketplaceSearchPage> => {
   const limit = pagination.limit ?? PAGINATION.defaultLimit;
   const offset = pagination.offset ?? 0;
-  const normalizedQuery = query.trim().toLowerCase();
-  const results: MarketplaceSearchResult[] = [];
-  let hasMore = false;
 
-  if (type === "all" || type === "freelancer") {
-    const page = toOffsetPage(
-      await findFreelancerSearchRows(db, { limit: fetchSize(limit), offset }),
-      limit,
-    );
-    const rows = page.rows;
+  const { rows: pageRows, hasMore } = toOffsetPage(
+    await findMarketplacePage(
+      db,
+      {
+        query,
+        includeFreelancers:
+          Boolean(env.clerkSecretKey) &&
+          (type === "all" || type === "freelancer"),
+        includeAgencies: type === "all" || type === "agency",
+      },
+      { limit: fetchSize(limit), offset },
+    ),
+    limit,
+  );
+  if (!pageRows.length) return { results: [], hasMore: false };
 
-    if (page.hasMore) hasMore = true;
+  const freelancerIds = pageRows
+    .filter((row) => row.kind === "FREELANCER")
+    .map((row) => row.id);
+  const agencyIds = pageRows
+    .filter((row) => row.kind === "AGENCY")
+    .map((row) => row.id);
 
-    if (rows.length && env.clerkSecretKey) {
-      const clerkUsers = await Promise.all(
-        rows.map(async (row) => {
-          try {
-            return await clerk.users.getUser(row.authId);
-          } catch {
-            return null;
-          }
-        }),
-      );
+  const freelancerRows = freelancerIds.length
+    ? await findFreelancerSearchRowsByIds(db, freelancerIds)
+    : [];
+  const agencyRows = agencyIds.length
+    ? await findOnboardedAgencySearchRowsByIds(db, agencyIds)
+    : [];
 
-      rows.forEach((row, index) => {
-        const user = clerkUsers[index];
-        const name = user?.fullName ?? "Freelancer";
-        const countryName = row.country
-          ? (regionNames.of(row.country) ?? row.country)
-          : null;
-        const location =
-          [row.city, countryName].filter(Boolean).join(", ") ||
-          "Location unavailable";
-        const searchable = [
-          name,
-          row.professionalTitle,
-          location,
-          ...row.skills,
-        ]
-          .join(" ")
-          .toLowerCase();
-        if (normalizedQuery && !searchable.includes(normalizedQuery)) return;
+  const clerkUsers = await Promise.all(
+    freelancerRows.map(async (row) => {
+      try {
+        return await clerk.users.getUser(row.authId);
+      } catch {
+        return null;
+      }
+    }),
+  );
 
-        results.push({
-          id: row.id,
-          accountType: MARKETPLACE_ACCOUNT_TYPE.FREELANCER,
-          name,
-          title: row.professionalTitle || "Freelancer",
-          location,
-          verified: row.identityVerified === true,
-          skills: row.skills,
-          jobSuccess: Math.round(Number(row.jobSuccessScore ?? 0)),
-          rating: Number(row.rating ?? 0),
-          avatarUrl: user?.imageUrl || null,
-        });
-      });
-    }
+  const byId = new Map<string, MarketplaceSearchResult>();
+
+  freelancerRows.forEach((row, index) => {
+    const user = clerkUsers[index];
+    const countryName = row.country ? countryDisplayName(row.country) : null;
+    byId.set(row.id, {
+      id: row.id,
+      accountType: MARKETPLACE_ACCOUNT_TYPE.FREELANCER,
+      name: user?.fullName ?? "Freelancer",
+      title: row.professionalTitle || "Freelancer",
+      location:
+        [row.city, countryName].filter(Boolean).join(", ") ||
+        "Location unavailable",
+      verified: row.identityVerified === true,
+      skills: row.skills,
+      jobSuccess: Math.round(Number(row.jobSuccessScore ?? 0)),
+      rating: Number(row.rating ?? 0),
+      avatarUrl: user?.imageUrl || null,
+    });
+  });
+
+  for (const row of agencyRows) {
+    const ownerCountryName = row.ownerCountry
+      ? countryDisplayName(row.ownerCountry)
+      : null;
+    byId.set(row.id, {
+      id: row.id,
+      accountType: MARKETPLACE_ACCOUNT_TYPE.AGENCY,
+      name: row.name,
+      title: row.professionalTitle || row.specialty,
+      location: [row.ownerCity, ownerCountryName].filter(Boolean).join(", "),
+      verified: row.identityVerified === true,
+      skills: row.tags,
+      jobSuccess: Math.round(Number(row.jobSuccessScore ?? 0)),
+      rating: Number(row.rating ?? 0),
+      avatarUrl: row.avatarImage?.url ?? null,
+    });
   }
 
-  if (type === "all" || type === "agency") {
-    const page = toOffsetPage(
-      await findOnboardedAgencySearchRows(db, {
-        limit: fetchSize(limit),
-        offset,
-      }),
-      limit,
-    );
-    const rows = page.rows;
-
-    if (page.hasMore) hasMore = true;
-
-    for (const row of rows) {
-      const title = row.professionalTitle || row.specialty;
-      const ownerCountryName = row.ownerCountry
-        ? (regionNames.of(row.ownerCountry) ?? row.ownerCountry)
-        : null;
-      const location = [row.ownerCity, ownerCountryName]
-        .filter(Boolean)
-        .join(", ");
-      const searchable = [row.name, title, row.specialty, location, ...row.tags]
-        .join(" ")
-        .toLowerCase();
-      if (normalizedQuery && !searchable.includes(normalizedQuery)) continue;
-
-      results.push({
-        id: row.id,
-        accountType: MARKETPLACE_ACCOUNT_TYPE.AGENCY,
-        name: row.name,
-        title,
-        location,
-        verified: row.identityVerified === true,
-        skills: row.tags,
-        jobSuccess: Math.round(Number(row.jobSuccessScore ?? 0)),
-        rating: Number(row.rating ?? 0),
-        avatarUrl: row.avatarImage?.url ?? null,
-      });
-    }
-  }
+  const results = pageRows
+    .map((row) => byId.get(row.id))
+    .filter((result): result is MarketplaceSearchResult => Boolean(result));
 
   return { results, hasMore };
 };

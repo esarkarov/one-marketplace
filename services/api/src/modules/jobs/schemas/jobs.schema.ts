@@ -21,6 +21,7 @@ import {
   MAX_ATTACHMENTS,
 } from "../../../shared/uploads/constants/attachments.constants.js";
 import { SEARCH_QUERY_MAX_LENGTH } from "../../../shared/validation/constants/search.constants.js";
+import { SEARCH_QUERY_DESCRIPTION } from "../../../shared/validation/schemas/search.schema.js";
 
 const BUDGET_ERROR = "Every milestone needs a valid budget.";
 
@@ -164,6 +165,7 @@ export const publicJobFeedQuerySchema = z.strictObject({
     .max(SEARCH_QUERY_MAX_LENGTH, {
       error: `Search text must be at most ${SEARCH_QUERY_MAX_LENGTH} characters.`,
     })
+    .describe(SEARCH_QUERY_DESCRIPTION)
     .optional(),
   sort: z
     .enum(["newest", "budget", "rating", "proposals"], {

@@ -3,8 +3,10 @@ import type { DbExecutor } from "../../../database/database.types.js";
 import { accounts } from "../../auth/models/auth.model.js";
 import { freelancer_earning } from "../../contracts/models/contracts.model.js";
 import { freelancer_metadata } from "../models/freelancer.model.js";
+import { matchAllTerms } from "../../../shared/search/search-conditions.repository.js";
 
 export interface TalentSearchCriteria {
+  query?: string;
   verifiedOnly?: boolean;
   availableOnly?: boolean;
   minRating?: number;
@@ -20,6 +22,10 @@ export const searchFreelancerRows = (
   page: { limit: number; offset: number },
 ) => {
   const conditions = [];
+  const textMatch = matchAllTerms(criteria.query, [
+    freelancer_metadata.search_text,
+  ]);
+  if (textMatch) conditions.push(textMatch);
   if (criteria.verifiedOnly)
     conditions.push(eq(accounts.identityVerified, true));
   if (criteria.availableOnly) {

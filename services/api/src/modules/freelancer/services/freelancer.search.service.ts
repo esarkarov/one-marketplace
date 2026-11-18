@@ -12,10 +12,7 @@ import {
 } from "../types/freelancer.types.js";
 import { env } from "../../../config/env.js";
 import { clerk } from "../../../infrastructure/auth/clerk.client.js";
-
-const publicTalentRegionNames = new Intl.DisplayNames(["en"], {
-  type: "region",
-});
+import { countryDisplayName } from "../../../shared/search/search-text.js";
 
 export const searchPublicFreelancers = async (
   filters: PublicTalentSearchFilters,
@@ -23,7 +20,6 @@ export const searchPublicFreelancers = async (
 ): Promise<PublicTalentSearchPage> => {
   const limit = pagination.limit ?? PAGINATION.defaultLimit;
   const offset = pagination.offset ?? 0;
-  const normalizedQuery = (filters.query ?? "").trim().toLowerCase();
 
   const { rows, hasMore } = toOffsetPage(
     await searchFreelancerRows(db, filters, {
@@ -49,16 +45,10 @@ export const searchPublicFreelancers = async (
   rows.forEach((row, index) => {
     const user = clerkUsers[index];
     const name = user?.fullName ?? "Freelancer";
-    const countryName = row.country
-      ? (publicTalentRegionNames.of(row.country) ?? row.country)
-      : null;
+    const countryName = row.country ? countryDisplayName(row.country) : null;
     const location =
       [row.city, countryName].filter(Boolean).join(", ") ||
       "Location unavailable";
-    const searchable = [name, row.professionalTitle, location, ...row.skills]
-      .join(" ")
-      .toLowerCase();
-    if (normalizedQuery && !searchable.includes(normalizedQuery)) return;
 
     results.push({
       id: row.id,

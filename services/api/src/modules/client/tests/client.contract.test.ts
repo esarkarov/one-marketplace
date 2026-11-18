@@ -83,6 +83,10 @@ import {
   job_posts,
   proposals,
 } from "../../../test/support/tables.js";
+import {
+  buildSearchText,
+  countryDisplayName,
+} from "../../../shared/search/search-text.js";
 import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
 import { getAccountAuthCacheKey } from "../../../config/constants.js";
 import {
@@ -161,6 +165,12 @@ const seedCompletedWork = async (clientId: string) => {
       specialty: "design",
       overview: "overview",
       tags: ["figma", "branding"],
+      search_text: buildSearchText([
+        `${PREFIX}agency`,
+        "Design studio",
+        "design",
+        ["figma", "branding"],
+      ]),
       is_onboarded: true,
       avatar_image: { imageId: "img_1", url: "https://example.test/a.png" },
       professional_title: "Design studio",
@@ -177,6 +187,13 @@ const seedCompletedWork = async (clientId: string) => {
     experience_level: "EXPERT",
     skills: ["node", "postgres"],
     languages: [{ language: "English", proficiency: "Fluent" }],
+    search_text: buildSearchText([
+      "Fiona Freelancer",
+      "Backend developer",
+      "Austin",
+      "United States",
+      ["node", "postgres"],
+    ]),
   });
   await db.insert(freelancer_earning).values({
     freelancer_id: freelancerId,
@@ -1411,6 +1428,12 @@ describe("client queries against real Postgres", () => {
           experience_level: "EXPERT",
           skills: ["node"],
           languages: [{ language: "English", proficiency: "Fluent" }],
+          search_text: buildSearchText([
+            title,
+            "Austin",
+            "United States",
+            ["node"],
+          ]),
         })),
       );
       return authIds;
@@ -1425,14 +1448,18 @@ describe("client queries against real Postgres", () => {
         Array.from({ length: count }, () => mkFreelancer()),
       );
       await db.insert(agency_metadata).values(
-        owners.map((ownerId) => ({
-          owner_id: ownerId,
-          name: `${PREFIX}agency-${randomUUID()}`,
-          size: "1-10",
-          specialty,
-          overview: "overview",
-          is_onboarded: onboarded,
-        })),
+        owners.map((ownerId) => {
+          const name = `${PREFIX}agency-${randomUUID()}`;
+          return {
+            owner_id: ownerId,
+            name,
+            size: "1-10",
+            specialty,
+            overview: "overview",
+            is_onboarded: onboarded,
+            search_text: buildSearchText([name, specialty]),
+          };
+        }),
       );
     };
 
@@ -1494,14 +1521,18 @@ describe("client queries against real Postgres", () => {
       const agencies = await db
         .insert(agency_metadata)
         .values(
-          owners.map((ownerId) => ({
-            owner_id: ownerId,
-            name: `${PREFIX}agency-${randomUUID()}`,
-            size: "1-10",
-            specialty,
-            overview: "overview",
-            is_onboarded: true,
-          })),
+          owners.map((ownerId) => {
+            const name = `${PREFIX}agency-${randomUUID()}`;
+            return {
+              owner_id: ownerId,
+              name,
+              size: "1-10",
+              specialty,
+              overview: "overview",
+              is_onboarded: true,
+              search_text: buildSearchText([name, specialty]),
+            };
+          }),
         )
         .returning({ id: agency_metadata.id });
       await db.insert(agency_earning).values(
@@ -1514,6 +1545,178 @@ describe("client queries against real Postgres", () => {
       const found = await searchAll("agency", specialty);
 
       expect(found.map((row) => row.rating).sort()).toEqual([3.2, 4.1]);
+    });
+
+    describe("text query", () => {
+      const newToken = () =>
+        `tok${randomUUID().replaceAll("-", "").slice(0, 12)}`;
+
+      const seedAgencyAt = async (
+        token: string,
+        options: { ownerLocation?: [string, string]; extra?: string } = {},
+      ) => {
+        const ownerId = await mkFreelancer();
+        if (options.ownerLocation) {
+          const [city, country] = options.ownerLocation;
+          await db.insert(freelancer_metadata).values({
+            auth_id: ownerId,
+            professional_title: "Owner",
+            professional_description: "x",
+            hourly_rate_cents: 1000,
+            country,
+            city,
+            weekly_availability: "10",
+            experience_level: "EXPERT",
+            skills: [],
+            languages: [],
+            location_text: buildSearchText([city, countryDisplayName(country)]),
+          });
+        }
+        const name = `${token} agency ${randomUUID()}`;
+        const [row] = await db
+          .insert(agency_metadata)
+          .values({
+            owner_id: ownerId,
+            name,
+            size: "1-10",
+            specialty: "general",
+            overview: "overview",
+            is_onboarded: true,
+            search_text: buildSearchText([name, "general", options.extra]),
+          })
+          .returning({ id: agency_metadata.id });
+        return row!.id;
+      };
+
+      const pageOf = async (query: Record<string, string | number>) => {
+        const response = await search(query);
+        expect(response.status).toBe(200);
+        return response.body.data as {
+          results: Array<{ id: string; accountType: string }>;
+          hasMore: boolean;
+        };
+      };
+
+      it("pages freelancers and agencies from one list without overlap or gaps", async () => {
+        const token = newToken();
+        await seedFreelancers(3, `${token} developer`);
+        await seedAgencies(3, token, true);
+
+        const pages = [
+          await pageOf({ type: "all", query: token, limit: 2, offset: 0 }),
+          await pageOf({ type: "all", query: token, limit: 2, offset: 2 }),
+          await pageOf({ type: "all", query: token, limit: 2, offset: 4 }),
+        ];
+
+        expect(pages.map((page) => page.results.length)).toEqual([2, 2, 2]);
+        expect(pages.map((page) => page.hasMore)).toEqual([true, true, false]);
+        const all = pages.flatMap((page) => page.results);
+        expect(new Set(all.map((row) => row.id)).size).toBe(6);
+        expect(new Set(all.map((row) => row.accountType))).toEqual(
+          new Set(["FREELANCER", "AGENCY"]),
+        );
+        const exact = await pageOf({
+          type: "all",
+          query: token,
+          limit: 6,
+          offset: 0,
+        });
+        expect(exact.results).toHaveLength(6);
+        expect(exact.hasMore).toBe(false);
+        const short = await pageOf({
+          type: "all",
+          query: token,
+          limit: 5,
+          offset: 0,
+        });
+        expect(short.hasMore).toBe(true);
+      });
+
+      it("is case-insensitive and matches non-adjacent words", async () => {
+        const token = newToken();
+        await seedFreelancers(1, `Senior ${token} Node Developer`);
+
+        const page = await pageOf({
+          type: "freelancer",
+          query: `DEVELOPER senior ${token.toUpperCase()}`,
+        });
+
+        expect(page.results).toHaveLength(1);
+      });
+
+      it("reaches freelancer title, skill, city and country name", async () => {
+        const token = newToken();
+        await seedFreelancers(1, `${token} engineer`);
+
+        for (const term of ["engineer", "node", "austin", "united states"]) {
+          const page = await pageOf({
+            type: "freelancer",
+            query: `${token} ${term}`,
+          });
+          expect(page.results, term).toHaveLength(1);
+        }
+      });
+
+      it("reaches agency name and the owner's city and country name", async () => {
+        const token = newToken();
+        await seedAgencyAt(token, { ownerLocation: ["Oslo", "NO"] });
+        await seedAgencyAt(token, { ownerLocation: ["Lima", "PE"] });
+
+        for (const [term, expected] of [
+          ["agency", 2],
+          ["oslo", 1],
+          ["norway", 1],
+          ["peru lima", 1],
+          ["norway lima", 0],
+        ] as const) {
+          const page = await pageOf({
+            type: "agency",
+            query: `${token} ${term}`,
+          });
+          expect(page.results, term).toHaveLength(expected);
+        }
+      });
+
+      it("treats percent, underscore and backslash literally", async () => {
+        const token = newToken();
+        await seedFreelancers(1, `${token} 100% sure`);
+        await seedFreelancers(1, `${token} 1000 sure`);
+        await seedFreelancers(1, `${token} snake_case`);
+        await seedFreelancers(1, `${token} snakexcase`);
+        await seedFreelancers(1, String.raw`${token} dir\file`);
+        await seedFreelancers(1, `${token} dirxfile`);
+
+        for (const term of ["100%", "snake_case", String.raw`dir\file`]) {
+          const page = await pageOf({
+            type: "freelancer",
+            query: `${token} ${term}`,
+          });
+          expect(page.results, term).toHaveLength(1);
+        }
+      });
+
+      it("excludes non-matching rows and treats blank queries as no filter", async () => {
+        const token = newToken();
+        await seedFreelancers(1, `${token} alpha`);
+        await seedAgencies(1, `${token} beta`, true);
+
+        expect(
+          (await pageOf({ type: "all", query: `${token} gamma` })).results,
+        ).toHaveLength(0);
+        expect(
+          (await pageOf({ type: "all", query: `${token} alpha beta` })).results,
+        ).toHaveLength(0);
+
+        for (const blank of ["", "   "]) {
+          const page = await pageOf({
+            type: "all",
+            query: blank,
+            limit: 1,
+          });
+          expect(page.results).toHaveLength(1);
+          expect(page.hasMore).toBe(true);
+        }
+      });
     });
   });
 });

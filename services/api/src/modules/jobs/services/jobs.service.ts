@@ -33,6 +33,7 @@ import {
   toOffsetPage,
 } from "../../../shared/validation/utils/pagination.utils.js";
 import { clerk } from "../../../infrastructure/auth/clerk.client.js";
+import { countryDisplayName } from "../../../shared/search/search-text.js";
 import {
   toJobPostResponse,
   toSavedJobLinkResponse,
@@ -253,15 +254,12 @@ export interface PublicJobFeedPage {
   hasMore: boolean;
 }
 
-const jobRegionNames = new Intl.DisplayNames(["en"], { type: "region" });
-
 export const getPublicJobFeed = async (
   filters: PublicJobFilters,
   pagination: { limit?: number; offset?: number } = {},
 ): Promise<PublicJobFeedPage> => {
   const limit = pagination.limit ?? PAGINATION.defaultLimit;
   const offset = pagination.offset ?? 0;
-  const normalizedQuery = (filters.query ?? "").trim().toLowerCase();
 
   const { rows, hasMore } = toOffsetPage(
     await findPublishedJobFeedRows(db, filters, {
@@ -294,18 +292,7 @@ export const getPublicJobFeed = async (
   const results: PublicJobSummary[] = [];
   for (const row of rows) {
     const countryCode = clientCountries.get(row.job.client_id) ?? null;
-    const clientLocation = countryCode
-      ? (jobRegionNames.of(countryCode) ?? countryCode)
-      : null;
-    const searchable = [
-      row.job.title,
-      row.job.description,
-      row.companyName,
-      ...row.job.skills,
-    ]
-      .join(" ")
-      .toLowerCase();
-    if (normalizedQuery && !searchable.includes(normalizedQuery)) continue;
+    const clientLocation = countryCode ? countryDisplayName(countryCode) : null;
 
     results.push({
       id: row.job.id,

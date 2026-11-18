@@ -20,6 +20,7 @@ import {
 } from "../../contracts/models/contracts.model.js";
 import { freelancer_saved_job_posts, job_posts } from "../models/jobs.model.js";
 import { proposals } from "../../proposals/models/proposals.model.js";
+import { matchAllTerms } from "../../../shared/search/search-conditions.repository.js";
 
 type NewJobPost = typeof job_posts.$inferInsert;
 export type JobData = Omit<NewJobPost, "client_id">;
@@ -278,6 +279,13 @@ export const findPublishedJobFeedRows = (
   )`;
 
   const conditions = [eq(job_posts.status, "PUBLISHED")];
+  const textMatch = matchAllTerms(filters.query, [
+    job_posts.title,
+    job_posts.description,
+    sql`array_to_string(${job_posts.skills}, ' ')`,
+    client_metadata.company_name,
+  ]);
+  if (textMatch) conditions.push(textMatch);
   if (filters.levels?.length) {
     conditions.push(inArray(job_posts.expertise_level, filters.levels));
   }

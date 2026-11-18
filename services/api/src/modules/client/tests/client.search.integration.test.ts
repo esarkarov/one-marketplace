@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { db, pool } from "../../../database/client.js";
 import {
@@ -7,10 +8,7 @@ import {
   freelancer_metadata,
 } from "../../../test/support/tables.js";
 import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
-import {
-  findFreelancerSearchRows,
-  findOnboardedAgencySearchRows,
-} from "../repositories/client.repository.js";
+import { findMarketplacePage } from "../repositories/client.repository.js";
 
 const PREFIX = "client-search-";
 const like = `${PREFIX}%`;
@@ -91,12 +89,19 @@ const seedTiedAgencies = async (count: number) => {
   return ids;
 };
 
+const BOTH = { includeFreelancers: true, includeAgencies: true };
+const FREELANCERS = { includeFreelancers: true, includeAgencies: false };
+const AGENCIES = { includeFreelancers: false, includeAgencies: true };
+
 const pageThrough = async (
-  read: (page: { limit: number; offset: number }) => Promise<{ id: string }[]>,
+  options: Parameters<typeof findMarketplacePage>[1],
 ) => {
   const ids: string[] = [];
   for (let offset = 0; ; offset += PAGE_SIZE) {
-    const page = await read({ limit: PAGE_SIZE, offset });
+    const page = await findMarketplacePage(db, options, {
+      limit: PAGE_SIZE,
+      offset,
+    });
     ids.push(...page.map((row) => row.id));
     if (page.length < PAGE_SIZE) return ids;
   }
@@ -105,10 +110,8 @@ const pageThrough = async (
 describe("marketplace search repository paging with tied created_at", () => {
   it("pages freelancers exactly once in a stable order", async () => {
     const seeded = await seedTiedFreelancers(8);
-    const everything = await findFreelancerSearchRows(db, EVERYTHING);
-    const paged = await pageThrough((page) =>
-      findFreelancerSearchRows(db, page),
-    );
+    const everything = await findMarketplacePage(db, FREELANCERS, EVERYTHING);
+    const paged = await pageThrough(FREELANCERS);
 
     expect(new Set(paged).size).toBe(paged.length);
     expect(paged).toEqual(everything.map((row) => row.id));
@@ -117,13 +120,50 @@ describe("marketplace search repository paging with tied created_at", () => {
 
   it("pages onboarded agencies exactly once in a stable order", async () => {
     const seeded = await seedTiedAgencies(8);
-    const everything = await findOnboardedAgencySearchRows(db, EVERYTHING);
-    const paged = await pageThrough((page) =>
-      findOnboardedAgencySearchRows(db, page),
-    );
+    const everything = await findMarketplacePage(db, AGENCIES, EVERYTHING);
+    const paged = await pageThrough(AGENCIES);
 
     expect(new Set(paged).size).toBe(paged.length);
     expect(paged).toEqual(everything.map((row) => row.id));
     expect(paged).toEqual(expect.arrayContaining(seeded));
+  });
+
+  it("pages both kinds from one ordered list with no overlap and no gaps", async () => {
+    const freelancers = await seedTiedFreelancers(5);
+    const agencies = await seedTiedAgencies(4);
+    const everything = await findMarketplacePage(db, BOTH, EVERYTHING);
+    const paged = await pageThrough(BOTH);
+
+    expect(new Set(paged).size).toBe(paged.length);
+    expect(paged).toEqual(everything.map((row) => row.id));
+    expect(paged).toEqual(
+      expect.arrayContaining([...freelancers, ...agencies]),
+    );
+    expect(new Set(everything.map((row) => row.kind))).toEqual(
+      new Set(["FREELANCER", "AGENCY"]),
+    );
+  });
+
+  it("applies the text query before the page and matches owner location for agencies", async () => {
+    await seedTiedFreelancers(6);
+    const [target] = await seedTiedAgencies(1);
+    await db
+      .update(agency_metadata)
+      .set({ search_text: "zebra agency" })
+      .where(eq(agency_metadata.id, target!));
+
+    const hit = await findMarketplacePage(
+      db,
+      { ...BOTH, query: "ZEBRA" },
+      { limit: 2, offset: 0 },
+    );
+    expect(hit.map((row) => row.id)).toEqual([target]);
+
+    const miss = await findMarketplacePage(
+      db,
+      { ...BOTH, query: "zebra giraffe" },
+      EVERYTHING,
+    );
+    expect(miss).toEqual([]);
   });
 });

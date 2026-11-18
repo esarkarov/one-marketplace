@@ -12,9 +12,7 @@ import {
   PublicAgencyFeedPage,
 } from "../types/agency.types.js";
 
-const publicAgencyRegionNames = new Intl.DisplayNames(["en"], {
-  type: "region",
-});
+import { countryDisplayName } from "../../../shared/search/search-text.js";
 
 export const searchPublicAgencies = async (
   filters: PublicAgencyFilters,
@@ -22,7 +20,6 @@ export const searchPublicAgencies = async (
 ): Promise<PublicAgencyFeedPage> => {
   const limit = pagination.limit ?? PAGINATION.defaultLimit;
   const offset = pagination.offset ?? 0;
-  const normalizedQuery = (filters.query ?? "").trim().toLowerCase();
 
   const { rows, hasMore } = toOffsetPage(
     await searchAgencyRows(db, filters, { limit: fetchSize(limit), offset }),
@@ -33,19 +30,9 @@ export const searchPublicAgencies = async (
   const results: PublicAgencySummary[] = [];
   for (const row of rows) {
     const countryName = row.ownerCountry
-      ? (publicAgencyRegionNames.of(row.ownerCountry) ?? row.ownerCountry)
+      ? countryDisplayName(row.ownerCountry)
       : null;
     const location = [row.ownerCity, countryName].filter(Boolean).join(", ");
-    const searchable = [
-      row.name,
-      row.professionalTitle,
-      row.specialty,
-      location,
-      ...row.tags,
-    ]
-      .join(" ")
-      .toLowerCase();
-    if (normalizedQuery && !searchable.includes(normalizedQuery)) continue;
 
     results.push({
       id: row.id,

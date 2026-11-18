@@ -1,4 +1,5 @@
 import { and, asc, count, desc, eq, inArray, sql } from "drizzle-orm";
+import { unionAll } from "drizzle-orm/pg-core";
 import type { DbExecutor } from "../../../database/database.types.js";
 import type { SaveClientProfileInput } from "../types/client.types.js";
 import { accounts } from "../../auth/models/auth.model.js";
@@ -19,6 +20,7 @@ import {
 import { freelancer_metadata } from "../../freelancer/models/freelancer.model.js";
 import { job_posts } from "../../jobs/models/jobs.model.js";
 import { proposals } from "../../proposals/models/proposals.model.js";
+import { matchAllTerms } from "../../../shared/search/search-conditions.repository.js";
 
 export const findClientProfile = async (
   executor: DbExecutor,
@@ -273,12 +275,69 @@ export const findClientBillingAccount = async (
   return account;
 };
 
-export const findFreelancerSearchRows = (
+export type MarketplaceKind = "FREELANCER" | "AGENCY";
+
+export const findMarketplacePage = async (
   executor: DbExecutor,
+  options: {
+    query?: string;
+    includeFreelancers: boolean;
+    includeAgencies: boolean;
+  },
   page: { limit: number; offset: number },
 ) => {
-  const { limit, offset } = page;
-  return executor
+  const freelancerTextMatch = matchAllTerms(options.query, [
+    freelancer_metadata.search_text,
+  ]);
+  const agencyTextMatch = matchAllTerms(options.query, [
+    agency_metadata.search_text,
+    freelancer_metadata.location_text,
+  ]);
+
+  const freelancerPage = executor
+    .select({
+      kind: sql<MarketplaceKind>`'FREELANCER'`.as("kind"),
+      id: freelancer_metadata.id,
+      createdAt: freelancer_metadata.created_at,
+    })
+    .from(freelancer_metadata)
+    .innerJoin(accounts, eq(accounts.auth_id, freelancer_metadata.auth_id))
+    .where(freelancerTextMatch);
+
+  const agencyPage = executor
+    .select({
+      kind: sql<MarketplaceKind>`'AGENCY'`.as("kind"),
+      id: agency_metadata.id,
+      createdAt: agency_metadata.created_at,
+    })
+    .from(agency_metadata)
+    .innerJoin(accounts, eq(accounts.auth_id, agency_metadata.owner_id))
+    .leftJoin(
+      freelancer_metadata,
+      eq(freelancer_metadata.auth_id, agency_metadata.owner_id),
+    )
+    .where(and(eq(agency_metadata.is_onboarded, true), agencyTextMatch));
+
+  const order = [asc(sql`created_at`), asc(sql`id`)] as const;
+
+  if (options.includeFreelancers && options.includeAgencies) {
+    return unionAll(freelancerPage, agencyPage)
+      .orderBy(...order)
+      .limit(page.limit)
+      .offset(page.offset);
+  }
+  const single = options.includeFreelancers ? freelancerPage : agencyPage;
+  return single
+    .orderBy(...order)
+    .limit(page.limit)
+    .offset(page.offset);
+};
+
+export const findFreelancerSearchRowsByIds = (
+  executor: DbExecutor,
+  ids: string[],
+) =>
+  executor
     .select({
       id: freelancer_metadata.id,
       authId: freelancer_metadata.auth_id,
@@ -296,17 +355,13 @@ export const findFreelancerSearchRows = (
       freelancer_earning,
       eq(freelancer_earning.freelancer_id, freelancer_metadata.auth_id),
     )
-    .orderBy(asc(freelancer_metadata.created_at), asc(freelancer_metadata.id))
-    .limit(limit)
-    .offset(offset);
-};
+    .where(inArray(freelancer_metadata.id, ids));
 
-export const findOnboardedAgencySearchRows = (
+export const findOnboardedAgencySearchRowsByIds = (
   executor: DbExecutor,
-  page: { limit: number; offset: number },
-) => {
-  const { limit, offset } = page;
-  return executor
+  ids: string[],
+) =>
+  executor
     .select({
       id: agency_metadata.id,
       name: agency_metadata.name,
@@ -327,11 +382,7 @@ export const findOnboardedAgencySearchRows = (
       eq(freelancer_metadata.auth_id, agency_metadata.owner_id),
     )
     .leftJoin(agency_earning, eq(agency_earning.agency_id, agency_metadata.id))
-    .where(eq(agency_metadata.is_onboarded, true))
-    .orderBy(asc(agency_metadata.created_at), asc(agency_metadata.id))
-    .limit(limit)
-    .offset(offset);
-};
+    .where(inArray(agency_metadata.id, ids));
 
 export const findAverageResponseSeconds = async (
   executor: DbExecutor,

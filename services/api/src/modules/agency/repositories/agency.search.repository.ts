@@ -4,8 +4,10 @@ import { accounts } from "../../auth/models/auth.model.js";
 import { agency_earning } from "../../contracts/models/contracts.model.js";
 import { freelancer_metadata } from "../../freelancer/models/freelancer.model.js";
 import { agency_members, agency_metadata } from "../models/agency.model.js";
+import { matchAllTerms } from "../../../shared/search/search-conditions.repository.js";
 
 interface AgencySearchCriteria {
+  query?: string;
   specialty?: string;
   sizes?: string[];
   verifiedOnly?: boolean;
@@ -30,6 +32,11 @@ export const searchAgencyRows = (
   )`;
 
   const conditions = [eq(agency_metadata.is_onboarded, true)];
+  const textMatch = matchAllTerms(criteria.query, [
+    agency_metadata.search_text,
+    freelancer_metadata.location_text,
+  ]);
+  if (textMatch) conditions.push(textMatch);
   if (criteria.specialty) {
     conditions.push(eq(agency_metadata.specialty, criteria.specialty));
   }
