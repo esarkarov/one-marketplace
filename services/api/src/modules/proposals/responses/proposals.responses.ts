@@ -15,7 +15,7 @@ const ProposalsRow = z
   .strictObject({
     id: z.uuid(),
     jobId: z.uuid(),
-    senderId: z.string(),
+    senderId: z.uuid(),
     senderType: z.string(),
     coverLetter: z.string(),
     bidAmountCents: cents,
@@ -34,7 +34,7 @@ const ProposalsSubmitted = z
   .strictObject({
     proposal: ProposalsRow,
     connects: z.number().int(),
-    clientId: z.string(),
+    clientId: z.uuid(),
     jobTitle: z.string(),
   })
   .meta({ id: "ProposalsSubmitted" });
@@ -78,7 +78,7 @@ const clientItemFields = {
   conversationId: z.uuid().nullable(),
   contractId: z.uuid().nullable(),
   contractStatus: z.string().nullable(),
-  freelancerId: z.uuid().nullable(),
+  profileId: z.uuid().nullable(),
   verified: z.boolean().nullable(),
   professionalTitle: z.string().nullable(),
   country: z.string().nullable(),
@@ -96,7 +96,7 @@ const clientItemFields = {
   jobSuccessScore: z.number(),
   rating: z.number(),
   completedJobs: z.number().int(),
-  senderId: z.string(),
+  senderId: z.uuid(),
   senderType: z.string(),
 };
 
@@ -135,7 +135,7 @@ const ProposalsShortlisted = z
 const ProposalsViewed = z
   .strictObject({
     id: z.uuid(),
-    senderId: z.string(),
+    senderId: z.uuid(),
     senderType: z.string(),
     status: z.enum(PROPOSAL_STATUSES),
     jobTitle: z.string(),

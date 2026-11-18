@@ -7,6 +7,7 @@ import {
   markProposalViewedIfSubmitted,
 } from "../repositories/proposals.repository.js";
 import { creditConnects, recordConnectsHistory } from "../../connects/index.js";
+import { toProposalSenderId } from "../utils/proposals.mappers.js";
 import { ApiError } from "../../../shared/errors/api-error.js";
 import {
   CONNECTS_CACHE_TTL_SECONDS,
@@ -25,16 +26,33 @@ export const updateProposal = async (proposalId: string, clientId: string) => {
   const existing = await findClientProposalForView(db, proposalId, clientId);
   if (!existing) throw new ApiError(404, "Proposal not found.");
 
+  const view = (status: string, changed: boolean) => ({
+    id: existing.id,
+    senderId: toProposalSenderId(
+      existing,
+      "proposals_patch_by_proposal_id_status",
+      existing.id,
+    ),
+    senderType: existing.senderType,
+    status,
+    jobTitle: existing.jobTitle,
+    changed,
+  });
+
+  const recipient = {
+    senderId: existing.senderId,
+    senderType: existing.senderType,
+  };
+
   if (existing.status !== "SUBMITTED") {
-    return { ...existing, changed: false };
+    return { recipient, response: view(existing.status, false) };
   }
 
   const updated = await markProposalViewedIfSubmitted(db, proposalId);
 
   return {
-    ...existing,
-    status: updated?.status ?? existing.status,
-    changed: Boolean(updated),
+    recipient,
+    response: view(updated?.status ?? existing.status, Boolean(updated)),
   };
 };
 

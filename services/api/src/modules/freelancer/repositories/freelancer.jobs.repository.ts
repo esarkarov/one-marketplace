@@ -13,6 +13,7 @@ export const listPublishedJobsWithClient = (executor: DbExecutor) =>
   executor
     .select({
       job: job_posts,
+      clientAccountId: accounts.id,
       companyName: client_metadata.company_name,
       paymentVerified: accounts.paymentMethodVerified,
       totalSpentCents: client_spents.total_spent_cents,
@@ -49,6 +50,7 @@ export const findPublishedJobDetail = async (
   const [result] = await executor
     .select({
       job: job_posts,
+      clientAccountId: accounts.id,
       companyName: client_metadata.company_name,
       companyDescription: client_metadata.company_description,
       paymentVerified: accounts.paymentMethodVerified,

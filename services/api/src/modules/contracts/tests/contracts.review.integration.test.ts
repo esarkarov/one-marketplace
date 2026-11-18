@@ -996,6 +996,7 @@ describe("review controller on a lost race", () => {
         userId,
         role: "client",
         accountExists: true,
+        accountId: null,
         isOnboarded: true,
       };
     }

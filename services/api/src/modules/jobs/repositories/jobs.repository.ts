@@ -55,6 +55,7 @@ export const findJobPostsWithCounts = (
     .select({
       ...getTableColumns(job_posts),
       milestones: job_posts.milestones,
+      clientAccountId: accounts.id,
       proposalCount: count(proposals.id).mapWith(Number),
       shortlistCount: count(
         sql`nullif(${proposals.is_shortlisted}, false)`,
@@ -67,13 +68,14 @@ export const findJobPostsWithCounts = (
       )`.mapWith(Number),
     })
     .from(job_posts)
+    .innerJoin(accounts, eq(accounts.auth_id, job_posts.client_id))
     .leftJoin(proposals, eq(proposals.job_id, job_posts.id))
     .where(
       jobId
         ? and(eq(job_posts.client_id, userId), eq(job_posts.id, jobId))
         : eq(job_posts.client_id, userId),
     )
-    .groupBy(job_posts.id)
+    .groupBy(job_posts.id, accounts.id)
     .orderBy(desc(job_posts.created_at), desc(job_posts.id))
     .$dynamic();
 
@@ -214,6 +216,7 @@ export const findSavedJobRows = (
   executor
     .select({
       job: job_posts,
+      clientAccountId: accounts.id,
       savedAt: freelancer_saved_job_posts.created_at,
       companyName: client_metadata.company_name,
       paymentVerified: accounts.paymentMethodVerified,

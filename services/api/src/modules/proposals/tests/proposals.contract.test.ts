@@ -87,6 +87,8 @@ import {
   proposals,
 } from "../../../test/support/tables.js";
 import { PROPOSAL_CONNECTS } from "../../../config/constants.js";
+import { expectNoClerkIds } from "../../../test/support/clerk-id-scan.js";
+import { logger } from "../../../config/logger.js";
 import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
 import {
   proposalsCreateResponses,
@@ -120,6 +122,14 @@ const insertAccount = async (
     ...extra,
   });
   return authId;
+};
+
+const accountUuid = async (authId: string) => {
+  const { rows } = await pool.query(
+    "select id from accounts where auth_id = $1",
+    [authId],
+  );
+  return rows[0].id as string;
 };
 
 const purge = async () => {
@@ -275,6 +285,15 @@ describe("proposals contract", () => {
     expect(submit.status).toBe(201);
     proposalsCreateResponses[201].parse(submit.body);
     const proposalId = submit.body.data.proposal.id as string;
+    const clerkIds = [clientId, freelancerId, brokenFreelancerId, ownerId];
+    expect(submit.body.data.proposal.senderId).toBe(
+      await accountUuid(freelancerId),
+    );
+    expect(submit.body.data.clientId).toBe(await accountUuid(clientId));
+    expectNoClerkIds(submit.body, clerkIds);
+    expect(mocks.sendNotification).toHaveBeenCalledWith(
+      expect.objectContaining({ recipientId: clientId }),
+    );
 
     const duplicate = await request(app)
       .post(API)
@@ -352,6 +371,24 @@ describe("proposals contract", () => {
     expect(clientList.status).toBe(200);
     expect(clientList.body.data.results).toHaveLength(3);
     proposalsListResponses[200].parse(clientList.body);
+    expectNoClerkIds(clientList.body, clerkIds);
+    const listed = clientList.body.data.results as Array<{
+      id: string;
+      senderId: string;
+      senderType: string;
+    }>;
+    const senderOf = (id: string) => listed.find((item) => item.id === id);
+    expect(senderOf(proposalId)?.senderId).toBe(
+      await accountUuid(freelancerId),
+    );
+    expect(senderOf(brokenProposal!.id)?.senderId).toBe(
+      await accountUuid(brokenFreelancerId),
+    );
+    expect(senderOf(agencyProposal!.id)?.senderId).toBe(agencyId);
+    for (const item of listed) {
+      expect(item).toHaveProperty("profileId");
+      expect(item).not.toHaveProperty("freelancerId");
+    }
 
     const viewed = await request(app)
       .patch(`${API}/${proposalId}/status`)
@@ -360,6 +397,14 @@ describe("proposals contract", () => {
     expect(viewed.status).toBe(200);
     expect(viewed.body.data.status).toBe("VIEWED");
     proposalsStatusResponses[200].parse(viewed.body);
+    expect(viewed.body.data.senderId).toBe(await accountUuid(freelancerId));
+    expectNoClerkIds(viewed.body, clerkIds);
+    expect(mocks.sendNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        recipientId: freelancerId,
+        type: "PROPOSAL_VIEWED",
+      }),
+    );
 
     const shortlisted = await request(app)
       .patch(`${API}/${proposalId}/status`)
@@ -406,6 +451,41 @@ describe("proposals contract", () => {
 
     expect(brokenProposal).toBeDefined();
     expect(ownerId).toBeDefined();
+  });
+
+  it("answers a coded 500 and logs without the Clerk id when a freelancer sender has no account", async () => {
+    const { clientId, jobId } = await createClientWithJob();
+    const ghostId = newAuthId();
+    const [ghostProposal] = await db
+      .insert(proposals)
+      .values({
+        job_id: jobId,
+        sender_id: ghostId,
+        sender_type: "FREELANCER",
+        cover_letter: "ghost",
+        bid_amount_cents: 1000,
+        duration: "1 week",
+        screening_answers: [],
+      })
+      .returning({ id: proposals.id });
+    const logged = vi.spyOn(logger, "error");
+
+    const response = await request(app)
+      .get(API)
+      .query({ ...asClient, jobId })
+      .set(as(clientId));
+
+    expect(response.status).toBe(500);
+    expect(response.body.code).toBe("INTERNAL_ERROR");
+    expect(JSON.stringify(response.body)).not.toContain(ghostId);
+    expect(logged).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventName: "api.public_id.unresolved",
+        attributes: { operation: "proposals_get", "row.id": ghostProposal!.id },
+      }),
+    );
+    expect(JSON.stringify(logged.mock.calls)).not.toContain(ghostId);
+    logged.mockRestore();
   });
 
   it("answers 403 with the declared body for the wrong role", async () => {
@@ -724,7 +804,7 @@ describe("connects around proposals", () => {
   });
 
   it("charges the agency's balance for an agency submission", async () => {
-    const { jobId } = await createClientWithJob();
+    const { jobId, clientId } = await createClientWithJob();
     const { ownerId, agencyId } = await createAgency();
     const bystander = await createFreelancer();
     const bystanderBefore = await balanceOf({ freelancerId: bystander });
@@ -733,6 +813,10 @@ describe("connects around proposals", () => {
     const response = await submitAsAgency(ownerId, jobId);
 
     expect(response.status).toBe(201);
+    expect(response.body.data.proposal.senderId).toBe(agencyId);
+    expect(response.body.data.proposal.senderType).toBe("AGENCY");
+    expect(response.body.data.clientId).toBe(await accountUuid(clientId));
+    expectNoClerkIds(response.body, [clientId, ownerId]);
     const after = await balanceOf({ agencyId });
     expect(after.connects).toBe(100 - PROPOSAL_CONNECTS);
     expect(after.updated_at!.getTime()).toBeGreaterThanOrEqual(startedAt);

@@ -95,6 +95,7 @@ import {
   payout_history,
   proposals,
 } from "../../../test/support/tables.js";
+import { expectNoClerkIds } from "../../../test/support/clerk-id-scan.js";
 import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
 import {
   agencyConnectsCheckoutResponses,
@@ -496,8 +497,9 @@ describe("agency contract: profile", () => {
     expect(updated.body.data.portfolio).toHaveLength(1);
     agencyUpdateResponses[200].parse(updated.body);
 
-    await addMember(agencyId, "Agency member");
+    const teammate = await addMember(agencyId, "Agency member");
     await seedAgencyWork(agencyId, ownerId);
+    const memberClerkIds = [ownerId, teammate.freelancerId];
 
     const mine = await request(app)
       .get(`${API}/mine`)
@@ -515,9 +517,32 @@ describe("agency contract: profile", () => {
     expect(publicProfile.body.data.members).toHaveLength(2);
     for (const member of publicProfile.body.data.members) {
       expect(member).not.toHaveProperty("freelancerId");
+      expect(member).not.toHaveProperty("accountId");
       expect(member).toHaveProperty("profileId");
     }
-    expect(mine.body.data.members[0]).toHaveProperty("freelancerId");
+    const accountIdOf = async (authId: string) => {
+      const { rows } = await pool.query(
+        "select id from accounts where auth_id = $1",
+        [authId],
+      );
+      return rows[0].id as string;
+    };
+    const idsOf = (body: { data: { members: { accountId: string }[] } }) =>
+      body.data.members.map((member) => member.accountId).sort();
+    const ownerUuid = await accountIdOf(ownerId);
+    const teammateUuid = await accountIdOf(teammate.freelancerId);
+    expect(idsOf(created.body)).toEqual([ownerUuid]);
+    expect(idsOf(updated.body)).toEqual([ownerUuid]);
+    expect(idsOf(mine.body)).toEqual([ownerUuid, teammateUuid].sort());
+    for (const body of [created.body, updated.body, mine.body]) {
+      for (const member of body.data.members) {
+        expect(member).not.toHaveProperty("freelancerId");
+      }
+    }
+    expectNoClerkIds(created.body, memberClerkIds);
+    expectNoClerkIds(updated.body, memberClerkIds);
+    expectNoClerkIds(mine.body, memberClerkIds);
+    expectNoClerkIds(publicProfile.body, memberClerkIds);
 
     const missingProfile = await request(app).get(
       `${API}/profile/${randomUUID()}`,
@@ -887,13 +912,14 @@ describe("agency contract: team", () => {
 describe("agency contract: jobs, proposals and connects", () => {
   it("serves the job feed, proposals and connects endpoints", async () => {
     const { ownerId, agencyId } = await seedAgency();
-    const { jobId } = await seedClientWithJob();
+    const { jobId, clientId: feedClientId } = await seedClientWithJob();
 
     const feed = await request(app)
       .get(`${API}/jobs`)
       .query(q)
       .set(as(ownerId));
     expect(feed.status).toBe(200);
+    expectNoClerkIds(feed.body, [ownerId, feedClientId]);
     expect(feed.body.data.results.length).toBeGreaterThan(0);
     expect(feed.body.data.results[0].matchScore).toBeGreaterThan(0);
     agencyJobFeedResponses[200].parse(feed.body);

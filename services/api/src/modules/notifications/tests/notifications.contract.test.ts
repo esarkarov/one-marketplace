@@ -49,6 +49,8 @@ import {
   agency_metadata,
   notifications,
 } from "../../../test/support/tables.js";
+import { expectNoClerkIds } from "../../../test/support/clerk-id-scan.js";
+import { toNotificationResponse } from "../utils/notifications.mappers.js";
 import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
 import { notificationsResponses } from "../responses/notifications.responses.js";
 
@@ -129,6 +131,39 @@ describe("GET /notifications", () => {
     const body = notificationsResponses.list[200].parse(response.body);
     expect(body.data.results).toHaveLength(2);
     expect(body.data.hasMore).toBe(false);
+
+    const { rows } = await pool.query(
+      "select id from accounts where auth_id = $1",
+      [fixture.authId],
+    );
+    for (const item of body.data.results) {
+      expect(item.recipientId).toBe(rows[0].id);
+    }
+    expectNoClerkIds(response.body, [fixture.authId]);
+  });
+
+  it("serves the same shape the SSE push sends", async () => {
+    const fixture = await seed();
+    const response = await request(app)
+      .get(API)
+      .query({ role: "freelancer" })
+      .set(as(fixture.authId));
+    const { rows: stored } = await pool.query(
+      "select * from notifications where recipient_id = $1 order by created_at desc, id desc",
+      [fixture.authId],
+    );
+    const { rows: account } = await pool.query(
+      "select id from accounts where auth_id = $1",
+      [fixture.authId],
+    );
+    const pushed = stored.map((row) =>
+      JSON.parse(
+        JSON.stringify(
+          toNotificationResponse(row, account[0].id, "notifications_stream"),
+        ),
+      ),
+    );
+    expect(response.body.data.results).toEqual(pushed);
   });
 
   it("matches the 200 schema for an empty agency scope", async () => {

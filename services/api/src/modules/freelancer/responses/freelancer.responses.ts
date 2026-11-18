@@ -171,7 +171,7 @@ const FreelancerPayoutLink = z
 
 const jobPostFields = {
   id: z.uuid(),
-  clientId: z.string(),
+  clientId: z.uuid(),
   title: z.string(),
   description: z.string(),
   expertiseLevel: z.string(),

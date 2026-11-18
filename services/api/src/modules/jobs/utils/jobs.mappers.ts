@@ -1,3 +1,5 @@
+import { requirePublicId } from "../../../shared/ids/public-ids.js";
+
 interface JobPostRowFields {
   client_id: string;
   expertise_level: string;
@@ -10,7 +12,7 @@ interface JobPostRowFields {
   updated_at: Date | null;
 }
 
-type JobPostResponse<T extends JobPostRowFields> = Omit<
+type JobPostResponse<T extends JobPostRowFields & { id: string }> = Omit<
   T,
   keyof JobPostRowFields
 > & {
@@ -25,11 +27,13 @@ type JobPostResponse<T extends JobPostRowFields> = Omit<
   updatedAt: Date | null;
 };
 
-export const toJobPostResponse = <T extends JobPostRowFields>(
+export const toJobPostResponse = <T extends JobPostRowFields & { id: string }>(
   job: T,
+  clientAccountId: string | null | undefined,
+  operation: string,
 ): JobPostResponse<T> => {
   const {
-    client_id,
+    client_id: _clientAuthId,
     expertise_level,
     expected_duration,
     total_budget_cents,
@@ -42,7 +46,7 @@ export const toJobPostResponse = <T extends JobPostRowFields>(
   } = job;
   return {
     ...rest,
-    clientId: client_id,
+    clientId: requirePublicId(clientAccountId, operation, job.id),
     expertiseLevel: expertise_level,
     expectedDuration: expected_duration,
     totalBudgetCents: total_budget_cents,
@@ -57,13 +61,16 @@ export const toJobPostResponse = <T extends JobPostRowFields>(
 interface SavedJobLinkRow {
   id: string;
   job_id: string;
-  freelancer_id: string;
   created_at: Date | null;
 }
 
-export const toSavedJobLinkResponse = (link: SavedJobLinkRow) => ({
+export const toSavedJobLinkResponse = (
+  link: SavedJobLinkRow,
+  freelancerAccountId: string | null | undefined,
+  operation: string,
+) => ({
   id: link.id,
   jobId: link.job_id,
-  freelancerId: link.freelancer_id,
+  freelancerId: requirePublicId(freelancerAccountId, operation, link.id),
   createdAt: link.created_at,
 });

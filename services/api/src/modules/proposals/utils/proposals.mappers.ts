@@ -1,3 +1,5 @@
+import { requirePublicId } from "../../../shared/ids/public-ids.js";
+
 interface ProposalRow {
   id: string;
   job_id: string;
@@ -13,10 +15,37 @@ interface ProposalRow {
   updated_at: Date | null;
 }
 
-export const toProposalResponse = (proposal: ProposalRow) => ({
+interface ProposalSender {
+  senderId: string;
+  senderType: string;
+  senderAccountId: string | null | undefined;
+}
+
+export const toProposalSenderId = (
+  sender: ProposalSender,
+  operation: string,
+  rowId: string,
+) =>
+  sender.senderType === "AGENCY"
+    ? sender.senderId
+    : requirePublicId(sender.senderAccountId, operation, rowId);
+
+export const toProposalResponse = (
+  proposal: ProposalRow,
+  senderAccountId: string | null | undefined,
+  operation: string,
+) => ({
   id: proposal.id,
   jobId: proposal.job_id,
-  senderId: proposal.sender_id,
+  senderId: toProposalSenderId(
+    {
+      senderId: proposal.sender_id,
+      senderType: proposal.sender_type,
+      senderAccountId,
+    },
+    operation,
+    proposal.id,
+  ),
   senderType: proposal.sender_type,
   coverLetter: proposal.cover_letter,
   bidAmountCents: proposal.bid_amount_cents,

@@ -3,6 +3,7 @@ import { randomUUID } from "crypto";
 import { clerk } from "../../../infrastructure/auth/clerk.client.js";
 import { db } from "../../../database/client.js";
 import { isUniqueViolation } from "../../../database/pg-errors.js";
+import { requirePublicId } from "../../../shared/ids/public-ids.js";
 import { ApiError } from "../../../shared/errors/api-error.js";
 import { imageKit } from "../../../infrastructure/storage/image-kit.client.js";
 import { env } from "../../../config/env.js";
@@ -193,7 +194,7 @@ const attachOwnerProfile = async (
     const isOwner = row.freelancerId === ownerId;
     return {
       id: row.id,
-      freelancerId: row.freelancerId,
+      accountId: requirePublicId(row.accountId, "agency_members", row.id),
       profileId: row.profileId,
       name: names.get(row.freelancerId) ?? "Marketplace user",
       avatarUrl: avatars.get(row.freelancerId) ?? null,
@@ -264,7 +265,7 @@ export const getPublicAgencyProfile = async (
   return {
     ...profile,
     members: profile.members.map(
-      ({ freelancerId: _freelancerId, ...member }) => member,
+      ({ accountId: _accountId, ...member }) => member,
     ),
   };
 };

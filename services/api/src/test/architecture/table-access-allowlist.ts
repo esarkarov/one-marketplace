@@ -52,6 +52,7 @@ export const tableAccessAllowlist: TableAccessEntry[] = [
   { importer: "messaging", owner: "jobs", access: "read" },
   { importer: "messaging", owner: "meetings", access: "read" },
   { importer: "messaging", owner: "proposals", access: "read" },
+  { importer: "notifications", owner: "auth", access: "read" },
   { importer: "payouts", owner: "agency", access: "read" },
   { importer: "payouts", owner: "auth", access: "read" },
   { importer: "payouts", owner: "contracts", access: "read" },

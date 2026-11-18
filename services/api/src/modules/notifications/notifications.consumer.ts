@@ -197,17 +197,16 @@ export const createNotificationConsumer = (options: {
     attempt = 0;
     await settle(() => channel.ack(message));
     try {
-      for (const notification of inserted) {
+      for (const { notification, recipientAccountId } of inserted) {
+        const payload = toNotificationResponse(
+          notification,
+          recipientAccountId,
+          "notifications_stream",
+        );
         if (notification.agency_id) {
-          emitAgencyNotification(
-            notification.agency_id,
-            toNotificationResponse(notification),
-          );
+          emitAgencyNotification(notification.agency_id, payload);
         } else {
-          emitNotification(
-            notification.recipient_id!,
-            toNotificationResponse(notification),
-          );
+          emitNotification(notification.recipient_id!, payload);
         }
       }
     } catch (error) {

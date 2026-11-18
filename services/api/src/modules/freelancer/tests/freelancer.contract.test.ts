@@ -98,6 +98,7 @@ import {
   payout_history,
   proposals,
 } from "../../../test/support/tables.js";
+import { expectNoClerkIds } from "../../../test/support/clerk-id-scan.js";
 import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
 import { getAccountAuthCacheKey } from "../../../config/constants.js";
 import { saveFreelancerProfile } from "../services/freelancer.profile.service.js";
@@ -522,7 +523,8 @@ describe("freelancer contract", () => {
 
   it("serves public profile, search, jobs, earnings, certificate and payout link", async () => {
     const { freelancerId } = await seedFreelancer();
-    const { openJobId } = await seedMarket(freelancerId);
+    const { openJobId, clientId: marketClientId } =
+      await seedMarket(freelancerId);
 
     const [metadata] = await pool
       .query<{ id: string }>(
@@ -552,6 +554,15 @@ describe("freelancer contract", () => {
     expect(feed.body.data.results.length).toBeGreaterThan(0);
     expect(feed.body.data.results[0].matchScore).toBeGreaterThan(0);
     freelancerJobFeedResponses[200].parse(feed.body);
+    const { rows: marketAccount } = await pool.query(
+      "select id from accounts where auth_id = $1",
+      [marketClientId],
+    );
+    const feedJob = feed.body.data.results.find(
+      (job: { id: string }) => job.id === openJobId,
+    );
+    expect(feedJob.clientId).toBe(marketAccount[0].id);
+    expectNoClerkIds(feed.body, [marketClientId, freelancerId]);
 
     const recent = await request(app)
       .get(`${API}/jobs`)
@@ -566,6 +577,8 @@ describe("freelancer contract", () => {
       .set(as(freelancerId));
     expect(detail.status).toBe(200);
     freelancerJobDetailResponses[200].parse(detail.body);
+    expect(detail.body.data.clientId).toBe(marketAccount[0].id);
+    expectNoClerkIds(detail.body, [marketClientId, freelancerId]);
 
     const summary = await request(app)
       .get(`${API}/earnings/summary`)
@@ -848,11 +861,13 @@ describe("freelancer job feed paging", () => {
       [skill],
       {},
       { limit: 7, offset: 0 },
+      "freelancer_get_jobs",
     );
     const short = await getMatchedJobPostsBySkills(
       [skill],
       {},
       { limit: 6, offset: 0 },
+      "freelancer_get_jobs",
     );
     const paged: string[] = [];
     for (let offset = 0; offset < 7; offset += 3) {
@@ -860,6 +875,7 @@ describe("freelancer job feed paging", () => {
         [skill],
         {},
         { limit: 3, offset },
+        "freelancer_get_jobs",
       );
       paged.push(...page.results.map((row) => row.id));
     }

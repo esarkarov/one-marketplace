@@ -277,7 +277,7 @@ describe("isAuthenticated error order", () => {
   });
 
   it("sets request.auth from the lookup", async () => {
-    mocks.accountRows = [{ isOnboardingComplete: true }];
+    mocks.accountRows = [{ id: "account-uuid-1", isOnboardingComplete: true }];
 
     const response = await request(buildApp())
       .post("/check")
@@ -289,6 +289,7 @@ describe("isAuthenticated error order", () => {
       sessionId: "sess_1",
       role: "client",
       accountExists: true,
+      accountId: "account-uuid-1",
       isOnboarded: true,
     });
   });

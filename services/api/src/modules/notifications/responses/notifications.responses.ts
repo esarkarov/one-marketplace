@@ -11,7 +11,7 @@ const Notification = z
   .strictObject({
     id: z.uuid(),
     eventId: z.string(),
-    recipientId: z.string().nullable(),
+    recipientId: z.uuid().nullable(),
     agencyId: z.uuid().nullable(),
     type: z.string(),
     title: z.string(),

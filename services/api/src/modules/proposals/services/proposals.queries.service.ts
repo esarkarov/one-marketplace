@@ -12,6 +12,7 @@ import {
   fetchSize,
   toOffsetPage,
 } from "../../../shared/validation/utils/pagination.utils.js";
+import { toProposalSenderId } from "../utils/proposals.mappers.js";
 import { clerk } from "../../../infrastructure/auth/clerk.client.js";
 
 const ACTIVE_PROPOSAL_STATUSES = new Set([
@@ -122,6 +123,7 @@ export const getClientJobProposals = async (
     rows.map(
       async ({
         senderId,
+        senderAccountId,
         senderType,
         jobSuccessScore,
         rating,
@@ -134,6 +136,11 @@ export const getClientJobProposals = async (
         agencyTags,
         ...proposal
       }) => {
+        const publicSenderId = toProposalSenderId(
+          { senderId, senderType, senderAccountId },
+          "proposals_get",
+          proposal.id,
+        );
         const stats =
           senderType === "AGENCY"
             ? {
@@ -157,7 +164,7 @@ export const getClientJobProposals = async (
           return {
             ...proposal,
             ...stats,
-            senderId,
+            senderId: publicSenderId,
             senderType,
             senderName: agencyName ?? "Agency",
             avatar: agencyAvatar?.url ?? null,
@@ -173,7 +180,7 @@ export const getClientJobProposals = async (
           return {
             ...proposal,
             ...stats,
-            senderId,
+            senderId: publicSenderId,
             senderType,
             senderName: user.fullName,
             avatar: user.imageUrl || null,
@@ -182,7 +189,7 @@ export const getClientJobProposals = async (
           return {
             ...proposal,
             ...stats,
-            senderId,
+            senderId: publicSenderId,
             senderType,
             senderName: null,
             avatarUrl: null,

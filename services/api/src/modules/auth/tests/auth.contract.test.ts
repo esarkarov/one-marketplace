@@ -47,6 +47,7 @@ vi.mock("../../../infrastructure/cache/redis.client.js", () => ({
 }));
 
 import { pool } from "../../../database/client.js";
+import { expectNoClerkIds } from "../../../test/support/clerk-id-scan.js";
 import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
 import {
   authStatusResponses,
@@ -103,6 +104,15 @@ describe("auth contract", () => {
     expect(status.status).toBe(200);
     authStatusResponses[200].parse(status.body);
     expect(status.body.data.accountExists).toBe(true);
+
+    const { rows } = await pool.query(
+      "select id from accounts where auth_id = $1",
+      [userId],
+    );
+    expect(signup.body.data.accountId).toBe(rows[0].id);
+    expect(status.body.data.accountId).toBe(rows[0].id);
+    expectNoClerkIds(signup.body, [userId]);
+    expectNoClerkIds(status.body, [userId]);
   });
 
   it("POST /sign-up stores the requested role, the Clerk email and unverified defaults", async () => {
@@ -144,21 +154,24 @@ describe("auth contract", () => {
       emailAddresses: [],
     });
 
-    await expect(
-      receiveSignup({
-        userId,
-        role: "client",
-        accountExists: false,
-        isOnboarded: false,
-      }),
-    ).resolves.toBeUndefined();
+    const accountId = await receiveSignup({
+      userId,
+      role: "client",
+      accountExists: false,
+      isOnboarded: false,
+    });
 
     const { rows } = await pool.query(
-      "select email, role from accounts where auth_id = $1",
+      "select id, email, role from accounts where auth_id = $1",
       [userId],
     );
+    expect(accountId).toBe(rows[0].id);
     expect(rows).toEqual([
-      { email: "original@example.test", role: "FREELANCER" },
+      {
+        id: accountId,
+        email: "original@example.test",
+        role: "FREELANCER",
+      },
     ]);
   });
 });

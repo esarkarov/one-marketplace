@@ -22,7 +22,16 @@ export const getNotifications = async (
     }),
     limit,
   );
-  return { results: rows.map(toNotificationResponse), hasMore };
+  return {
+    results: rows.map(({ notification, recipientAccountId }) =>
+      toNotificationResponse(
+        notification,
+        recipientAccountId,
+        "notifications_get",
+      ),
+    ),
+    hasMore,
+  };
 };
 
 export const readAllNotifications = (userId: string, agencyId: string | null) =>

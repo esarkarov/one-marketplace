@@ -33,9 +33,11 @@ export const findPublishedJobForProposal = async (
       id: job_posts.id,
       title: job_posts.title,
       clientId: job_posts.client_id,
+      clientAccountId: accounts.id,
       screeningQuestions: job_posts.screening_questions,
     })
     .from(job_posts)
+    .innerJoin(accounts, eq(accounts.auth_id, job_posts.client_id))
     .where(and(eq(job_posts.id, jobId), eq(job_posts.status, "PUBLISHED")))
     .limit(1);
   return job;
@@ -203,8 +205,9 @@ export const listClientJobProposalRows = (
       contractId: contracts.id,
       contractStatus: contracts.status,
       senderId: proposals.sender_id,
+      senderAccountId: accounts.id,
       senderType: proposals.sender_type,
-      freelancerId: freelancer_metadata.id,
+      profileId: freelancer_metadata.id,
       verified: accounts.identityVerified,
       professionalTitle: freelancer_metadata.professional_title,
       country: freelancer_metadata.country,
@@ -292,12 +295,14 @@ export const findClientProposalForView = async (
     .select({
       id: proposals.id,
       senderId: proposals.sender_id,
+      senderAccountId: accounts.id,
       senderType: proposals.sender_type,
       status: proposals.status,
       jobTitle: job_posts.title,
     })
     .from(proposals)
     .innerJoin(job_posts, eq(proposals.job_id, job_posts.id))
+    .leftJoin(accounts, eq(accounts.auth_id, proposals.sender_id))
     .where(and(eq(proposals.id, proposalId), eq(job_posts.client_id, clientId)))
     .limit(1);
   return existing;

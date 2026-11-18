@@ -113,9 +113,24 @@ export const findAccountOnboardingState = async (
   role: "CLIENT" | "FREELANCER",
 ) => {
   const [account] = await executor
-    .select({ isOnboardingComplete: accounts.isOnboardingComplete })
+    .select({
+      id: accounts.id,
+      isOnboardingComplete: accounts.isOnboardingComplete,
+    })
     .from(accounts)
     .where(and(eq(accounts.auth_id, userId), eq(accounts.role, role)))
     .limit(1);
   return account;
+};
+
+export const findAccountIdByAuthId = async (
+  executor: DbExecutor,
+  authId: string,
+) => {
+  const [account] = await executor
+    .select({ id: accounts.id })
+    .from(accounts)
+    .where(eq(accounts.auth_id, authId))
+    .limit(1);
+  return account?.id ?? null;
 };

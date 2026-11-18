@@ -1,3 +1,5 @@
+import { requirePublicId } from "../../../shared/ids/public-ids.js";
+
 interface NotificationRow {
   id: string;
   event_id: string;
@@ -13,10 +15,17 @@ interface NotificationRow {
   created_at: Date | null;
 }
 
-export const toNotificationResponse = (notification: NotificationRow) => ({
+export const toNotificationResponse = (
+  notification: NotificationRow,
+  recipientAccountId: string | null | undefined,
+  operation: string,
+) => ({
   id: notification.id,
   eventId: notification.event_id,
-  recipientId: notification.recipient_id,
+  recipientId:
+    notification.recipient_id === null
+      ? null
+      : requirePublicId(recipientAccountId, operation, notification.id),
   agencyId: notification.agency_id,
   type: notification.type,
   title: notification.title,

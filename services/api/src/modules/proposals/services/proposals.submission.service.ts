@@ -1,3 +1,4 @@
+import { requirePublicId } from "../../../shared/ids/public-ids.js";
 import { toProposalResponse } from "../utils/proposals.mappers.js";
 import { db } from "../../../database/client.js";
 import {
@@ -5,6 +6,7 @@ import {
   findPublishedJobForProposal,
   insertProposalIfAbsent,
 } from "../repositories/proposals.repository.js";
+import { findAccountIdByAuthId } from "../../auth/index.js";
 import { debitConnects, recordConnectsHistory } from "../../connects/index.js";
 import { ApiError } from "../../../shared/errors/api-error.js";
 import {
@@ -41,6 +43,12 @@ export const submitProposal = async (
       throw new ApiError(400, "Answer every screening question.");
     }
 
+    const senderAccountId = requirePublicId(
+      await findAccountIdByAuthId(transaction, freelancerId),
+      "proposals_post",
+      input.jobId,
+    );
+
     const balance = await debitConnects(
       transaction,
       { freelancerId },
@@ -72,8 +80,10 @@ export const submitProposal = async (
     });
     return {
       proposal,
+      senderAccountId,
       connects: balance.connects,
       clientId: job.clientId,
+      clientAccountId: job.clientAccountId,
       jobTitle: job.title,
     };
   });
@@ -93,7 +103,20 @@ export const submitProposal = async (
     metadata: { proposalId: result.proposal.id, jobId: input.jobId },
   });
 
-  return { ...result, proposal: toProposalResponse(result.proposal) };
+  return {
+    proposal: toProposalResponse(
+      result.proposal,
+      result.senderAccountId,
+      "proposals_post",
+    ),
+    connects: result.connects,
+    clientId: requirePublicId(
+      result.clientAccountId,
+      "proposals_post",
+      result.proposal.id,
+    ),
+    jobTitle: result.jobTitle,
+  };
 };
 
 export const submitAgencyProposal = async (
@@ -164,6 +187,7 @@ export const submitAgencyProposal = async (
       proposal,
       connects: balance.connects,
       clientId: job.clientId,
+      clientAccountId: job.clientAccountId,
       jobTitle: job.title,
       agencyName: agency.name,
     };
@@ -184,5 +208,19 @@ export const submitAgencyProposal = async (
     metadata: { proposalId: result.proposal.id, jobId: input.jobId },
   });
 
-  return { ...result, proposal: toProposalResponse(result.proposal) };
+  return {
+    proposal: toProposalResponse(
+      result.proposal,
+      null,
+      "agency_post_proposals",
+    ),
+    connects: result.connects,
+    clientId: requirePublicId(
+      result.clientAccountId,
+      "agency_post_proposals",
+      result.proposal.id,
+    ),
+    jobTitle: result.jobTitle,
+    agencyName: result.agencyName,
+  };
 };

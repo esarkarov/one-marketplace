@@ -225,7 +225,11 @@ describe("proposal self-dealing", () => {
 
     const result = await submitProposal(authId, input(jobId));
 
-    expect(result.proposal.senderId).toBe(authId);
+    const { rows } = await pool.query(
+      "select id from accounts where auth_id = $1",
+      [authId],
+    );
+    expect(result.proposal.senderId).toBe(rows[0].id);
     expect(await proposalsForJob(jobId)).toHaveLength(1);
     expect(await balanceOf(connectsId)).toBeLessThan(STARTING_CONNECTS);
     expect(await historyCount(connectsId)).toBe(1);

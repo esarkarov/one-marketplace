@@ -38,6 +38,13 @@ vi.mock("../../database/client.js", () => ({
         };
       },
     }),
+    select: () => ({
+      from: () => ({
+        where: () => ({
+          limit: async () => [{ id: "7c1d2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f" }],
+        }),
+      }),
+    }),
     execute: async () => [],
   },
 }));

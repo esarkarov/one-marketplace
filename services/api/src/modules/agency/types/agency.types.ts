@@ -11,7 +11,7 @@ export interface AgencyPortfolioItem {
 
 export interface AgencyMember {
   id: string;
-  freelancerId: string;
+  accountId: string;
   profileId: string | null;
   name: string;
   avatarUrl: string | null;
@@ -45,7 +45,7 @@ export interface AgencyStats {
   rating: number | null;
 }
 
-export type PublicAgencyMember = Omit<AgencyMember, "freelancerId">;
+export type PublicAgencyMember = Omit<AgencyMember, "accountId">;
 
 export interface AgencyData {
   id: string;

@@ -1,7 +1,10 @@
 import { clerk } from "../../../infrastructure/auth/clerk.client.js";
 import { ApiError } from "../../../shared/errors/api-error.js";
 import { db } from "../../../database/client.js";
-import { insertAccountIfAbsent } from "../repositories/auth.repository.js";
+import {
+  findAccountIdByAuthId,
+  insertAccountIfAbsent,
+} from "../repositories/auth.repository.js";
 import { invalidateAccountAuthCache } from "../../../infrastructure/cache/account-auth.cache.js";
 
 interface SignupInput {
@@ -29,9 +32,11 @@ const getClerkUserWithRetry = async (userId: string) => {
   }
 };
 
-export const receiveSignup = async (input: SignupInput): Promise<void> => {
+export const receiveSignup = async (
+  input: SignupInput,
+): Promise<string | null> => {
   if (input.accountExists) {
-    return;
+    return null;
   }
 
   const user = await getClerkUserWithRetry(input.userId);
@@ -53,4 +58,5 @@ export const receiveSignup = async (input: SignupInput): Promise<void> => {
   });
 
   await invalidateAccountAuthCache(input.userId);
+  return findAccountIdByAuthId(db, input.userId);
 };

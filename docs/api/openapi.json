@@ -912,6 +912,8 @@
             "type": ["string", "null"]
           },
           "clientId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
             "type": "string"
           },
           "clientRating": {
@@ -1198,6 +1200,11 @@
             "items": {
               "additionalProperties": false,
               "properties": {
+                "accountId": {
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "type": "string"
+                },
                 "avatarUrl": {
                   "type": ["string", "null"]
                 },
@@ -1205,9 +1212,6 @@
                   "maximum": 9007199254740991,
                   "minimum": -9007199254740991,
                   "type": "integer"
-                },
-                "freelancerId": {
-                  "type": "string"
                 },
                 "id": {
                   "format": "uuid",
@@ -1250,7 +1254,7 @@
               },
               "required": [
                 "id",
-                "freelancerId",
+                "accountId",
                 "profileId",
                 "name",
                 "avatarUrl",
@@ -1673,6 +1677,8 @@
             "type": "string"
           },
           "clientId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
             "type": "string"
           },
           "connects": {
@@ -1735,6 +1741,8 @@
                 "type": "array"
               },
               "senderId": {
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
                 "type": "string"
               },
               "senderType": {
@@ -1902,6 +1910,18 @@
           "accountExists": {
             "type": "boolean"
           },
+          "accountId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "isOnboarded": {
             "type": "boolean"
           },
@@ -1910,7 +1930,7 @@
             "type": "string"
           }
         },
-        "required": ["role", "accountExists", "isOnboarded"],
+        "required": ["role", "accountExists", "accountId", "isOnboarded"],
         "type": "object"
       },
       "Cents": {
@@ -2758,6 +2778,8 @@
             "type": ["string", "null"]
           },
           "clientId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
             "type": "string"
           },
           "clientJoinedAt": {
@@ -2983,6 +3005,8 @@
             "type": ["string", "null"]
           },
           "clientId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
             "type": "string"
           },
           "clientRating": {
@@ -3997,6 +4021,8 @@
             ]
           },
           "clientId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
             "type": "string"
           },
           "createdAt": {
@@ -4169,6 +4195,8 @@
             ]
           },
           "clientId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
             "type": "string"
           },
           "createdAt": {
@@ -4407,6 +4435,8 @@
             ]
           },
           "freelancerId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
             "type": "string"
           },
           "id": {
@@ -4467,6 +4497,8 @@
             ]
           },
           "clientId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
             "type": "string"
           },
           "companyName": {
@@ -5068,7 +5100,16 @@
             ]
           },
           "recipientId": {
-            "type": ["string", "null"]
+            "anyOf": [
+              {
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "title": {
             "type": "string"
@@ -5154,18 +5195,6 @@
               "duration": {
                 "type": "string"
               },
-              "freelancerId": {
-                "anyOf": [
-                  {
-                    "format": "uuid",
-                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
               "id": {
                 "format": "uuid",
                 "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
@@ -5184,6 +5213,18 @@
               },
               "professionalTitle": {
                 "type": ["string", "null"]
+              },
+              "profileId": {
+                "anyOf": [
+                  {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               },
               "rating": {
                 "type": "number"
@@ -5205,6 +5246,8 @@
                 "type": "array"
               },
               "senderId": {
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
                 "type": "string"
               },
               "senderName": {
@@ -5249,7 +5292,7 @@
               "conversationId",
               "contractId",
               "contractStatus",
-              "freelancerId",
+              "profileId",
               "verified",
               "professionalTitle",
               "country",
@@ -5327,18 +5370,6 @@
               "duration": {
                 "type": "string"
               },
-              "freelancerId": {
-                "anyOf": [
-                  {
-                    "format": "uuid",
-                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
               "id": {
                 "format": "uuid",
                 "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
@@ -5352,6 +5383,18 @@
               },
               "professionalTitle": {
                 "type": ["string", "null"]
+              },
+              "profileId": {
+                "anyOf": [
+                  {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               },
               "rating": {
                 "type": "number"
@@ -5373,6 +5416,8 @@
                 "type": "array"
               },
               "senderId": {
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
                 "type": "string"
               },
               "senderName": {
@@ -5417,7 +5462,7 @@
               "conversationId",
               "contractId",
               "contractStatus",
-              "freelancerId",
+              "profileId",
               "verified",
               "professionalTitle",
               "country",
@@ -5493,18 +5538,6 @@
               "duration": {
                 "type": "string"
               },
-              "freelancerId": {
-                "anyOf": [
-                  {
-                    "format": "uuid",
-                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
               "id": {
                 "format": "uuid",
                 "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
@@ -5518,6 +5551,18 @@
               },
               "professionalTitle": {
                 "type": ["string", "null"]
+              },
+              "profileId": {
+                "anyOf": [
+                  {
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               },
               "rating": {
                 "type": "number"
@@ -5539,6 +5584,8 @@
                 "type": "array"
               },
               "senderId": {
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
                 "type": "string"
               },
               "senderName": {
@@ -5583,7 +5630,7 @@
               "conversationId",
               "contractId",
               "contractStatus",
-              "freelancerId",
+              "profileId",
               "verified",
               "professionalTitle",
               "country",
@@ -5844,6 +5891,8 @@
             "type": "array"
           },
           "senderId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
             "type": "string"
           },
           "senderType": {
@@ -5899,6 +5948,8 @@
         "additionalProperties": false,
         "properties": {
           "clientId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
             "type": "string"
           },
           "connects": {
@@ -5931,6 +5982,8 @@
             "type": "string"
           },
           "senderId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
             "type": "string"
           },
           "senderType": {

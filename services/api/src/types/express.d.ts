@@ -8,6 +8,7 @@ declare global {
         sessionId?: string;
         role: "client" | "freelancer";
         accountExists: boolean;
+        accountId: string | null;
         isOnboarded: boolean;
       };
       authClaims?: {

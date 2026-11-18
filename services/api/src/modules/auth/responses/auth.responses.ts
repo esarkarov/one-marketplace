@@ -8,6 +8,7 @@ export const AuthStatus = z
   .strictObject({
     role: z.enum(["client", "freelancer"]),
     accountExists: z.boolean(),
+    accountId: z.uuid().nullable(),
     isOnboarded: z.boolean(),
   })
   .meta({ id: "AuthStatus" });

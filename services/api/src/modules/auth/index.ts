@@ -5,6 +5,7 @@ export {
   markPaymentMethodVerified,
   markIdentityVerified,
   setStripeConnectAccountId,
+  findAccountIdByAuthId,
 } from "./repositories/auth.repository.js";
 export {
   authenticateAccount,

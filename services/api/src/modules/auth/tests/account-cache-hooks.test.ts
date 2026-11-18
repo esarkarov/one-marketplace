@@ -60,6 +60,7 @@ vi.mock("../../../database/client.js", () => {
     chain[method] = () => chain;
   }
   chain.then = (resolve: (value: unknown) => void) => resolve([]);
+  chain.limit = async () => [{ id: "account-uuid-1" }];
   chain.returning = async () => mocks.returning.shift() ?? [];
   chain.onConflictDoNothing = async () => {
     mocks.events.push("insert");

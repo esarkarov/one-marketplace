@@ -69,6 +69,7 @@ describe("updateJobPost", () => {
   it("returns the updated job", async () => {
     await expect(updateJobPost("user_1", "job_1", {})).resolves.toEqual({
       id: "job_1",
+      clientId: "job_1",
     });
     expect(mocks.deleteFile).not.toHaveBeenCalled();
   });

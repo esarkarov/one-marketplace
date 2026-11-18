@@ -25,6 +25,7 @@ interface CachedAccountAuth {
   userId: string;
   role: "client" | "freelancer";
   accountExists: boolean;
+  accountId?: string | null;
   isOnboarded: boolean;
 }
 
@@ -49,7 +50,8 @@ const isAccountAvailable = async (
   const cachedValue = await redis.get(cacheKey);
 
   if (cachedValue) {
-    return JSON.parse(cachedValue) as CachedAccountAuth;
+    const cached = JSON.parse(cachedValue) as CachedAccountAuth;
+    if (cached.accountId !== undefined) return cached;
   }
 
   const databaseRole = requestedRole === "client" ? "CLIENT" : "FREELANCER";
@@ -59,6 +61,7 @@ const isAccountAvailable = async (
   const accountAuth: CachedAccountAuth = {
     userId,
     accountExists: Boolean(account),
+    accountId: account?.id ?? null,
     role: requestedRole,
     isOnboarded: account?.isOnboardingComplete === true,
   };
@@ -150,6 +153,7 @@ const loadRequestAuth = async (
     sessionId: claims.sessionId,
     role: requestedRole,
     accountExists: accountAuth.accountExists,
+    accountId: accountAuth.accountId ?? null,
     isOnboarded: accountAuth.isOnboarded,
   };
 };

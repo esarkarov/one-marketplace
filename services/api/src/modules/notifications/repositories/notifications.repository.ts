@@ -1,5 +1,6 @@
 import { and, desc, eq, or, sql } from "drizzle-orm";
 import type { DbExecutor } from "../../../database/database.types.js";
+import { accounts } from "../../auth/models/auth.model.js";
 import { notifications } from "../models/notifications.model.js";
 
 export const findLatestNotifications = (
@@ -9,8 +10,12 @@ export const findLatestNotifications = (
   page: { limit: number; offset: number },
 ) =>
   executor
-    .select()
+    .select({
+      notification: notifications,
+      recipientAccountId: accounts.id,
+    })
     .from(notifications)
+    .leftJoin(accounts, eq(accounts.auth_id, notifications.recipient_id))
     .where(
       agencyId
         ? eq(notifications.agency_id, agencyId)
@@ -56,7 +61,7 @@ export const markNotificationReadForRecipient = (
     )
     .returning({ id: notifications.id });
 
-export const insertNotificationIfNew = (
+export const insertNotificationIfNew = async (
   executor: DbExecutor,
   input: {
     eventId: string;
@@ -69,8 +74,8 @@ export const insertNotificationIfNew = (
     metadata: Record<string, unknown> | null | undefined;
     createdAt: Date;
   },
-) =>
-  executor
+) => {
+  const inserted = await executor
     .insert(notifications)
     .values({
       event_id: input.eventId,
@@ -85,6 +90,22 @@ export const insertNotificationIfNew = (
     })
     .onConflictDoNothing({ target: notifications.event_id })
     .returning();
+  if (!input.recipientId || !inserted.length) {
+    return inserted.map((notification) => ({
+      notification,
+      recipientAccountId: null,
+    }));
+  }
+  const [account] = await executor
+    .select({ id: accounts.id })
+    .from(accounts)
+    .where(eq(accounts.auth_id, input.recipientId))
+    .limit(1);
+  return inserted.map((notification) => ({
+    notification,
+    recipientAccountId: account?.id ?? null,
+  }));
+};
 
 export const pingDatabase = (executor: DbExecutor) =>
   executor.execute(sql`select 1`);

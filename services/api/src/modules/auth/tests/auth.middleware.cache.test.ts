@@ -106,6 +106,7 @@ describe("account auth cache lookup", () => {
         userId: "user_1",
         role: "client",
         accountExists: true,
+        accountId: "account-uuid-1",
         isOnboarded: true,
       }),
       ttl: 123,
@@ -113,10 +114,41 @@ describe("account auth cache lookup", () => {
 
     const result = await authenticateAccount("token", "client");
 
-    expect(result).toMatchObject({ accountExists: true, isOnboarded: true });
+    expect(result).toMatchObject({
+      accountExists: true,
+      accountId: "account-uuid-1",
+      isOnboarded: true,
+    });
     expect(mocks.dbReads).not.toHaveBeenCalled();
     expect(mocks.expire).not.toHaveBeenCalled();
     expect(mocks.entries.get("account:auth:user_1:client")?.ttl).toBe(123);
+  });
+
+  it("re-reads the database for a cached entry written before accountId existed", async () => {
+    mocks.entries.set("account:auth:user_1:client", {
+      value: JSON.stringify({
+        userId: "user_1",
+        role: "client",
+        accountExists: true,
+        isOnboarded: true,
+      }),
+      ttl: 123,
+    });
+    mocks.accountRows = [{ id: "account-uuid-1", isOnboardingComplete: true }];
+
+    const result = await authenticateAccount("token", "client");
+
+    expect(mocks.dbReads).toHaveBeenCalledOnce();
+    expect(result).toMatchObject({
+      accountExists: true,
+      accountId: "account-uuid-1",
+    });
+  });
+
+  it("answers a null accountId when the account does not exist", async () => {
+    const result = await authenticateAccount("token", "client");
+
+    expect(result).toMatchObject({ accountExists: false, accountId: null });
   });
 
   it("reads the database once on a miss and writes with the fixed TTL", async () => {

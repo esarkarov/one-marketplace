@@ -15,7 +15,7 @@ import {
 
 const jobPostFields = {
   id: z.uuid(),
-  clientId: z.string(),
+  clientId: z.uuid(),
   title: z.string(),
   description: z.string(),
   expertiseLevel: z.string(),
@@ -64,7 +64,7 @@ const JobsSavedLink = z
   .strictObject({
     id: z.uuid(),
     jobId: z.uuid(),
-    freelancerId: z.string(),
+    freelancerId: z.uuid(),
     createdAt: isoDateTime.nullable(),
   })
   .meta({ id: "JobsSavedLink" });

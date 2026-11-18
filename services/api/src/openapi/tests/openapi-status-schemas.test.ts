@@ -14,7 +14,7 @@ const proposalReview = (status: string) => ({
   message: "ok",
   data: {
     id: randomUUID(),
-    senderId: "user_1",
+    senderId: randomUUID(),
     senderType: "FREELANCER",
     status,
     jobTitle: "Job",
@@ -40,7 +40,7 @@ const job = (status: string) => ({
   message: "ok",
   data: {
     id: randomUUID(),
-    clientId: "user_1",
+    clientId: randomUUID(),
     title: "Job",
     description: "Details",
     expertiseLevel: "EXPERT",

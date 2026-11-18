@@ -71,6 +71,7 @@ import {
   job_posts,
   proposals,
 } from "../../../test/support/tables.js";
+import { expectNoClerkIds } from "../../../test/support/clerk-id-scan.js";
 import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
 import {
   jobsCreateResponses,
@@ -768,6 +769,71 @@ describe("jobs queries against real Postgres", () => {
     });
   });
 
+  const accountUuid = async (authId: string) => {
+    const { rows } = await pool.query(
+      "select id from accounts where auth_id = $1",
+      [authId],
+    );
+    return rows[0].id as string;
+  };
+
+  describe("Clerk id exposure", () => {
+    it("returns accounts uuids and no Clerk id on every client and saved-job response", async () => {
+      const clientId = await seedClientWith();
+      const freelancerId = await seedFreelancer();
+      const clientUuid = await accountUuid(clientId);
+      const clerkIds = [clientId, freelancerId];
+
+      const created = await request(app)
+        .post(API)
+        .set(as(clientId))
+        .send(jobBody());
+      expect(created.status).toBe(201);
+      expect(created.body.data.clientId).toBe(clientUuid);
+      expectNoClerkIds(created.body, clerkIds);
+      const jobId = created.body.data.id as string;
+
+      const list = await request(app)
+        .get(API)
+        .query(asClient)
+        .set(as(clientId));
+      expect(list.body.data.results[0].clientId).toBe(clientUuid);
+      expectNoClerkIds(list.body, clerkIds);
+
+      const one = await request(app)
+        .get(`${API}/${jobId}`)
+        .query(asClient)
+        .set(as(clientId));
+      expect(one.body.data.clientId).toBe(clientUuid);
+      expectNoClerkIds(one.body, clerkIds);
+
+      const updated = await request(app)
+        .put(`${API}/${jobId}`)
+        .set(as(clientId))
+        .send(jobBody({ title: "Renamed" }));
+      expect(updated.status).toBe(200);
+      expect(updated.body.data.clientId).toBe(clientUuid);
+      expectNoClerkIds(updated.body, clerkIds);
+
+      const saved = await request(app)
+        .post(`${API}/saved/${jobId}`)
+        .query(asFreelancer)
+        .set(as(freelancerId));
+      expect(saved.status).toBe(201);
+      expect(saved.body.data.freelancerId).toBe(
+        await accountUuid(freelancerId),
+      );
+      expectNoClerkIds(saved.body, clerkIds);
+
+      const savedList = await request(app)
+        .get(`${API}/saved`)
+        .query(asFreelancer)
+        .set(as(freelancerId));
+      expect(savedList.body.data.results[0].clientId).toBe(clientUuid);
+      expectNoClerkIds(savedList.body, clerkIds);
+    });
+  });
+
   describe("saved jobs", () => {
     it("saves only published jobs, keeps saves per freelancer and job, and unsaves one at a time", async () => {
       const clientId = await seedClientWith();
@@ -809,7 +875,7 @@ describe("jobs queries against real Postgres", () => {
       const repeated = await save(freelancerA, first.id);
       expect(repeated.status).toBe(201);
       expect(repeated.body.data).toMatchObject({
-        freelancerId: freelancerA,
+        freelancerId: await accountUuid(freelancerA),
         jobId: first.id,
       });
 

@@ -70,6 +70,7 @@ const matchJobPostsBySkills = async (
     .map(
       ({
         job,
+        clientAccountId,
         companyName,
         paymentVerified,
         totalSpentCents,
@@ -77,6 +78,7 @@ const matchJobPostsBySkills = async (
         clientReviewCount,
       }) => ({
         ...job,
+        clientAccountId,
         companyName,
         paymentVerified: paymentVerified === true,
         proposalCount: counts?.get(job.id) ?? 0,
@@ -139,6 +141,7 @@ export const getMatchedJobPostsBySkills = async (
   skillList: string[],
   filters: JobFeedFilters,
   { limit, offset }: { limit: number; offset: number },
+  operation: string,
 ) => {
   const matched = await matchJobPostsBySkills(skillList, filters);
   const { rows, hasMore } = toOffsetPage(
@@ -156,8 +159,8 @@ export const getMatchedJobPostsBySkills = async (
   );
 
   return {
-    results: rows.map((job) => ({
-      ...toJobPostResponse(job),
+    results: rows.map(({ clientAccountId, ...job }) => ({
+      ...toJobPostResponse(job, clientAccountId, operation),
       clientCountry: clientCountries.get(job.client_id) ?? null,
     })),
     hasMore,
@@ -173,7 +176,12 @@ export const getMatchedJobPosts = async (
 
   if (!profile) throw new ApiError(404, "Freelancer profile not found.");
 
-  return getMatchedJobPostsBySkills(profile.skills, filters, page);
+  return getMatchedJobPostsBySkills(
+    profile.skills,
+    filters,
+    page,
+    "freelancer_get_jobs",
+  );
 };
 
 export const getFreelancerJobPost = async (jobId: string) => {
@@ -187,7 +195,11 @@ export const getFreelancerJobPost = async (jobId: string) => {
   const clientCountry = await getClientCountry(result.job.client_id);
 
   return {
-    ...toJobPostResponse(result.job),
+    ...toJobPostResponse(
+      result.job,
+      result.clientAccountId,
+      "freelancer_get_jobs_by_id",
+    ),
     companyName: result.companyName,
     companyDescription: result.companyDescription,
     clientCountry,

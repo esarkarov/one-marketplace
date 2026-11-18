@@ -57,7 +57,7 @@ const AgencyPortfolioItem = z.strictObject({
 
 const AgencyMember = z.strictObject({
   id: z.uuid(),
-  freelancerId: z.string(),
+  accountId: z.uuid(),
   profileId: z.uuid().nullable(),
   name: z.string(),
   avatarUrl: z.string().nullable(),
@@ -114,7 +114,7 @@ const AgencyProfile = z
   })
   .meta({ id: "AgencyProfile" });
 
-const PublicAgencyMember = AgencyMember.omit({ freelancerId: true });
+const PublicAgencyMember = AgencyMember.omit({ accountId: true });
 
 const PublicAgencyProfile = AgencyProfile.extend({
   members: z.array(PublicAgencyMember),
@@ -152,7 +152,7 @@ const AgencyVerification = z
 const AgencyJobFeedItem = z
   .strictObject({
     id: z.uuid(),
-    clientId: z.string(),
+    clientId: z.uuid(),
     title: z.string(),
     description: z.string(),
     expertiseLevel: z.string(),
@@ -235,7 +235,7 @@ const AgencyProposalListItem = z
 const AgencyProposalRow = z.strictObject({
   id: z.uuid(),
   jobId: z.uuid(),
-  senderId: z.string(),
+  senderId: z.uuid(),
   senderType: z.string(),
   coverLetter: z.string(),
   bidAmountCents: cents,
@@ -253,7 +253,7 @@ const AgencyProposalSubmitted = z
   .strictObject({
     proposal: AgencyProposalRow,
     connects: z.number().int(),
-    clientId: z.string(),
+    clientId: z.uuid(),
     jobTitle: z.string(),
     agencyName: z.string(),
   })

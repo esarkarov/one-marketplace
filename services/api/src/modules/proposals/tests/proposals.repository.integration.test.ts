@@ -457,7 +457,7 @@ describe("proposals repository sender lists", () => {
     expect(row(byAgencyOne).agencyName).toBe("Repository rows agency one");
     expect(row(byAgencyTwo).agencyName).toBe("Repository rows agency two");
     expect(row(byFreelancer).agencyName).toBeNull();
-    expect(row(byFreelancer).freelancerId).not.toBeNull();
+    expect(row(byFreelancer).profileId).not.toBeNull();
     expect(await listClientJobProposalRows(db, stranger, jobA1, ALL)).toEqual(
       [],
     );

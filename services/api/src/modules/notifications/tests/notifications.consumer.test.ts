@@ -1,9 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ConsumeMessage } from "amqplib";
+import { expectNoClerkIds } from "../../../test/support/clerk-id-scan.js";
 import { createNotificationEnvelope } from "../../../infrastructure/events/notification.envelope.js";
 
 const mocks = vi.hoisted(() => ({
   returning: vi.fn(),
+  accountLookup: vi.fn(),
   values: vi.fn(),
   execute: vi.fn(),
   emit: vi.fn(),
@@ -30,6 +32,9 @@ vi.mock("../../../database/client.js", () => ({
         };
       },
     }),
+    select: () => ({
+      from: () => ({ where: () => ({ limit: mocks.accountLookup }) }),
+    }),
     execute: mocks.execute,
   },
 }));
@@ -43,6 +48,8 @@ const { createNotificationConsumer } =
   await import("../notifications.consumer.js");
 const { notificationsResponses } =
   await import("../responses/notifications.responses.js");
+
+const ACCOUNT_UUID = "7c1d2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f";
 
 type Handler = (message: ConsumeMessage) => void;
 
@@ -65,7 +72,7 @@ const notificationRow = (overrides: Record<string, unknown> = {}) => ({
 const camelNotification = (row: ReturnType<typeof notificationRow>) => ({
   id: row.id,
   eventId: row.event_id,
-  recipientId: row.recipient_id,
+  recipientId: row.recipient_id === null ? null : ACCOUNT_UUID,
   agencyId: row.agency_id,
   type: row.type,
   title: row.title,
@@ -117,6 +124,7 @@ const flush = async () => {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  mocks.accountLookup.mockResolvedValue([{ id: ACCOUNT_UUID }]);
 });
 
 afterEach(() => {
@@ -157,12 +165,35 @@ describe("notification consumer", () => {
     expect(channel.nack).not.toHaveBeenCalled();
     const emitted = mocks.emit.mock.calls[0]![1];
     expect(emitted).toEqual(camelNotification(row));
+    expect(emitted.recipientId).toBe(ACCOUNT_UUID);
+    expectNoClerkIds(emitted, ["user_1"]);
+    expect(mocks.emit.mock.calls[0]![0]).toBe("user_1");
     expect(Object.keys(emitted).some((key) => key.includes("_"))).toBe(false);
     notificationsResponses.list[200].parse({
       success: true,
       message: "Notifications retrieved.",
       data: { results: [JSON.parse(JSON.stringify(emitted))], hasMore: false },
     });
+  });
+
+  it("does not push a notification whose recipient uuid cannot be resolved", async () => {
+    const { channel, consumer, deliver } = setup();
+    mocks.accountLookup.mockResolvedValue([]);
+    mocks.logError.mockResolvedValue(undefined);
+    mocks.returning.mockResolvedValue([
+      notificationRow({ recipient_id: "user_1" }),
+    ]);
+    await consumer.start();
+
+    deliver(message(envelope()));
+    await consumer.stop();
+
+    expect(channel.ack).toHaveBeenCalledTimes(1);
+    expect(mocks.emit).not.toHaveBeenCalled();
+    expect(
+      mocks.logError.mock.calls.map(([entry]) => entry.eventName),
+    ).toContain("queue.push.failed");
+    expectNoClerkIds(mocks.logError.mock.calls, ["user_1"]);
   });
 
   it("emits to the agency channel for agency notifications", async () => {

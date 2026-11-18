@@ -100,6 +100,7 @@ export const listAgencyMemberRows = (executor: DbExecutor, agencyId: string) =>
     .select({
       id: agency_members.id,
       freelancerId: agency_members.freelancer_id,
+      accountId: accounts.id,
       profileId: freelancer_metadata.id,
       role: agency_members.role,
       professionalTitle: freelancer_metadata.professional_title,
@@ -112,6 +113,7 @@ export const listAgencyMemberRows = (executor: DbExecutor, agencyId: string) =>
       completedProjects: freelancer_earning.completed_jobs,
     })
     .from(agency_members)
+    .leftJoin(accounts, eq(accounts.auth_id, agency_members.freelancer_id))
     .leftJoin(
       freelancer_metadata,
       eq(freelancer_metadata.auth_id, agency_members.freelancer_id),

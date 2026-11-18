@@ -48,6 +48,7 @@ vi.mock("../../../infrastructure/cache/redis.client.js", () => ({
 
 import { db, pool } from "../../../database/client.js";
 import { accounts } from "../../../test/support/tables.js";
+import { expectNoClerkIds } from "../../../test/support/clerk-id-scan.js";
 import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
 import { authenticateHandshake } from "../../messaging/messaging.socket.js";
 
@@ -150,8 +151,28 @@ describe("GET /auth/status", () => {
     expect(response.body.data).toEqual({
       role: "client",
       accountExists: false,
+      accountId: null,
       isOnboarded: false,
     });
+  });
+
+  it("answers the accounts uuid for an existing account and never the Clerk id", async () => {
+    const userId = newAuthId();
+    await insertAccount(userId, "CLIENT");
+    signInAs(userId);
+
+    const response = await request(app)
+      .get("/api/v1/auth/status")
+      .query({ role: "client" })
+      .set(bearer);
+
+    const { rows } = await pool.query(
+      "select id from accounts where auth_id = $1",
+      [userId],
+    );
+    expect(response.status).toBe(200);
+    expect(response.body.data.accountId).toBe(rows[0].id);
+    expectNoClerkIds(response.body, [userId]);
   });
 });
 

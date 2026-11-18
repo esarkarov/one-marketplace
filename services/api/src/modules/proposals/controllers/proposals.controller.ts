@@ -107,16 +107,16 @@ export const updateProposalStatus: RequestHandler = asyncHandler(
       return;
     }
 
-    const proposal = await updateProposal(
+    const { recipient, response: proposal } = await updateProposal(
       requireText(request.params.proposalId, "Proposal"),
       auth.userId,
     );
 
     if (proposal.changed) {
       await sendNotification(
-        proposal.senderType === "AGENCY"
+        recipient.senderType === "AGENCY"
           ? {
-              agencyId: proposal.senderId,
+              agencyId: recipient.senderId,
               type: "PROPOSAL_VIEWED",
               title: "Your proposal was viewed",
               message: `A client viewed your proposal for “${proposal.jobTitle}”.`,
@@ -124,7 +124,7 @@ export const updateProposalStatus: RequestHandler = asyncHandler(
               metadata: { proposalId: proposal.id },
             }
           : {
-              recipientId: proposal.senderId,
+              recipientId: recipient.senderId,
               type: "PROPOSAL_VIEWED",
               title: "Your proposal was viewed",
               message: `A client viewed your proposal for “${proposal.jobTitle}”.`,

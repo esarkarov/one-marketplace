@@ -11,6 +11,7 @@ import {
 interface AuthStatusData {
   role: "client" | "freelancer";
   accountExists: boolean;
+  accountId: string | null;
   isOnboarded: boolean;
 }
 
@@ -25,6 +26,7 @@ export const getAuthStatus: RequestHandler = (request, response) => {
     data: {
       role: request.auth.role,
       accountExists: request.auth.accountExists,
+      accountId: request.auth.accountId,
       isOnboarded: request.auth.isOnboarded,
     },
   };
@@ -35,13 +37,15 @@ export const getAuthStatus: RequestHandler = (request, response) => {
 export const signup: RequestHandler = asyncHandler(
   async (request, response) => {
     let auth: Awaited<ReturnType<typeof authenticateAccount>>;
+    let accountId: string | null = null;
     const token = getBearerToken(request.headers.authorization);
     const requestedRole = request.body?.role;
 
     try {
       auth = await authenticateAccount(token, requestedRole);
+      accountId = auth.accountId ?? null;
       if (!auth.accountExists) {
-        await receiveSignup(auth);
+        accountId = await receiveSignup(auth);
       }
     } catch (error) {
       await request.logger.warn({
@@ -71,6 +75,7 @@ export const signup: RequestHandler = asyncHandler(
       data: {
         role: auth.role,
         accountExists: auth.accountExists,
+        accountId,
         isOnboarded: auth.isOnboarded,
       },
     };
