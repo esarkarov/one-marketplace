@@ -25,7 +25,7 @@ export const getSystemHealth = async () => {
       await pingDatabase(db);
       return { ok: true, latencyMs: Date.now() - start };
     })(),
-    getRabbitStatus(),
+    Promise.resolve().then(getRabbitStatus),
   ]);
 
   const settle = async (

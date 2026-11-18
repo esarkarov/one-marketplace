@@ -48,7 +48,6 @@ vi.mock("../../../config/logger.js", async (importOriginal) => {
 });
 
 vi.mock("../../../infrastructure/payments/stripe.client.js", () => ({
-  STRIPE_TIMEOUT_MS: 30_000,
   stripe: {
     refunds: { create: mocks.refundCreate },
     customers: { create: mocks.customersCreate },

@@ -43,7 +43,6 @@ vi.mock("../../../infrastructure/auth/clerk.client.js", () => ({
 }));
 
 vi.mock("../../../infrastructure/payments/stripe.client.js", () => ({
-  STRIPE_TIMEOUT_MS: 30_000,
   stripe: {
     v2: {
       core: {

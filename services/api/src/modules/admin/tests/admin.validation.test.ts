@@ -13,7 +13,7 @@ vi.mock("../../../infrastructure/cache/redis.client.js", () => ({
 }));
 
 vi.mock("../../../infrastructure/events/rabbitmq.client.js", () => ({
-  getRabbitStatus: async () => ({ ok: false }),
+  getRabbitStatus: () => ({ ok: false }),
 }));
 
 vi.mock("../../../database/client.js", () => ({

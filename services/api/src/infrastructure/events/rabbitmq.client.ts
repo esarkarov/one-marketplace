@@ -104,10 +104,10 @@ export const getRabbitConsumerChannel = (): ChannelWrapper =>
 export const isRabbitConnected = (): boolean =>
   connection?.isConnected() ?? false;
 
-export const getRabbitStatus = async (): Promise<{
+export const getRabbitStatus = (): {
   ok: boolean;
   latencyMs?: number;
-}> => ({ ok: isRabbitEnabled() && isRabbitConnected() });
+} => ({ ok: isRabbitEnabled() && isRabbitConnected() });
 
 export const closeRabbit = async (timeoutMs: number): Promise<void> => {
   const current = connection;

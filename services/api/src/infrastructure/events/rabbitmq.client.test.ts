@@ -61,25 +61,25 @@ describe("rabbitmq config", () => {
     mocks.url = undefined;
 
     expect(isRabbitEnabled()).toBe(false);
-    expect(await getRabbitStatus()).toEqual({ ok: false });
+    expect(getRabbitStatus()).toEqual({ ok: false });
     expect(mocks.connect).not.toHaveBeenCalled();
   });
 
   it("reports not connected without creating a connection", async () => {
     expect(isRabbitConnected()).toBe(false);
-    expect(await getRabbitStatus()).toEqual({ ok: false });
+    expect(getRabbitStatus()).toEqual({ ok: false });
     expect(mocks.connect).not.toHaveBeenCalled();
   });
 
   it("reports ok only while the connection is up", async () => {
     getRabbitConsumerChannel();
 
-    expect(await getRabbitStatus()).toEqual({ ok: true });
+    expect(getRabbitStatus()).toEqual({ ok: true });
 
     mocks.connected = false;
 
     expect(isRabbitConnected()).toBe(false);
-    expect(await getRabbitStatus()).toEqual({ ok: false });
+    expect(getRabbitStatus()).toEqual({ ok: false });
     expect(mocks.connect).toHaveBeenCalledTimes(1);
   });
 
