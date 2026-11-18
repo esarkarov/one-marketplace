@@ -334,7 +334,7 @@ describe("proposals contract", () => {
       .query(asFreelancer)
       .set(as(freelancerId));
     expect(metadata.status).toBe(200);
-    expect(metadata.body.data.proposals).toHaveLength(1);
+    expect(metadata.body.data.results).toHaveLength(1);
     proposalsMetadataResponses[200].parse(metadata.body);
 
     const freelancerList = await request(app)
@@ -342,7 +342,7 @@ describe("proposals contract", () => {
       .query(asFreelancer)
       .set(as(freelancerId));
     expect(freelancerList.status).toBe(200);
-    expect(freelancerList.body.data).toHaveLength(1);
+    expect(freelancerList.body.data.results).toHaveLength(1);
     proposalsListResponses[200].parse(freelancerList.body);
 
     const clientList = await request(app)
@@ -350,7 +350,7 @@ describe("proposals contract", () => {
       .query({ ...asClient, jobId })
       .set(as(clientId));
     expect(clientList.status).toBe(200);
-    expect(clientList.body.data).toHaveLength(3);
+    expect(clientList.body.data.results).toHaveLength(3);
     proposalsListResponses[200].parse(clientList.body);
 
     const viewed = await request(app)

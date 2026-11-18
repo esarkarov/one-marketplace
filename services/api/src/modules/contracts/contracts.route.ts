@@ -23,8 +23,10 @@ import {
   reviewMilestoneBodySchema,
   roleOnlyQuerySchema,
   scopeQuerySchema,
+  freelancerContractsQuerySchema,
   submitMilestoneBodySchema,
 } from "./schemas/contracts.schema.js";
+import { roleListQuerySchema } from "../../shared/validation/schemas/pagination.schema.js";
 import { contractsResponses } from "./responses/contracts.responses.js";
 
 export const contractsRouter = Router();
@@ -34,7 +36,7 @@ contractsRouter.get(
   "/client",
   isAuthenticated,
   validate({
-    query: roleOnlyQuerySchema,
+    query: roleListQuerySchema,
     responses: contractsResponses.client,
   }),
   getClientContracts,
@@ -43,7 +45,7 @@ contractsRouter.get(
   "/freelancer",
   isAuthenticated,
   validate({
-    query: scopeQuerySchema,
+    query: freelancerContractsQuerySchema,
     responses: contractsResponses.freelancer,
   }),
   getFreelancerContracts,

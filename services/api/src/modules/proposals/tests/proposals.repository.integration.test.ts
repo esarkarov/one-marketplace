@@ -14,6 +14,11 @@ import {
   job_posts,
   proposals,
 } from "../../../test/support/tables.js";
+import {
+  getClientJobProposals,
+  getFreelancerProposalMetadata,
+  getFreelancerProposals,
+} from "../services/proposals.queries.service.js";
 import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
 import {
   countAgencyMembers,
@@ -115,6 +120,7 @@ describe("proposals repository guards", () => {
 });
 
 const at = (day: number) => new Date(Date.UTC(2001, 0, day));
+const ALL = { limit: 1000, offset: 0 };
 const id = () => `${PREFIX}${randomUUID()}`;
 
 const makeAccount = async (role: "CLIENT" | "FREELANCER") => {
@@ -345,7 +351,12 @@ describe("proposals repository sender lists", () => {
     await makeProposal(j2, sender, { createdAt: at(3) });
     await makeProposal(j3, sender, { senderType: "AGENCY", createdAt: at(2) });
 
-    const rows = await listProposalStatusesBySender(db, sender, "FREELANCER");
+    const rows = await listProposalStatusesBySender(
+      db,
+      sender,
+      "FREELANCER",
+      ALL,
+    );
 
     expect(rows.map((row) => row.jobId)).toEqual([j2, j1]);
   });
@@ -361,7 +372,7 @@ describe("proposals repository sender lists", () => {
     const newest = await makeProposal(jb, sender, { createdAt: at(3) });
     await makeProposal(jo, sender, { senderType: "AGENCY", createdAt: at(2) });
 
-    const rows = await listFreelancerProposals(db, sender);
+    const rows = await listFreelancerProposals(db, sender, ALL);
 
     expect(rows.map((row) => row.id)).toEqual([newest, oldest]);
     expect(rows.map((row) => row.company)).toEqual([null, "Acme Repository"]);
@@ -386,7 +397,7 @@ describe("proposals repository sender lists", () => {
       createdAt: at(2),
     });
 
-    const rows = await listAgencyProposals(db, agencyId);
+    const rows = await listAgencyProposals(db, agencyId, ALL);
 
     expect(rows.map((row) => row.id)).toEqual([newest, oldest]);
   });
@@ -431,7 +442,7 @@ describe("proposals repository sender lists", () => {
       agencyId: agencyOne,
     });
 
-    const rows = await listClientJobProposalRows(db, owner, jobA1);
+    const rows = await listClientJobProposalRows(db, owner, jobA1, ALL);
 
     expect(rows.map((row) => row.id)).toEqual([
       byAgencyOne,
@@ -447,8 +458,10 @@ describe("proposals repository sender lists", () => {
     expect(row(byAgencyTwo).agencyName).toBe("Repository rows agency two");
     expect(row(byFreelancer).agencyName).toBeNull();
     expect(row(byFreelancer).freelancerId).not.toBeNull();
-    expect(await listClientJobProposalRows(db, stranger, jobA1)).toEqual([]);
-    expect(await listClientJobProposalRows(db, owner, jobB)).toEqual([]);
+    expect(await listClientJobProposalRows(db, stranger, jobA1, ALL)).toEqual(
+      [],
+    );
+    expect(await listClientJobProposalRows(db, owner, jobB, ALL)).toEqual([]);
   });
 });
 
@@ -526,5 +539,95 @@ describe("proposals repository state writes", () => {
     expect((await proposalRow(interviewed)).updated_at!.getTime()).toBe(
       at(1).getTime(),
     );
+  });
+});
+
+describe("proposals query services paging", () => {
+  const seedTied = async (sender: string, total: number) => {
+    const clientId = await makeClient("Paging client");
+    const proposalIds: string[] = [];
+    for (let index = 0; index < total; index += 1) {
+      const jobId = await makeJob(clientId);
+      proposalIds.push(
+        await makeProposal(jobId, sender, {
+          status: index === 0 ? "VIEWED" : "SUBMITTED",
+          createdAt: at(5),
+        }),
+      );
+    }
+    return { clientId, proposalIds };
+  };
+
+  it("reports hasMore only when a row exists beyond the limit", async () => {
+    const sender = id();
+    await seedTied(sender, 4);
+
+    const exact = await getFreelancerProposals(sender, { limit: 4, offset: 0 });
+    const short = await getFreelancerProposals(sender, { limit: 3, offset: 0 });
+    const over = await getFreelancerProposals(sender, { limit: 5, offset: 0 });
+
+    expect(exact.results).toHaveLength(4);
+    expect(exact.hasMore).toBe(false);
+    expect(short.results).toHaveLength(3);
+    expect(short.hasMore).toBe(true);
+    expect(over.results).toHaveLength(4);
+    expect(over.hasMore).toBe(false);
+  });
+
+  it("orders proposals with an identical created_at by id descending across pages", async () => {
+    const sender = id();
+    const { proposalIds } = await seedTied(sender, 7);
+
+    const paged: string[] = [];
+    for (let offset = 0; offset < 7; offset += 3) {
+      const page = await getFreelancerProposals(sender, { limit: 3, offset });
+      paged.push(...page.results.map((row) => row.id));
+    }
+
+    expect(paged).toEqual([...proposalIds].sort().reverse());
+  });
+
+  it("keeps the metadata counts over every proposal, not just the page", async () => {
+    const sender = id();
+    await seedTied(sender, 5);
+
+    const page = await getFreelancerProposalMetadata(sender, {
+      limit: 2,
+      offset: 0,
+    });
+
+    expect(page.results).toHaveLength(2);
+    expect(page.hasMore).toBe(true);
+    expect(page.counts).toEqual({
+      total: 5,
+      active: 5,
+      viewed: 1,
+      interviewed: 0,
+    });
+  });
+
+  it("pages a job's proposals for its client", async () => {
+    const clientId = await makeClient("Paging owner");
+    const jobId = await makeJob(clientId);
+    const senders: string[] = [];
+    for (let index = 0; index < 4; index += 1) {
+      const sender = await makeFreelancer();
+      senders.push(sender);
+      await makeProposal(jobId, sender, { createdAt: at(5) });
+    }
+
+    const exact = await getClientJobProposals(clientId, jobId, {
+      limit: 4,
+      offset: 0,
+    });
+    const short = await getClientJobProposals(clientId, jobId, {
+      limit: 3,
+      offset: 0,
+    });
+
+    expect(exact.results).toHaveLength(4);
+    expect(exact.hasMore).toBe(false);
+    expect(short.results).toHaveLength(3);
+    expect(short.hasMore).toBe(true);
   });
 });

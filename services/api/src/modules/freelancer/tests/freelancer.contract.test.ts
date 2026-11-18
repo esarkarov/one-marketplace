@@ -549,8 +549,8 @@ describe("freelancer contract", () => {
       .query(q)
       .set(as(freelancerId));
     expect(feed.status).toBe(200);
-    expect(feed.body.data.length).toBeGreaterThan(0);
-    expect(feed.body.data[0].matchScore).toBeGreaterThan(0);
+    expect(feed.body.data.results.length).toBeGreaterThan(0);
+    expect(feed.body.data.results[0].matchScore).toBeGreaterThan(0);
     freelancerJobFeedResponses[200].parse(feed.body);
 
     const recent = await request(app)
@@ -802,6 +802,77 @@ describe("freelancer account writes", () => {
           }),
         },
       }),
+    );
+  });
+});
+
+describe("freelancer job feed paging", () => {
+  it("reports hasMore only beyond the limit and orders ties by id descending", async () => {
+    const { getMatchedJobPostsBySkills } =
+      await import("../services/freelancer.jobs.service.js");
+    const skill = `pagingskill${randomUUID().replaceAll("-", "")}`;
+    const clientId = await insertAccount(newAuthId(), "CLIENT", {
+      paymentMethodVerified: true,
+    });
+    await db.insert(client_metadata).values({
+      auth_id: clientId,
+      role: "Founder",
+      company_name: "Paging Co",
+      company_website: "https://paging.example.test",
+      company_size: "11-50",
+      industry: "Software",
+      company_description: "Paging.",
+      created_at: new Date(),
+      updated_at: new Date(),
+    });
+    const publishedAt = new Date("2024-01-01T00:00:00.000Z");
+    const jobs = await db
+      .insert(job_posts)
+      .values(
+        Array.from({ length: 7 }, (_, index) => ({
+          client_id: clientId,
+          title: `Paging job ${index}`,
+          description: "Paging",
+          expertise_level: "EXPERT",
+          expected_duration: "1 month",
+          skills: [skill],
+          total_budget_cents: 1000,
+          milestones: [],
+          status: "PUBLISHED",
+          published_at: publishedAt,
+        })),
+      )
+      .returning({ id: job_posts.id });
+
+    const exact = await getMatchedJobPostsBySkills(
+      [skill],
+      {},
+      { limit: 7, offset: 0 },
+    );
+    const short = await getMatchedJobPostsBySkills(
+      [skill],
+      {},
+      { limit: 6, offset: 0 },
+    );
+    const paged: string[] = [];
+    for (let offset = 0; offset < 7; offset += 3) {
+      const page = await getMatchedJobPostsBySkills(
+        [skill],
+        {},
+        { limit: 3, offset },
+      );
+      paged.push(...page.results.map((row) => row.id));
+    }
+
+    expect(exact.results).toHaveLength(7);
+    expect(exact.hasMore).toBe(false);
+    expect(short.results).toHaveLength(6);
+    expect(short.hasMore).toBe(true);
+    expect(paged).toEqual(
+      jobs
+        .map((job) => job.id)
+        .sort()
+        .reverse(),
     );
   });
 });

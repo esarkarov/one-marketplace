@@ -6,7 +6,12 @@ import {
   listClientJobProposalRows,
   listFreelancerProposals,
   listProposalStatusesBySender,
+  countProposalStatusesBySender,
 } from "../repositories/proposals.repository.js";
+import {
+  fetchSize,
+  toOffsetPage,
+} from "../../../shared/validation/utils/pagination.utils.js";
 import { clerk } from "../../../infrastructure/auth/clerk.client.js";
 
 const ACTIVE_PROPOSAL_STATUSES = new Set([
@@ -16,83 +21,104 @@ const ACTIVE_PROPOSAL_STATUSES = new Set([
   "HIRED",
 ]);
 
-export const getFreelancerProposalMetadata = async (freelancerId: string) => {
-  const freelancerProposals = await listProposalStatusesBySender(
-    db,
-    freelancerId,
-    "FREELANCER",
-  );
+interface Page {
+  limit: number;
+  offset: number;
+}
 
-  const normalizedProposals = freelancerProposals.map((proposal) => ({
-    ...proposal,
-    status: proposal.status.toUpperCase(),
-  }));
+const summarizeStatuses = (rows: { status: string; total: number }[]) => {
+  const counts = { total: 0, active: 0, viewed: 0, interviewed: 0 };
+  for (const row of rows) {
+    const status = row.status.toUpperCase();
+    counts.total += row.total;
+    if (ACTIVE_PROPOSAL_STATUSES.has(status)) counts.active += row.total;
+    if (status === "VIEWED") counts.viewed += row.total;
+    if (status === "INTERVIEWED") counts.interviewed += row.total;
+  }
+  return counts;
+};
+
+const proposalMetadata = async (
+  senderId: string,
+  senderType: "FREELANCER" | "AGENCY",
+  { limit, offset }: Page,
+) => {
+  const [page, statusCounts] = await Promise.all([
+    listProposalStatusesBySender(db, senderId, senderType, {
+      limit: fetchSize(limit),
+      offset,
+    }),
+    countProposalStatusesBySender(db, senderId, senderType),
+  ]);
+  const { rows, hasMore } = toOffsetPage(page, limit);
 
   return {
-    proposals: normalizedProposals,
-    counts: {
-      total: normalizedProposals.length,
-      active: normalizedProposals.filter((proposal) =>
-        ACTIVE_PROPOSAL_STATUSES.has(proposal.status),
-      ).length,
-      viewed: normalizedProposals.filter(
-        (proposal) => proposal.status === "VIEWED",
-      ).length,
-      interviewed: normalizedProposals.filter(
-        (proposal) => proposal.status === "INTERVIEWED",
-      ).length,
-    },
+    results: rows.map((proposal) => ({
+      ...proposal,
+      status: proposal.status.toUpperCase(),
+    })),
+    hasMore,
+    counts: summarizeStatuses(statusCounts),
   };
 };
 
-export const getAgencyProposalMetadata = async (agencyId: string) => {
-  const agencyProposals = await listProposalStatusesBySender(
-    db,
-    agencyId,
-    "AGENCY",
+export const getFreelancerProposalMetadata = (
+  freelancerId: string,
+  page: Page,
+) => proposalMetadata(freelancerId, "FREELANCER", page);
+
+export const getAgencyProposalMetadata = (agencyId: string, page: Page) =>
+  proposalMetadata(agencyId, "AGENCY", page);
+
+export const getFreelancerProposals = async (
+  freelancerId: string,
+  { limit, offset }: Page,
+) => {
+  const { rows, hasMore } = toOffsetPage(
+    await listFreelancerProposals(db, freelancerId, {
+      limit: fetchSize(limit),
+      offset,
+    }),
+    limit,
   );
-
-  const normalizedProposals = agencyProposals.map((proposal) => ({
-    ...proposal,
-    status: proposal.status.toUpperCase(),
-  }));
-
-  return {
-    proposals: normalizedProposals,
-    counts: {
-      total: normalizedProposals.length,
-      active: normalizedProposals.filter((proposal) =>
-        ACTIVE_PROPOSAL_STATUSES.has(proposal.status),
-      ).length,
-      viewed: normalizedProposals.filter(
-        (proposal) => proposal.status === "VIEWED",
-      ).length,
-      interviewed: normalizedProposals.filter(
-        (proposal) => proposal.status === "INTERVIEWED",
-      ).length,
-    },
-  };
+  return { results: rows, hasMore };
 };
 
-export const getFreelancerProposals = async (freelancerId: string) =>
-  listFreelancerProposals(db, freelancerId);
+export const getAgencyProposals = async (
+  agencyId: string,
+  { limit, offset }: Page,
+) => {
+  const { rows, hasMore } = toOffsetPage(
+    await listAgencyProposals(db, agencyId, {
+      limit: fetchSize(limit),
+      offset,
+    }),
+    limit,
+  );
 
-export const getAgencyProposals = async (agencyId: string) => {
-  const rows = await listAgencyProposals(db, agencyId);
-
-  return rows.map((row) => ({
-    ...row,
-    clientRating: row.clientRating === null ? null : Number(row.clientRating),
-  }));
+  return {
+    results: rows.map((row) => ({
+      ...row,
+      clientRating: row.clientRating === null ? null : Number(row.clientRating),
+    })),
+    hasMore,
+  };
 };
 
 export const getClientJobProposals = async (
   clientId: string,
   jobId: string,
+  { limit, offset }: Page,
 ) => {
-  const rows = await listClientJobProposalRows(db, clientId, jobId);
+  const { rows, hasMore } = toOffsetPage(
+    await listClientJobProposalRows(db, clientId, jobId, {
+      limit: fetchSize(limit),
+      offset,
+    }),
+    limit,
+  );
 
-  return Promise.all(
+  const results = await Promise.all(
     rows.map(
       async ({
         senderId,
@@ -165,4 +191,5 @@ export const getClientJobProposals = async (
       },
     ),
   );
+  return { results, hasMore };
 };

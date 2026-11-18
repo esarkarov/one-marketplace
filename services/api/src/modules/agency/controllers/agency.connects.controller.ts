@@ -54,7 +54,12 @@ export const getAgencyConnectsHistoryHandler: RequestHandler = asyncHandler(
     }
 
     const agencyId = await getAgencyIdForMember(request.auth.userId);
-    const history = agencyId ? await getAgencyConnectsHistory(agencyId) : [];
+    const history = agencyId
+      ? await getAgencyConnectsHistory(agencyId, {
+          limit: Number(request.query.limit),
+          offset: Number(request.query.offset),
+        })
+      : { results: [], hasMore: false };
 
     const body: ApiResponse<typeof history> = {
       success: true,

@@ -52,10 +52,18 @@ export const createProposal: RequestHandler = asyncHandler(
   },
 );
 
+const pageOf = (request: Parameters<RequestHandler>[0]) => ({
+  limit: Number(request.query.limit),
+  offset: Number(request.query.offset),
+});
+
 export const getProposalMetadata: RequestHandler = asyncHandler(
   async (request, response) => {
     const auth = requireFreelancer(request);
-    const metadata = await getFreelancerProposalMetadata(auth.userId);
+    const metadata = await getFreelancerProposalMetadata(
+      auth.userId,
+      pageOf(request),
+    );
     response.status(200).json({
       success: true,
       message: "Proposal metadata retrieved.",
@@ -72,8 +80,9 @@ export const getProposals: RequestHandler = asyncHandler(
         ? await getClientJobProposals(
             request.auth.userId,
             requireText(request.query.jobId as string | undefined, "Job post"),
+            pageOf(request),
           )
-        : await getFreelancerProposals(request.auth.userId);
+        : await getFreelancerProposals(request.auth.userId, pageOf(request));
     response.status(200).json({
       success: true,
       message: "Proposals retrieved.",
@@ -243,9 +252,10 @@ export const getAgencyProposalMetadataHandler: RequestHandler = asyncHandler(
 
     const agencyId = await getAgencyIdForMember(request.auth.userId);
     const metadata = agencyId
-      ? await getAgencyProposalMetadata(agencyId)
+      ? await getAgencyProposalMetadata(agencyId, pageOf(request))
       : {
-          proposals: [],
+          results: [],
+          hasMore: false,
           counts: { total: 0, active: 0, viewed: 0, interviewed: 0 },
         };
 
@@ -270,7 +280,9 @@ export const getAgencyProposalsHandler: RequestHandler = asyncHandler(
     }
 
     const agencyId = await getAgencyIdForMember(request.auth.userId);
-    const proposals = agencyId ? await getAgencyProposals(agencyId) : [];
+    const proposals = agencyId
+      ? await getAgencyProposals(agencyId, pageOf(request))
+      : { results: [], hasMore: false };
 
     const body: ApiResponse<typeof proposals> = {
       success: true,

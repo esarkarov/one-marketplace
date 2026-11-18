@@ -161,7 +161,7 @@ describe("notification consumer", () => {
     notificationsResponses.list[200].parse({
       success: true,
       message: "Notifications retrieved.",
-      data: [JSON.parse(JSON.stringify(emitted))],
+      data: { results: [JSON.parse(JSON.stringify(emitted))], hasMore: false },
     });
   });
 

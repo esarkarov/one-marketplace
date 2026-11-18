@@ -386,13 +386,16 @@ describe("job locking when the contract is created from payment", () => {
     await acceptContract(contract!.id, offer.ownerId);
 
     expect(await proposalStatusOf(offer.proposalId)).toBe("HIRED");
-    const metadata = await getFreelancerProposalMetadata(offer.ownerId);
+    const metadata = await getFreelancerProposalMetadata(offer.ownerId, {
+      limit: 20,
+      offset: 0,
+    });
     expect(metadata.counts).toMatchObject({
       total: 1,
       active: 1,
       interviewed: 0,
     });
-    expect(metadata.proposals[0]).toMatchObject({ status: "HIRED" });
+    expect(metadata.results[0]).toMatchObject({ status: "HIRED" });
   });
 });
 

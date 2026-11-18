@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { PAGINATION } from "../constants/pagination.constants.js";
+import { authRoleShape } from "./common.schema.js";
 
 const digitsInt = (label: string, { min, max }: { min: number; max: number }) =>
   z
@@ -31,3 +32,8 @@ export const paginationShape = {
 };
 
 export const paginationQuerySchema = z.strictObject(paginationShape);
+
+export const roleListQuerySchema = z.strictObject({
+  ...authRoleShape,
+  ...paginationShape,
+});

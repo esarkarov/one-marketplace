@@ -2,12 +2,17 @@ import { clerk } from "../../../infrastructure/auth/clerk.client.js";
 import { env } from "../../../config/env.js";
 import { db } from "../../../database/client.js";
 import {
+  fetchSize,
+  toOffsetPage,
+} from "../../../shared/validation/utils/pagination.utils.js";
+import {
   findAccountRole,
   findJobOwnedByClient,
   findProposalWithJobClient,
   insertOrFindConversationByContextKey,
   listActiveMeetingsForConversations,
   listConversationRowsOfParticipant,
+  sumUnreadOfParticipant,
 } from "../repositories/messaging.conversations.repository.js";
 import {
   findParticipantByAccount,
@@ -104,21 +109,34 @@ const getParticipantProfiles = async (conversationIds: string[]) => {
   return profiles;
 };
 
+type ConversationRow = Awaited<
+  ReturnType<typeof listConversationRowsOfParticipant>
+>[number];
+
 export const getConversations = async (
   userId: string,
-  scope: ConversationScope = "default",
+  scope: ConversationScope,
+  { limit, offset }: { limit: number; offset: number },
 ) => {
   let agencyId: string | null = null;
   if (scope === "agency") {
     agencyId = await getAgencyIdForMember(userId);
-    if (!agencyId) return { conversations: [], totalUnread: 0 };
+    if (!agencyId) return { results: [], hasMore: false, totalUnread: 0 };
   }
 
-  const rows = await listConversationRowsOfParticipant(db, {
-    agencyId,
-    userId,
-  });
+  const who = { agencyId, userId };
+  const [page, totalUnread] = await Promise.all([
+    listConversationRowsOfParticipant(db, who, {
+      page: { limit: fetchSize(limit), offset },
+    }),
+    sumUnreadOfParticipant(db, who),
+  ]);
+  const { rows, hasMore } = toOffsetPage(page, limit);
 
+  return { results: await hydrateConversations(rows), hasMore, totalUnread };
+};
+
+const hydrateConversations = async (rows: ConversationRow[]) => {
   const profiles = await getParticipantProfiles(rows.map(({ id }) => id));
   const activeMeetings = rows.length
     ? await listActiveMeetingsForConversations(
@@ -130,14 +148,11 @@ export const getConversations = async (
     activeMeetings.map((meeting) => [meeting.conversationId, meeting]),
   );
 
-  return {
-    conversations: rows.map((row) => ({
-      ...row,
-      participants: profiles.get(row.id) ?? [],
-      activeMeeting: activeMeetingByConversation.get(row.id) ?? null,
-    })),
-    totalUnread: rows.reduce((total, row) => total + row.unreadCount, 0),
-  };
+  return rows.map((row) => ({
+    ...row,
+    participants: profiles.get(row.id) ?? [],
+    activeMeeting: activeMeetingByConversation.get(row.id) ?? null,
+  }));
 };
 
 export const createConversation = async (
@@ -216,6 +231,11 @@ export const createConversation = async (
     return existing.id;
   });
 
-  const data = await getConversations(clientId);
-  return data.conversations.find(({ id }) => id === conversationId)!;
+  const rows = await listConversationRowsOfParticipant(
+    db,
+    { agencyId: null, userId: clientId },
+    { conversationId },
+  );
+  const [conversation] = await hydrateConversations(rows);
+  return conversation!;
 };

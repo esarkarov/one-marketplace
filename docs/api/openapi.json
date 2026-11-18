@@ -1630,7 +1630,10 @@
             "required": ["total", "active", "viewed", "interviewed"],
             "type": "object"
           },
-          "proposals": {
+          "hasMore": {
+            "type": "boolean"
+          },
+          "results": {
             "items": {
               "additionalProperties": false,
               "properties": {
@@ -1660,7 +1663,7 @@
             "type": "array"
           }
         },
-        "required": ["proposals", "counts"],
+        "required": ["results", "hasMore", "counts"],
         "type": "object"
       },
       "AgencyProposalSubmitted": {
@@ -5753,7 +5756,10 @@
             "required": ["total", "active", "viewed", "interviewed"],
             "type": "object"
           },
-          "proposals": {
+          "hasMore": {
+            "type": "boolean"
+          },
+          "results": {
             "items": {
               "additionalProperties": false,
               "properties": {
@@ -5783,7 +5789,7 @@
             "type": "array"
           }
         },
-        "required": ["proposals", "counts"],
+        "required": ["results", "hasMore", "counts"],
         "type": "object"
       },
       "ProposalsRow": {
@@ -8760,6 +8766,28 @@
               "enum": ["client", "freelancer"],
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 10000,
+              "minimum": 0,
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -8770,10 +8798,20 @@
                   "additionalProperties": false,
                   "properties": {
                     "data": {
-                      "items": {
-                        "$ref": "#/components/schemas/AgencyConnectsHistoryItem"
+                      "additionalProperties": false,
+                      "properties": {
+                        "hasMore": {
+                          "type": "boolean"
+                        },
+                        "results": {
+                          "items": {
+                            "$ref": "#/components/schemas/AgencyConnectsHistoryItem"
+                          },
+                          "type": "array"
+                        }
                       },
-                      "type": "array"
+                      "required": ["results", "hasMore"],
+                      "type": "object"
                     },
                     "message": {
                       "type": "string"
@@ -9123,6 +9161,28 @@
               "enum": ["client", "freelancer"],
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 10000,
+              "minimum": 0,
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -9133,10 +9193,20 @@
                   "additionalProperties": false,
                   "properties": {
                     "data": {
-                      "items": {
-                        "$ref": "#/components/schemas/AgencyMyInvitation"
+                      "additionalProperties": false,
+                      "properties": {
+                        "hasMore": {
+                          "type": "boolean"
+                        },
+                        "results": {
+                          "items": {
+                            "$ref": "#/components/schemas/AgencyMyInvitation"
+                          },
+                          "type": "array"
+                        }
                       },
-                      "type": "array"
+                      "required": ["results", "hasMore"],
+                      "type": "object"
                     },
                     "message": {
                       "type": "string"
@@ -9409,6 +9479,28 @@
           },
           {
             "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 10000,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
             "name": "filter",
             "required": false,
             "schema": {
@@ -9492,10 +9584,20 @@
                   "additionalProperties": false,
                   "properties": {
                     "data": {
-                      "items": {
-                        "$ref": "#/components/schemas/AgencyJobFeedItem"
+                      "additionalProperties": false,
+                      "properties": {
+                        "hasMore": {
+                          "type": "boolean"
+                        },
+                        "results": {
+                          "items": {
+                            "$ref": "#/components/schemas/AgencyJobFeedItem"
+                          },
+                          "type": "array"
+                        }
                       },
-                      "type": "array"
+                      "required": ["results", "hasMore"],
+                      "type": "object"
                     },
                     "message": {
                       "type": "string"
@@ -9989,6 +10091,28 @@
               "enum": ["client", "freelancer"],
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 10000,
+              "minimum": 0,
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -9999,10 +10123,20 @@
                   "additionalProperties": false,
                   "properties": {
                     "data": {
-                      "items": {
-                        "$ref": "#/components/schemas/AgencyProposalListItem"
+                      "additionalProperties": false,
+                      "properties": {
+                        "hasMore": {
+                          "type": "boolean"
+                        },
+                        "results": {
+                          "items": {
+                            "$ref": "#/components/schemas/AgencyProposalListItem"
+                          },
+                          "type": "array"
+                        }
                       },
-                      "type": "array"
+                      "required": ["results", "hasMore"],
+                      "type": "object"
                     },
                     "message": {
                       "type": "string"
@@ -10298,6 +10432,28 @@
               "enum": ["client", "freelancer"],
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 10000,
+              "minimum": 0,
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -10551,6 +10707,28 @@
               "enum": ["client", "freelancer"],
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 10000,
+              "minimum": 0,
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -10561,10 +10739,20 @@
                   "additionalProperties": false,
                   "properties": {
                     "data": {
-                      "items": {
-                        "$ref": "#/components/schemas/AgencyInvitation"
+                      "additionalProperties": false,
+                      "properties": {
+                        "hasMore": {
+                          "type": "boolean"
+                        },
+                        "results": {
+                          "items": {
+                            "$ref": "#/components/schemas/AgencyInvitation"
+                          },
+                          "type": "array"
+                        }
                       },
-                      "type": "array"
+                      "required": ["results", "hasMore"],
+                      "type": "object"
                     },
                     "message": {
                       "type": "string"
@@ -11787,6 +11975,28 @@
               "enum": ["client", "freelancer"],
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 10000,
+              "minimum": 0,
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -11797,10 +12007,20 @@
                   "additionalProperties": false,
                   "properties": {
                     "data": {
-                      "items": {
-                        "$ref": "#/components/schemas/ClientCompletedContract"
+                      "additionalProperties": false,
+                      "properties": {
+                        "hasMore": {
+                          "type": "boolean"
+                        },
+                        "results": {
+                          "items": {
+                            "$ref": "#/components/schemas/ClientCompletedContract"
+                          },
+                          "type": "array"
+                        }
                       },
-                      "type": "array"
+                      "required": ["results", "hasMore"],
+                      "type": "object"
                     },
                     "message": {
                       "type": "string"
@@ -12855,6 +13075,28 @@
               "enum": ["client", "freelancer"],
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 10000,
+              "minimum": 0,
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -12865,10 +13107,20 @@
                   "additionalProperties": false,
                   "properties": {
                     "data": {
-                      "items": {
-                        "$ref": "#/components/schemas/ConnectsHistoryEntry"
+                      "additionalProperties": false,
+                      "properties": {
+                        "hasMore": {
+                          "type": "boolean"
+                        },
+                        "results": {
+                          "items": {
+                            "$ref": "#/components/schemas/ConnectsHistoryEntry"
+                          },
+                          "type": "array"
+                        }
                       },
-                      "type": "array"
+                      "required": ["results", "hasMore"],
+                      "type": "object"
                     },
                     "message": {
                       "type": "string"
@@ -13209,6 +13461,28 @@
               "enum": ["client", "freelancer"],
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 10000,
+              "minimum": 0,
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -13219,10 +13493,20 @@
                   "additionalProperties": false,
                   "properties": {
                     "data": {
-                      "items": {
-                        "$ref": "#/components/schemas/ContractsContract"
+                      "additionalProperties": false,
+                      "properties": {
+                        "hasMore": {
+                          "type": "boolean"
+                        },
+                        "results": {
+                          "items": {
+                            "$ref": "#/components/schemas/ContractsContract"
+                          },
+                          "type": "array"
+                        }
                       },
-                      "type": "array"
+                      "required": ["results", "hasMore"],
+                      "type": "object"
                     },
                     "message": {
                       "type": "string"
@@ -13313,6 +13597,28 @@
           },
           {
             "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 10000,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
             "name": "scope",
             "required": false,
             "schema": {
@@ -13329,10 +13635,20 @@
                   "additionalProperties": false,
                   "properties": {
                     "data": {
-                      "items": {
-                        "$ref": "#/components/schemas/ContractsContract"
+                      "additionalProperties": false,
+                      "properties": {
+                        "hasMore": {
+                          "type": "boolean"
+                        },
+                        "results": {
+                          "items": {
+                            "$ref": "#/components/schemas/ContractsContract"
+                          },
+                          "type": "array"
+                        }
                       },
-                      "type": "array"
+                      "required": ["results", "hasMore"],
+                      "type": "object"
                     },
                     "message": {
                       "type": "string"
@@ -14801,6 +15117,28 @@
           },
           {
             "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 10000,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
             "name": "scope",
             "required": false,
             "schema": {
@@ -14819,7 +15157,10 @@
                     "data": {
                       "additionalProperties": false,
                       "properties": {
-                        "conversations": {
+                        "hasMore": {
+                          "type": "boolean"
+                        },
+                        "results": {
                           "items": {
                             "$ref": "#/components/schemas/MessagingConversation"
                           },
@@ -14831,7 +15172,7 @@
                           "type": "integer"
                         }
                       },
-                      "required": ["conversations", "totalUnread"],
+                      "required": ["results", "hasMore", "totalUnread"],
                       "type": "object"
                     },
                     "message": {
@@ -16030,6 +16371,28 @@
           },
           {
             "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 10000,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
             "name": "filter",
             "required": false,
             "schema": {
@@ -16113,10 +16476,20 @@
                   "additionalProperties": false,
                   "properties": {
                     "data": {
-                      "items": {
-                        "$ref": "#/components/schemas/FreelancerJobFeedItem"
+                      "additionalProperties": false,
+                      "properties": {
+                        "hasMore": {
+                          "type": "boolean"
+                        },
+                        "results": {
+                          "items": {
+                            "$ref": "#/components/schemas/FreelancerJobFeedItem"
+                          },
+                          "type": "array"
+                        }
                       },
-                      "type": "array"
+                      "required": ["results", "hasMore"],
+                      "type": "object"
                     },
                     "message": {
                       "type": "string"
@@ -17405,6 +17778,28 @@
               "enum": ["client", "freelancer"],
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 10000,
+              "minimum": 0,
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -17415,10 +17810,20 @@
                   "additionalProperties": false,
                   "properties": {
                     "data": {
-                      "items": {
-                        "$ref": "#/components/schemas/JobsPostWithStats"
+                      "additionalProperties": false,
+                      "properties": {
+                        "hasMore": {
+                          "type": "boolean"
+                        },
+                        "results": {
+                          "items": {
+                            "$ref": "#/components/schemas/JobsPostWithStats"
+                          },
+                          "type": "array"
+                        }
                       },
-                      "type": "array"
+                      "required": ["results", "hasMore"],
+                      "type": "object"
                     },
                     "message": {
                       "type": "string"
@@ -17963,6 +18368,28 @@
               "enum": ["client", "freelancer"],
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 10000,
+              "minimum": 0,
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -17973,10 +18400,20 @@
                   "additionalProperties": false,
                   "properties": {
                     "data": {
-                      "items": {
-                        "$ref": "#/components/schemas/JobsSavedPost"
+                      "additionalProperties": false,
+                      "properties": {
+                        "hasMore": {
+                          "type": "boolean"
+                        },
+                        "results": {
+                          "items": {
+                            "$ref": "#/components/schemas/JobsSavedPost"
+                          },
+                          "type": "array"
+                        }
                       },
-                      "type": "array"
+                      "required": ["results", "hasMore"],
+                      "type": "object"
                     },
                     "message": {
                       "type": "string"
@@ -18978,6 +19415,28 @@
           },
           {
             "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 10000,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
             "name": "scope",
             "required": false,
             "schema": {
@@ -18994,10 +19453,20 @@
                   "additionalProperties": false,
                   "properties": {
                     "data": {
-                      "items": {
-                        "$ref": "#/components/schemas/NotificationsNotification"
+                      "additionalProperties": false,
+                      "properties": {
+                        "hasMore": {
+                          "type": "boolean"
+                        },
+                        "results": {
+                          "items": {
+                            "$ref": "#/components/schemas/NotificationsNotification"
+                          },
+                          "type": "array"
+                        }
                       },
-                      "type": "array"
+                      "required": ["results", "hasMore"],
+                      "type": "object"
                     },
                     "message": {
                       "type": "string"
@@ -19375,6 +19844,28 @@
           },
           {
             "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 10000,
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
             "name": "jobId",
             "required": false,
             "schema": {
@@ -19392,20 +19883,27 @@
                   "additionalProperties": false,
                   "properties": {
                     "data": {
-                      "anyOf": [
-                        {
-                          "items": {
-                            "$ref": "#/components/schemas/ProposalsClientItem"
-                          },
-                          "type": "array"
+                      "additionalProperties": false,
+                      "properties": {
+                        "hasMore": {
+                          "type": "boolean"
                         },
-                        {
+                        "results": {
                           "items": {
-                            "$ref": "#/components/schemas/ProposalsFreelancerItem"
+                            "anyOf": [
+                              {
+                                "$ref": "#/components/schemas/ProposalsClientItem"
+                              },
+                              {
+                                "$ref": "#/components/schemas/ProposalsFreelancerItem"
+                              }
+                            ]
                           },
                           "type": "array"
                         }
-                      ]
+                      },
+                      "required": ["results", "hasMore"],
+                      "type": "object"
                     },
                     "message": {
                       "type": "string"
@@ -19667,6 +20165,28 @@
             "schema": {
               "enum": ["client", "freelancer"],
               "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 10000,
+              "minimum": 0,
+              "type": "integer"
             }
           }
         ],

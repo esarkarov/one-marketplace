@@ -6,6 +6,7 @@ import {
   createJobPost,
   deleteJobPost,
   getJobPosts,
+  getJobPostsPage,
   getPublicJobFeed,
   getSavedJobPosts,
   PublicJobFeedPage,
@@ -166,17 +167,28 @@ export const getClientJobPosts: RequestHandler = asyncHandler(
       typeof request.params.jobId === "string"
         ? request.params.jobId
         : undefined;
-    const jobs = await getJobPosts(auth.userId, jobId);
-    const job = jobId ? jobs[0] : undefined;
+    if (!jobId) {
+      const page = await getJobPostsPage(auth.userId, {
+        limit: Number(request.query.limit),
+        offset: Number(request.query.offset),
+      });
+      response.status(200).json({
+        success: true,
+        message: "Job posts retrieved.",
+        data: page,
+      });
+      return;
+    }
 
-    if (jobId && !job) {
+    const [job] = await getJobPosts(auth.userId, jobId);
+    if (!job) {
       throw new ApiError(404, "Job post not found.", "JOB_NOT_FOUND");
     }
 
     response.status(200).json({
       success: true,
       message: "Job posts retrieved.",
-      data: jobId ? job : jobs,
+      data: job,
     });
   },
 );
@@ -245,7 +257,10 @@ export const saveFreelancerJobPost: RequestHandler = asyncHandler(
 export const getFreelancerSavedJobPosts: RequestHandler = asyncHandler(
   async (request, response) => {
     const auth = requireFreelancer(request);
-    const jobs = await getSavedJobPosts(auth.userId);
+    const jobs = await getSavedJobPosts(auth.userId, {
+      limit: Number(request.query.limit),
+      offset: Number(request.query.offset),
+    });
     response.status(200).json({
       success: true,
       message: "Saved job posts retrieved.",

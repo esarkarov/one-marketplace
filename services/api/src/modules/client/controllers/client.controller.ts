@@ -11,7 +11,6 @@ import {
   searchMarketplace,
 } from "../services/client.service.js";
 import {
-  ClientCompletedContract,
   ClientDashboardOverview,
   ClientHiringOverview,
   ClientMetadataData,
@@ -155,8 +154,11 @@ export const getClientCompletedContractsHandler: RequestHandler = asyncHandler(
       throw new ApiError(403, "A client account is required.");
     }
 
-    const data = await getClientCompletedContracts(request.auth.userId);
-    const responseBody: ApiResponse<ClientCompletedContract[]> = {
+    const data = await getClientCompletedContracts(request.auth.userId, {
+      limit: Number(request.query.limit),
+      offset: Number(request.query.offset),
+    });
+    const responseBody: ApiResponse<typeof data> = {
       success: true,
       message: "Completed contracts retrieved.",
       data,

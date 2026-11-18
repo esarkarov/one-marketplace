@@ -2,6 +2,7 @@ import { Router } from "express";
 import { isAuthenticated } from "../auth/index.js";
 import { validate } from "../../middleware/validate/validate.middleware.js";
 import { authRoleShape } from "../../shared/validation/schemas/common.schema.js";
+import { roleListQuerySchema } from "../../shared/validation/schemas/pagination.schema.js";
 import {
   clientProfileBodySchema,
   marketplaceSearchQuerySchema,
@@ -53,7 +54,7 @@ clientRouter.get(
   "/completed-contracts",
   isAuthenticated,
   validate({
-    query: authRoleShape,
+    query: roleListQuerySchema,
     responses: clientCompletedContractsResponses,
   }),
   getClientCompletedContractsHandler,

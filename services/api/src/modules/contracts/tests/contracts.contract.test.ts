@@ -405,8 +405,9 @@ describe("GET /contracts/client", () => {
       .set(as(fixture.clientId));
     expect(response.status).toBe(200);
     const body = contractsResponses.client[200].parse(response.body);
-    expect(body.data).toHaveLength(1);
-    expect(body.data[0]?.milestones).toHaveLength(3);
+    expect(body.data.results).toHaveLength(1);
+    expect(body.data.hasMore).toBe(false);
+    expect(body.data.results[0]?.milestones).toHaveLength(3);
   });
 
   it("matches the 200 schema for an agency counterparty", async () => {
@@ -417,7 +418,8 @@ describe("GET /contracts/client", () => {
       .set(as(fixture.clientId));
     expect(response.status).toBe(200);
     const body = contractsResponses.client[200].parse(response.body);
-    expect(body.data).toHaveLength(1);
+    expect(body.data.results).toHaveLength(1);
+    expect(body.data.hasMore).toBe(false);
   });
 
   it("matches the 403 schema for a freelancer account", async () => {
@@ -442,7 +444,7 @@ describe("contract listing order and scope", () => {
       .query(query)
       .set(as(userId));
     expect(response.status).toBe(200);
-    return response.body.data as {
+    return response.body.data.results as {
       id: string;
       milestones: { id: string; position: number }[];
     }[];
@@ -578,7 +580,7 @@ describe("contract listing counterparty and review flags", () => {
       .query(query)
       .set(as(userId));
     expect(response.status).toBe(200);
-    return response.body.data as ListedContract[];
+    return response.body.data.results as ListedContract[];
   };
   const asClient = (userId: string) =>
     listFor("client", userId, { role: "client" });
@@ -840,7 +842,8 @@ describe("GET /contracts/freelancer", () => {
       .set(as(fixture.ownerId));
     expect(response.status).toBe(200);
     const body = contractsResponses.freelancer[200].parse(response.body);
-    expect(body.data).toHaveLength(1);
+    expect(body.data.results).toHaveLength(1);
+    expect(body.data.hasMore).toBe(false);
   });
 
   it("matches the 200 schema for the agency scope", async () => {
@@ -851,7 +854,8 @@ describe("GET /contracts/freelancer", () => {
       .set(as(fixture.ownerId));
     expect(response.status).toBe(200);
     const body = contractsResponses.freelancer[200].parse(response.body);
-    expect(body.data).toHaveLength(1);
+    expect(body.data.results).toHaveLength(1);
+    expect(body.data.hasMore).toBe(false);
   });
 
   it("matches the 403 schema for a client account", async () => {
@@ -1343,5 +1347,55 @@ describe("POST /contracts/checkout account write", () => {
     expect((await read(fixture.clientId)).updated_at).toEqual(
       stored.updated_at,
     );
+  });
+});
+
+describe("contract listing paging", () => {
+  it("pages by contract, reports hasMore at the limit and orders ties by id descending", async () => {
+    const { getAccountContracts } =
+      await import("../services/contracts.listing.service.js");
+    const fixtures = [];
+    for (let index = 0; index < 5; index += 1) {
+      fixtures.push(
+        await seed({
+          milestones: [
+            { status: "ACTIVE", funded: true },
+            { status: "PENDING" },
+          ],
+        }),
+      );
+    }
+    const clientId = fixtures[0]!.clientId;
+    const contractIds = fixtures.map((fixture) => fixture.contractId);
+    await pool.query(
+      "update contracts set client_id = $1, created_at = $2 where id = any($3::uuid[])",
+      [clientId, new Date("2024-01-01T00:00:00.000Z"), contractIds],
+    );
+
+    const exact = await getAccountContracts(clientId, "client", null, {
+      limit: 5,
+      offset: 0,
+    });
+    const short = await getAccountContracts(clientId, "client", null, {
+      limit: 4,
+      offset: 0,
+    });
+    const paged: string[] = [];
+    for (let offset = 0; offset < 5; offset += 2) {
+      const page = await getAccountContracts(clientId, "client", null, {
+        limit: 2,
+        offset,
+      });
+      paged.push(...page.results.map((row) => row.id));
+    }
+
+    expect(exact.results).toHaveLength(5);
+    expect(exact.hasMore).toBe(false);
+    expect(exact.results.every((row) => row.milestones.length === 2)).toBe(
+      true,
+    );
+    expect(short.results).toHaveLength(4);
+    expect(short.hasMore).toBe(true);
+    expect(paged).toEqual([...contractIds].sort().reverse());
   });
 });

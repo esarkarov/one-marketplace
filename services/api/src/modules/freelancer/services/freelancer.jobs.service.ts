@@ -13,6 +13,10 @@ import { env } from "../../../config/env.js";
 import { ApiError } from "../../../shared/errors/api-error.js";
 import { clerk } from "../../../infrastructure/auth/clerk.client.js";
 import { toJobPostResponse } from "../../jobs/index.js";
+import {
+  fetchSize,
+  toOffsetPage,
+} from "../../../shared/validation/utils/pagination.utils.js";
 
 const getClientCountry = async (clientId: string) => {
   if (!env.clerkSecretKey) {
@@ -55,15 +59,6 @@ const matchJobPostsBySkills = async (
   const proposalCounts = await countProposalsPerJob(db);
   const hireCounts = await countHiresPerJob(db);
 
-  const clientCountries = new Map(
-    await Promise.all(
-      [...new Set(jobs.map(({ job }) => job.client_id))].map(
-        async (clientId) =>
-          [clientId, await getClientCountry(clientId)] as const,
-      ),
-    ),
-  );
-
   const counts = new Map(
     proposalCounts?.map((item) => [item.jobId, Number(item.count)]),
   );
@@ -83,7 +78,6 @@ const matchJobPostsBySkills = async (
       }) => ({
         ...job,
         companyName,
-        clientCountry: clientCountries.get(job.client_id) ?? null,
         paymentVerified: paymentVerified === true,
         proposalCount: counts?.get(job.id) ?? 0,
         hireCount: hires.get(job.id) ?? 0,
@@ -133,24 +127,53 @@ const matchJobPostsBySkills = async (
       (first, second) =>
         second.matchScore - first.matchScore ||
         new Date(second.published_at ?? second.created_at ?? 0).getTime() -
-          new Date(first.published_at ?? first?.created_at ?? 0).getTime(),
+          new Date(first.published_at ?? first?.created_at ?? 0).getTime() ||
+        compareIdsDescending(first.id, second.id),
     );
 };
 
+const compareIdsDescending = (first: string, second: string) =>
+  first < second ? 1 : first > second ? -1 : 0;
+
 export const getMatchedJobPostsBySkills = async (
   skillList: string[],
-  filters: JobFeedFilters = {},
-) => (await matchJobPostsBySkills(skillList, filters)).map(toJobPostResponse);
+  filters: JobFeedFilters,
+  { limit, offset }: { limit: number; offset: number },
+) => {
+  const matched = await matchJobPostsBySkills(skillList, filters);
+  const { rows, hasMore } = toOffsetPage(
+    matched.slice(offset, offset + fetchSize(limit)),
+    limit,
+  );
+
+  const clientCountries = new Map(
+    await Promise.all(
+      [...new Set(rows.map((job) => job.client_id))].map(
+        async (clientId) =>
+          [clientId, await getClientCountry(clientId)] as const,
+      ),
+    ),
+  );
+
+  return {
+    results: rows.map((job) => ({
+      ...toJobPostResponse(job),
+      clientCountry: clientCountries.get(job.client_id) ?? null,
+    })),
+    hasMore,
+  };
+};
 
 export const getMatchedJobPosts = async (
   userId: string,
-  filters: JobFeedFilters = {},
+  filters: JobFeedFilters,
+  page: { limit: number; offset: number },
 ) => {
   const profile = await findFreelancerSkills(db, userId);
 
   if (!profile) throw new ApiError(404, "Freelancer profile not found.");
 
-  return getMatchedJobPostsBySkills(profile.skills, filters);
+  return getMatchedJobPostsBySkills(profile.skills, filters, page);
 };
 
 export const getFreelancerJobPost = async (jobId: string) => {

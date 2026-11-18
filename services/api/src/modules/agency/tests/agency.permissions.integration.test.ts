@@ -541,7 +541,7 @@ describe.each(ROLE_CASES)("agency role: $label", (roleCase) => {
     if (roleCase.allowed) {
       expect(response.status).toBe(200);
       expect(
-        response.body.data.map((row: { email: string }) => row.email),
+        response.body.data.results.map((row: { email: string }) => row.email),
       ).toEqual([email]);
     } else {
       expectDenied(response);
@@ -619,7 +619,7 @@ describe("non-members and individual freelancers", () => {
       .set(as(userId));
 
     expect(response.status).toBe(200);
-    expect(response.body.data).toEqual([]);
+    expect(response.body.data).toEqual({ results: [], hasMore: false });
   });
 
   it("keeps 404 on checkout for a non-member", async () => {

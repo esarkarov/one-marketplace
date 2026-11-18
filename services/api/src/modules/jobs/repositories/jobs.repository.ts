@@ -49,8 +49,9 @@ export const findJobPostsWithCounts = (
   executor: DbExecutor,
   userId: string,
   jobId?: string,
-) =>
-  executor
+  page?: { limit: number; offset: number },
+) => {
+  const query = executor
     .select({
       ...getTableColumns(job_posts),
       milestones: job_posts.milestones,
@@ -73,7 +74,11 @@ export const findJobPostsWithCounts = (
         : eq(job_posts.client_id, userId),
     )
     .groupBy(job_posts.id)
-    .orderBy(desc(job_posts.created_at));
+    .orderBy(desc(job_posts.created_at), desc(job_posts.id))
+    .$dynamic();
+
+  return page ? query.limit(page.limit).offset(page.offset) : query;
+};
 
 export const findEditableJobPost = async (
   executor: DbExecutor,
@@ -201,7 +206,11 @@ export const findSavedJob = async (
   return existingSavedJob;
 };
 
-export const findSavedJobRows = (executor: DbExecutor, freelancerId: string) =>
+export const findSavedJobRows = (
+  executor: DbExecutor,
+  freelancerId: string,
+  page: { limit: number; offset: number },
+) =>
   executor
     .select({
       job: job_posts,
@@ -221,7 +230,12 @@ export const findSavedJobRows = (executor: DbExecutor, freelancerId: string) =>
       eq(job_posts.client_id, client_metadata.auth_id),
     )
     .where(eq(freelancer_saved_job_posts.freelancer_id, freelancerId))
-    .orderBy(desc(freelancer_saved_job_posts.created_at));
+    .orderBy(
+      desc(freelancer_saved_job_posts.created_at),
+      desc(freelancer_saved_job_posts.id),
+    )
+    .limit(page.limit)
+    .offset(page.offset);
 
 export const deleteSavedJob = async (
   executor: DbExecutor,

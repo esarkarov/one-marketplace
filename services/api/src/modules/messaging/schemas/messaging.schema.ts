@@ -14,7 +14,10 @@ import {
   MESSAGES_PAGE,
   MESSAGING_LIMITS,
 } from "../../../shared/validation/constants/messaging.constants.js";
-import { limitParam } from "../../../shared/validation/schemas/pagination.schema.js";
+import {
+  limitParam,
+  paginationShape,
+} from "../../../shared/validation/schemas/pagination.schema.js";
 
 const ATTACHMENT_ERROR = "Attachment metadata is invalid.";
 
@@ -31,6 +34,7 @@ export const roleOnlyQuerySchema = z.strictObject({ ...authRoleShape });
 
 export const listConversationsQuerySchema = z.strictObject({
   ...authRoleShape,
+  ...paginationShape,
   scope: scopeField(["agency", "default"] as const).optional(),
 });
 

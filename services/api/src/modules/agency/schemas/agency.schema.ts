@@ -9,6 +9,7 @@ import {
   withIgnoredKeys,
 } from "../../../shared/validation/schemas/common.schema.js";
 import { centsQueryParam } from "../../../shared/validation/schemas/money.schema.js";
+import { paginationShape } from "../../../shared/validation/schemas/pagination.schema.js";
 import { searchPagingShape } from "../../../shared/validation/schemas/search.schema.js";
 import { AGENCY_LIMITS, MEMBER_ROLE } from "../constants/agency.constants.js";
 import { COMMON_LIMITS } from "../../../shared/validation/constants/validation.constants.js";
@@ -31,6 +32,7 @@ const booleanParam = z
 
 export const agencyJobFeedQuerySchema = z.strictObject({
   ...authRoleShape,
+  ...paginationShape,
   filter: z
     .enum(["best-match", "recent"], { error: "Filter is invalid." })
     .optional(),

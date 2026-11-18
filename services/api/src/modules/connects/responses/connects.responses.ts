@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   ErrorBody,
+  offsetPage,
   ok,
 } from "../../../shared/responses/api-envelope.responses.js";
 import { isoDateTime } from "../../../shared/responses/scalar.responses.js";
@@ -21,7 +22,7 @@ export const connectsResponses = {
     403: ErrorBody,
   },
   history: {
-    200: ok(z.array(HistoryEntry)),
+    200: ok(offsetPage(HistoryEntry)),
     403: ErrorBody,
   },
   checkout: {

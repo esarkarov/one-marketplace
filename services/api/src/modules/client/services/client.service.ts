@@ -183,10 +183,17 @@ export const getClientDashboardOverview = async (
 
 export const getClientCompletedContracts = async (
   clientId: string,
-): Promise<ClientCompletedContract[]> => {
-  const rows = await findCompletedContractsOfClient(db, clientId);
+  { limit, offset }: { limit: number; offset: number },
+): Promise<{ results: ClientCompletedContract[]; hasMore: boolean }> => {
+  const { rows, hasMore } = toOffsetPage(
+    await findCompletedContractsOfClient(db, clientId, {
+      limit: fetchSize(limit),
+      offset,
+    }),
+    limit,
+  );
 
-  if (rows.length === 0) return [];
+  if (rows.length === 0) return { results: [], hasMore: false };
 
   const contractIds = rows.map((row) => row.id);
   const reviewRows = await findReviewsForContracts(db, contractIds);
@@ -234,7 +241,7 @@ export const getClientCompletedContracts = async (
     agencyRows.forEach((row) => agencyNames.set(row.id, row.name ?? "Agency"));
   }
 
-  return rows.map((row) => {
+  const results = rows.map((row) => {
     const contractReviews = reviewsByContract.get(row.id) ?? [];
     const clientReviewRow = contractReviews.find(
       (review) => review.reviewerId === clientId,
@@ -262,6 +269,8 @@ export const getClientCompletedContracts = async (
         : null,
     };
   });
+
+  return { results, hasMore };
 };
 
 export const getClientFinanceManagementUrl = async (

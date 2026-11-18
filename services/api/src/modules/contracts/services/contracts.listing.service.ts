@@ -1,17 +1,38 @@
 import { clerk } from "../../../infrastructure/auth/clerk.client.js";
 import { env } from "../../../config/env.js";
 import {
+  listAccountContractIds,
   listAgencySummariesByIds,
   listContractRows,
 } from "../repositories/contracts.repository.js";
 import { db } from "../../../database/client.js";
+import {
+  fetchSize,
+  toOffsetPage,
+} from "../../../shared/validation/utils/pagination.utils.js";
 
 export const getAccountContracts = async (
   userId: string,
   role: "client" | "freelancer" | "agency",
-  agencyId?: string | null,
+  agencyId: string | null | undefined,
+  { limit, offset }: { limit: number; offset: number },
 ) => {
-  const rows = await listContractRows(db, userId, role, agencyId);
+  const { rows: pageIds, hasMore } = toOffsetPage(
+    await listAccountContractIds(db, userId, role, agencyId, {
+      limit: fetchSize(limit),
+      offset,
+    }),
+    limit,
+  );
+  if (!pageIds.length) return { results: [], hasMore: false };
+
+  const rows = await listContractRows(
+    db,
+    userId,
+    role,
+    agencyId,
+    pageIds.map((row) => row.id),
+  );
 
   const counterpartyIds = [
     ...new Set(
@@ -141,5 +162,5 @@ export const getAccountContracts = async (
     result.set(row.id, contract);
   }
 
-  return [...result.values()];
+  return { results: [...result.values()], hasMore };
 };

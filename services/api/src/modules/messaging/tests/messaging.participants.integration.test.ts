@@ -166,10 +166,13 @@ describe("messaging participant profiles", () => {
       },
     ]);
 
-    const data = await getConversations(client.authId);
+    const data = await getConversations(client.authId, "default", {
+      limit: 20,
+      offset: 0,
+    });
     const body = JSON.stringify(data);
 
-    expect(data.conversations).toHaveLength(2);
+    expect(data.results).toHaveLength(2);
     const keys = collectKeys(JSON.parse(body));
     for (const forbidden of ["email", "accountId", "agencyId"]) {
       expect(keys.has(forbidden)).toBe(false);
@@ -178,7 +181,7 @@ describe("messaging participant profiles", () => {
     expect(body).not.toContain(agencyOwner.email);
     expect(body).not.toContain(client.email);
 
-    const participants = data.conversations.flatMap(
+    const participants = data.results.flatMap(
       (conversation) =>
         conversation.participants as Array<Record<string, unknown>>,
     );
@@ -223,7 +226,80 @@ describe("createConversation self-dealing", () => {
       createConversation(user.authId, { recipientId: user.authId }),
     ).rejects.toMatchObject({ statusCode: 400 });
 
-    const data = await getConversations(user.authId);
-    expect(data.conversations).toHaveLength(0);
+    const data = await getConversations(user.authId, "default", {
+      limit: 20,
+      offset: 0,
+    });
+    expect(data.results).toHaveLength(0);
+  });
+});
+
+describe("getConversations paging", () => {
+  const seedConversations = async (userId: string, unread: number[]) => {
+    const tiedAt = new Date("2024-01-01T00:00:00.000Z");
+    const ids: string[] = [];
+    for (const count of unread) {
+      const [conversation] = await db
+        .insert(conversations)
+        .values({
+          context_key: `${PREFIX}${randomUUID()}`,
+          last_message_at: tiedAt,
+          created_at: tiedAt,
+        })
+        .returning({ id: conversations.id });
+      await db.insert(conversation_participants).values({
+        conversation_id: conversation!.id,
+        account_id: userId,
+        participant_type: "CLIENT",
+        unread_count: count,
+      });
+      ids.push(conversation!.id);
+    }
+    return ids;
+  };
+
+  it("keeps totalUnread over every conversation when the page is smaller", async () => {
+    const user = await createAccount("CLIENT");
+    await seedConversations(user.authId, [1, 2, 3, 4, 5]);
+
+    const page = await getConversations(user.authId, "default", {
+      limit: 2,
+      offset: 0,
+    });
+
+    expect(page.results).toHaveLength(2);
+    expect(page.hasMore).toBe(true);
+    expect(page.totalUnread).toBe(15);
+    expect(
+      page.results.reduce((total, row) => total + row.unreadCount, 0),
+    ).toBeLessThan(15);
+  });
+
+  it("reports hasMore only beyond the limit and orders ties by id descending", async () => {
+    const user = await createAccount("CLIENT");
+    const ids = await seedConversations(user.authId, [0, 0, 0, 0, 0, 0, 0]);
+
+    const exact = await getConversations(user.authId, "default", {
+      limit: 7,
+      offset: 0,
+    });
+    const short = await getConversations(user.authId, "default", {
+      limit: 6,
+      offset: 0,
+    });
+    const paged: string[] = [];
+    for (let offset = 0; offset < 7; offset += 3) {
+      const page = await getConversations(user.authId, "default", {
+        limit: 3,
+        offset,
+      });
+      paged.push(...page.results.map((row) => row.id));
+    }
+
+    expect(exact.results).toHaveLength(7);
+    expect(exact.hasMore).toBe(false);
+    expect(exact.totalUnread).toBe(0);
+    expect(short.hasMore).toBe(true);
+    expect(paged).toEqual([...ids].sort().reverse());
   });
 });

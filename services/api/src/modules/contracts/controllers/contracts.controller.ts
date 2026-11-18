@@ -66,10 +66,20 @@ export const startMilestoneFundingCheckout: RequestHandler = asyncHandler(
   },
 );
 
+const pageOf = (request: Parameters<RequestHandler>[0]) => ({
+  limit: Number(request.query.limit),
+  offset: Number(request.query.offset),
+});
+
 export const getClientContracts: RequestHandler = asyncHandler(
   async (request, response) => {
     const auth = requireClient(request);
-    const contracts = await getAccountContracts(auth.userId, "client");
+    const contracts = await getAccountContracts(
+      auth.userId,
+      "client",
+      null,
+      pageOf(request),
+    );
     response.status(200).json({
       success: true,
       message: "Client contracts retrieved.",
@@ -87,9 +97,19 @@ export const getFreelancerContracts: RequestHandler = asyncHandler(
     const contracts =
       scope === "agency"
         ? agencyId
-          ? await getAccountContracts(auth.userId, "agency", agencyId)
-          : []
-        : await getAccountContracts(auth.userId, "freelancer");
+          ? await getAccountContracts(
+              auth.userId,
+              "agency",
+              agencyId,
+              pageOf(request),
+            )
+          : { results: [], hasMore: false }
+        : await getAccountContracts(
+            auth.userId,
+            "freelancer",
+            null,
+            pageOf(request),
+          );
     response.status(200).json({
       success: true,
       message: "Freelancer contracts retrieved.",

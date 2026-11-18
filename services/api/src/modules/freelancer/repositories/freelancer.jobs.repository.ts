@@ -27,7 +27,7 @@ export const listPublishedJobsWithClient = (executor: DbExecutor) =>
     )
     .leftJoin(client_spents, eq(job_posts.client_id, client_spents.client_id))
     .where(eq(job_posts.status, "PUBLISHED"))
-    .orderBy(desc(job_posts.published_at));
+    .orderBy(desc(job_posts.published_at), desc(job_posts.id));
 
 export const countProposalsPerJob = (executor: DbExecutor) =>
   executor

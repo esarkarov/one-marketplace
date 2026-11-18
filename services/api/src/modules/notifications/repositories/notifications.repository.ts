@@ -6,6 +6,7 @@ export const findLatestNotifications = (
   executor: DbExecutor,
   userId: string,
   agencyId: string | null,
+  page: { limit: number; offset: number },
 ) =>
   executor
     .select()
@@ -15,8 +16,9 @@ export const findLatestNotifications = (
         ? eq(notifications.agency_id, agencyId)
         : eq(notifications.recipient_id, userId),
     )
-    .orderBy(desc(notifications.created_at))
-    .limit(10);
+    .orderBy(desc(notifications.created_at), desc(notifications.id))
+    .limit(page.limit)
+    .offset(page.offset);
 
 export const markAllNotificationsRead = (
   executor: DbExecutor,

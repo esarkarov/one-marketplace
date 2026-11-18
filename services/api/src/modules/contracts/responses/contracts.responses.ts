@@ -2,6 +2,7 @@ import { z } from "zod";
 import {
   ErrorBody,
   errorCodeEnum,
+  offsetPage,
   ok,
   requestIdField,
   BadRequestBody,
@@ -78,11 +79,11 @@ const checkoutUrl = z.strictObject({ url: z.string() });
 
 export const contractsResponses = {
   client: {
-    200: ok(z.array(ContractSummary)),
+    200: ok(offsetPage(ContractSummary)),
     403: ErrorBody,
   },
   freelancer: {
-    200: ok(z.array(ContractSummary)),
+    200: ok(offsetPage(ContractSummary)),
     403: ErrorBody,
   },
   accept: {

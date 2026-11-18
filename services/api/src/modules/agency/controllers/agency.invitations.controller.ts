@@ -32,7 +32,12 @@ export const getAgencyTeamInvitationsHandler: RequestHandler = asyncHandler(
       auth.userId,
       "team.invitations.view",
     );
-    const invitations = agencyId ? await getAgencyInvitations(agencyId) : [];
+    const invitations = agencyId
+      ? await getAgencyInvitations(agencyId, {
+          limit: Number(request.query.limit),
+          offset: Number(request.query.offset),
+        })
+      : { results: [], hasMore: false };
 
     response.status(200).json({
       success: true,
@@ -177,7 +182,10 @@ export const removeAgencyMemberHandler: RequestHandler = asyncHandler(
 export const getMyAgencyInvitationsHandler: RequestHandler = asyncHandler(
   async (request, response) => {
     const auth = requireAgencyAuth(request);
-    const invitations = await getMyAgencyInvitations(auth.userId);
+    const invitations = await getMyAgencyInvitations(auth.userId, {
+      limit: Number(request.query.limit),
+      offset: Number(request.query.offset),
+    });
 
     response.status(200).json({
       success: true,

@@ -67,6 +67,7 @@ import {
   client_spents,
   contracts,
   freelancer_metadata,
+  freelancer_saved_job_posts,
   job_posts,
   proposals,
 } from "../../../test/support/tables.js";
@@ -231,8 +232,8 @@ describe("jobs contract", () => {
 
     const list = await request(app).get(API).query(asClient).set(as(clientId));
     expect(list.status).toBe(200);
-    expect(list.body.data[0].proposalCount).toBe(1);
-    expect(list.body.data[0].shortlistCount).toBe(1);
+    expect(list.body.data.results[0].proposalCount).toBe(1);
+    expect(list.body.data.results[0].shortlistCount).toBe(1);
     jobsListResponses[200].parse(list.body);
 
     const one = await request(app)
@@ -338,7 +339,8 @@ describe("jobs contract", () => {
       .query(asFreelancer)
       .set(as(freelancerId));
     expect(list.status).toBe(200);
-    expect(list.body.data).toHaveLength(1);
+    expect(list.body.data.results).toHaveLength(1);
+    expect(list.body.data.hasMore).toBe(false);
     jobsSavedListResponses[200].parse(list.body);
 
     const removed = await request(app)
@@ -572,7 +574,7 @@ describe("jobs queries against real Postgres", () => {
         .set(as(clientA));
 
       expect(response.status).toBe(200);
-      const rows = response.body.data as Array<{
+      const rows = response.body.data.results as Array<{
         id: string;
         proposalCount: number;
         shortlistCount: number;
@@ -792,7 +794,7 @@ describe("jobs queries against real Postgres", () => {
           .get(`${API}/saved`)
           .query(asFreelancer)
           .set(as(freelancerId));
-        return response.body.data as Array<{
+        return response.body.data.results as Array<{
           id: string;
           paymentVerified: boolean;
           proposalCount: number;
@@ -825,6 +827,84 @@ describe("jobs queries against real Postgres", () => {
       expect((await savedFor(freelancerA)).map((job) => job.id)).toEqual([
         second.id,
       ]);
+    });
+  });
+
+  describe("paging", () => {
+    const TIED_AT = new Date("2024-01-01T00:00:00.000Z");
+
+    it("reports hasMore only when a row exists beyond the limit and orders ties by id descending", async () => {
+      const { getJobPostsPage } = await import("../services/jobs.service.js");
+      const clientId = await seedClientWith();
+      const created = [];
+      for (let index = 0; index < 7; index += 1) {
+        created.push(await insertJob(clientId, { created_at: TIED_AT }));
+      }
+
+      const exact = await getJobPostsPage(clientId, { limit: 7, offset: 0 });
+      const short = await getJobPostsPage(clientId, { limit: 6, offset: 0 });
+      const over = await getJobPostsPage(clientId, { limit: 8, offset: 0 });
+      const paged: string[] = [];
+      for (let offset = 0; offset < 7; offset += 3) {
+        const page = await getJobPostsPage(clientId, { limit: 3, offset });
+        paged.push(...page.results.map((row) => row.id));
+      }
+
+      expect(exact.results).toHaveLength(7);
+      expect(exact.hasMore).toBe(false);
+      expect(short.results).toHaveLength(6);
+      expect(short.hasMore).toBe(true);
+      expect(over.hasMore).toBe(false);
+      expect(paged).toEqual(
+        created
+          .map((job) => job.id)
+          .sort()
+          .reverse(),
+      );
+    });
+
+    it("pages saved jobs with hasMore at the limit and orders ties by id descending", async () => {
+      const { getSavedJobPosts } = await import("../services/jobs.service.js");
+      const clientId = await seedClientWith();
+      const freelancerId = await seedFreelancer();
+      const savedIds: string[] = [];
+      for (let index = 0; index < 5; index += 1) {
+        const job = await insertJob(clientId);
+        const [saved] = await db
+          .insert(freelancer_saved_job_posts)
+          .values({
+            job_id: job.id,
+            freelancer_id: freelancerId,
+            created_at: TIED_AT,
+          })
+          .returning({ id: freelancer_saved_job_posts.id });
+        savedIds.push(saved!.id);
+      }
+
+      const exact = await getSavedJobPosts(freelancerId, {
+        limit: 5,
+        offset: 0,
+      });
+      const short = await getSavedJobPosts(freelancerId, {
+        limit: 4,
+        offset: 0,
+      });
+      const ordered = await db
+        .select({
+          id: freelancer_saved_job_posts.id,
+          jobId: freelancer_saved_job_posts.job_id,
+        })
+        .from(freelancer_saved_job_posts)
+        .where(eq(freelancer_saved_job_posts.freelancer_id, freelancerId));
+      const expectedJobs = ordered
+        .sort((a, b) => (a.id < b.id ? 1 : -1))
+        .map((row) => row.jobId);
+
+      expect(exact.results).toHaveLength(5);
+      expect(exact.hasMore).toBe(false);
+      expect(short.results).toHaveLength(4);
+      expect(short.hasMore).toBe(true);
+      expect(exact.results.map((row) => row.id)).toEqual(expectedJobs);
     });
   });
 

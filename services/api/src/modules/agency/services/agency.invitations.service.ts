@@ -1,5 +1,9 @@
 import { toApiMemberRole } from "../constants/agency.constants.js";
 import { clerk } from "../../../infrastructure/auth/clerk.client.js";
+import {
+  fetchSize,
+  toOffsetPage,
+} from "../../../shared/validation/utils/pagination.utils.js";
 import { db } from "../../../database/client.js";
 import { isUniqueViolation } from "../../../database/pg-errors.js";
 import { ApiError } from "../../../shared/errors/api-error.js";
@@ -46,14 +50,24 @@ interface AgencyInvitationData {
 
 export const getAgencyInvitations = async (
   agencyId: string,
-): Promise<AgencyInvitationData[]> => {
-  const rows = await listPendingInvitationsOfAgency(db, agencyId);
+  { limit, offset }: { limit: number; offset: number },
+): Promise<{ results: AgencyInvitationData[]; hasMore: boolean }> => {
+  const { rows, hasMore } = toOffsetPage(
+    await listPendingInvitationsOfAgency(db, agencyId, {
+      limit: fetchSize(limit),
+      offset,
+    }),
+    limit,
+  );
 
-  return rows.map((row) => ({
-    ...row,
-    role: toApiMemberRole(row.role),
-    avatarUrl: null,
-  }));
+  return {
+    results: rows.map((row) => ({
+      ...row,
+      role: toApiMemberRole(row.role),
+      avatarUrl: null,
+    })),
+    hasMore,
+  };
 };
 
 const INVITATION_RESEND_COOLDOWN_SECONDS = 60;
@@ -195,12 +209,22 @@ interface MyAgencyInvitation {
 
 export const getMyAgencyInvitations = async (
   userId: string,
-): Promise<MyAgencyInvitation[]> => {
+  { limit, offset }: { limit: number; offset: number },
+): Promise<{ results: MyAgencyInvitation[]; hasMore: boolean }> => {
   const account = await findAccountEmail(db, userId);
-  if (!account) return [];
+  if (!account) return { results: [], hasMore: false };
 
-  const rows = await listPendingInvitationsForEmail(db, account.email);
-  return rows.map((row) => ({ ...row, role: toApiMemberRole(row.role) }));
+  const { rows, hasMore } = toOffsetPage(
+    await listPendingInvitationsForEmail(db, account.email, {
+      limit: fetchSize(limit),
+      offset,
+    }),
+    limit,
+  );
+  return {
+    results: rows.map((row) => ({ ...row, role: toApiMemberRole(row.role) })),
+    hasMore,
+  };
 };
 
 export const respondToAgencyInvitation = async (

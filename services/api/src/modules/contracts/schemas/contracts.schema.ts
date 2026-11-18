@@ -5,6 +5,7 @@ import {
   scopeField,
   uuidParam,
 } from "../../../shared/validation/schemas/common.schema.js";
+import { paginationShape } from "../../../shared/validation/schemas/pagination.schema.js";
 import { MAX_MONEY_CENTS } from "../../../shared/money/money.js";
 import { CONTRACT_LIMITS } from "../constants/contracts.constants.js";
 
@@ -27,6 +28,12 @@ export const milestoneParamsSchema = z.strictObject({
 export const roleOnlyQuerySchema = z.strictObject({ ...authRoleShape });
 
 export const scopeQuerySchema = z.strictObject({ ...authRoleShape, scope });
+
+export const freelancerContractsQuerySchema = z.strictObject({
+  ...authRoleShape,
+  ...paginationShape,
+  scope,
+});
 
 export const contractCheckoutBodySchema = z.strictObject({
   ...authRoleShape,

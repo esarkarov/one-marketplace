@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   ErrorBody,
+  offsetPage,
   ok,
   okNoData,
 } from "../../../shared/responses/api-envelope.responses.js";
@@ -25,7 +26,7 @@ const Notification = z
 
 export const notificationsResponses = {
   list: {
-    200: ok(z.array(Notification)),
+    200: ok(offsetPage(Notification)),
   },
   readAll: {
     200: okNoData,

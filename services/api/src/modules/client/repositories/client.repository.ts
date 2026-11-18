@@ -213,6 +213,7 @@ export const findLatestPublishedJobsWithProposalCounts = (
 export const findCompletedContractsOfClient = (
   executor: DbExecutor,
   clientId: string,
+  page: { limit: number; offset: number },
 ) => {
   return executor
     .select({
@@ -227,7 +228,9 @@ export const findCompletedContractsOfClient = (
     .where(
       and(eq(contracts.client_id, clientId), eq(contracts.status, "COMPLETED")),
     )
-    .orderBy(desc(contracts.completed_at));
+    .orderBy(desc(contracts.completed_at), desc(contracts.id))
+    .limit(page.limit)
+    .offset(page.offset);
 };
 
 export const findReviewsForContracts = (

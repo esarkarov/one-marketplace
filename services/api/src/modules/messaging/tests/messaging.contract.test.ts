@@ -287,9 +287,9 @@ describe("GET /conversations", () => {
       .set(as(fixture.clientId));
     expect(response.status).toBe(200);
     const body = messagingResponses.list[200].parse(response.body);
-    expect(body.data.conversations).toHaveLength(1);
-    expect(body.data.conversations[0]?.activeMeeting).not.toBeNull();
-    expect(body.data.conversations[0]?.lastMessage).not.toBeNull();
+    expect(body.data.results).toHaveLength(1);
+    expect(body.data.results[0]?.activeMeeting).not.toBeNull();
+    expect(body.data.results[0]?.lastMessage).not.toBeNull();
   });
 
   it("matches the 200 schema for a conversation without messages", async () => {
@@ -300,7 +300,7 @@ describe("GET /conversations", () => {
       .set(as(fixture.freelancerId));
     expect(response.status).toBe(200);
     const body = messagingResponses.list[200].parse(response.body);
-    expect(body.data.conversations[0]?.lastMessage).toBeNull();
+    expect(body.data.results[0]?.lastMessage).toBeNull();
   });
 
   it("matches the 200 schema for an empty agency scope", async () => {

@@ -53,6 +53,10 @@ import {
   agency_invitations,
   agency_members,
 } from "../../../test/support/tables.js";
+import {
+  getAgencyInvitations,
+  getMyAgencyInvitations,
+} from "../services/agency.invitations.service.js";
 import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
 
 const { app } = await import("../../../app.js");
@@ -449,7 +453,7 @@ describe("invitation privacy", () => {
       .set(as(owner.ownerId));
 
     expect(response.status).toBe(200);
-    const rows = response.body.data as Record<string, unknown>[];
+    const rows = response.body.data.results as Record<string, unknown>[];
     expect(rows).toHaveLength(3);
     expect(rows.map((row) => row.email).sort()).toEqual([...emails].sort());
     for (const row of rows) {
@@ -525,5 +529,84 @@ describe("resend cooldown", () => {
 
     expect((await resend(ownerId, randomUUID())).status).toBe(404);
     expect((await resend(ownerId, invitationId)).status).toBe(404);
+  });
+});
+
+describe("agency invitation lists paging", () => {
+  const seedInvitations = async (
+    agencyId: string,
+    invitedBy: string,
+    emails: string[],
+  ) => {
+    const rows = await db
+      .insert(agency_invitations)
+      .values(
+        emails.map((email) => ({
+          agency_id: agencyId,
+          email,
+          role: "Agency member",
+          invited_by: invitedBy,
+          created_at: new Date("2024-01-01T00:00:00.000Z"),
+        })),
+      )
+      .returning({ id: agency_invitations.id });
+    return rows.map((row) => row.id);
+  };
+
+  it("reports hasMore only beyond the limit and orders ties by id descending for an agency", async () => {
+    const { ownerId, agencyId } = await newOwner();
+    const ids = await seedInvitations(
+      agencyId,
+      ownerId,
+      Array.from({ length: 7 }, () => `${PREFIX}${randomUUID()}@example.test`),
+    );
+
+    const exact = await getAgencyInvitations(agencyId, {
+      limit: 7,
+      offset: 0,
+    });
+    const short = await getAgencyInvitations(agencyId, {
+      limit: 6,
+      offset: 0,
+    });
+    const paged: string[] = [];
+    for (let offset = 0; offset < 7; offset += 3) {
+      const page = await getAgencyInvitations(agencyId, { limit: 3, offset });
+      paged.push(...page.results.map((row) => row.id));
+    }
+
+    expect(exact.results).toHaveLength(7);
+    expect(exact.hasMore).toBe(false);
+    expect(short.results).toHaveLength(6);
+    expect(short.hasMore).toBe(true);
+    expect(paged).toEqual([...ids].sort().reverse());
+  });
+
+  it("pages the invitations addressed to one account", async () => {
+    const { ownerId } = await newOwner();
+    const invitee = await insertAccount(newAuthId());
+    const email = emailOf(invitee);
+    const agencies = [
+      (await newOwner()).agencyId,
+      (await newOwner()).agencyId,
+      (await newOwner()).agencyId,
+    ];
+    for (const agencyId of agencies) {
+      await seedInvitations(agencyId, ownerId, [email]);
+    }
+
+    const exact = await getMyAgencyInvitations(invitee, {
+      limit: 3,
+      offset: 0,
+    });
+    const short = await getMyAgencyInvitations(invitee, {
+      limit: 2,
+      offset: 0,
+    });
+
+    expect(exact.results).toHaveLength(3);
+    expect(exact.hasMore).toBe(false);
+    expect(short.results).toHaveLength(2);
+    expect(short.hasMore).toBe(true);
   });
 });

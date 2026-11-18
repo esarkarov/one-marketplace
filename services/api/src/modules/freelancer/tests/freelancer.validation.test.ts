@@ -370,3 +370,49 @@ describe("search query alias", () => {
     expect(withQ.body.code).toBe(withExtra.body.code);
   });
 });
+
+describe("freelancer jobs pagination limit", () => {
+  it.each([["/api/v1/freelancer/jobs", "freelancer"]])(
+    "GET %s accepts limit and offset within the bounds and rejects others with 400",
+    async (path, role) => {
+      const call = (query: Record<string, string | undefined>) =>
+        request(app)
+          .get(path)
+          .set(bearer)
+          .query({ role, ...query });
+
+      const explicit = await call({ limit: "100", offset: "10000" });
+      const defaults = await call({});
+      expect(explicit.status).not.toBe(400);
+      expect(defaults.status).not.toBe(400);
+
+      for (const query of [
+        { limit: "0" },
+        { limit: "101" },
+        { limit: "abc" },
+        { limit: "1.5" },
+        { offset: "-1" },
+        { offset: "10001" },
+      ]) {
+        const response = await call(query);
+        expect(response.status).toBe(400);
+        expect(response.body.code).toBe("VALIDATION_ERROR");
+      }
+    },
+  );
+
+  it.each(["jobFeedQuerySchema"])(
+    "%s defaults limit to 20 and offset to 0",
+    async (name) => {
+      const modules = {
+        jobFeedQuerySchema: await import("../schemas/freelancer.schema.js"),
+      } as unknown as Record<
+        string,
+        Record<string, { parse: (v: object) => object }>
+      >;
+      const schema = modules[name]![name]!;
+
+      expect(schema.parse({})).toMatchObject({ limit: 20, offset: 0 });
+    },
+  );
+});

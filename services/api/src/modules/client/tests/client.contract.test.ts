@@ -435,9 +435,9 @@ describe("client contract", () => {
       .query(q)
       .set(as(clientId));
     expect(completed.status).toBe(200);
-    expect(completed.body.data).toHaveLength(1);
-    expect(completed.body.data[0].clientReview).not.toBeNull();
-    expect(completed.body.data[0].talentReview).not.toBeNull();
+    expect(completed.body.data.results).toHaveLength(1);
+    expect(completed.body.data.results[0].clientReview).not.toBeNull();
+    expect(completed.body.data.results[0].talentReview).not.toBeNull();
     clientCompletedContractsResponses[200].parse(completed.body);
 
     const freelancers = await request(app)
@@ -1319,7 +1319,7 @@ describe("client queries against real Postgres", () => {
 
       expect(response.status).toBe(200);
       expect(
-        response.body.data.map((row: { title: string }) => row.title),
+        response.body.data.results.map((row: { title: string }) => row.title),
       ).toEqual(["Contract 1", "Contract 3", "Contract 2", "Contract 0"]);
     });
 

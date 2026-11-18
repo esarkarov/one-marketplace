@@ -66,6 +66,7 @@ import {
   agencyVerificationResponses,
 } from "./responses/agency.responses.js";
 import { authRoleShape } from "../../shared/validation/schemas/common.schema.js";
+import { roleListQuerySchema } from "../../shared/validation/schemas/pagination.schema.js";
 import {
   agencyJobFeedQuerySchema,
   agencyTalentSearchQuerySchema,
@@ -161,7 +162,10 @@ agencyRouter.get(
 agencyRouter.get(
   "/connects/history",
   isAuthenticated,
-  validate({ query: authRoleShape, responses: agencyConnectsHistoryResponses }),
+  validate({
+    query: roleListQuerySchema,
+    responses: agencyConnectsHistoryResponses,
+  }),
   getAgencyConnectsHistoryHandler,
 );
 agencyRouter.post(
@@ -198,7 +202,10 @@ agencyRouter.get(
 agencyRouter.get(
   "/team/invitations",
   isAuthenticated,
-  validate({ query: authRoleShape, responses: agencyTeamInvitationsResponses }),
+  validate({
+    query: roleListQuerySchema,
+    responses: agencyTeamInvitationsResponses,
+  }),
   getAgencyTeamInvitationsHandler,
 );
 agencyRouter.post(
@@ -269,7 +276,10 @@ agencyRouter.delete(
 agencyRouter.get(
   "/invitations/mine",
   isAuthenticated,
-  validate({ query: authRoleShape, responses: agencyMyInvitationsResponses }),
+  validate({
+    query: roleListQuerySchema,
+    responses: agencyMyInvitationsResponses,
+  }),
   getMyAgencyInvitationsHandler,
 );
 agencyRouter.patch(

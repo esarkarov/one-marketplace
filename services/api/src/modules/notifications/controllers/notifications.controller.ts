@@ -32,8 +32,11 @@ export const listNotifications: RequestHandler = asyncHandler(
 
     const data =
       scope === "agency" && !agencyId
-        ? []
-        : await getNotifications(request.auth!.userId, agencyId);
+        ? { results: [], hasMore: false }
+        : await getNotifications(request.auth!.userId, agencyId, {
+            limit: Number(request.query.limit),
+            offset: Number(request.query.offset),
+          });
 
     response.json({
       success: true,

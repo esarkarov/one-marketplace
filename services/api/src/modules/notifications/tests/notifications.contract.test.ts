@@ -127,7 +127,8 @@ describe("GET /notifications", () => {
       .set(as(fixture.authId));
     expect(response.status).toBe(200);
     const body = notificationsResponses.list[200].parse(response.body);
-    expect(body.data).toHaveLength(2);
+    expect(body.data.results).toHaveLength(2);
+    expect(body.data.hasMore).toBe(false);
   });
 
   it("matches the 200 schema for an empty agency scope", async () => {
@@ -157,7 +158,9 @@ describe("PATCH /notifications/read-all", () => {
       .query({ role: "freelancer" })
       .set(as(fixture.authId));
     const body = notificationsResponses.list[200].parse(list.body);
-    expect(body.data.every((item) => item.isRead && item.readAt)).toBe(true);
+    expect(body.data.results.every((item) => item.isRead && item.readAt)).toBe(
+      true,
+    );
   });
 });
 
@@ -271,8 +274,43 @@ describe("notification scoping against real Postgres", () => {
 
     expect(response.status).toBe(200);
     expect(
-      response.body.data.map((row: { title: string }) => row.title),
+      response.body.data.results.map((row: { title: string }) => row.title),
     ).toEqual(["newest", "middle", "oldest"]);
+  });
+
+  it("returns more than ten notifications, honours the limit and reports hasMore at the boundary", async () => {
+    const userA = await createAccount();
+    const tied = new Date("2024-05-01");
+    const ids: string[] = [];
+    for (let index = 0; index < 12; index += 1) {
+      ids.push(await notify({ recipientId: userA }, `n-${index}`, tied));
+    }
+    const get = (query: Record<string, string>) =>
+      request(app)
+        .get(API)
+        .query({ role: "freelancer", ...query })
+        .set(as(userA));
+
+    const all = await get({});
+    const exact = await get({ limit: "12" });
+    const short = await get({ limit: "11" });
+    const second = await get({ limit: "5", offset: "10" });
+    const paged: string[] = [];
+    for (const offset of ["0", "5", "10"]) {
+      const page = await get({ limit: "5", offset });
+      paged.push(
+        ...page.body.data.results.map((row: { id: string }) => row.id),
+      );
+    }
+
+    expect(all.body.data.results).toHaveLength(12);
+    expect(all.body.data.hasMore).toBe(false);
+    expect(exact.body.data.hasMore).toBe(false);
+    expect(short.body.data.results).toHaveLength(11);
+    expect(short.body.data.hasMore).toBe(true);
+    expect(second.body.data.results).toHaveLength(2);
+    expect(second.body.data.hasMore).toBe(false);
+    expect(paged).toEqual([...ids].sort().reverse());
   });
 
   it("lists only the agency's notifications in agency scope", async () => {
@@ -284,9 +322,9 @@ describe("notification scoping against real Postgres", () => {
       .set(as(fixture.userA));
 
     expect(response.status).toBe(200);
-    expect(response.body.data.map((row: { id: string }) => row.id)).toEqual([
-      fixture.ids.agencyA,
-    ]);
+    expect(
+      response.body.data.results.map((row: { id: string }) => row.id),
+    ).toEqual([fixture.ids.agencyA]);
   });
 
   it("marks only the agency's notifications read in agency scope", async () => {

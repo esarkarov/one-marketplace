@@ -163,11 +163,38 @@ export const findContractForNewMilestone = (
     .where(and(eq(contracts.id, contractId), eq(contracts.client_id, clientId)))
     .limit(1);
 
+const accountContractFilter = (
+  userId: string,
+  role: "client" | "freelancer" | "agency",
+  agencyId?: string | null,
+) =>
+  role === "client"
+    ? eq(contracts.client_id, userId)
+    : role === "agency"
+      ? eq(contracts.agency_id, agencyId!)
+      : eq(contracts.freelancer_id, userId);
+
+export const listAccountContractIds = (
+  executor: DbExecutor,
+  userId: string,
+  role: "client" | "freelancer" | "agency",
+  agencyId: string | null | undefined,
+  page: { limit: number; offset: number },
+) =>
+  executor
+    .select({ id: contracts.id })
+    .from(contracts)
+    .where(accountContractFilter(userId, role, agencyId))
+    .orderBy(desc(contracts.created_at), desc(contracts.id))
+    .limit(page.limit)
+    .offset(page.offset);
+
 export const listContractRows = (
   executor: DbExecutor,
   userId: string,
   role: "client" | "freelancer" | "agency",
-  agencyId?: string | null,
+  agencyId: string | null | undefined,
+  contractIds: string[],
 ) =>
   executor
     .select({
@@ -224,13 +251,17 @@ export const listContractRows = (
     )
     .leftJoin(client_metadata, eq(client_metadata.auth_id, contracts.client_id))
     .where(
-      role === "client"
-        ? eq(contracts.client_id, userId)
-        : role === "agency"
-          ? eq(contracts.agency_id, agencyId!)
-          : eq(contracts.freelancer_id, userId),
+      and(
+        accountContractFilter(userId, role, agencyId),
+        inArray(contracts.id, contractIds),
+      ),
     )
-    .orderBy(desc(contracts.created_at), asc(contract_milestones.position));
+    .orderBy(
+      desc(contracts.created_at),
+      desc(contracts.id),
+      asc(contract_milestones.position),
+      asc(contract_milestones.id),
+    );
 
 export const findContractIdByProposal = (
   executor: DbExecutor,

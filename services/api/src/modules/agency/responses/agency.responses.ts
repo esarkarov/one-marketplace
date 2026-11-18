@@ -261,13 +261,13 @@ const AgencyProposalSubmitted = z
 
 const AgencyProposalMetadata = z
   .strictObject({
-    proposals: z.array(
+    ...offsetPage(
       z.strictObject({
         jobId: z.uuid(),
         status: z.enum(PROPOSAL_STATUSES),
         submittedAt: isoDateTime.nullable(),
       }),
-    ),
+    ).shape,
     counts: z.strictObject({
       total: z.number().int(),
       active: z.number().int(),
@@ -376,7 +376,7 @@ export const agencyUpdateResponses = {
 };
 
 export const agencyJobFeedResponses = {
-  200: ok(z.array(AgencyJobFeedItem)),
+  200: ok(offsetPage(AgencyJobFeedItem)),
   403: ErrorBody,
   404: ErrorBody,
 };
@@ -388,7 +388,7 @@ export const agencyConnectsResponses = {
 };
 
 export const agencyConnectsHistoryResponses = {
-  200: ok(z.array(AgencyConnectsHistoryItem)),
+  200: ok(offsetPage(AgencyConnectsHistoryItem)),
   403: ErrorBody,
 };
 
@@ -400,7 +400,7 @@ export const agencyConnectsCheckoutResponses = {
 };
 
 export const agencyProposalsResponses = {
-  200: ok(z.array(AgencyProposalListItem)),
+  200: ok(offsetPage(AgencyProposalListItem)),
   403: ErrorBody,
 };
 
@@ -434,7 +434,7 @@ export const agencyPayoutLinkResponses = {
 };
 
 export const agencyTeamInvitationsResponses = {
-  200: ok(z.array(AgencyInvitation)),
+  200: ok(offsetPage(AgencyInvitation)),
   403: PermissionDenied,
 };
 
@@ -466,7 +466,7 @@ export const agencyMemberMutationResponses = {
 };
 
 export const agencyMyInvitationsResponses = {
-  200: ok(z.array(AgencyMyInvitation)),
+  200: ok(offsetPage(AgencyMyInvitation)),
   403: ErrorBody,
 };
 

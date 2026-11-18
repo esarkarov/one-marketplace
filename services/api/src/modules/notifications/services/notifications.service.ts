@@ -1,5 +1,9 @@
 import { db } from "../../../database/client.js";
 import {
+  fetchSize,
+  toOffsetPage,
+} from "../../../shared/validation/utils/pagination.utils.js";
+import {
   findLatestNotifications,
   markAllNotificationsRead,
   markNotificationReadForRecipient,
@@ -9,10 +13,17 @@ import { toNotificationResponse } from "../utils/notifications.mappers.js";
 export const getNotifications = async (
   userId: string,
   agencyId: string | null,
-) =>
-  (await findLatestNotifications(db, userId, agencyId)).map(
-    toNotificationResponse,
+  { limit, offset }: { limit: number; offset: number },
+) => {
+  const { rows, hasMore } = toOffsetPage(
+    await findLatestNotifications(db, userId, agencyId, {
+      limit: fetchSize(limit),
+      offset,
+    }),
+    limit,
   );
+  return { results: rows.map(toNotificationResponse), hasMore };
+};
 
 export const readAllNotifications = (userId: string, agencyId: string | null) =>
   markAllNotificationsRead(db, userId, agencyId);

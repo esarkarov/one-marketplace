@@ -608,9 +608,9 @@ describe("agency contract: team", () => {
       .query(q)
       .set(as(ownerId));
     expect(list.status).toBe(200);
-    expect(list.body.data).toHaveLength(1);
+    expect(list.body.data.results).toHaveLength(1);
     agencyTeamInvitationsResponses[200].parse(list.body);
-    expect(list.body.data[0].role).toBe("BUSINESS_MANAGER");
+    expect(list.body.data.results[0].role).toBe("BUSINESS_MANAGER");
     const [storedInvite] = await db
       .select({ role: agency_invitations.role })
       .from(agency_invitations)
@@ -653,7 +653,7 @@ describe("agency contract: team", () => {
       .query(q)
       .set(as(inviteeId));
     expect(mine.status).toBe(200);
-    expect(mine.body.data).toHaveLength(1);
+    expect(mine.body.data.results).toHaveLength(1);
     agencyMyInvitationsResponses[200].parse(mine.body);
 
     const accepted = await request(app)
@@ -894,8 +894,8 @@ describe("agency contract: jobs, proposals and connects", () => {
       .query(q)
       .set(as(ownerId));
     expect(feed.status).toBe(200);
-    expect(feed.body.data.length).toBeGreaterThan(0);
-    expect(feed.body.data[0].matchScore).toBeGreaterThan(0);
+    expect(feed.body.data.results.length).toBeGreaterThan(0);
+    expect(feed.body.data.results[0].matchScore).toBeGreaterThan(0);
     agencyJobFeedResponses[200].parse(feed.body);
 
     const recent = await request(app)
@@ -932,10 +932,10 @@ describe("agency contract: jobs, proposals and connects", () => {
       .query(q)
       .set(as(ownerId));
     expect(history.status).toBe(200);
-    expect(history.body.data).toHaveLength(1);
+    expect(history.body.data.results).toHaveLength(1);
     agencyConnectsHistoryResponses[200].parse(history.body);
-    expect(history.body.data[0]).toHaveProperty("connects");
-    expect(history.body.data[0]).not.toHaveProperty("amount");
+    expect(history.body.data.results[0]).toHaveProperty("connects");
+    expect(history.body.data.results[0]).not.toHaveProperty("amount");
 
     const checkout = await request(app)
       .post(`${API}/connects/checkout`)
@@ -1012,16 +1012,16 @@ describe("agency contract: jobs, proposals and connects", () => {
       .query(q)
       .set(as(ownerId));
     expect(list.status).toBe(200);
-    expect(list.body.data).toHaveLength(1);
+    expect(list.body.data.results).toHaveLength(1);
     agencyProposalsResponses[200].parse(list.body);
-    expect(list.body.data[0].clientRating).toBe(4);
+    expect(list.body.data.results[0].clientRating).toBe(4);
 
     const metadata = await request(app)
       .get(`${API}/proposals/metadata`)
       .query(q)
       .set(as(ownerId));
     expect(metadata.status).toBe(200);
-    expect(metadata.body.data.proposals).toHaveLength(1);
+    expect(metadata.body.data.results).toHaveLength(1);
     agencyProposalMetadataResponses[200].parse(metadata.body);
 
     const emptyMetadata = await request(app)
@@ -1089,8 +1089,8 @@ describe("agency contract: proposal client rating", () => {
 
     expect(list.status).toBe(200);
     agencyProposalsResponses[200].parse(list.body);
-    expect(list.body.data).toHaveLength(1);
-    expect(list.body.data[0].clientRating).toBeNull();
+    expect(list.body.data.results).toHaveLength(1);
+    expect(list.body.data.results[0].clientRating).toBeNull();
   });
 });
 

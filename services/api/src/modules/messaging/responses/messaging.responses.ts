@@ -2,6 +2,7 @@ import { z } from "zod";
 import {
   ErrorBody,
   cursorPage,
+  offsetPage,
   ok,
   BadRequestBody,
 } from "../../../shared/responses/api-envelope.responses.js";
@@ -99,7 +100,7 @@ export const messagingResponses = {
   list: {
     200: ok(
       z.strictObject({
-        conversations: z.array(Conversation),
+        ...offsetPage(Conversation).shape,
         totalUnread: z.number().int().min(0),
       }),
     ),

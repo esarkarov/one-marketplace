@@ -273,7 +273,7 @@ export const freelancerPayoutLinkResponses = {
 };
 
 export const freelancerJobFeedResponses = {
-  200: ok(z.array(FreelancerJobFeedItem)),
+  200: ok(offsetPage(FreelancerJobFeedItem)),
   403: ErrorBody,
   404: ErrorBody,
 };

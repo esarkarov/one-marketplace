@@ -213,14 +213,17 @@ describe("GET /connects/history", () => {
       .set(as(freelancerId));
     expect(response.status).toBe(200);
     const body = connectsResponses.history[200].parse(response.body);
-    expect(body.data).toHaveLength(2);
-    for (const entry of response.body.data) {
+    expect(body.data.results).toHaveLength(2);
+    expect(body.data.hasMore).toBe(false);
+    for (const entry of response.body.data.results) {
       expect(entry).toHaveProperty("connects");
       expect(entry).toHaveProperty("createdAt");
       expect(entry).not.toHaveProperty("amount");
       expect(entry).not.toHaveProperty("created_at");
     }
-    expect(body.data.map((entry) => entry.connects).sort()).toEqual([-5, 30]);
+    expect(body.data.results.map((entry) => entry.connects).sort()).toEqual([
+      -5, 30,
+    ]);
   });
 
   it("matches the 403 schema for a client account", async () => {
@@ -520,29 +523,95 @@ describe("connects service writes against real Postgres", () => {
     }
   };
 
-  it("lists an agency's latest ten history rows newest first", async () => {
+  it("lists more than ten agency history rows newest first, with hasMore at the limit", async () => {
     const other = await seedAgency();
     const agencyId = await seedAgency();
     await seedHistory({ agencyId: other }, "other");
     await seedHistory({ agencyId }, "own");
 
-    const rows = await service.getAgencyConnectsHistory(agencyId);
+    const all = await service.getAgencyConnectsHistory(agencyId, {
+      limit: 20,
+      offset: 0,
+    });
+    const exact = await service.getAgencyConnectsHistory(agencyId, {
+      limit: 12,
+      offset: 0,
+    });
+    const short = await service.getAgencyConnectsHistory(agencyId, {
+      limit: 11,
+      offset: 0,
+    });
 
-    expect(rows.map((row) => row.description)).toEqual(
-      Array.from({ length: 10 }, (_, index) => `own-${11 - index}`),
+    expect(all.results.map((row) => row.description)).toEqual(
+      Array.from({ length: 12 }, (_, index) => `own-${11 - index}`),
     );
+    expect(all.hasMore).toBe(false);
+    expect(exact.hasMore).toBe(false);
+    expect(short.results).toHaveLength(11);
+    expect(short.hasMore).toBe(true);
   });
 
-  it("lists a freelancer's latest ten history rows newest first", async () => {
+  it("lists more than ten freelancer history rows newest first, with hasMore at the limit", async () => {
     const other = await seedBareFreelancer();
     const freelancerId = await seedBareFreelancer();
     await seedHistory({ freelancerId: other }, "other");
     await seedHistory({ freelancerId }, "own");
 
-    const rows = await service.getConnectsHistory(freelancerId);
+    const all = await service.getConnectsHistory(freelancerId, {
+      limit: 20,
+      offset: 0,
+    });
+    const exact = await service.getConnectsHistory(freelancerId, {
+      limit: 12,
+      offset: 0,
+    });
+    const short = await service.getConnectsHistory(freelancerId, {
+      limit: 11,
+      offset: 0,
+    });
 
-    expect(rows.map((row) => row.description)).toEqual(
-      Array.from({ length: 10 }, (_, index) => `own-${11 - index}`),
+    expect(all.results.map((row) => row.description)).toEqual(
+      Array.from({ length: 12 }, (_, index) => `own-${11 - index}`),
+    );
+    expect(all.hasMore).toBe(false);
+    expect(exact.hasMore).toBe(false);
+    expect(short.results).toHaveLength(11);
+    expect(short.hasMore).toBe(true);
+  });
+
+  it("orders history rows with an identical created_at by id descending across pages", async () => {
+    const freelancerId = await seedBareFreelancer();
+    const [balance] = await db
+      .insert(connects)
+      .values({ freelancer_id: freelancerId, connects: 5 })
+      .returning({ id: connects.id });
+    const rows = await db
+      .insert(connects_history)
+      .values(
+        Array.from({ length: 7 }, (_, index) => ({
+          connects_id: balance!.id,
+          type: "Test",
+          description: `tie-${index}`,
+          amount: index,
+          created_at: new Date(Date.UTC(2024, 0, 1)),
+        })),
+      )
+      .returning({ id: connects_history.id });
+
+    const paged: string[] = [];
+    for (let offset = 0; offset < 7; offset += 3) {
+      const page = await service.getConnectsHistory(freelancerId, {
+        limit: 3,
+        offset,
+      });
+      paged.push(...page.results.map((row) => row.id));
+    }
+
+    expect(paged).toEqual(
+      rows
+        .map((row) => row.id)
+        .sort()
+        .reverse(),
     );
   });
 

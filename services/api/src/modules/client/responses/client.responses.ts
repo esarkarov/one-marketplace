@@ -126,7 +126,7 @@ export const clientHiringOverviewResponses = {
 };
 
 export const clientCompletedContractsResponses = {
-  200: ok(z.array(ClientCompletedContract)),
+  200: ok(offsetPage(ClientCompletedContract)),
   403: ErrorBody,
 };
 

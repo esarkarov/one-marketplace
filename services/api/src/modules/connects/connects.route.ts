@@ -12,6 +12,7 @@ import {
   buyConnectsBodySchema,
   roleOnlyQuerySchema,
 } from "./schemas/connects.schema.js";
+import { roleListQuerySchema } from "../../shared/validation/schemas/pagination.schema.js";
 import { connectsResponses } from "./responses/connects.responses.js";
 
 export const connectsRouter = Router();
@@ -29,7 +30,7 @@ connectsRouter.get(
 connectsRouter.get(
   "/history",
   validate({
-    query: roleOnlyQuerySchema,
+    query: roleListQuerySchema,
     responses: connectsResponses.history,
   }),
   getLoggedInFreelancerConnectsHistory,

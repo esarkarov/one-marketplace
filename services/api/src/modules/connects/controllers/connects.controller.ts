@@ -31,7 +31,10 @@ export const getAvailableConnects: RequestHandler = async (
 export const getLoggedInFreelancerConnectsHistory: RequestHandler =
   asyncHandler(async (request, response) => {
     const auth = requireFreelancer(request);
-    const history = await getConnectsHistory(auth.userId);
+    const history = await getConnectsHistory(auth.userId, {
+      limit: Number(request.query.limit),
+      offset: Number(request.query.offset),
+    });
     const body: ApiResponse<typeof history> = {
       success: true,
       message: "Connects history retrieved.",

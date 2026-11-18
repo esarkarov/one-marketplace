@@ -10,6 +10,7 @@ import {
 } from "../../../shared/validation/schemas/common.schema.js";
 import { moneyCents } from "../../../shared/money/money.js";
 import { centsQueryParam } from "../../../shared/validation/schemas/money.schema.js";
+import { paginationShape } from "../../../shared/validation/schemas/pagination.schema.js";
 import { searchPagingShape } from "../../../shared/validation/schemas/search.schema.js";
 import { FREELANCER_LIMITS } from "../constants/freelancer.constants.js";
 import { JOB_LIMITS } from "../../../shared/validation/constants/job.constants.js";
@@ -159,6 +160,7 @@ const decimalParam = (label: string) =>
 
 export const jobFeedQuerySchema = z.strictObject({
   ...authRoleShape,
+  ...paginationShape,
   filter: z
     .enum(["best-match", "recent"], { error: "Filter is invalid." })
     .optional(),

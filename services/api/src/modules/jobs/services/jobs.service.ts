@@ -63,6 +63,20 @@ export const getJobPosts = async (userId: string, jobId?: string) => {
   return jobs.map(toJobPostResponse);
 };
 
+export const getJobPostsPage = async (
+  userId: string,
+  { limit, offset }: { limit: number; offset: number },
+) => {
+  const { rows, hasMore } = toOffsetPage(
+    await findJobPostsWithCounts(db, userId, undefined, {
+      limit: fetchSize(limit),
+      offset,
+    }),
+    limit,
+  );
+  return { results: rows.map(toJobPostResponse), hasMore };
+};
+
 const jobNotEditable = async (
   userId: string,
   jobId: string,
@@ -146,18 +160,30 @@ export const saveJobPost = async (freelancerId: string, jobId: string) => {
   return toSavedJobLinkResponse(existingSavedJob!);
 };
 
-export const getSavedJobPosts = async (freelancerId: string) => {
-  const rows = await findSavedJobRows(db, freelancerId);
-
-  return rows.map(
-    ({ job, savedAt, companyName, paymentVerified, proposalCount }) => ({
-      ...toJobPostResponse(job),
-      savedAt,
-      companyName,
-      paymentVerified: paymentVerified === true,
-      proposalCount,
+export const getSavedJobPosts = async (
+  freelancerId: string,
+  { limit, offset }: { limit: number; offset: number },
+) => {
+  const { rows, hasMore } = toOffsetPage(
+    await findSavedJobRows(db, freelancerId, {
+      limit: fetchSize(limit),
+      offset,
     }),
+    limit,
   );
+
+  return {
+    results: rows.map(
+      ({ job, savedAt, companyName, paymentVerified, proposalCount }) => ({
+        ...toJobPostResponse(job),
+        savedAt,
+        companyName,
+        paymentVerified: paymentVerified === true,
+        proposalCount,
+      }),
+    ),
+    hasMore,
+  };
 };
 
 export const removeSavedJobPost = async (

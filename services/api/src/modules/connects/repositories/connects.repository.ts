@@ -122,6 +122,7 @@ export const insertAgencyConnectsIfAbsent = async (
 export const findAgencyConnectsHistory = (
   executor: DbExecutor,
   agencyId: string,
+  page: { limit: number; offset: number },
 ) =>
   executor
     .select({
@@ -134,12 +135,14 @@ export const findAgencyConnectsHistory = (
     .from(connects_history)
     .innerJoin(connects, eq(connects_history.connects_id, connects.id))
     .where(eq(connects.agency_id, agencyId))
-    .orderBy(desc(connects_history.created_at))
-    .limit(10);
+    .orderBy(desc(connects_history.created_at), desc(connects_history.id))
+    .limit(page.limit)
+    .offset(page.offset);
 
 export const findFreelancerConnectsHistory = (
   executor: DbExecutor,
   freelancerId: string,
+  page: { limit: number; offset: number },
 ) =>
   executor
     .select({
@@ -152,8 +155,9 @@ export const findFreelancerConnectsHistory = (
     .from(connects_history)
     .innerJoin(connects, eq(connects_history.connects_id, connects.id))
     .where(eq(connects.freelancer_id, freelancerId))
-    .orderBy(desc(connects_history.created_at))
-    .limit(10);
+    .orderBy(desc(connects_history.created_at), desc(connects_history.id))
+    .limit(page.limit)
+    .offset(page.offset);
 
 export const findCheckoutAccount = async (
   executor: DbExecutor,

@@ -8,6 +8,7 @@ import { largeJsonBody } from "../../middleware/json-body/json-body.middleware.j
 import { contentWriteLimiter } from "../../middleware/rate-limit/user-rate-limit.middleware.js";
 import { validate } from "../../middleware/validate/validate.middleware.js";
 import { authRoleShape } from "../../shared/validation/schemas/common.schema.js";
+import { roleListQuerySchema } from "../../shared/validation/schemas/pagination.schema.js";
 import {
   createClientJobPost,
   editClientJobPost,
@@ -56,7 +57,7 @@ jobRouter.post(
 jobRouter.get(
   "/",
   isAuthenticated,
-  validate({ query: authRoleShape, responses: jobsListResponses }),
+  validate({ query: roleListQuerySchema, responses: jobsListResponses }),
   getClientJobPosts,
 );
 jobRouter.get(
@@ -70,7 +71,7 @@ jobRouter.get(
 jobRouter.get(
   "/saved",
   isAuthenticated,
-  validate({ query: authRoleShape, responses: jobsSavedListResponses }),
+  validate({ query: roleListQuerySchema, responses: jobsSavedListResponses }),
   getFreelancerSavedJobPosts,
 );
 jobRouter.post(

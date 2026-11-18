@@ -8,6 +8,7 @@ import {
   notificationStream,
 } from "./controllers/notifications.controller.js";
 import {
+  listNotificationsQuerySchema,
   notificationIdParamsSchema,
   roleOnlyQuerySchema,
   scopeQuerySchema,
@@ -20,7 +21,7 @@ notificationRouter.use(isAuthenticated);
 notificationRouter.get(
   "/",
   validate({
-    query: scopeQuerySchema,
+    query: listNotificationsQuerySchema,
     responses: notificationsResponses.list,
   }),
   listNotifications,

@@ -29,6 +29,10 @@ export const listConversations: RequestHandler = asyncHandler(
     const data = await getConversations(
       request.auth!.userId,
       requestedScope(request.query.scope),
+      {
+        limit: Number(request.query.limit),
+        offset: Number(request.query.offset),
+      },
     );
     response.json({
       success: true,

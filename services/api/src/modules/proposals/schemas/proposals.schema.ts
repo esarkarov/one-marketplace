@@ -5,6 +5,7 @@ import {
   boundedText,
   uuidParam,
 } from "../../../shared/validation/schemas/common.schema.js";
+import { paginationShape } from "../../../shared/validation/schemas/pagination.schema.js";
 import { PROPOSAL_LIMITS } from "../constants/proposals.constants.js";
 
 const MAX_BID_CENTS = 100_000_000;
@@ -47,6 +48,7 @@ export const roleOnlyQuerySchema = z.strictObject({ ...authRoleShape });
 
 export const listProposalsQuerySchema = z.strictObject({
   ...authRoleShape,
+  ...paginationShape,
   jobId: uuidParam("Job post").optional(),
 });
 

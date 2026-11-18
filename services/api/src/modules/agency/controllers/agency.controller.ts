@@ -240,7 +240,10 @@ export const getAgencyJobFeed: RequestHandler = asyncHandler(
       paymentVerified: request.query.paymentVerified === "true",
     } as const;
 
-    const jobs = await getMatchedJobPostsBySkills(tags, filters);
+    const jobs = await getMatchedJobPostsBySkills(tags, filters, {
+      limit: Number(request.query.limit),
+      offset: Number(request.query.offset),
+    });
 
     response.status(200).json({
       success: true,

@@ -25,6 +25,7 @@ const pendingInvitationOfAgency = (agencyId: string, invitationId: string) =>
 export const listPendingInvitationsOfAgency = (
   executor: DbExecutor,
   agencyId: string,
+  page: { limit: number; offset: number },
 ) =>
   executor
     .select(invitationColumns)
@@ -35,7 +36,9 @@ export const listPendingInvitationsOfAgency = (
         eq(agency_invitations.status, "PENDING"),
       ),
     )
-    .orderBy(desc(agency_invitations.created_at));
+    .orderBy(desc(agency_invitations.created_at), desc(agency_invitations.id))
+    .limit(page.limit)
+    .offset(page.offset);
 
 export const findAccountByEmail = async (
   executor: DbExecutor,
@@ -176,6 +179,7 @@ export const findAccountEmail = async (
 export const listPendingInvitationsForEmail = (
   executor: DbExecutor,
   email: string,
+  page: { limit: number; offset: number },
 ) =>
   executor
     .select({
@@ -197,7 +201,9 @@ export const listPendingInvitationsForEmail = (
         eq(agency_invitations.status, "PENDING"),
       ),
     )
-    .orderBy(desc(agency_invitations.created_at));
+    .orderBy(desc(agency_invitations.created_at), desc(agency_invitations.id))
+    .limit(page.limit)
+    .offset(page.offset);
 
 export const findInvitationWithAgency = async (
   executor: DbExecutor,

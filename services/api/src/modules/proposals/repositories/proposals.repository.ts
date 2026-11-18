@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
 import type { DbExecutor } from "../../../database/database.types.js";
 import { accounts } from "../../auth/models/auth.model.js";
 import {
@@ -18,6 +18,11 @@ import { job_posts } from "../../jobs/models/jobs.model.js";
 import { proposals } from "../models/proposals.model.js";
 
 type SenderType = "FREELANCER" | "AGENCY";
+
+interface Page {
+  limit: number;
+  offset: number;
+}
 
 export const findPublishedJobForProposal = async (
   executor: DbExecutor,
@@ -76,10 +81,27 @@ export const insertProposalIfAbsent = async (
   return proposal;
 };
 
+export const countProposalStatusesBySender = (
+  executor: DbExecutor,
+  senderId: string,
+  senderType: SenderType,
+) =>
+  executor
+    .select({ status: proposals.status, total: count().mapWith(Number) })
+    .from(proposals)
+    .where(
+      and(
+        eq(proposals.sender_id, senderId),
+        eq(proposals.sender_type, senderType),
+      ),
+    )
+    .groupBy(proposals.status);
+
 export const listProposalStatusesBySender = (
   executor: DbExecutor,
   senderId: string,
   senderType: SenderType,
+  page: Page,
 ) =>
   executor
     .select({
@@ -94,11 +116,14 @@ export const listProposalStatusesBySender = (
         eq(proposals.sender_type, senderType),
       ),
     )
-    .orderBy(desc(proposals.created_at));
+    .orderBy(desc(proposals.created_at), desc(proposals.id))
+    .limit(page.limit)
+    .offset(page.offset);
 
 export const listFreelancerProposals = (
   executor: DbExecutor,
   freelancerId: string,
+  page: Page,
 ) =>
   executor
     .select({
@@ -123,9 +148,15 @@ export const listFreelancerProposals = (
         eq(proposals.sender_type, "FREELANCER"),
       ),
     )
-    .orderBy(desc(proposals.created_at));
+    .orderBy(desc(proposals.created_at), desc(proposals.id))
+    .limit(page.limit)
+    .offset(page.offset);
 
-export const listAgencyProposals = (executor: DbExecutor, agencyId: string) =>
+export const listAgencyProposals = (
+  executor: DbExecutor,
+  agencyId: string,
+  page: Page,
+) =>
   executor
     .select({
       id: proposals.id,
@@ -155,12 +186,15 @@ export const listAgencyProposals = (executor: DbExecutor, agencyId: string) =>
         eq(proposals.sender_type, "AGENCY"),
       ),
     )
-    .orderBy(desc(proposals.created_at));
+    .orderBy(desc(proposals.created_at), desc(proposals.id))
+    .limit(page.limit)
+    .offset(page.offset);
 
 export const listClientJobProposalRows = (
   executor: DbExecutor,
   clientId: string,
   jobId: string,
+  page: Page,
 ) =>
   executor
     .select({
@@ -215,7 +249,9 @@ export const listClientJobProposalRows = (
       sql`${proposals.sender_id} = ${agency_earning.agency_id}::text`,
     )
     .where(and(eq(proposals.job_id, jobId), eq(job_posts.client_id, clientId)))
-    .orderBy(desc(proposals.created_at));
+    .orderBy(desc(proposals.created_at), desc(proposals.id))
+    .limit(page.limit)
+    .offset(page.offset);
 
 export const countAgencyMembers = async (
   executor: DbExecutor,

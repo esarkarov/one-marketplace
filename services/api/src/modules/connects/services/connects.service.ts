@@ -8,6 +8,10 @@ import {
   INITIAL_CONNECTS,
 } from "../../../config/constants.js";
 import { db } from "../../../database/client.js";
+import {
+  fetchSize,
+  toOffsetPage,
+} from "../../../shared/validation/utils/pagination.utils.js";
 import { setStripeCustomerId } from "../../auth/index.js";
 import {
   creditConnects,
@@ -105,15 +109,38 @@ export const getAgencyConnectsBalance = async (
   return value;
 };
 
-export const getAgencyConnectsHistory = async (agencyId: string) =>
-  (await findAgencyConnectsHistory(db, agencyId)).map(
-    toConnectsHistoryEntryResponse,
-  );
+interface Page {
+  limit: number;
+  offset: number;
+}
 
-export const getConnectsHistory = async (freelancerId: string) =>
-  (await findFreelancerConnectsHistory(db, freelancerId)).map(
-    toConnectsHistoryEntryResponse,
+export const getAgencyConnectsHistory = async (
+  agencyId: string,
+  { limit, offset }: Page,
+) => {
+  const { rows, hasMore } = toOffsetPage(
+    await findAgencyConnectsHistory(db, agencyId, {
+      limit: fetchSize(limit),
+      offset,
+    }),
+    limit,
   );
+  return { results: rows.map(toConnectsHistoryEntryResponse), hasMore };
+};
+
+export const getConnectsHistory = async (
+  freelancerId: string,
+  { limit, offset }: Page,
+) => {
+  const { rows, hasMore } = toOffsetPage(
+    await findFreelancerConnectsHistory(db, freelancerId, {
+      limit: fetchSize(limit),
+      offset,
+    }),
+    limit,
+  );
+  return { results: rows.map(toConnectsHistoryEntryResponse), hasMore };
+};
 
 export const createConnectsCheckout = async (
   freelancerId: string,

@@ -2,6 +2,7 @@ import { Router } from "express";
 import { validate } from "../../middleware/validate/validate.middleware.js";
 import { isAuthenticated } from "../auth/index.js";
 import { authRoleShape } from "../../shared/validation/schemas/common.schema.js";
+import { roleListQuerySchema } from "../../shared/validation/schemas/pagination.schema.js";
 import { submitProposalBodySchema } from "./schemas/proposals.schema.js";
 import {
   agencyProposalMetadataResponses,
@@ -48,7 +49,7 @@ proposalRouter.get(
   "/metadata",
   isAuthenticated,
   validate({
-    query: roleOnlyQuerySchema,
+    query: roleListQuerySchema,
     responses: proposalsMetadataResponses,
   }),
   getProposalMetadata,
@@ -91,7 +92,7 @@ export const agencyProposalsRouter = Router();
 agencyProposalsRouter.get(
   "/proposals",
   isAuthenticated,
-  validate({ query: authRoleShape, responses: agencyProposalsResponses }),
+  validate({ query: roleListQuerySchema, responses: agencyProposalsResponses }),
   getAgencyProposalsHandler,
 );
 agencyProposalsRouter.post(
@@ -108,7 +109,7 @@ agencyProposalsRouter.get(
   "/proposals/metadata",
   isAuthenticated,
   validate({
-    query: authRoleShape,
+    query: roleListQuerySchema,
     responses: agencyProposalMetadataResponses,
   }),
   getAgencyProposalMetadataHandler,

@@ -105,7 +105,7 @@ export const jobsCreateResponses = {
 };
 
 export const jobsListResponses = {
-  200: ok(z.array(JobsPostWithStats)),
+  200: ok(offsetPage(JobsPostWithStats)),
   403: ErrorBody,
 };
 
@@ -114,7 +114,7 @@ export const jobsPublicResponses = {
 };
 
 export const jobsSavedListResponses = {
-  200: ok(z.array(JobsSavedPost)),
+  200: ok(offsetPage(JobsSavedPost)),
   403: ErrorBody,
 };
 

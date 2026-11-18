@@ -9,40 +9,42 @@ import { createOpenApiDocument } from "../document.js";
 import { isObject } from "../utils/json.utils.js";
 import type { JsonObject } from "../types/openapi.types.js";
 
-const IN_SCOPE_OFFSET_LISTS = [
-  "admin_get_accounts",
-  "admin_get_contracts",
-  "admin_get_job_posts",
-  "admin_get_overview_activity",
-  "admin_get_proposals",
-  "admin_get_transactions",
-  "agency_get_search",
-  "client_get_marketplace_search",
-  "freelancer_get_search",
-  "jobs_get_public",
-];
+const OFFSET_LISTS: Record<string, string[]> = {
+  admin_get_accounts: [],
+  admin_get_contracts: [],
+  admin_get_job_posts: [],
+  admin_get_overview_activity: [],
+  admin_get_proposals: [],
+  admin_get_transactions: [],
+  agency_get_connects_history: [],
+  agency_get_invitations_mine: [],
+  agency_get_jobs: [],
+  agency_get_proposals: [],
+  agency_get_proposals_metadata: ["counts"],
+  agency_get_search: [],
+  agency_get_team_invitations: [],
+  client_get_completed_contracts: [],
+  client_get_marketplace_search: [],
+  connects_get_history: [],
+  contracts_get_client: [],
+  contracts_get_freelancer: [],
+  freelancer_get_jobs: [],
+  freelancer_get_search: [],
+  jobs_get: [],
+  jobs_get_public: [],
+  jobs_get_saved: [],
+  messaging_get: ["totalUnread"],
+  notifications_get: [],
+  proposals_get: [],
+  proposals_get_metadata: ["counts"],
+};
 
-const IN_SCOPE_CURSOR_LISTS = ["messaging_get_by_conversation_id_messages"];
+const CURSOR_LISTS = ["messaging_get_by_conversation_id_messages"];
 
-const UNPAGINATED_LISTS_PENDING_4B2: string[] = [
-  "admin_get_system_redis_keys",
-  "agency_get_connects_history",
-  "agency_get_invitations_mine",
-  "agency_get_jobs",
-  "agency_get_proposals",
-  "agency_get_proposals_metadata",
-  "agency_get_team_invitations",
-  "client_get_completed_contracts",
-  "connects_get_history",
-  "contracts_get_client",
-  "contracts_get_freelancer",
-  "freelancer_get_jobs",
-  "jobs_get",
-  "jobs_get_saved",
-  "messaging_get",
-  "notifications_get",
-  "proposals_get_metadata",
-];
+const EXEMPT_LISTS: Record<string, string> = {
+  admin_get_system_redis_keys:
+    "a Redis SCAN hard-capped at 200 keys in code, answered as { keys, truncated } rather than a bare array",
+};
 
 const document = createOpenApiDocument(apiRouter, [
   isAuthenticated,
@@ -87,9 +89,18 @@ const dataSchema = (operation: Operation) => {
 const dataProperties = (operation: Operation) =>
   resolve(dataSchema(operation).properties);
 
+const isArraySchema = (node: unknown): boolean => {
+  const schema = resolve(node);
+  if (schema.type === "array") return true;
+  const variants = [schema.anyOf, schema.oneOf].flatMap((list) =>
+    Array.isArray(list) ? list : [],
+  );
+  return variants.some(isArraySchema);
+};
+
 const isListOperation = (operation: Operation) => {
   const data = dataSchema(operation);
-  if (data.type === "array") return true;
+  if (isArraySchema(data)) return true;
   const properties = Object.values(dataProperties(operation));
   return (
     properties.length <= 2 &&
@@ -107,41 +118,38 @@ const byId = new Map(
   operations.map((operation) => [operation.operationId, operation]),
 );
 
-const inScope = [...IN_SCOPE_OFFSET_LISTS, ...IN_SCOPE_CURSOR_LISTS];
+const offsetIds = Object.keys(OFFSET_LISTS);
+const paginatedIds = [...offsetIds, ...CURSOR_LISTS];
 
 describe("paginated list operations", () => {
-  it.each(inScope)("%s exists", (operationId) => {
+  it.each(paginatedIds)("%s exists", (operationId) => {
     expect(byId.has(operationId)).toBe(true);
   });
 
-  it.each(IN_SCOPE_OFFSET_LISTS)(
-    "%s returns results and hasMore",
-    (operationId) => {
-      const properties = dataProperties(byId.get(operationId)!);
+  it.each(offsetIds)("%s returns results and hasMore", (operationId) => {
+    const properties = dataProperties(byId.get(operationId)!);
 
-      expect(Object.keys(properties).sort()).toEqual(["hasMore", "results"]);
-      expect(resolve(properties.results).type).toBe("array");
-      expect(resolve(properties.hasMore).type).toBe("boolean");
-    },
-  );
+    expect(Object.keys(properties).sort()).toEqual(
+      ["hasMore", "results", ...OFFSET_LISTS[operationId]!].sort(),
+    );
+    expect(resolve(properties.results).type).toBe("array");
+    expect(resolve(properties.hasMore).type).toBe("boolean");
+  });
 
-  it.each(IN_SCOPE_CURSOR_LISTS)(
-    "%s returns results and nextCursor",
-    (operationId) => {
-      const properties = dataProperties(byId.get(operationId)!);
+  it.each(CURSOR_LISTS)("%s returns results and nextCursor", (operationId) => {
+    const properties = dataProperties(byId.get(operationId)!);
 
-      expect(Object.keys(properties).sort()).toEqual(["nextCursor", "results"]);
-      expect(resolve(properties.results).type).toBe("array");
-    },
-  );
+    expect(Object.keys(properties).sort()).toEqual(["nextCursor", "results"]);
+    expect(resolve(properties.results).type).toBe("array");
+  });
 
-  it.each(inScope)("%s documents limit as an integer", (operationId) => {
+  it.each(paginatedIds)("%s documents limit as an integer", (operationId) => {
     const limit = queryParameter(byId.get(operationId)!, "limit");
 
     expect(resolve(limit?.schema).type).toBe("integer");
   });
 
-  it.each(IN_SCOPE_OFFSET_LISTS)(
+  it.each(offsetIds)(
     "%s documents limit and offset with the shared bounds",
     (operationId) => {
       const operation = byId.get(operationId)!;
@@ -161,7 +169,7 @@ describe("paginated list operations", () => {
   );
 
   it("documents the messages limit exception", () => {
-    const operation = byId.get(IN_SCOPE_CURSOR_LISTS[0]!)!;
+    const operation = byId.get(CURSOR_LISTS[0]!)!;
 
     expect(resolve(queryParameter(operation, "limit")?.schema)).toMatchObject({
       type: "integer",
@@ -171,16 +179,45 @@ describe("paginated list operations", () => {
     });
   });
 
-  it("keeps the unpaginated allowlist limited to list operations outside the scope", () => {
-    const outOfScope = operations
+  it("paginates every GET operation whose data holds results", () => {
+    const withResults = operations
+      .filter((operation) => "results" in dataProperties(operation))
+      .map((operation) => operation.operationId)
+      .sort();
+
+    expect(withResults).toEqual([...paginatedIds].sort());
+  });
+
+  it("leaves no list operation unpaginated except the exempt ones", () => {
+    const unpaginated = operations
       .filter(
         (operation) =>
-          !inScope.includes(operation.operationId) &&
-          isListOperation(operation),
+          isListOperation(operation) &&
+          !paginatedIds.includes(operation.operationId),
       )
       .map((operation) => operation.operationId)
       .sort();
 
-    expect(outOfScope).toEqual([...UNPAGINATED_LISTS_PENDING_4B2].sort());
+    expect(unpaginated).toEqual(Object.keys(EXEMPT_LISTS).sort());
+  });
+
+  it.each(Object.entries(EXEMPT_LISTS))(
+    "exempt %s states its reason",
+    (operationId, reason) => {
+      expect(byId.has(operationId)).toBe(true);
+      expect(reason.length).toBeGreaterThan(10);
+    },
+  );
+
+  it("never answers a bare array in data", () => {
+    const bare = operations
+      .filter(
+        (operation) =>
+          isArraySchema(dataSchema(operation)) &&
+          !(operation.operationId in EXEMPT_LISTS),
+      )
+      .map((operation) => operation.operationId);
+
+    expect(bare).toEqual([]);
   });
 });

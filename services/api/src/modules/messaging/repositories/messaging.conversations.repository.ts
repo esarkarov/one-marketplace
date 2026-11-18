@@ -20,11 +20,36 @@ import {
   type UnreadTarget,
 } from "./messaging.participants.repository.js";
 
+const participantFilter = (who: { agencyId: string | null; userId: string }) =>
+  who.agencyId
+    ? eq(conversation_participants.agency_id, who.agencyId)
+    : eq(conversation_participants.account_id, who.userId);
+
+export const sumUnreadOfParticipant = async (
+  executor: DbExecutor,
+  who: { agencyId: string | null; userId: string },
+) => {
+  const [row] = await executor
+    .select({
+      total:
+        sql<number>`coalesce(sum(${conversation_participants.unread_count}), 0)`.mapWith(
+          Number,
+        ),
+    })
+    .from(conversation_participants)
+    .where(participantFilter(who));
+  return row?.total ?? 0;
+};
+
 export const listConversationRowsOfParticipant = (
   executor: DbExecutor,
   who: { agencyId: string | null; userId: string },
-) =>
-  executor
+  options: {
+    page?: { limit: number; offset: number };
+    conversationId?: string;
+  } = {},
+) => {
+  const query = executor
     .select({
       id: conversations.id,
       jobId: conversations.job_id,
@@ -59,14 +84,24 @@ export const listConversationRowsOfParticipant = (
     .leftJoin(job_posts, eq(conversations.job_id, job_posts.id))
     .leftJoin(contracts, eq(conversations.proposal_id, contracts.proposal_id))
     .where(
-      who.agencyId
-        ? eq(conversation_participants.agency_id, who.agencyId)
-        : eq(conversation_participants.account_id, who.userId),
+      options.conversationId
+        ? and(
+            participantFilter(who),
+            eq(conversations.id, options.conversationId),
+          )
+        : participantFilter(who),
     )
     .orderBy(
       desc(conversations.last_message_at),
       desc(conversations.created_at),
-    );
+      desc(conversations.id),
+    )
+    .$dynamic();
+
+  return options.page
+    ? query.limit(options.page.limit).offset(options.page.offset)
+    : query;
+};
 
 export const listActiveMeetingsForConversations = (
   executor: DbExecutor,

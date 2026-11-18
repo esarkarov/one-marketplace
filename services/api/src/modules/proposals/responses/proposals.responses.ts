@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
   ErrorBody,
   ok,
+  offsetPage,
   BadRequestBody,
 } from "../../../shared/responses/api-envelope.responses.js";
 import {
@@ -40,13 +41,13 @@ const ProposalsSubmitted = z
 
 const ProposalsMetadata = z
   .strictObject({
-    proposals: z.array(
+    ...offsetPage(
       z.strictObject({
         jobId: z.uuid(),
         status: z.enum(PROPOSAL_STATUSES),
         submittedAt: isoDateTime.nullable(),
       }),
-    ),
+    ).shape,
     counts: z.strictObject({
       total: z.number().int(),
       active: z.number().int(),
@@ -155,9 +156,7 @@ const ProposalsInterview = z
   .meta({ id: "ProposalsInterview" });
 
 export const proposalsListResponses = {
-  200: ok(
-    z.union([z.array(ProposalsClientItem), z.array(ProposalsFreelancerItem)]),
-  ),
+  200: ok(offsetPage(z.union([ProposalsClientItem, ProposalsFreelancerItem]))),
   403: ErrorBody,
 };
 
