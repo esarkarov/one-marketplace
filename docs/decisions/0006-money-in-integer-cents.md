@@ -25,9 +25,9 @@ Money was `numeric(p,2)` in Postgres and a JavaScript float in code. Fees used `
 
 ## RabbitMQ
 
-The notification envelope is version 2 and carries `metadata.amountCents`. The publisher always emits version 2. The consumer still accepts version 1 and converts `metadata.amount` (dollars) to `amountCents` in one helper, `src/events/legacy-v1.ts`, which rejects values with more than 2 decimals to the DLQ.
+The notification envelope is version 2 and carries `metadata.amountCents`. The publisher always emits version 2. The consumer accepts only version 2; a version 1 envelope fails the envelope schema and is dead-lettered. Version 1 support was first kept as one helper, `src/events/legacy-v1.ts`, that converted `metadata.amount` (dollars) to `amountCents` and rejected values with more than 2 decimals to the DLQ.
 
-Remove version 1 support (the helper, the v1 schema branch and its tests) once no version 1 message can exist: every environment runs a version 2 publisher, and the main queue and the DLQ have been drained or purged after that deploy. Replaying an old DLQ message before then is safe because of the helper.
+That support (the helper, the v1 schema branch and its tests) has been removed. The condition for removal was that no version 1 message can exist: every environment runs a version 2 publisher, and the main queue and the DLQ are drained or purged after that deploy.
 
 ## Known debt (limits kept exactly, not fixed here)
 

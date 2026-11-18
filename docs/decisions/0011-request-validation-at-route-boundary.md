@@ -8,7 +8,7 @@ Audit finding L3 (ADR 0008): most routes had no zod schema and missing max lengt
 
 ## Decision
 
-1. One middleware, `validate({ params, query, body })` in `services/api/src/middleware/validate.middleware.ts`, applied on each route. Schemas live in `src/modules/<module>/<module>.schemas.ts`. Limits live only in `src/utils/validation-limits.ts`. Shared zod pieces (`uuidParam`, `uuidParams`, `boundedText`, `pagingDigits`, `withIgnoredKeys`, `roleField`) live in `src/utils/common-schemas.ts`.
+1. One middleware, `validate({ params, query, body })` in `services/api/src/middleware/validate/validate.middleware.ts`, applied on each route. Schemas live in `src/modules/<module>/schemas/<x>.schema.ts`. Limits live only in constants files: each module's `constants/<module>.constants.ts`, and shared ones in `src/shared/validation/constants/`. Shared zod pieces (`uuidParam`, `uuidParams`, `boundedText`, `pagingDigits`, `withIgnoredKeys`, `roleField`) live in `src/shared/validation/schemas/common.schema.ts`.
 2. Objects are strict by default (`z.strictObject`). An unknown key is a 400, except for the stripped keys in item 6.
 3. The schemas are attached to the handler under a symbol and read back with `getValidationSchemas`. A later stage (9b) can generate OpenAPI from them. No OpenAPI library is chosen by this ADR.
 4. Every `:id` parameter is `z.uuid()` through `uuidParam` or `uuidParams`.
@@ -22,13 +22,13 @@ Audit finding L3 (ADR 0008): most routes had no zod schema and missing max lengt
 12. Registry test `src/test/architecture/routing/route-validation-check.test.ts` walks every registered route and fails when a handler has no validation schema and is not listed in `src/test/architecture/routing/validation-allowlist.ts`. Each allowlist entry has a written reason. Seven POST or PATCH routes that read no body are listed in `bodylessRoutes` in the same file, also with reasons (they currently accept and ignore any JSON body). Routes that run `validate` before any other handler are listed in `publicRoutes`, also with reasons. The registry also fails when `validate` is the last handler of a route, when a nested router is mounted without a path, and when a params, query or body schema is not a strict object (`z.any`, `z.record`, loose or stripping objects). Router-level middleware registered before a route counts as running before `validate`. The allowlist holds:
     - Stripe webhooks for connects, contracts and identity: raw body and Stripe signature check, no zod after parsing.
     - The Daily meetings webhook: raw body and HMAC check, no zod after parsing.
-13. Base64 attachment handlers validate the JSON shape and the string length caps at the route. Decoding, MIME type and magic-byte checks, and the size totals stay in `validateAttachmentBatch` (`src/utils/attachments.ts`).
+13. Base64 attachment handlers validate the JSON shape and the string length caps at the route. Decoding, MIME type and magic-byte checks, and the size totals stay in `validateAttachmentBatch` (`src/shared/uploads/attachments.ts`).
 
 ## Order of checks
 
 Where the role check is route middleware, a wrong or missing role gets 401 or 403 before any 400.
 
-Only the controller's role-mismatch 403 comes after the 400: a request with an invalid body gets 400 before that 403. The 403 from `resolveAccountRole` for a missing account on `isAuthenticated` routes still precedes validation (`src/routes/validation-order.test.ts`). These routes are pinned:
+Only the controller's role-mismatch 403 comes after the 400: a request with an invalid body gets 400 before that 403. The 403 from `resolveAccountRole` for a missing account on `isAuthenticated` routes still precedes validation (`src/test/architecture/routing/validation-order.test.ts`). These routes are pinned:
 
 - Proposals: `POST /`, `PATCH` status, `POST` interview.
 - Contracts: every authenticated route except `GET /client`.
@@ -44,9 +44,9 @@ On every other route above, a missing or invalid token is still 401, because aut
 
 ## Limits
 
-Source: `services/api/src/utils/validation-limits.ts` (authoritative). Values marked **existing** were in use before stage 9a, as the comment in that file says. Every other value is **new** and **provisional** until the frontends are wired to the API and the values are confirmed against real input.
+Source: the constants files named in item 1 (authoritative). Values marked **existing** were in use before stage 9a, as the old limits file said. Every other value is **new** and **provisional** until the frontends are wired to the API and the values are confirmed against real input.
 
-- Attachments (existing): `MAX_ATTACHMENT_BYTES` 5 MiB (5242880), `MAX_ATTACHMENTS` 5, `MAX_TOTAL_ATTACHMENT_BYTES` 14 MiB, `MAX_ATTACHMENT_FILE_NAME_LENGTH` 255, `MAX_ENCODED_LENGTH` 6990508 (derived from the byte limit), `MAX_DATA_URL_HEADER_LENGTH` 512 (defined in `attachments.ts`, re-exported).
+- Attachments (existing): `MAX_ATTACHMENT_BYTES` 5 MiB (5242880), `MAX_ATTACHMENTS` 5, `MAX_TOTAL_ATTACHMENT_BYTES` 14 MiB, `MAX_ATTACHMENT_FILE_NAME_LENGTH` 255, `MAX_ENCODED_LENGTH` 6990508 (derived from the byte limit), `MAX_DATA_URL_HEADER_LENGTH` 512 (defined in `src/shared/uploads/constants/attachments.constants.ts`).
 - Search (existing): `SEARCH_QUERY_MAX_LENGTH` 100, `SEARCH_OFFSET_MAX` 10000.
 - Live URL (existing): `MAX_LIVE_URL_LENGTH` 2048.
 - Common: `email` 254 (existing); `pagingDigits` 10, `scope` 32, `attachmentFileId` 255 (new). The unused `url`, `context`, `role` and `dataUrlHeader` entries were removed.

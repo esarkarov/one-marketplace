@@ -14,7 +14,7 @@ Use RabbitMQ 4.4.0 (`rabbitmq:4.4.0-management-alpine`) with `amqplib` and `amqp
 
 ### Topology
 
-Declared by `src/events/topology.ts` and asserted on every channel (re)connect:
+Declared by `src/infrastructure/events/notification.topology.ts` and asserted on every channel (re)connect:
 
 - Topic exchange `notifications`, routing key `notifications.created`.
 - Quorum queue `notifications.storage`, bound to the exchange, with `x-delivery-limit` 5, `x-dead-letter-exchange` `notifications.dlx`, `x-dead-letter-strategy` `at-least-once` and `x-overflow` `reject-publish`.
@@ -51,12 +51,15 @@ Without `RABBITMQ_URL` the publisher is a no-op, the consumer is not started, an
 
 - Decision 5 of ADR 0003 is superseded. NATS references remain only in ADR 0003 and this ADR as history.
 - There is no outbox. Several places publish after a database commit; if the publish fails (or the process dies between commit and publish), the notification is lost. The places are:
-  - `proposals.service.ts`: 122, 234
-  - `proposals.controller.ts`: 113, 162
-  - `agency.service.ts`: 885, 1117, 1447
-  - `contracts.service.ts`: 340, 1380, 1564
-  - `contracts.controller.ts`: 127, 137, 208, 254, 390
-  - `payouts.service.ts`: 210
+  - `proposals.submission.service.ts`: `submitProposal`, `submitAgencyProposal`
+  - `proposals.controller.ts`: `updateProposalStatus`, `interviewProposal`
+  - `agency.invitations.service.ts`: `notifyInvitee`, `respondToAgencyInvitation`
+  - `agency.profile.service.ts`: `updateAgencyProfile`
+  - `contracts.checkout.service.ts`: `fundContractMilestoneFromPayment`
+  - `contracts.lifecycle.service.ts`: `createContractFromPayment`
+  - `contracts.milestones.service.ts`: `addContractMilestone`
+  - `contracts.controller.ts`: `acceptContractOffer`, `submitMilestoneWork`, `reviewMilestoneWork`, `finishContract`
+  - `payouts.service.ts`: `notifyPaid`
 
   A transactional outbox is the fix if notifications must be reliable; it is not decided.
 
