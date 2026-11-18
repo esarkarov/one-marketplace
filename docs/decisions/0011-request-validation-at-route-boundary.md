@@ -51,7 +51,7 @@ Source: the constants files named in item 1 (authoritative). Values marked **exi
 - Live URL (existing): `MAX_LIVE_URL_LENGTH` 2048.
 - Common: `email` 254 (existing); `pagingDigits` 10, `scope` 32, `attachmentFileId` 255 (new). The unused `url`, `context`, `role` and `dataUrlHeader` entries were removed.
 - Admin: `redisPattern` 64 and `redisKey` 128 (existing); `password` 1024, `streamToken` 2048 (new); the unused `pagingDigits` was removed.
-- Messaging: `body` 10000 (existing); `recipientId` 64, `cursor` 512, `attachmentMimeType` 127 (new).
+- Messaging: `body` 10000 (existing); `recipientId` an `accounts.id` uuid (was 64 characters; ADR 0012), `cursor` 512, `attachmentMimeType` 127 (new).
 - Jobs (all new): `titleMax` 100, `descriptionMax` 5000, `skillsMaxItems` 30, `skillMaxLength` 50, `screeningQuestionsMaxItems` 10, `screeningQuestionMaxLength` 500, `milestonesMaxItems` 20, `milestoneTitleMax` 120, `milestoneDueDateMax` 32, `milestoneIdMax` 64, `feedLevelsMax` 256, `feedSortMax` 32, `expertiseLevelMax` 50, `expectedDurationMax` 50.
 - Proposals: `interviewMessageMax` 5000 (existing); `coverLetterMin` 80, `coverLetterMax` 10000, `screeningAnswersMaxItems` 10, `screeningAnswerMaxLength` 5000, `durationMax` 50 (new).
 - Contracts: `milestoneRequirementsMax` 500, `milestoneTitleMin` 3, `milestoneTitleMax` 120, `reviewCommentMin` 10, `reviewCommentMax` 1000, `ratingMin` 1, `ratingMax` 5 (existing); `submissionMessageMin` 10, `submissionMessageMax` 5000, `feedbackMax` 5000, `submissionDeliveryLinkMax` 2048 (new).
@@ -73,7 +73,7 @@ Every endpoint below now answers 400 where it used to accept or coerce the input
 - Freelancer: unknown keys; non-UUID ids; over-length profile and portfolio values; `paymentVerified` other than `"true"` or `"false"`; non-digit paging values.
 - Client: unknown keys and over-length profile values on every route.
 - Identity: `context` other than `agency`.
-- Messaging: `body` and `attachments` set to `null` are accepted as empty; attachments with extra keys; an over-length `body`, `cursor` or `recipientId`; attachment `mimeType` over 127.
+- Messaging: `body` and `attachments` set to `null` are accepted as empty; attachments with extra keys; an over-length `body` or `cursor`; a `recipientId` that is not a uuid; attachment `mimeType` over 127.
 - Meetings and notifications: unknown keys and non-UUID ids.
 - Auth: `POST /sign-up` requires a valid `role` in a strict body.
 - Admin: login with a missing or non-string `password` now answers 400 instead of 401.
