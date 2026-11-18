@@ -1,153 +1,235 @@
-# OneMarketplace Application
+# OneMarketplace
 
-A freelancing marketplace built as a pnpm monorepo. Clients post jobs, freelancers and agencies apply, and the platform handles proposals, contracts, milestones and payments.
+OneMarketplace is a freelancing marketplace built as a pnpm monorepo. Clients post jobs, freelancers and agencies apply, and the API handles proposals, contracts, milestones and payments.
 
-## Status
+The five Next.js apps currently use mock data and do not call the API yet. The API in `services/api` is built and tested on its own.
 
-Early stage. The monorepo tooling, five Next.js front-end apps and the API in `services/api` are in place. The apps still use mock data and do not call the API yet.
+## Modules
 
-## Repository layout
+Apps in `apps/`:
 
-```
-apps/
-  landing-page/            public marketing site
-  client-dashboard/        client workspace
-  freelancer-dashboard/    freelancer workspace
-  agency-dashboard/        agency workspace
-  admin-dashboard/         admin console
-services/
-  api/                     Express API: modules, Drizzle schema and migrations
-infra/
-  docker/                  local Postgres and Redis (Docker Compose)
-packages/
-  tsconfig/                shared TypeScript configs (@onemarketplace/tsconfig)
-  eslint-config/           shared ESLint configs (@onemarketplace/eslint-config)
-  ui/                      shared UI components (placeholder)
-```
+- `landing-page`: public site.
+- `client-dashboard`, `freelancer-dashboard`, `agency-dashboard`: one workspace per role.
+- `admin-dashboard`: admin console.
 
-Workspace packages are scoped as `@onemarketplace/<folder-name>`.
+API modules in `services/api/src/modules/`:
+
+| Module          | Area                                                |
+| --------------- | --------------------------------------------------- |
+| `auth`          | Authentication with Clerk                           |
+| `identity`      | Identity verification (Stripe Identity webhook)     |
+| `client`        | Client routes                                       |
+| `freelancer`    | Freelancer routes                                   |
+| `agency`        | Agency routes                                       |
+| `jobs`          | Job postings                                        |
+| `proposals`     | Proposals on jobs                                   |
+| `contracts`     | Contracts, milestones and payments (Stripe webhook) |
+| `connects`      | Connects purchases (Stripe webhook)                 |
+| `payouts`       | Payouts                                             |
+| `meetings`      | Meetings with Daily (Daily webhook)                 |
+| `messaging`     | Real-time messaging over Socket.IO                  |
+| `notifications` | Notifications over server-sent events and RabbitMQ  |
+| `admin`         | Admin routes                                        |
+| `health`        | Liveness and readiness                              |
 
 ## Tech stack
 
-- Next.js, React, TypeScript, Tailwind CSS
-- Express 5, PostgreSQL, Drizzle ORM, Redis, optional RabbitMQ, Docker
-- Server-sent events and Socket.IO
-- Clerk (authentication), Stripe (payments), Daily (meetings), ImageKit (file storage)
-- pnpm workspaces with a shared dependency catalog
-- Vitest and supertest for API tests
-- ESLint, Prettier, Husky, lint-staged, commitlint, gitleaks
-- GitHub Actions and Dependabot
+- Frontend: Next.js, React, TypeScript, Tailwind CSS
+- API: Express 5, zod, pino, Socket.IO, server-sent events
+- Data: PostgreSQL 18 with Drizzle ORM, Redis 8, RabbitMQ 4.4 (optional)
+- Integrations: Clerk, Stripe, Daily, ImageKit
+- Tooling: pnpm workspaces with a shared catalog, Vitest and supertest, ESLint, Prettier, Husky, lint-staged, commitlint, gitleaks
+- Local infrastructure: Docker Compose
+
+## Repository structure
+
+| Path                     | Contents                                                      |
+| ------------------------ | ------------------------------------------------------------- |
+| `apps/*`                 | Next.js apps                                                  |
+| `services/api`           | Express API, Drizzle schema and migrations                    |
+| `packages/tsconfig`      | Shared TypeScript configs                                     |
+| `packages/eslint-config` | Shared ESLint configs                                         |
+| `packages/ui`            | Shared UI components (placeholder)                            |
+| `infra/docker`           | Docker Compose file for Postgres, Redis, RabbitMQ, Swagger UI |
+| `infra/scripts`          | Test database script                                          |
+| `docs`                   | Architecture, ADRs, API spec, product and design docs         |
+
+Workspace packages are scoped as `@onemarketplace/<folder-name>`.
 
 ## Prerequisites
 
-- Node.js 26 (pinned in `.node-version`). A version manager such as fnm is recommended.
-- pnpm 12 (the exact version is set in the `packageManager` field of `package.json`)
-- Docker, for local Postgres, Redis and RabbitMQ
-- gitleaks, required by the pre-commit hook. On Windows: `winget install --id Gitleaks.Gitleaks`
+- Node.js 26 or newer (pinned in `.node-version`)
+- pnpm 12 (the exact version is in the `packageManager` field of `package.json`)
+- Docker
+- gitleaks, which the pre-commit hook runs. On Windows: `winget install --id Gitleaks.Gitleaks`
 
 ## Getting started
 
+Install dependencies. This also sets up the Git hooks through Husky.
+
 ```bash
-git clone https://github.com/esarkarov/one-marketplace.git
-cd one-marketplace
 pnpm install
 ```
 
-`pnpm install` also sets up the Git hooks through Husky.
+Create the environment file. One `.env` at the repository root is the only configuration source. Set the passwords, and keep `DATABASE_URL` and `REDIS_URL` in line with them.
 
-### Ports
+```bash
+cp .env.example .env
+```
 
-| Service                | Port  | Package                                |
-| ---------------------- | ----- | -------------------------------------- |
-| Landing page           | 3000  | `@onemarketplace/landing-page`         |
-| Client dashboard       | 3001  | `@onemarketplace/client-dashboard`     |
-| Freelancer dashboard   | 3002  | `@onemarketplace/freelancer-dashboard` |
-| Agency dashboard       | 3003  | `@onemarketplace/agency-dashboard`     |
-| Admin dashboard        | 3004  | `@onemarketplace/admin-dashboard`      |
-| API                    | 4000  | `@onemarketplace/api`                  |
-| Postgres (Docker)      | 5432  |                                        |
-| Redis (Docker)         | 6379  |                                        |
-| RabbitMQ AMQP (Docker) | 5672  |                                        |
-| RabbitMQ UI (Docker)   | 15672 |                                        |
+Start Postgres, Redis, RabbitMQ and Swagger UI, and wait for their health checks:
 
-Each app has a fixed dev port, so they can run side by side. The API only accepts browser requests from the four dashboards (ports 3001 to 3004, or the `*_DASHBOARD` variables in `.env`); the landing page is not allowed.
+```bash
+pnpm infra:up
+```
 
-### Run an app
+Apply the migrations and start the API:
+
+```bash
+pnpm --filter @onemarketplace/api db:migrate
+pnpm --filter @onemarketplace/api dev
+```
+
+The API listens on port 4000 unless `PORT` is set. All routes are under `/api/v1`. `GET /api/v1/health` is liveness. `GET /api/v1/ready` checks Postgres and Redis and returns 503 if either is down.
+
+Run an app (each has a fixed port):
 
 ```bash
 pnpm --filter @onemarketplace/landing-page dev
 ```
 
-Replace `landing-page` with `client-dashboard`, `freelancer-dashboard`, `agency-dashboard` or `admin-dashboard`.
+| App                  | Port | Package                                |
+| -------------------- | ---- | -------------------------------------- |
+| Landing page         | 3000 | `@onemarketplace/landing-page`         |
+| Client dashboard     | 3001 | `@onemarketplace/client-dashboard`     |
+| Freelancer dashboard | 3002 | `@onemarketplace/freelancer-dashboard` |
+| Agency dashboard     | 3003 | `@onemarketplace/agency-dashboard`     |
+| Admin dashboard      | 3004 | `@onemarketplace/admin-dashboard`      |
 
-### Run the API
+`pnpm dev` starts every workspace's `dev` script in parallel.
 
-One `.env` file at the repository root is the only source of configuration. The API scripts load it.
+Other infrastructure commands:
+
+| Command            | What it does                                  |
+| ------------------ | --------------------------------------------- |
+| `pnpm infra:down`  | Stop the containers                           |
+| `pnpm infra:logs`  | Follow the container logs                     |
+| `pnpm infra:reset` | Stop the containers and delete all their data |
+
+Database scripts, run with `pnpm --filter @onemarketplace/api <script>`:
+
+| Script        | What it does                                              |
+| ------------- | --------------------------------------------------------- |
+| `db:generate` | Generate a migration from the modules' `*.model.ts` files |
+| `db:migrate`  | Apply migrations to the database in `DATABASE_URL`        |
+
+Docker ports are bound to `127.0.0.1` and default to Postgres 5432, Redis 6379, RabbitMQ 5672 and the RabbitMQ management UI 15672 (`http://127.0.0.1:15672`).
+
+## Environment variables
+
+`.env.example` lists every variable. Do not commit `.env`.
+
+Required to start the API and Docker:
+
+| Variable                                            | Purpose                        |
+| --------------------------------------------------- | ------------------------------ |
+| `DATABASE_URL`                                      | Postgres connection URL        |
+| `REDIS_URL`                                         | Redis connection URL           |
+| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | Postgres container credentials |
+| `REDIS_PASSWORD`                                    | Redis container password       |
+| `RABBITMQ_USER`, `RABBITMQ_PASSWORD`                | RabbitMQ container credentials |
+
+Docker Compose fails if its credentials are unset.
+
+Optional. The API starts without them, and the matching feature fails only when it is used:
+
+| Variable                                                                                    | Purpose                                                               |
+| ------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `PORT`                                                                                      | API port, default 4000                                                |
+| `NODE_ENV`                                                                                  | Defaults to `development`                                             |
+| `TRUST_PROXY`                                                                               | Proxy hop count or subnet list; `true` is rejected                    |
+| `RABBITMQ_URL`                                                                              | Enables notification events; without it they are not stored or pushed |
+| `CLERK_SECRET_KEY`                                                                          | Clerk authentication                                                  |
+| `STRIPE_SECRET_KEY`                                                                         | Stripe API                                                            |
+| `STRIPE_WEBHOOK_SECRET`, `STRIPE_CONNECTS_WEBHOOK_SECRET`, `STRIPE_IDENTITY_WEBHOOK_SECRET` | Stripe webhook signing secrets                                        |
+| `IMAGEKIT_PRIVATE_KEY`                                                                      | ImageKit uploads                                                      |
+| `DAILY_API_KEY`, `DAILY_WEBHOOK_SECRET`                                                     | Daily meetings and webhook verification                               |
+| `ADMIN_DASHBOARD_PASSWORD`, `ADMIN_SESSION_SECRET`                                          | Admin sign-in and session signing                                     |
+| `CLIENT_DASHBOARD`, `FREELANCER_DASHBOARD`, `AGENCY_DASHBOARD`, `ADMIN_DASHBOARD`           | Allowed browser origins; default to the local dev ports               |
+| `TEST_DATABASE_URL`, `CREATE_TEST_DB_ADMIN_URL`                                             | Test database settings (see Testing)                                  |
+| `SWAGGER_PORT`                                                                              | Swagger UI port, default 8081                                         |
+
+Additionally required when `NODE_ENV=production`: `CLERK_SECRET_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_CONNECTS_WEBHOOK_SECRET`, `STRIPE_IDENTITY_WEBHOOK_SECRET`, `ADMIN_DASHBOARD_PASSWORD` and `ADMIN_SESSION_SECRET` (at least 32 characters). None may contain `change-me`. At least one dashboard origin variable must also be set, and each one set must be an http(s) URL.
+
+## Local webhooks
+
+Webhook routes read the raw request body and verify the signature, so the secret in `.env` must match the sender. Restart the API after changing `.env`.
+
+| Route                            | Sender          | Secret variable                  |
+| -------------------------------- | --------------- | -------------------------------- |
+| `POST /api/v1/contracts/webhook` | Stripe          | `STRIPE_WEBHOOK_SECRET`          |
+| `POST /api/v1/connects/webhook`  | Stripe          | `STRIPE_CONNECTS_WEBHOOK_SECRET` |
+| `POST /api/v1/identity/webhook`  | Stripe Identity | `STRIPE_IDENTITY_WEBHOOK_SECRET` |
+| `POST /api/v1/meetings/webhook`  | Daily           | `DAILY_WEBHOOK_SECRET`           |
+
+With the Stripe CLI, forward each route and copy the `whsec_` secret that `stripe listen` prints into the matching variable. Run one listener per route, each in its own terminal:
 
 ```bash
-cp .env.example .env        # then set the passwords; DATABASE_URL and REDIS_URL must match them
-pnpm infra:up               # start Postgres, Redis and RabbitMQ in Docker
-pnpm --filter @onemarketplace/api db:migrate
-pnpm --filter @onemarketplace/api dev
+stripe listen --forward-to localhost:4000/api/v1/contracts/webhook
+stripe listen --forward-to localhost:4000/api/v1/connects/webhook
+stripe listen --forward-to localhost:4000/api/v1/identity/webhook
 ```
 
-Postgres and Redis are the only services needed to start. Clerk, Stripe, ImageKit and Daily are optional; the matching features fail only when called. RabbitMQ is optional too; without `RABBITMQ_URL` notifications are not stored or pushed. Set `RABBITMQ_URL` to enable them (management UI at `http://127.0.0.1:15672`).
+Daily can only reach the API through a public tunnel. When `DAILY_WEBHOOK_SECRET` is unset, the API rejects every Daily delivery, so Daily webhooks are skipped in local development.
 
-- `GET /api/v1/health` is liveness. `GET /api/v1/ready` checks Postgres and Redis and returns 503 if either is down.
-- `pnpm infra:down` stops the containers. `pnpm infra:reset` deletes the database and Redis data.
+## API documentation
 
-### Database commands
+The API contract is OpenAPI 3.1 in `docs/api/openapi.json`. It is generated from the route schemas and committed, and CI fails if it drifts.
+
+Swagger UI is part of the Compose stack. After `pnpm infra:up`, open `http://127.0.0.1:8081`, or the port in `SWAGGER_PORT`.
+
+Regenerate the spec after changing routes or schemas:
 
 ```bash
-pnpm --filter @onemarketplace/api db:generate    # create a migration from the modules' .schema.ts files
-pnpm --filter @onemarketplace/api db:migrate     # apply migrations to the database in DATABASE_URL
+pnpm -C services/api run openapi:generate
 ```
 
-Migrations are committed and never edited after they are merged.
+## Testing and quality gates
 
-### API tests
+CI runs these commands:
+
+| Check               | Command                                |
+| ------------------- | -------------------------------------- |
+| Format, lint, types | `pnpm check`                           |
+| Format only         | `pnpm format:check`                    |
+| Lint only           | `pnpm lint`                            |
+| Typecheck only      | `pnpm typecheck`                       |
+| Build               | `pnpm -r build`                        |
+| Production audit    | `pnpm audit --prod --audit-level high` |
+
+`pnpm format` rewrites files with Prettier.
+
+API tests need Docker Postgres and Redis. They use a separate database ending in `_test` and refuse to run unless the URLs point at localhost.
 
 ```bash
 pnpm infra:up
+pnpm --filter @onemarketplace/api db:test:setup
 pnpm --filter @onemarketplace/api test
 ```
 
-The tests need the Docker Postgres and Redis running and refuse to start unless `DATABASE_URL` and `REDIS_URL` point to localhost. The RabbitMQ integration test runs only when `INTEGRATION_RABBITMQ_URL` points to a local broker.
+`pnpm test:quiet` runs the API suite with minimal output. `db:test:setup` creates the test database and applies the migrations. The RabbitMQ integration test runs when `RABBITMQ_URL` points at the local broker.
 
-## Scripts
+Git hooks: `pre-commit` runs gitleaks on staged changes and then lint-staged (ESLint and Prettier). `commit-msg` enforces conventional commit messages, for example `feat: add job feed`.
 
-Run from the repository root:
+## Architecture and conventions
 
-| Command                       | What it does                                  |
-| ----------------------------- | --------------------------------------------- |
-| `pnpm format`                 | Format the repository with Prettier           |
-| `pnpm format:check`           | Check formatting without changing files       |
-| `pnpm -r --no-bail lint`      | Lint every workspace                          |
-| `pnpm -r --no-bail typecheck` | Type-check every workspace                    |
-| `pnpm -r build`               | Build every workspace                         |
-| `pnpm check`                  | Run format check, lint and typecheck in order |
+- [`docs/architecture.md`](docs/architecture.md): how the apps, API modules, database and local infrastructure fit together.
+- [`docs/adding-an-api-module.md`](docs/adding-an-api-module.md): checklist for a new API module or route.
+- [`docs/decisions/`](docs/decisions/): architecture decision records.
+- [`docs/ci.md`](docs/ci.md): CI jobs and how to run each check locally.
+- [`docs/product.md`](docs/product.md) and [`docs/design-system.md`](docs/design-system.md): product flows and UI conventions.
+- [`AGENTS.md`](AGENTS.md): repository rules for contributors and coding agents.
 
-## Quality checks
+## CI
 
-Commit-time hooks (Husky):
-
-- `pre-commit`: gitleaks scans staged changes for secrets, then lint-staged runs ESLint and Prettier on staged files.
-- `commit-msg`: commitlint enforces conventional commit messages, for example `feat: add job feed` or `fix: handle empty proposal list`.
-
-Hooks can be bypassed locally, so CI repeats the checks. The GitHub Actions workflow runs `pnpm check`, builds all apps, runs the API tests (including the RabbitMQ integration test) with coverage, scans the full Git history with gitleaks, runs CodeQL, actionlint and a Compose validation on every pull request and push to `main`, and dependency review on pull requests only. A weekly scheduled run executes only the security jobs: CodeQL and `pnpm audit`, which is informational and not required. The single required status check is `ci-pass`. See [`docs/ci.md`](docs/ci.md).
-
-Dependabot opens weekly pull requests for npm packages, GitHub Actions and the Docker Compose images, with a short cooldown before newly published versions are proposed.
-
-## Conventions
-
-- Folders and files use kebab-case.
-- Shared dependency versions live in the catalog in `pnpm-workspace.yaml`. Use `catalog:` in a workspace `package.json` for shared dependencies.
-- `typescript` is aliased to `@typescript/typescript6` so typescript-eslint keeps working, while `tsc` comes from `@typescript/native` (TypeScript 7). Keep both until typescript-eslint supports TypeScript 7.
-- Do not set `turbopack.root` to `process.cwd()` in a Next.js config. Leave root detection to Next.js.
-- Agent instructions for this repository are in `AGENTS.md`.
-
-## Roadmap
-
-1. API hardening: request validation with zod, structured logging with pino, tests for every module
-2. Notification delivery: decide whether RabbitMQ events need a transactional outbox (ADR 0004)
-3. Connect the dashboards to the API, one vertical slice at a time: jobs, proposals, contracts and milestones, payments, real-time messaging and notifications
+One GitHub Actions workflow, `.github/workflows/ci.yml`, runs on pull requests and pushes to `main`. Its jobs are `check`, `build`, `api-test`, `gitleaks`, `audit`, `dependency-review`, `codeql`, `workflow-lint` and `compose-validate`. `ci-pass` aggregates the blocking jobs and is the only required status check. `audit` is informational. A weekly scheduled run executes only `audit` and `codeql`. Dependabot opens weekly updates for npm, GitHub Actions and Docker Compose. Details are in [`docs/ci.md`](docs/ci.md).
