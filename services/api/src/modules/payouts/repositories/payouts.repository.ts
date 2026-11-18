@@ -160,6 +160,10 @@ export const insertPendingPayoutsForDueEarnings = async (
       AND NOT EXISTS (
         SELECT 1 FROM payout_history p WHERE p.earning_history_id = e.id
       )
+      AND NOT EXISTS (
+        SELECT 1 FROM contracts c
+        WHERE c.id = e.contract_id AND c.status = 'CANCELLED'
+      )
     ON CONFLICT (earning_history_id) DO NOTHING
   `);
 };
@@ -179,7 +183,17 @@ export const findClaimableCandidates = (executor: DbExecutor) =>
     .from(payout_history)
     .leftJoin(accounts, eq(accounts.auth_id, payout_history.freelancer_id))
     .leftJoin(agency_metadata, eq(agency_metadata.id, payout_history.agency_id))
-    .where(claimableCondition())
+    .where(
+      and(
+        claimableCondition(),
+        sql`NOT EXISTS (
+          SELECT 1 FROM earning_history e
+          JOIN contracts c ON c.id = e.contract_id
+          WHERE e.id = ${payout_history.earning_history_id}
+            AND c.status = 'CANCELLED'
+        )`,
+      ),
+    )
     .orderBy(asc(payout_history.created_at));
 
 export const failProcessingPayoutIfAttemptsMatch = (

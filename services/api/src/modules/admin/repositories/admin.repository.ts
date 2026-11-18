@@ -1,4 +1,4 @@
-import { and, count, desc, eq, inArray, sql, sum } from "drizzle-orm";
+import { and, count, desc, eq, inArray, ne, sql, sum } from "drizzle-orm";
 import type { DbExecutor } from "../../../database/database.types.js";
 import { accounts } from "../../auth/models/auth.model.js";
 import { agency_metadata } from "../../agency/models/agency.model.js";
@@ -35,7 +35,10 @@ export const countProposals = (executor: DbExecutor) =>
   executor.select({ value: count() }).from(proposals);
 
 export const countContracts = (executor: DbExecutor) =>
-  executor.select({ value: count() }).from(contracts);
+  executor
+    .select({ value: count() })
+    .from(contracts)
+    .where(ne(contracts.status, "CANCELLED"));
 
 export const countActiveContracts = (executor: DbExecutor) =>
   executor
@@ -44,7 +47,10 @@ export const countActiveContracts = (executor: DbExecutor) =>
     .where(eq(contracts.status, "ACTIVE"));
 
 export const sumContractTotalCents = (executor: DbExecutor) =>
-  executor.select({ value: sum(contracts.total_amount_cents) }).from(contracts);
+  executor
+    .select({ value: sum(contracts.total_amount_cents) })
+    .from(contracts)
+    .where(ne(contracts.status, "CANCELLED"));
 
 export const sumPaidPayoutCents = (executor: DbExecutor) =>
   executor
@@ -290,7 +296,13 @@ export const listFundedMilestones = (executor: DbExecutor, limit: number) =>
       createdAt: contract_milestones.funded_at,
     })
     .from(contract_milestones)
-    .where(sql`${contract_milestones.funded_at} IS NOT NULL`)
+    .innerJoin(contracts, eq(contracts.id, contract_milestones.contract_id))
+    .where(
+      and(
+        sql`${contract_milestones.funded_at} IS NOT NULL`,
+        ne(contracts.status, "CANCELLED"),
+      ),
+    )
     .orderBy(desc(contract_milestones.funded_at), desc(contract_milestones.id))
     .limit(limit);
 

@@ -48,17 +48,38 @@ const isChargeAlreadyRefunded = (error: unknown) =>
   "code" in error &&
   error.code === "charge_already_refunded";
 
-const issueRefund = async (
+interface RefundTarget {
+  checkoutSessionId: string | null;
+  paymentIntentId: string | undefined;
+  amountCents: number | null;
+}
+
+const issueRefund = (
   session: Stripe.Checkout.Session,
   reason: RefundReason,
   cause: string,
+): Promise<void> =>
+  refundTarget(
+    {
+      checkoutSessionId: session.id,
+      paymentIntentId: paymentIntentIdOf(session),
+      amountCents: session.amount_total,
+    },
+    reason,
+    cause,
+  );
+
+const refundTarget = async (
+  target: RefundTarget,
+  reason: RefundReason,
+  cause: string,
 ): Promise<void> => {
-  const paymentIntentId = paymentIntentIdOf(session);
+  const { paymentIntentId } = target;
   const attributes = {
-    "stripe.checkout_session_id": session.id,
+    "stripe.checkout_session_id": target.checkoutSessionId,
     "stripe.payment_intent_id": paymentIntentId ?? null,
     "payment.refund_cause": cause,
-    "payment.amount_cents": session.amount_total,
+    "payment.amount_cents": target.amountCents,
   };
 
   if (!paymentIntentId) {
@@ -135,6 +156,34 @@ export const refundUnfulfillablePayment = async (
     },
   });
   await issueRefund(session, "requested_by_customer", reason);
+};
+
+export const refundContractFirstPayment = async (
+  checkoutSessionId: string | null,
+  storedPaymentIntentId: string | null,
+  cause: "contract_declined" | "contract_withdrawn",
+): Promise<void> => {
+  let paymentIntentId = storedPaymentIntentId ?? undefined;
+  if (!paymentIntentId && checkoutSessionId) {
+    const session = await stripe.checkout.sessions.retrieve(checkoutSessionId);
+    paymentIntentId = paymentIntentIdOf(session);
+  }
+  if (!paymentIntentId) {
+    await logger.error({
+      message: "Payment could not be refunded: payment intent is missing.",
+      eventName: "payment.refund.unavailable",
+      attributes: {
+        "stripe.checkout_session_id": checkoutSessionId,
+        "payment.refund_cause": cause,
+      },
+    });
+    throw new ApiError(502, "The payment could not be refunded.");
+  }
+  await refundTarget(
+    { checkoutSessionId, paymentIntentId, amountCents: null },
+    "requested_by_customer",
+    cause,
+  );
 };
 
 export const logPaymentMismatch = (

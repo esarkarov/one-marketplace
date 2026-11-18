@@ -150,6 +150,17 @@ export const markContractActiveIfPending = (
     .where(and(eq(contracts.id, contractId), eq(contracts.status, "PENDING")))
     .returning({ id: contracts.id });
 
+export const markContractCancelledIfPending = (
+  executor: DbExecutor,
+  contractId: string,
+  now: Date,
+) =>
+  executor
+    .update(contracts)
+    .set({ status: "CANCELLED", updated_at: now })
+    .where(and(eq(contracts.id, contractId), eq(contracts.status, "PENDING")))
+    .returning({ id: contracts.id });
+
 export const markContractCompletedIfActive = (
   executor: DbExecutor,
   contractId: string,

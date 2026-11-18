@@ -39,6 +39,8 @@ describe("apiRouter route walk", () => {
     expect(keys).toContain("GET /ready");
     expect(keys).toContain("POST /agency");
     expect(keys).toContain("PATCH /contracts/:contractId/accept");
+    expect(keys).toContain("PATCH /contracts/:contractId/decline");
+    expect(keys).toContain("PATCH /contracts/:contractId/withdraw");
     for (const mount of mountPaths) {
       expect(
         routes.some((r) => r.path === mount || r.path.startsWith(`${mount}/`)),

@@ -37,7 +37,7 @@ const agencyForbidden = codedError(["AGENCY_PERMISSION_DENIED"]);
 const nullableDateTime = isoDateTime.nullable();
 
 const milestoneStatus = z.enum(["PENDING", "ACTIVE", "COMPLETED"]);
-const contractStatus = z.enum(["PENDING", "ACTIVE", "COMPLETED"]);
+const contractStatus = z.enum(["PENDING", "ACTIVE", "COMPLETED", "CANCELLED"]);
 
 const ContractMilestone = z
   .strictObject({
@@ -95,6 +95,22 @@ export const contractsResponses = {
     403: agencyForbidden,
     404: ErrorBody,
     409: codedError(["CONTRACT_OFFER_NOT_ACCEPTABLE"]),
+  },
+  decline: {
+    200: ok(
+      z.strictObject({ contractId: z.uuid(), status: z.literal("CANCELLED") }),
+    ),
+    403: agencyForbidden,
+    404: ErrorBody,
+    409: codedError(["CONTRACT_NOT_PENDING"]),
+  },
+  withdraw: {
+    200: ok(
+      z.strictObject({ contractId: z.uuid(), status: z.literal("CANCELLED") }),
+    ),
+    403: ErrorBody,
+    404: ErrorBody,
+    409: codedError(["CONTRACT_NOT_PENDING"]),
   },
   submit: {
     200: ok(

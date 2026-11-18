@@ -10,9 +10,10 @@ import {
 } from "../../messaging/index.js";
 import { getJSSContribution } from "../../freelancer/index.js";
 import { getAgencyOwnerId } from "../../agency/index.js";
-import { markJobHired } from "../../jobs/index.js";
+import { markJobHired, releaseJobHire } from "../../jobs/index.js";
 import { markProposalHired } from "../../proposals/index.js";
 import {
+  findContractForCancellation,
   findContractForReview,
   findFundedContractOffer,
   findProposalOfferForContractCreation,
@@ -24,6 +25,7 @@ import {
   insertReview,
   lockContractStatusForUpdate,
   markContractActiveIfPending,
+  markContractCancelledIfPending,
   markContractCompletedIfActive,
   markMilestoneActiveIfFundedAndPending,
   recordAgencyJobCompleted,
@@ -38,6 +40,7 @@ import {
 } from "../repositories/contracts.state.repository.js";
 import {
   logPaymentMismatch,
+  refundContractFirstPayment,
   refundUnfulfillablePayment,
   refundUnrecordedPayment,
 } from "./contracts.checkout.service.js";
@@ -86,6 +89,9 @@ export const finishContractWithReview = async (
   if (!contract) throw new ApiError(404, "Contract not found.");
   if (contract.status === "PENDING") {
     throw new ApiError(409, "This contract has not started yet.");
+  }
+  if (contract.status === "CANCELLED") {
+    throw new ApiError(409, "This contract was cancelled.");
   }
   if (contract.existingReview > 0) throw reviewAlreadySubmitted();
 
@@ -282,6 +288,60 @@ export const acceptContract = async (
   });
 
   return { ...offer, freelancerId };
+};
+
+export type CancelActor =
+  | { kind: "client"; clientId: string }
+  | { kind: "talent"; freelancerId: string; agencyId?: string | null };
+
+const contractNotPending = () =>
+  new ApiError(
+    409,
+    "Only a contract awaiting acceptance can be cancelled.",
+    "CONTRACT_NOT_PENDING",
+  );
+
+export const cancelPendingContract = async (
+  contractId: string,
+  actor: CancelActor,
+) => {
+  const [contract] = await findContractForCancellation(db, {
+    contractId,
+    actor,
+  });
+  if (!contract) throw new ApiError(404, "Funded contract offer not found.");
+
+  const transitioned = await db.transaction(async (transaction) => {
+    const [locked] = await lockContractStatusForUpdate(
+      transaction,
+      contract.id,
+    );
+    if (!locked) throw new ApiError(404, "Funded contract offer not found.");
+    if (locked.status === "CANCELLED") return false;
+    if (locked.status !== "PENDING") throw contractNotPending();
+
+    const [cancelled] = await markContractCancelledIfPending(
+      transaction,
+      contract.id,
+      new Date(),
+    );
+    if (!cancelled) throw contractNotPending();
+
+    await releaseJobHire(transaction, contract.jobId);
+    return true;
+  });
+
+  await refundContractFirstPayment(
+    contract.checkoutSessionId,
+    contract.paymentIntentId,
+    actor.kind === "client" ? "contract_withdrawn" : "contract_declined",
+  );
+
+  return {
+    ...contract,
+    status: "CANCELLED" as const,
+    alreadyCancelled: !transitioned,
+  };
 };
 
 export const createContractFromPayment = async (

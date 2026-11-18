@@ -20,6 +20,7 @@ import {
 import { getAccountContracts } from "../services/contracts.listing.service.js";
 import {
   acceptContract,
+  cancelPendingContract,
   createContractFromPayment,
   finishContractWithReview,
 } from "../services/contracts.lifecycle.service.js";
@@ -173,6 +174,80 @@ export const acceptContractOffer: RequestHandler = asyncHandler(
       success: true,
       message: "Contract offer accepted.",
       data: { contractId: contract.id, status: "ACTIVE" },
+    });
+  },
+);
+
+export const declineContractOffer: RequestHandler = asyncHandler(
+  async (request, response) => {
+    const auth = requireFreelancer(request);
+    const scope = request.query.scope === "agency" ? "agency" : "default";
+    const agencyId =
+      scope === "agency"
+        ? (await requireAgencyPermission(auth.userId, "contract.accept"))
+            .agencyId
+        : null;
+    if (scope === "agency" && !agencyId) {
+      throw new ApiError(403, "No agency account found.");
+    }
+    const contract = await cancelPendingContract(
+      request.params.contractId as string,
+      { kind: "talent", freelancerId: auth.userId, agencyId },
+    );
+
+    if (!contract.alreadyCancelled) {
+      await emitConversationUpdate(contract.conversationId, auth.userId);
+      await sendNotification({
+        recipientId: contract.clientId,
+        type: "CONTRACT_DECLINED",
+        title: "Contract offer declined",
+        message: `Your offer for “${contract.title}” was declined and your payment is being refunded.`,
+        link: `/contracts?contractId=${contract.id}`,
+        metadata: { contractId: contract.id },
+      });
+    }
+    response.status(200).json({
+      success: true,
+      message: contract.alreadyCancelled
+        ? "Contract cancelled."
+        : "Contract offer declined.",
+      data: { contractId: contract.id, status: contract.status },
+    });
+  },
+);
+
+export const withdrawContractOffer: RequestHandler = asyncHandler(
+  async (request, response) => {
+    const auth = requireClient(request);
+    const contract = await cancelPendingContract(
+      request.params.contractId as string,
+      { kind: "client", clientId: auth.userId },
+    );
+
+    if (!contract.alreadyCancelled) {
+      await emitConversationUpdate(contract.conversationId, auth.userId);
+      const content = {
+        type: "CONTRACT_WITHDRAWN",
+        title: "Contract offer withdrawn",
+        message: `The client withdrew the offer for “${contract.title}”.`,
+        link: `/messages?conversationId=${contract.conversationId}`,
+        metadata: { contractId: contract.id },
+      };
+      if (contract.agencyId) {
+        await sendNotification({ agencyId: contract.agencyId, ...content });
+      } else if (contract.freelancerId) {
+        await sendNotification({
+          recipientId: contract.freelancerId,
+          ...content,
+        });
+      }
+    }
+    response.status(200).json({
+      success: true,
+      message: contract.alreadyCancelled
+        ? "Contract cancelled."
+        : "Contract offer withdrawn.",
+      data: { contractId: contract.id, status: contract.status },
     });
   },
 );

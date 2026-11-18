@@ -22,6 +22,7 @@ export const contractStatus = pgEnum("contract_status", [
   "PENDING",
   "ACTIVE",
   "COMPLETED",
+  "CANCELLED",
 ]);
 
 export const contractMilestoneStatus = pgEnum("contract_milestone_status", [

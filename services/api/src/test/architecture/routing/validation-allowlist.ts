@@ -50,6 +50,16 @@ export const bodylessRoutes: readonly ValidationAllowlistEntry[] = [
     reason: "accepts the offer from the path param; no body is read",
   },
   {
+    method: "PATCH",
+    path: "/contracts/:contractId/decline",
+    reason: "declines the offer from the path param; no body is read",
+  },
+  {
+    method: "PATCH",
+    path: "/contracts/:contractId/withdraw",
+    reason: "withdraws the offer from the path param; no body is read",
+  },
+  {
     method: "POST",
     path: "/identity/session",
     reason: "starts an identity session from the account; no body is read",

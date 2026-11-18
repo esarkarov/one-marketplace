@@ -117,7 +117,8 @@ const ProposalItem = z
   })
   .meta({ id: "AdminProposalItem" });
 
-const status = z.enum(["PENDING", "ACTIVE", "COMPLETED"]);
+const milestoneStatus = z.enum(["PENDING", "ACTIVE", "COMPLETED"]);
+const status = z.enum(["PENDING", "ACTIVE", "COMPLETED", "CANCELLED"]);
 
 const ContractMilestoneItem = z
   .strictObject({
@@ -127,7 +128,7 @@ const ContractMilestoneItem = z
     amountCents: cents,
     dueDate: z.iso.date(),
     position: z.number().int().min(0),
-    status,
+    status: milestoneStatus,
     fundedAt: nullableDateTime,
     submissionMessage: z.string().nullable(),
     submissionDeliveryLink: z.string().nullable(),

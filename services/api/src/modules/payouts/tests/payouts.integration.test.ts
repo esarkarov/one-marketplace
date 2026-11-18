@@ -44,7 +44,11 @@ vi.mock(
 
 import { logger } from "../../../config/logger.js";
 import { db, pool } from "../../../database/client.js";
-import { accounts, payout_history } from "../../../test/support/tables.js";
+import {
+  accounts,
+  earning_history,
+  payout_history,
+} from "../../../test/support/tables.js";
 import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
 import { fakeStripeKey } from "../../../test/support/fake-secrets.js";
 import {
@@ -941,6 +945,30 @@ describe("payout flow against real Postgres", () => {
     expect(await findPayoutsByEarning(young.earningId)).toHaveLength(0);
   });
 
+  it("never enqueues a payout for an earning of a cancelled contract", async () => {
+    const cancelled = await data.createPayoutFixture({
+      payout: null,
+      earning: { contractStatus: "CANCELLED" },
+    });
+
+    await processDuePayouts();
+    await processDuePayouts();
+
+    expect(await findPayoutsByEarning(cancelled.earningId)).toHaveLength(0);
+  });
+
+  it("never claims or pays a pending payout of a cancelled contract", async () => {
+    const cancelled = await data.createPayoutFixture({
+      earning: { contractStatus: "CANCELLED" },
+    });
+    const id = cancelled.payoutId!;
+
+    await processDuePayouts();
+
+    expect(stripeCallCount(id)).toBe(0);
+    expect((await readPayout(id))!.status).toBe("PENDING");
+  });
+
   describe("notification sweep", () => {
     it("notifies a PAID row with notified_at NULL exactly once with the deterministic event id", async () => {
       const fixture = await data.createPayoutFixture({
@@ -1730,6 +1758,40 @@ describe("payout flow against real Postgres", () => {
         expect(payoutRowIds.has(set.pending)).toBe(false);
         expect(payoutRowIds.has(set.failed)).toBe(false);
       }
+    });
+
+    it("excludes a cancelled contract from admin totals and funded transactions", async () => {
+      const before = await getAdminOverviewTotals();
+
+      const cancelled = await data.createPayoutFixture({
+        payout: null,
+        earning: { amountCents: 7000, contractStatus: "CANCELLED" },
+      });
+      const [earning] = await db
+        .select({
+          contractId: earning_history.contract_id,
+          milestoneId: earning_history.milestone_id,
+        })
+        .from(earning_history)
+        .where(eq(earning_history.id, cancelled.earningId));
+
+      const after = await getAdminOverviewTotals();
+      expect(after.totals.contracts).toBe(before.totals.contracts);
+      expect(after.totals.activeContracts).toBe(before.totals.activeContracts);
+      expect(after.volume.totalContractValueCents).toBe(
+        before.volume.totalContractValueCents,
+      );
+
+      const transactions = await getAdminTransactions({
+        limit: 200,
+        offset: 0,
+      });
+      expect(
+        transactions.results.some(
+          (row) =>
+            row.type === "MILESTONE_FUNDED" && row.id === earning!.milestoneId,
+        ),
+      ).toBe(false);
     });
   });
 });

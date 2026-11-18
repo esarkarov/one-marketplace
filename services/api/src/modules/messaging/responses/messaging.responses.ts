@@ -90,7 +90,9 @@ const Conversation = z
     lastAttachmentName: z.string().nullable(),
     jobTitle: z.string().nullable(),
     contractId: z.uuid().nullable(),
-    contractStatus: z.enum(["PENDING", "ACTIVE", "COMPLETED"]).nullable(),
+    contractStatus: z
+      .enum(["PENDING", "ACTIVE", "COMPLETED", "CANCELLED"])
+      .nullable(),
     participants: z.array(Participant),
     activeMeeting: ActiveMeeting.nullable(),
   })

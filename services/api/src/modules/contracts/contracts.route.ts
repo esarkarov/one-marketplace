@@ -4,6 +4,8 @@ import { validate } from "../../middleware/validate/validate.middleware.js";
 import {
   contractWebhook,
   acceptContractOffer,
+  declineContractOffer,
+  withdrawContractOffer,
   getClientContracts,
   getFreelancerContracts,
   startContractCheckout,
@@ -59,6 +61,26 @@ contractsRouter.patch(
     responses: contractsResponses.accept,
   }),
   acceptContractOffer,
+);
+contractsRouter.patch(
+  "/:contractId/decline",
+  isAuthenticated,
+  validate({
+    params: contractIdParamsSchema,
+    query: scopeQuerySchema,
+    responses: contractsResponses.decline,
+  }),
+  declineContractOffer,
+);
+contractsRouter.patch(
+  "/:contractId/withdraw",
+  isAuthenticated,
+  validate({
+    params: contractIdParamsSchema,
+    query: roleOnlyQuerySchema,
+    responses: contractsResponses.withdraw,
+  }),
+  withdrawContractOffer,
 );
 contractsRouter.patch(
   "/:contractId/milestones/:milestoneId/submit",

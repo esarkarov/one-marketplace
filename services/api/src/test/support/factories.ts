@@ -179,7 +179,12 @@ export const createTestData = (prefix: string = TEST_PREFIX) => {
 
   const createEarning = async (
     owner: Owner,
-    options: { amountCents?: number; feeCents?: number; ageMs?: number } = {},
+    options: {
+      amountCents?: number;
+      feeCents?: number;
+      ageMs?: number;
+      contractStatus?: "CANCELLED";
+    } = {},
   ) => {
     const amountCents = options.amountCents ?? 11000;
     const clientId = await ensureClient();
@@ -223,6 +228,7 @@ export const createTestData = (prefix: string = TEST_PREFIX) => {
         agency_id: owner.agencyId ?? null,
         title: "Integration contract",
         total_amount_cents: amountCents,
+        ...(options.contractStatus ? { status: options.contractStatus } : {}),
       })
       .returning({ id: contracts.id });
     created.contractIds.push(contract!.id);
@@ -235,6 +241,7 @@ export const createTestData = (prefix: string = TEST_PREFIX) => {
         amount_cents: amountCents,
         due_date: "2026-01-01",
         position: 0,
+        ...(options.contractStatus ? { funded_at: new Date() } : {}),
       })
       .returning({ id: contract_milestones.id });
 
@@ -296,7 +303,12 @@ export const createTestData = (prefix: string = TEST_PREFIX) => {
       owner?: "freelancer" | "agency";
       connectAccount?: boolean;
       payout?: PayoutSeed | null;
-      earning?: { amountCents?: number; feeCents?: number; ageMs?: number };
+      earning?: {
+        amountCents?: number;
+        feeCents?: number;
+        ageMs?: number;
+        contractStatus?: "CANCELLED";
+      };
     } = {},
   ) => {
     const isAgency = options.owner === "agency";

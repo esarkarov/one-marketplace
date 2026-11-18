@@ -162,6 +162,15 @@ export const markJobHired = async (executor: DbExecutor, jobId: string) => {
   return job;
 };
 
+export const releaseJobHire = async (executor: DbExecutor, jobId: string) => {
+  const [job] = await executor
+    .update(job_posts)
+    .set({ status: "PUBLISHED", updated_at: new Date() })
+    .where(and(eq(job_posts.id, jobId), eq(job_posts.status, "HIRED")))
+    .returning({ id: job_posts.id });
+  return job;
+};
+
 export const findPublishedJobId = async (
   executor: DbExecutor,
   jobId: string,

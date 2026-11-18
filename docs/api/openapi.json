@@ -138,7 +138,7 @@
             ]
           },
           "status": {
-            "enum": ["PENDING", "ACTIVE", "COMPLETED"],
+            "enum": ["PENDING", "ACTIVE", "COMPLETED", "CANCELLED"],
             "type": "string"
           },
           "talentAvatarUrl": {
@@ -2496,7 +2496,7 @@
             ]
           },
           "status": {
-            "enum": ["PENDING", "ACTIVE", "COMPLETED"],
+            "enum": ["PENDING", "ACTIVE", "COMPLETED", "CANCELLED"],
             "type": "string"
           },
           "title": {
@@ -4749,7 +4749,7 @@
           "contractStatus": {
             "anyOf": [
               {
-                "enum": ["PENDING", "ACTIVE", "COMPLETED"],
+                "enum": ["PENDING", "ACTIVE", "COMPLETED", "CANCELLED"],
                 "type": "string"
               },
               {
@@ -14123,6 +14123,222 @@
         "tags": ["Contracts"]
       }
     },
+    "/api/v1/contracts/{contractId}/decline": {
+      "patch": {
+        "operationId": "contracts_patch_by_contract_id_decline",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contractId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "role",
+            "required": true,
+            "schema": {
+              "enum": ["client", "freelancer"],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "scope",
+            "required": false,
+            "schema": {
+              "enum": ["agency", "default"],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "contractId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "status": {
+                          "const": "CANCELLED",
+                          "type": "string"
+                        }
+                      },
+                      "required": ["contractId", "status"],
+                      "type": "object"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "success": {
+                      "const": true,
+                      "type": "boolean"
+                    }
+                  },
+                  "required": ["success", "message", "data"],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorBody"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        "BAD_REQUEST",
+                        "UNAUTHORIZED",
+                        "FORBIDDEN",
+                        "NOT_FOUND",
+                        "CONFLICT",
+                        "PAYLOAD_TOO_LARGE",
+                        "UNSUPPORTED_MEDIA_TYPE",
+                        "LOCKED",
+                        "RATE_LIMITED",
+                        "INTERNAL_ERROR",
+                        "SERVICE_UNAVAILABLE",
+                        "AGENCY_PERMISSION_DENIED"
+                      ],
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "maxLength": 64,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "success": {
+                      "const": false,
+                      "type": "boolean"
+                    }
+                  },
+                  "required": ["success", "message", "code", "requestId"],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        "BAD_REQUEST",
+                        "UNAUTHORIZED",
+                        "FORBIDDEN",
+                        "NOT_FOUND",
+                        "CONFLICT",
+                        "PAYLOAD_TOO_LARGE",
+                        "UNSUPPORTED_MEDIA_TYPE",
+                        "LOCKED",
+                        "RATE_LIMITED",
+                        "INTERNAL_ERROR",
+                        "SERVICE_UNAVAILABLE",
+                        "CONTRACT_NOT_PENDING"
+                      ],
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "maxLength": 64,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "success": {
+                      "const": false,
+                      "type": "boolean"
+                    }
+                  },
+                  "required": ["success", "message", "code", "requestId"],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RateLimitBody"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalErrorBody"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "clerkBearer": []
+          }
+        ],
+        "tags": ["Contracts"]
+      }
+    },
     "/api/v1/contracts/{contractId}/finish": {
       "post": {
         "operationId": "contracts_post_by_contract_id_finish",
@@ -15169,6 +15385,180 @@
                         "INTERNAL_ERROR",
                         "SERVICE_UNAVAILABLE",
                         "MILESTONE_NOT_SUBMITTABLE"
+                      ],
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "maxLength": 64,
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "success": {
+                      "const": false,
+                      "type": "boolean"
+                    }
+                  },
+                  "required": ["success", "message", "code", "requestId"],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RateLimitBody"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalErrorBody"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          }
+        },
+        "security": [
+          {
+            "clerkBearer": []
+          }
+        ],
+        "tags": ["Contracts"]
+      }
+    },
+    "/api/v1/contracts/{contractId}/withdraw": {
+      "patch": {
+        "operationId": "contracts_patch_by_contract_id_withdraw",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contractId",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "role",
+            "required": true,
+            "schema": {
+              "enum": ["client", "freelancer"],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "contractId": {
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "type": "string"
+                        },
+                        "status": {
+                          "const": "CANCELLED",
+                          "type": "string"
+                        }
+                      },
+                      "required": ["contractId", "status"],
+                      "type": "object"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "success": {
+                      "const": true,
+                      "type": "boolean"
+                    }
+                  },
+                  "required": ["success", "message", "data"],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorBody"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "code": {
+                      "enum": [
+                        "BAD_REQUEST",
+                        "UNAUTHORIZED",
+                        "FORBIDDEN",
+                        "NOT_FOUND",
+                        "CONFLICT",
+                        "PAYLOAD_TOO_LARGE",
+                        "UNSUPPORTED_MEDIA_TYPE",
+                        "LOCKED",
+                        "RATE_LIMITED",
+                        "INTERNAL_ERROR",
+                        "SERVICE_UNAVAILABLE",
+                        "CONTRACT_NOT_PENDING"
                       ],
                       "type": "string"
                     },

@@ -404,6 +404,53 @@ export const findFundedContractOffer = (
     )
     .limit(1);
 
+export const findContractForCancellation = (
+  executor: DbExecutor,
+  input: {
+    contractId: string;
+    actor:
+      | { kind: "client"; clientId: string }
+      | { kind: "talent"; freelancerId: string; agencyId?: string | null };
+  },
+) =>
+  executor
+    .select({
+      id: contracts.id,
+      jobId: contracts.job_id,
+      title: contracts.title,
+      status: contracts.status,
+      clientId: contracts.client_id,
+      freelancerId: contracts.freelancer_id,
+      agencyId: contracts.agency_id,
+      conversationId: conversations.id,
+      checkoutSessionId: contract_milestones.stripe_checkout_session_id,
+      paymentIntentId: contract_milestones.stripe_payment_intent_id,
+    })
+    .from(contracts)
+    .innerJoin(
+      conversations,
+      eq(conversations.proposal_id, contracts.proposal_id),
+    )
+    .innerJoin(
+      contract_milestones,
+      and(
+        eq(contract_milestones.contract_id, contracts.id),
+        eq(contract_milestones.position, 0),
+        isNotNull(contract_milestones.funded_at),
+      ),
+    )
+    .where(
+      and(
+        eq(contracts.id, input.contractId),
+        input.actor.kind === "client"
+          ? eq(contracts.client_id, input.actor.clientId)
+          : input.actor.agencyId
+            ? eq(contracts.agency_id, input.actor.agencyId)
+            : eq(contracts.freelancer_id, input.actor.freelancerId),
+      ),
+    )
+    .limit(1);
+
 export const findProposalOfferForContractCreation = (
   executor: DbExecutor,
   proposalId: string,

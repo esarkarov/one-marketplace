@@ -1,0 +1,1 @@
+ALTER TYPE "public"."contract_status" ADD VALUE 'CANCELLED';
