@@ -2,6 +2,8 @@
 
 Status: accepted (Stage 5b). Supersedes the "Amounts" parts of ADR 0005.
 
+File paths in this ADR predate the module refactor; current locations are in docs/architecture.md.
+
 ## Context
 
 Money was `numeric(p,2)` in Postgres and a JavaScript float in code. Fees used `Math.round(gross * 0.1 * 100) / 100`, which rounds exact half-cent ties down. Over gross values of 1 to 20,000,000 cents, 52,428 (0.26%) differ from half-up rounding, for example 35 cents gives a fee of 3 instead of 4. Dollar values were also stored in JSON (`job_posts.milestones[].budget`, `messages.event_payload.amount`, `notifications.metadata.amount`) and in RabbitMQ notification events.

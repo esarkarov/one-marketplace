@@ -2,6 +2,8 @@
 
 Status: accepted (Stage 5d). Extends the Stage 5c pattern (meeting end, milestone review). Does not change ADR 0005.
 
+File paths in this ADR predate the module refactor; current locations are in docs/architecture.md.
+
 ## Context
 
 Several status changes in `contracts.service.ts` and `meetings.service.ts` read a row, decided in JavaScript, then updated by id only. Two requests could both pass the read and both write: a second submit or finish worked on a stale state, a milestone could be added to a contract that was finishing, and two `startMeeting` calls could create two ACTIVE meetings. Races surfaced as 500s or as corrupted state.

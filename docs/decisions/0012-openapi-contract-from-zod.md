@@ -2,6 +2,8 @@
 
 Status: accepted (Stage 9b).
 
+File paths in this ADR predate the module refactor; current locations are in docs/architecture.md.
+
 ## Context
 
 ADR 0011 attached request schemas to every route and left room for OpenAPI generation. No app calls the API yet, so the frontends need a written contract before wiring. The contract must come from the same zod schemas the server enforces, so it cannot drift from the code.
@@ -12,7 +14,7 @@ Mechanism:
 - `src/utils/response-schemas.ts` holds shared schemas: `ok`, `okNoData`, `isoDateTime`, `cents`, `offsetPage`, `cursorPage`, `ErrorBody`, `ValidationErrorBody`, `BadRequestBody` (union of the two), `InternalErrorBody`, `RateLimitBody`.
 - Each module has `src/modules/<name>/<name>.responses.ts`. Component ids are prefixed by module so two modules cannot register different definitions under one id (the generator throws on a clash).
 - The registry test (`src/test/architecture/routing/route-validation-check.test.ts`) fails when a route has no 2xx entry in `responses`, unless it is allowlisted.
-- `src/openapi/contract-allowlist.ts` has three lists, each entry with `method`, `path` and a required `reason`: `rawBodyWebhooks` (4: connects, contracts, identity, meetings), `eventStreams` (2: `GET /notifications/stream`, `GET /admin/logs/stream`) and `untestedRoutes` (empty). A route in `untestedRoutes` still declares `responses` and is only skipped by the contract test.
+- `src/openapi/introspection/contract-allowlist.ts` has three lists, each entry with `method`, `path` and a required `reason`: `rawBodyWebhooks` (4: connects, contracts, identity, meetings), `eventStreams` (2: `GET /notifications/stream`, `GET /admin/logs/stream`) and `untestedRoutes` (empty). A route in `untestedRoutes` still declares `responses` and is only skipped by the contract test.
 - Generator: `src/openapi/{build-spec,convert-schema,schema-walk,document,generate}.ts`. `build-spec.ts` walks the registered routes and builds the document; `convert-schema.ts` wraps `z.toJSONSchema`; `schema-walk.ts` has the JSON helpers, key sorting, the formatter and the empty-schema check; `document.ts` resolves the output path and mount paths; `generate.ts` is the script.
 
 Generation rules:
@@ -150,7 +152,7 @@ The open items of ADR 0011 were marked Done; this ADR is where they are tracked 
 - The spec documents the current inconsistencies; fixing them later changes the committed spec in the same diff.
 - Adding a route:
   1. Declare `params`, `query`, `body` and `responses` (with a 2xx entry) in `validate`, with the schemas in `<name>.schemas.ts` and `<name>.responses.ts`.
-  2. Add a contract test that parses real responses with those schemas. Allowlist only raw-body webhooks and event streams, with a reason, in `src/openapi/contract-allowlist.ts`.
+  2. Add a contract test that parses real responses with those schemas. Allowlist only raw-body webhooks and event streams, with a reason, in `src/openapi/introspection/contract-allowlist.ts`.
   3. Run `pnpm --filter @onemarketplace/api openapi:generate`.
   4. Commit the regenerated `docs/api/openapi.json`.
 - Typed-client generation from the spec is out of scope for now.

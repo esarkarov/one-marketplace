@@ -1,4 +1,4 @@
-import { timingSafeEqual } from "crypto";
+import { createHash, timingSafeEqual } from "node:crypto";
 import { RequestHandler } from "express";
 import { asyncHandler } from "../../../middleware/utils/async-handler.utils.js";
 import { ApiError } from "../../../shared/errors/api-error.js";
@@ -29,14 +29,10 @@ const parsePagination = (
   offset: Number(request.query.offset),
 });
 
-const passwordsMatch = (provided: string, expected: string) => {
-  const providedBuffer = Buffer.from(provided);
-  const expectedBuffer = Buffer.from(expected);
-  return (
-    providedBuffer.length === expectedBuffer.length &&
-    timingSafeEqual(providedBuffer, expectedBuffer)
-  );
-};
+const digest = (value: string) => createHash("sha256").update(value).digest();
+
+const passwordsMatch = (provided: string, expected: string) =>
+  timingSafeEqual(digest(provided), digest(expected));
 
 export const loginAdminHandler: RequestHandler = asyncHandler(
   async (request, response) => {

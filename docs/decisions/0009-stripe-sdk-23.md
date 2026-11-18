@@ -2,6 +2,8 @@
 
 Status: accepted (Stage 7). Supersedes Dependabot PRs #3 and #6.
 
+File paths in this ADR predate the module refactor; current locations are in docs/architecture.md.
+
 ## Context
 
 `services/api` used `stripe` 22.6.2 and never sets `apiVersion`, so the SDK's built-in default applies. Major 23.0.0 moves that default from `2026-08-26.dahlia` to `2026-09-30.endive`.

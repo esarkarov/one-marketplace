@@ -180,3 +180,7 @@ The `AGENTS.md` wording on RabbitMQ (optional, enabled by `RABBITMQ_URL`) is cor
 - Table-write ownership is enforced (ADR 0014 sections 9 and 11); cross-module writes moved to owner functions and the allowlist has no writes.
 - The layer table is a proposal derived from today's graph. Phase C may adjust it, in the same PR as the code.
 - Dependency direction on `database/` and `types/` is checked, but a shared-table read is still allowed; it is not a boundary violation under this ADR.
+
+## Clarification (2026-11-19)
+
+Table definition files (`modules/<name>/models/<name>.model.ts`) are exempt from the module-boundary, module-layer and module-cycle rules in `import-boundaries.test.ts` (`isTableFile`), so a repository may import another module's table file whatever the layers. Cross-module table reads are governed by `table-access-allowlist.ts` and `table-access.test.ts` (ADR 0014 sections 9 and 11), which also fail any cross-module write. No rule changed; this records what the test already does.

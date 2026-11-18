@@ -2,6 +2,8 @@
 
 Status: accepted
 
+File paths in this ADR predate the module refactor; current locations are in docs/architecture.md.
+
 ## Context
 
 State of the code BEFORE this change (the line references below describe that code, not the current code):

@@ -2,6 +2,8 @@
 
 Status: accepted (Stage 8). Closes finding M8 of ADR 0008.
 
+File paths in this ADR predate the module refactor; current locations are in docs/architecture.md.
+
 ## Context
 
 `agency_members.role` is free text (NOT NULL, no CHECK, no default). The code writes "Founder" for the owner's member row, "Agency member" as the invite default and "Business manager" when the owner chooses it. Before this stage any member row was enough to send proposals, spend Connects, accept and finish contracts and read earnings and invitee emails. Only team management, the payout link and profile edit were owner-only.

@@ -77,6 +77,43 @@ describe("admin login session token", () => {
     adminResponses.login[401].parse(response.body);
   });
 
+  it("answers every wrong password with the same 401 body regardless of length", async () => {
+    const sameLength = "x".repeat(PASSWORD.length);
+    const wrongPasswords = [
+      sameLength,
+      PASSWORD.slice(0, -1),
+      PASSWORD.slice(0, 3),
+      `${PASSWORD}-and-more`,
+      "a".repeat(500),
+    ];
+
+    const bodies = [];
+    for (const password of wrongPasswords) {
+      const response = await login(password);
+      expect(response.status).toBe(401);
+      bodies.push({ ...response.body, requestId: undefined });
+    }
+
+    for (const body of bodies) {
+      expect(body).toEqual(bodies[0]);
+    }
+    expect(bodies[0]).toMatchObject({
+      success: false,
+      message: "Incorrect password.",
+    });
+  });
+
+  it("treats an empty password like any other wrong password", async () => {
+    const response = await login("");
+
+    expect(response.status).toBe(401);
+    expect(response.body).toMatchObject({
+      success: false,
+      message: "Incorrect password.",
+    });
+    expect(JSON.stringify(response.body)).not.toContain("token");
+  });
+
   it("returns a token the real admin guard accepts", async () => {
     const before = Date.now();
     const response = await login(PASSWORD);

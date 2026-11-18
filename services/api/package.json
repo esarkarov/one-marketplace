@@ -13,7 +13,7 @@
     "build": "node node_modules/@typescript/native/bin/tsc -p tsconfig.build.json --noEmit false",
     "start": "node --env-file-if-exists=../../.env dist/server.js",
     "lint": "eslint",
-    "typecheck": "node node_modules/@typescript/native/bin/tsc --noEmit",
+    "typecheck": "node node_modules/@typescript/native/bin/tsc --noEmit && node node_modules/@typescript/native/bin/tsc --noEmit -p tsconfig.scripts.json",
     "test": "vitest run",
     "test:quiet": "vitest run --reporter=dot",
     "test:watch": "vitest",
