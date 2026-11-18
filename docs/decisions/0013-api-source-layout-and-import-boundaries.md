@@ -159,13 +159,13 @@ Supersedes the `shared/http` grouping in ADR 0014 section 2. `src/middleware/` h
 
 ## Lifecycle hardening (Stage 11)
 
-Items 1 to 4 are fixed; item 5 is still open. They change process startup and shutdown only: no request path, API contract, OpenAPI output or schema changed.
+Items 1 to 5 are fixed. They change process startup and shutdown only: no request path, API contract, OpenAPI output or schema changed.
 
 1. Fixed. `payouts.cron.ts` tracks the in-flight run and exposes `waitForPayoutRun`. Shutdown stops the cron (no new runs), waits for a run in flight for at most `PAYOUT_DRAIN_TIMEOUT_MS` (`SHUTDOWN_TIMEOUT_MS` minus two connection grace periods, so it ends before the forced exit), logs a warning if it times out and continues, and only then runs the later steps, ending with `pool.end()`.
 2. Fixed. `bootstrap/crash-handlers.ts` registers `unhandledRejection` and `uncaughtException` once, from `server.ts` only (never on import). Each logs `system.crash` at fatal level with `errorLogAttributes`, starts the same graceful `shutdown` and exits non-zero. A crash during shutdown is logged and marks the exit non-zero without starting a second shutdown; the existing forced-exit timer ends the process.
 3. Fixed. `start.ts` waits for `listen` to succeed. A listen error (`EADDRINUSE` and similar) rejects `start`, so `handleStartupFailure` logs and exits 1; an error after listening goes to the crash handler as `serverError`. The notification consumer, messaging socket and payout cron start only after the server is listening, in that order.
 4. Fixed. `start.ts` calls `pingDatabase` (health module, exported through `modules/health/index.ts`) before Redis, RabbitMQ or listening; a failure follows the startup failure path and exits 1 without starting cron or sockets.
-5. Open. SSE streams (notifications, admin) have no close function and are cut by `closeAllConnections` after 3 s.
+5. Fixed. `middleware/utils/sse-streams.utils.ts` registers open SSE responses (the notifications stream; `/admin/logs/stream` never streams and answers 503); shutdown stops listening, sends `retry: 1000` and `event: shutdown` to every stream and ends it before the payout drain and the grace period, and new SSE requests get 503 with `Retry-After: 1`.
 
 The `AGENTS.md` wording on RabbitMQ (optional, enabled by `RABBITMQ_URL`) is correct (ADR 0004).
 
