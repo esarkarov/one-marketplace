@@ -4,17 +4,17 @@ packages:
   - packages/*
 
 catalog:
-  next: 16.4.5
+  next: 16.4.6
   react: 19.3.1
   react-dom: 19.3.1
-  eslint-config-next: 16.4.5
+  eslint-config-next: 16.4.6
   "@iconify/react": ^6.0.4
-  react-hook-form: ^7.91.0
+  react-hook-form: ^7.92.0
   tailwindcss: ^4.3.5
   "@tailwindcss/postcss": ^4.3.5
   typescript: npm:@typescript/typescript6@^6.0.2
   "@typescript/native": npm:typescript@^7.0.2
-  eslint: ^10.14.0
+  eslint: ^10.15.0
   "@types/node": ^26
   "@types/react": ^19.3.0
   "@types/react-dom": ^19.3.0
@@ -24,3 +24,7 @@ allowBuilds:
   sharp: true
 
 minimumReleaseAge: 1440
+
+overrides:
+  "@typescript-eslint/typescript-estree>minimatch": ^11.0.5
+  "@esbuild-kit/core-utils>esbuild": ^0.25.12

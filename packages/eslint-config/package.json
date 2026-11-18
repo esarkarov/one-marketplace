@@ -7,14 +7,12 @@
     "./next": "./next.mjs",
     "./node": "./node.mjs"
   },
-  "dependencies": {
-    "eslint-config-next": "catalog:",
-    "eslint-config-prettier": "^10.1.8",
-    "typescript-eslint": "8.72.1"
-  },
   "devDependencies": {
     "eslint": "catalog:",
-    "typescript": "catalog:"
+    "eslint-config-next": "catalog:",
+    "eslint-config-prettier": "^10.1.8",
+    "typescript": "catalog:",
+    "typescript-eslint": "8.72.2"
   },
   "peerDependencies": {
     "eslint": "^10.0.0",
