@@ -105,7 +105,7 @@ These are documented, not fixed.
 ## Backlog (not fixed in this stage)
 
 - Agency connects checkout bills the requester's Stripe customer instead of the owner's. Product decision for the Stripe verification stage.
-- Admin login returns no session token. Check how the admin app authenticates before wiring.
+- Resolved: admin login now returns `data.token` and `data.expiresAt` (a two-hour `<expiresAtMs>.<hmac>` token signed with `ADMIN_SESSION_SECRET`, verified by the admin session guard).
 - `hasMore` off-by-one: `rows.length === limit` is a false positive on an exactly full last page. Fix with the `limit + 1` pattern; messaging already does it.
 - The freelancer Connects checkout `success_url` has the typo `payment=succes` (`connects.service.ts:254`); the agency one is spelled correctly.
 - `BadRequestBody` is a union that is functionally `ErrorBody`.
@@ -132,7 +132,7 @@ A schema is verified when a `*.contract.test.ts` parses a real response with it.
 ## Review follow-ups
 
 1. `POST /auth/sign-up` is documented with `clerkBearer` through `CONTROLLER_AUTH_OVERRIDES`; the controller authenticates the token itself. No other HTTP controller does (the messaging socket uses `authenticateAccount` outside HTTP).
-2. Admin login declares 401 (wrong password) and 503 (admin auth not configured); the `adminSession` scheme describes the token format instead of claiming login returns it.
+2. Admin login declares 401 (wrong password) and 503 (admin auth not configured); the `adminSession` scheme describes the token format, which login now returns as `data.token` with `data.expiresAt`.
 3. `role` is required on Clerk-secured operations that declare it, and the cross-cutting 400 is noted above.
 4. Contract tests for contracts client and freelancer lists assert the expected length instead of only parsing.
 
