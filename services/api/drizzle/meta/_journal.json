@@ -36,6 +36,13 @@
       "when": 1795004020897,
       "tag": "0004_whole_loners",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1795007550817,
+      "tag": "0005_searchable_text",
+      "breakpoints": true
     }
   ]
 }

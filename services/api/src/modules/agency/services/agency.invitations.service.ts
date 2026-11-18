@@ -1,5 +1,5 @@
 import { toApiMemberRole } from "../constants/agency.constants.js";
-import { clerk } from "../../../infrastructure/auth/clerk.client.js";
+import { syncAccountDisplay } from "../../auth/index.js";
 import {
   fetchSize,
   toOffsetPage,
@@ -8,7 +8,6 @@ import { db } from "../../../database/client.js";
 import { isUniqueViolation } from "../../../database/pg-errors.js";
 import { ApiError } from "../../../shared/errors/api-error.js";
 import type { DbExecutor } from "../../../database/database.types.js";
-import { env } from "../../../config/env.js";
 import { logger } from "../../../config/logger.js";
 import { errorLogAttributes } from "../../../shared/logging/sanitize-log.js";
 import { sendNotification } from "../../../infrastructure/events/notification.publisher.js";
@@ -271,17 +270,8 @@ export const respondToAgencyInvitation = async (
 
   const ownerId = await getAgencyOwnerId(invitation.agencyId);
   if (ownerId) {
-    let responderName = account.email;
-    if (env.clerkSecretKey) {
-      try {
-        const user = await clerk.users.getUser(userId);
-        responderName =
-          [user.firstName, user.lastName].filter(Boolean).join(" ") ||
-          account.email;
-      } catch {
-        // Clerk lookup is best-effort — fall back to the email already on hand.
-      }
-    }
+    const { displayName } = await syncAccountDisplay(userId);
+    const responderName = displayName ?? account.email;
 
     await sendNotification({
       agencyId: invitation.agencyId,

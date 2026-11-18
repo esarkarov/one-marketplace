@@ -1,0 +1,1 @@
+export const CLERK_DISPLAY_SYNC_TIMEOUT_MS = 2000;

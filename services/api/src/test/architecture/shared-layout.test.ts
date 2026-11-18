@@ -12,6 +12,7 @@ const SHARED_FOLDERS = [
   "logging",
   "money",
   "responses",
+  "search",
   "uploads",
   "validation",
 ];

@@ -2,6 +2,7 @@ import { db } from "../../../database/client.js";
 import {
   findAccountIdByAuthId,
   markFreelancerOnboardingComplete,
+  syncAccountDisplay,
 } from "../../auth/index.js";
 import {
   deletePortfoliosOfFreelancer,
@@ -42,6 +43,7 @@ import {
   toFreelancerProfileSavedResponse,
 } from "../utils/freelancer.mappers.js";
 import { getJSSContribution } from "./freelancer.jobs.service.js";
+import { buildFreelancerSearchFields } from "../utils/freelancer.search-text.js";
 
 export const getFreelancerProfile = async (
   userId: string,
@@ -217,6 +219,8 @@ export const saveFreelancerProfile = async (
     resolvedPortfolios,
   );
 
+  const { displayName } = await syncAccountDisplay(input.userId);
+
   let profile: FreelancerProfileData;
 
   try {
@@ -254,6 +258,13 @@ export const saveFreelancerProfile = async (
         experience_level: input.experience_level,
         skills: input.skills,
         languages: input.languages,
+        ...buildFreelancerSearchFields({
+          displayName,
+          professionalTitle: input.professional_title,
+          city,
+          country,
+          skills: input.skills,
+        }),
       };
 
       const metadata = await upsertFreelancerMetadata(

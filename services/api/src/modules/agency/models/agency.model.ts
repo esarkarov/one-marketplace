@@ -27,6 +27,7 @@ export const agency_metadata = pgTable("agency_metadata", {
     url: string;
   }>(),
   is_onboarded: boolean("is_onboarded").notNull().default(false),
+  search_text: text("search_text").notNull().default(""),
   stripe_connect_account_id: text("stripe_connect_account_id"),
   created_at: timestamp("created_at", { withTimezone: true })
     .defaultNow()

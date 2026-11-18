@@ -10,6 +10,7 @@ import { toSafeCents } from "../../../shared/money/money.js";
 import {
   markClientOnboardingComplete,
   setStripeCustomerId,
+  syncAccountDisplay,
 } from "../../auth/index.js";
 import {
   countJobsOfClient,
@@ -61,6 +62,8 @@ export const getClientProfile = async (
 export const saveClientProfile = async (
   input: SaveClientProfileInput,
 ): Promise<ClientProfileData> => {
+  await syncAccountDisplay(input.userId);
+
   const now = new Date();
 
   const profile = await db.transaction(async (transaction) => {

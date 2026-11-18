@@ -5,6 +5,7 @@ import {
   findAccountIdByAuthId,
   insertAccountIfAbsent,
 } from "../repositories/auth.repository.js";
+import { toAccountDisplay } from "./auth.display.service.js";
 import { invalidateAccountAuthCache } from "../../../infrastructure/cache/account-auth.cache.js";
 
 interface SignupInput {
@@ -49,11 +50,14 @@ export const receiveSignup = async (
   }
 
   const now = new Date();
+  const display = toAccountDisplay(user);
 
   await insertAccountIfAbsent(db, {
     userId: input.userId,
     email,
     role: toDatabaseRole(input.role),
+    displayName: display.displayName,
+    avatarUrl: display.avatarUrl,
     now,
   });
 

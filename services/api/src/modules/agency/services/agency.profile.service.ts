@@ -1,5 +1,7 @@
 import { toApiMemberRole } from "../constants/agency.constants.js";
 import { randomUUID } from "crypto";
+import { syncAccountDisplay } from "../../auth/index.js";
+import { buildAgencySearchText } from "../utils/agency.search-text.js";
 import { clerk } from "../../../infrastructure/auth/clerk.client.js";
 import { db } from "../../../database/client.js";
 import { isUniqueViolation } from "../../../database/pg-errors.js";
@@ -290,6 +292,8 @@ export const createAgency = async (
     throw alreadyInAgencyError(ALREADY_IN_AGENCY_MESSAGE);
   }
 
+  await syncAccountDisplay(input.ownerId);
+
   const now = new Date();
 
   let created;
@@ -302,6 +306,12 @@ export const createAgency = async (
         specialty: input.specialty,
         website: input.website || null,
         overview: input.overview,
+        searchText: buildAgencySearchText({
+          name: input.name,
+          professionalTitle: null,
+          specialty: input.specialty,
+          tags: [],
+        }),
         now,
       });
 
@@ -422,6 +432,8 @@ export const updateAgencyProfile = async (
     },
   );
 
+  await syncAccountDisplay(input.ownerId);
+
   let result: Omit<
     AgencyData,
     | "ownerLocation"
@@ -445,6 +457,12 @@ export const updateAgencyProfile = async (
           website: input.website || null,
           overview: input.overview,
           tags: input.tags,
+          search_text: buildAgencySearchText({
+            name: input.name,
+            professionalTitle: input.professionalTitle,
+            specialty: input.specialty,
+            tags: input.tags,
+          }),
           avatar_image: avatarImage ?? existing.avatarImage,
           is_onboarded: true,
           updated_at: new Date(),

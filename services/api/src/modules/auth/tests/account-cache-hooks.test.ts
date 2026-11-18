@@ -91,9 +91,12 @@ beforeEach(() => {
   mocks.failInsert = false;
   mocks.invalidate.mockReset();
   mocks.getUser.mockReset();
-  mocks.getUser.mockResolvedValue({
-    primaryEmailAddress: { emailAddress: "user@example.com" },
-    emailAddresses: [],
+  mocks.getUser.mockImplementation(async () => {
+    mocks.events.push("clerk");
+    return {
+      primaryEmailAddress: { emailAddress: "user@example.com" },
+      emailAddresses: [],
+    };
   });
 });
 
@@ -108,7 +111,7 @@ describe("receiveSignup", () => {
   it("invalidates the auth cache after the account is inserted", async () => {
     await receiveSignup(input);
 
-    expect(mocks.events).toEqual(["insert", "invalidate"]);
+    expect(mocks.events).toEqual(["clerk", "insert", "invalidate"]);
     expect(mocks.invalidate).toHaveBeenCalledWith("user_1");
   });
 
@@ -146,9 +149,27 @@ describe("saveClientProfile", () => {
 
     const profile = await saveClientProfile(input);
 
-    expect(mocks.events).toEqual(["tx:start", "tx:commit", "invalidate"]);
+    expect(mocks.events).toEqual([
+      "clerk",
+      "tx:start",
+      "tx:commit",
+      "invalidate",
+    ]);
     expect(mocks.invalidate).toHaveBeenCalledWith("user_1");
     expect(profile.isOnboarded).toBe(true);
+  });
+
+  it("still saves when Clerk fails", async () => {
+    mocks.getUser.mockRejectedValue(new Error("clerk down"));
+    mocks.returning.push(
+      [{ id: "a1", identityVerified: false, paymentMethodVerified: false }],
+      [{ professionalRole: "CTO", companyName: "Acme" }],
+    );
+
+    const profile = await saveClientProfile(input);
+
+    expect(profile.isOnboarded).toBe(true);
+    expect(mocks.events).toEqual(["tx:start", "tx:commit", "invalidate"]);
   });
 
   it("does not invalidate when the transaction fails", async () => {
@@ -158,7 +179,7 @@ describe("saveClientProfile", () => {
       "Client account not found.",
     );
 
-    expect(mocks.events).toEqual(["tx:start"]);
+    expect(mocks.events).toEqual(["clerk", "tx:start"]);
     expect(mocks.invalidate).not.toHaveBeenCalled();
   });
 });
@@ -188,7 +209,12 @@ describe("saveFreelancerProfile", () => {
 
     await saveFreelancerProfile(input, true);
 
-    expect(mocks.events).toEqual(["tx:start", "tx:commit", "invalidate"]);
+    expect(mocks.events).toEqual([
+      "clerk",
+      "tx:start",
+      "tx:commit",
+      "invalidate",
+    ]);
     expect(mocks.invalidate).toHaveBeenCalledWith("user_1");
   });
 
@@ -199,7 +225,7 @@ describe("saveFreelancerProfile", () => {
       "Freelancer account not found.",
     );
 
-    expect(mocks.events).toEqual(["tx:start"]);
+    expect(mocks.events).toEqual(["clerk", "tx:start"]);
     expect(mocks.invalidate).not.toHaveBeenCalled();
   });
 });

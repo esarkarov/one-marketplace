@@ -9,3 +9,7 @@ export {
   agencyProposalsResponses,
   agencySubmitProposalResponses,
 } from "./responses/agency.responses.js";
+export {
+  listAgencyOwnerIds,
+  rebuildAgencySearchText,
+} from "./services/agency.search-index.service.js";

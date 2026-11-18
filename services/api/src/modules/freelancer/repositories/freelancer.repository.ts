@@ -207,3 +207,42 @@ export const insertPortfolios = (
   executor: DbExecutor,
   rows: (typeof freelancer_portfolios.$inferInsert)[],
 ) => executor.insert(freelancer_portfolios).values(rows).returning();
+
+export const listFreelancerAuthIds = async (executor: DbExecutor) => {
+  const rows = await executor
+    .select({ authId: freelancer_metadata.auth_id })
+    .from(freelancer_metadata);
+  return rows.map((row) => row.authId);
+};
+
+export const findFreelancerSearchSource = async (
+  executor: DbExecutor,
+  authId: string,
+) => {
+  const [row] = await executor
+    .select({
+      displayName: accounts.display_name,
+      professionalTitle: freelancer_metadata.professional_title,
+      city: freelancer_metadata.city,
+      country: freelancer_metadata.country,
+      skills: freelancer_metadata.skills,
+      searchText: freelancer_metadata.search_text,
+      locationText: freelancer_metadata.location_text,
+    })
+    .from(freelancer_metadata)
+    .innerJoin(accounts, eq(accounts.auth_id, freelancer_metadata.auth_id))
+    .where(eq(freelancer_metadata.auth_id, authId))
+    .limit(1);
+  return row;
+};
+
+export const updateFreelancerSearchFields = async (
+  executor: DbExecutor,
+  authId: string,
+  fields: { search_text: string; location_text: string },
+) => {
+  await executor
+    .update(freelancer_metadata)
+    .set(fields)
+    .where(eq(freelancer_metadata.auth_id, authId));
+};

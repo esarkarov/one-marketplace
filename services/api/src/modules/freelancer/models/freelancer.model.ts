@@ -30,6 +30,8 @@ export const freelancer_metadata = pgTable(
     languages: jsonb("languages")
       .$type<Array<{ language: string; proficiency: string }>>()
       .notNull(),
+    search_text: text("search_text").notNull().default(""),
+    location_text: text("location_text").notNull().default(""),
     created_at: timestamp("created_at", { withTimezone: true }).defaultNow(),
     updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow(),
   },

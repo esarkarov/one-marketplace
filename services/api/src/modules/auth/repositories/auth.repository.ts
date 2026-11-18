@@ -88,6 +88,8 @@ export const insertAccountIfAbsent = async (
     userId: string;
     email: string;
     role: "CLIENT" | "FREELANCER";
+    displayName: string | null;
+    avatarUrl: string | null;
     now: Date;
   },
 ) => {
@@ -96,6 +98,8 @@ export const insertAccountIfAbsent = async (
     .values({
       auth_id: input.userId,
       email: input.email,
+      display_name: input.displayName,
+      avatar_url: input.avatarUrl,
       role: input.role,
       identityVerified: false,
       isOnboardingComplete: false,
@@ -105,6 +109,35 @@ export const insertAccountIfAbsent = async (
     .onConflictDoNothing({
       target: accounts.auth_id,
     });
+};
+
+export const findAccountDisplay = async (
+  executor: DbExecutor,
+  authId: string,
+) => {
+  const [row] = await executor
+    .select({
+      displayName: accounts.display_name,
+      avatarUrl: accounts.avatar_url,
+    })
+    .from(accounts)
+    .where(eq(accounts.auth_id, authId))
+    .limit(1);
+  return row;
+};
+
+export const updateAccountDisplay = async (
+  executor: DbExecutor,
+  authId: string,
+  display: { displayName: string | null; avatarUrl: string | null },
+) => {
+  await executor
+    .update(accounts)
+    .set({
+      display_name: display.displayName,
+      avatar_url: display.avatarUrl,
+    })
+    .where(eq(accounts.auth_id, authId));
 };
 
 export const findAccountOnboardingState = async (

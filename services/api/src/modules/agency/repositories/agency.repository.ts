@@ -158,12 +158,14 @@ export const insertAgency = async (
     specialty: string;
     website: string | null;
     overview: string;
+    searchText: string;
     now: Date;
   },
 ) => {
   const [row] = await executor
     .insert(agency_metadata)
     .values({
+      search_text: values.searchText,
       owner_id: values.ownerId,
       name: values.name,
       size: values.size,
@@ -357,4 +359,40 @@ export const deleteAgencyMember = async (
   memberId: string,
 ) => {
   await executor.delete(agency_members).where(eq(agency_members.id, memberId));
+};
+
+export const listAgencyOwnerIds = async (executor: DbExecutor) => {
+  const rows = await executor
+    .select({ ownerId: agency_metadata.owner_id })
+    .from(agency_metadata);
+  return rows.map((row) => row.ownerId);
+};
+
+export const findAgencySearchSource = async (
+  executor: DbExecutor,
+  ownerId: string,
+) => {
+  const [row] = await executor
+    .select({
+      name: agency_metadata.name,
+      professionalTitle: agency_metadata.professional_title,
+      specialty: agency_metadata.specialty,
+      tags: agency_metadata.tags,
+      searchText: agency_metadata.search_text,
+    })
+    .from(agency_metadata)
+    .where(eq(agency_metadata.owner_id, ownerId))
+    .limit(1);
+  return row;
+};
+
+export const updateAgencySearchText = async (
+  executor: DbExecutor,
+  ownerId: string,
+  searchText: string,
+) => {
+  await executor
+    .update(agency_metadata)
+    .set({ search_text: searchText })
+    .where(eq(agency_metadata.owner_id, ownerId));
 };

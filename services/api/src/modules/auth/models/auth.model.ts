@@ -13,6 +13,8 @@ export const accounts = pgTable("accounts", {
   id: uuid("id").defaultRandom().primaryKey(),
   auth_id: text("auth_id").notNull().unique(),
   email: text("email").notNull(),
+  display_name: text("display_name"),
+  avatar_url: text("avatar_url"),
   stripe_customer_id: text("stripe_customer_id").unique(),
   stripe_connect_account_id: text("stripe_connect_account_id").unique(),
   role: accountRole().default("CLIENT").notNull(),
