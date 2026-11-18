@@ -64,6 +64,8 @@ describe("connects webhook", () => {
     expect(response.body).toEqual({
       success: false,
       message: "Invalid Stripe webhook signature.",
+      code: "BAD_REQUEST",
+      requestId: expect.any(String),
     });
     expect(mocks.warn).toHaveBeenCalledOnce();
     expect(mocks.complete).not.toHaveBeenCalled();

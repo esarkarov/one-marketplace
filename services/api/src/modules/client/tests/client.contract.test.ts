@@ -348,16 +348,21 @@ const profileBody = {
 };
 
 describe("client contract", () => {
-  it("GET /profile answers the null profile before onboarding and the profile after", async () => {
+  it("GET /profile answers 404 PROFILE_NOT_FOUND before onboarding and the profile after", async () => {
     const clientId = await insertAccount(newAuthId(), "CLIENT");
 
     const empty = await request(app)
       .get(`${API}/profile`)
       .query(q)
       .set(as(clientId));
-    expect(empty.status).toBe(200);
-    expect(empty.body.data).toBeNull();
-    clientProfileGetResponses[200].parse(empty.body);
+    expect(empty.status).toBe(404);
+    expect(empty.body).toEqual({
+      success: false,
+      message: "Client profile has not been completed.",
+      code: "PROFILE_NOT_FOUND",
+      requestId: expect.any(String),
+    });
+    clientProfileGetResponses[404].parse(empty.body);
 
     const saved = await request(app)
       .put(`${API}/profile`)

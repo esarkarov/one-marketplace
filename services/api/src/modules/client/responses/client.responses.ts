@@ -108,8 +108,9 @@ const ClientMarketplaceResult = z
   .meta({ id: "ClientMarketplaceResult" });
 
 export const clientProfileGetResponses = {
-  200: ok(ClientProfile.nullable()),
+  200: ok(ClientProfile),
   403: ErrorBody,
+  404: ErrorBody,
 };
 
 export const clientProfilePutResponses = {

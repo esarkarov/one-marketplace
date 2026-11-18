@@ -1,6 +1,13 @@
 import { z } from "zod";
+import { DEFAULT_ERROR_CODES } from "../errors/api-error.js";
 
 const MAX_VALIDATION_ERRORS = 50;
+
+export const errorCodeEnum = <const T extends readonly string[]>(
+  ...explicit: T
+) => z.enum([...DEFAULT_ERROR_CODES, ...explicit]);
+
+export const requestIdField = z.string().min(1).max(64);
 
 export const ok = <T extends z.ZodType>(data: T) =>
   z.strictObject({
@@ -12,13 +19,15 @@ export const ok = <T extends z.ZodType>(data: T) =>
 export const okNoData = z.strictObject({
   success: z.literal(true),
   message: z.string(),
+  data: z.null(),
 });
 
 export const ErrorBody = z
   .strictObject({
     success: z.literal(false),
     message: z.string(),
-    code: z.string().optional(),
+    code: z.string().min(1),
+    requestId: requestIdField,
     errors: z
       .array(z.strictObject({ path: z.string(), message: z.string() }))
       .optional(),
@@ -30,6 +39,7 @@ export const ValidationErrorBody = z
     success: z.literal(false),
     message: z.string(),
     code: z.literal("VALIDATION_ERROR"),
+    requestId: requestIdField,
     errors: z
       .array(z.strictObject({ path: z.string(), message: z.string() }))
       .max(MAX_VALIDATION_ERRORS),
@@ -42,7 +52,8 @@ export const InternalErrorBody = z
   .strictObject({
     success: z.literal(false),
     message: z.literal("Internal server error."),
-    requestId: z.string().min(1).max(64),
+    code: z.literal("INTERNAL_ERROR"),
+    requestId: requestIdField,
   })
   .meta({ id: "InternalErrorBody" });
 
@@ -50,7 +61,8 @@ export const RateLimitBody = z
   .strictObject({
     success: z.literal(false),
     message: z.literal("Too many requests. Please try again later."),
-    requestId: z.string().min(1).max(64),
+    code: z.literal("RATE_LIMITED"),
+    requestId: requestIdField,
   })
   .meta({ id: "RateLimitBody" });
 

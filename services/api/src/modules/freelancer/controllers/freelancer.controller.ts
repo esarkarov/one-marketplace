@@ -37,13 +37,17 @@ export const getLoggedInFreelancerProfile: RequestHandler = asyncHandler(
   async (request, response) => {
     const auth = requireFreelancer(request);
     const profile = await getFreelancerProfile(auth.userId);
-    const body: ApiResponse<ReturnType<
-      typeof toFreelancerProfileResponse
-    > | null> = {
+    if (!profile) {
+      throw new ApiError(
+        404,
+        "Freelancer profile has not been completed.",
+        "PROFILE_NOT_FOUND",
+      );
+    }
+
+    const body: ApiResponse<ReturnType<typeof toFreelancerProfileResponse>> = {
       success: true,
-      message: profile
-        ? "Freelancer profile retrieved."
-        : "Freelancer profile has not been completed.",
+      message: "Freelancer profile retrieved.",
       data: profile,
     };
     response.status(200).json(body);

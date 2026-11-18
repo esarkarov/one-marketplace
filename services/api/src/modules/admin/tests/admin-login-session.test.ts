@@ -127,7 +127,10 @@ describe("admin login session token", () => {
     expect(response.status).toBe(503);
     const guard = await request(app).get(GUARDED);
     expect(guard.status).toBe(503);
-    expect(response.body).toEqual(guard.body);
+    expect(response.body).toEqual({
+      ...guard.body,
+      requestId: expect.any(String),
+    });
     expect(response.body.data).toBeUndefined();
     adminResponses.login[503].parse(response.body);
   });

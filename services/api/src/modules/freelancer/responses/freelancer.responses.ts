@@ -229,8 +229,9 @@ const FreelancerJobDetail = z
   .meta({ id: "FreelancerJobDetail" });
 
 export const freelancerProfileGetResponses = {
-  200: ok(FreelancerProfile.nullable()),
+  200: ok(FreelancerProfile),
   403: ErrorBody,
+  404: ErrorBody,
 };
 
 export const freelancerSearchResponses = {

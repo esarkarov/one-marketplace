@@ -10,6 +10,18 @@ const message = (result: {
   error?: { issues: { message: string }[] };
 }) => result.error?.issues[0]?.message;
 
+describe("jobBodySchema status", () => {
+  it.each(["DRAFT", "PUBLISHED", undefined, null])("accepts %s", (status) => {
+    expect(jobBodySchema.safeParse({ status }).success).toBe(true);
+  });
+
+  it.each(["draft", "ARCHIVED", "", 5])("rejects %j", (status) => {
+    const result = jobBodySchema.safeParse({ status });
+    expect(result.success).toBe(false);
+    expect(message(result)).toBe("Status must be DRAFT or PUBLISHED.");
+  });
+});
+
 describe("jobBodySchema", () => {
   it("keeps allowlisted fields and strips only the ignored keys", () => {
     const result = jobBodySchema.parse({

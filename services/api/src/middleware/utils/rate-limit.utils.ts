@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+import { defaultErrorCode } from "../../shared/errors/api-error.js";
 import { WEBHOOK_PATHS } from "../../config/constants.js";
 import type { Options } from "express-rate-limit";
 import type { ApiResponse } from "../../types/common.types.js";
@@ -6,8 +8,9 @@ const handler: Options["handler"] = (request, response) => {
   response.status(429).json({
     success: false,
     message: "Too many requests. Please try again later.",
-    requestId: request.requestId,
-  } satisfies ApiResponse<never>);
+    code: defaultErrorCode(429),
+    requestId: request.requestId ?? randomUUID(),
+  } satisfies ApiResponse<never> & { code: string });
 };
 
 export const rateLimitBaseOptions = {

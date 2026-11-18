@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { ok } from "../../../shared/responses/api-envelope.responses.js";
+import {
+  errorCodeEnum,
+  ok,
+  requestIdField,
+} from "../../../shared/responses/api-envelope.responses.js";
 
 export const identityResponses = {
   session: {
@@ -7,6 +11,8 @@ export const identityResponses = {
     409: z.strictObject({
       success: z.literal(false),
       message: z.string(),
+      code: errorCodeEnum(),
+      requestId: requestIdField,
     }),
   },
 };

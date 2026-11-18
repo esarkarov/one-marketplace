@@ -246,8 +246,14 @@ describe("jobs contract", () => {
       .get(`${API}/${randomUUID()}`)
       .query(asClient)
       .set(as(clientId));
-    expect(missing.body.data).toBeNull();
-    jobsGetResponses[200].parse(missing.body);
+    expect(missing.status).toBe(404);
+    expect(missing.body).toEqual({
+      success: false,
+      message: "Job post not found.",
+      code: "JOB_NOT_FOUND",
+      requestId: expect.any(String),
+    });
+    jobsGetResponses[404].parse(missing.body);
 
     const updated = await request(app)
       .put(`${API}/${jobId}`)
@@ -281,6 +287,7 @@ describe("jobs contract", () => {
       .query(asClient)
       .set(as(clientId));
     expect(removed.status).toBe(200);
+    expect(removed.body).toHaveProperty("data", null);
     jobsDeleteResponses[200].parse(removed.body);
   });
 
@@ -339,6 +346,8 @@ describe("jobs contract", () => {
       .query(asFreelancer)
       .set(as(freelancerId));
     expect(removed.status).toBe(200);
+    expect(removed.body.data).toBeNull();
+    expect(removed.body).toHaveProperty("data", null);
     jobsUnsaveResponses[200].parse(removed.body);
 
     const removedAgain = await request(app)
@@ -347,6 +356,31 @@ describe("jobs contract", () => {
       .set(as(freelancerId));
     expect(removedAgain.status).toBe(404);
     jobsUnsaveResponses[404].parse(removedAgain.body);
+  });
+
+  it("rejects an unknown status on create and update with 400 VALIDATION_ERROR", async () => {
+    const clientId = await seedClient();
+    const create = await request(app)
+      .post(API)
+      .set(as(clientId))
+      .send(jobBody({ status: "ARCHIVED" }));
+    expect(create.status).toBe(400);
+    expect(create.body.code).toBe("VALIDATION_ERROR");
+    expect(create.body.errors).toEqual([
+      { path: "body.status", message: "Status must be DRAFT or PUBLISHED." },
+    ]);
+
+    const created = await request(app)
+      .post(API)
+      .set(as(clientId))
+      .send(jobBody());
+    expect(created.status).toBe(201);
+    const update = await request(app)
+      .put(`${API}/${created.body.data.id}`)
+      .set(as(clientId))
+      .send(jobBody({ status: "ARCHIVED" }));
+    expect(update.status).toBe(400);
+    expect(update.body.code).toBe("VALIDATION_ERROR");
   });
 
   it("answers 403 with the declared body for the wrong role", async () => {
@@ -582,8 +616,8 @@ describe("jobs queries against real Postgres", () => {
         .set(as(clientA));
 
       expect(mine.body.data.id).toBe(own.id);
-      expect(theirs.status).toBe(200);
-      expect(theirs.body.data).toBeNull();
+      expect(theirs.status).toBe(404);
+      expect(theirs.body.code).toBe("JOB_NOT_FOUND");
     });
   });
 

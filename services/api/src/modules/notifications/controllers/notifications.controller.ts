@@ -55,7 +55,8 @@ export const markAllNotificationsRead: RequestHandler = asyncHandler(
     response.json({
       success: true,
       message: "Notifications marked as read.",
-    } satisfies ApiResponse<never>);
+      data: null,
+    } satisfies ApiResponse<null>);
   },
 );
 

@@ -4,6 +4,7 @@ import {
   ErrorBody,
   offsetPage,
   ok,
+  requestIdField,
   okNoData,
   BadRequestBody,
 } from "../../../shared/responses/api-envelope.responses.js";
@@ -124,20 +125,22 @@ export const jobsSaveResponses = {
 };
 
 export const jobsUnsaveResponses = {
-  200: ok(JobsSavedLink),
+  200: okNoData,
   403: ErrorBody,
   404: ErrorBody,
 };
 
 export const jobsGetResponses = {
-  200: ok(JobsPostWithStats.nullable()),
+  200: ok(JobsPostWithStats),
   403: ErrorBody,
+  404: ErrorBody,
 };
 
 const JobLockedBody = z.strictObject({
   success: z.literal(false),
   message: z.string(),
   code: z.literal("JOB_LOCKED"),
+  requestId: requestIdField,
 });
 
 export const jobsUpdateResponses = {

@@ -1,5 +1,8 @@
 import { z } from "zod";
-import { ok } from "../../../shared/responses/api-envelope.responses.js";
+import {
+  ok,
+  requestIdField,
+} from "../../../shared/responses/api-envelope.responses.js";
 import { isoDateTime } from "../../../shared/responses/scalar.responses.js";
 
 export const healthResponses = {
@@ -25,6 +28,8 @@ export const healthResponses = {
     503: z.strictObject({
       success: z.literal(false),
       message: z.literal("Service is not ready"),
+      code: z.literal("SERVICE_UNAVAILABLE"),
+      requestId: requestIdField,
       data: z.strictObject({
         status: z.literal("not_ready"),
         checks: z.strictObject({

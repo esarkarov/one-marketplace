@@ -7,8 +7,10 @@ import {
 import { z } from "zod";
 import {
   ErrorBody,
+  errorCodeEnum,
   offsetPage,
   ok,
+  requestIdField,
   BadRequestBody,
 } from "../../../shared/responses/api-envelope.responses.js";
 import {
@@ -21,6 +23,7 @@ const ResendCooldown = z
     success: z.literal(false),
     message: z.string(),
     code: z.literal("INVITATION_RESEND_COOLDOWN"),
+    requestId: requestIdField,
   })
   .meta({ id: "AgencyInvitationResendCooldown" });
 
@@ -30,13 +33,15 @@ const errorWithCodes = <const T extends readonly [string, ...string[]]>(
   z.strictObject({
     success: z.literal(false),
     message: z.string(),
-    code: z.enum(codes),
+    code: errorCodeEnum(...codes),
+    requestId: requestIdField,
   });
 
 const PermissionDenied = z.strictObject({
   success: z.literal(false),
   message: z.string(),
-  code: z.literal("AGENCY_PERMISSION_DENIED").optional(),
+  code: errorCodeEnum("AGENCY_PERMISSION_DENIED"),
+  requestId: requestIdField,
 });
 
 const StoredImage = z.strictObject({ imageId: z.string(), url: z.string() });

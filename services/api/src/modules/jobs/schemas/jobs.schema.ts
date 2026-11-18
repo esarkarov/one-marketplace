@@ -111,8 +111,9 @@ export const jobBodySchema = withIgnoredKeys(
       JOB_LIMITS.expectedDurationMax,
     ).optional(),
     status: z
-      .string({ error: "Status must be text." })
-      .max(JOB_LIMITS.statusMax, { error: "Status is too long." })
+      .enum(["DRAFT", "PUBLISHED"], {
+        error: "Status must be DRAFT or PUBLISHED.",
+      })
       .nullish(),
     skills: textList(
       "Skills",

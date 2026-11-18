@@ -74,6 +74,7 @@ describe("validate middleware", () => {
       success: false,
       message: "Unknown field.",
       code: "VALIDATION_ERROR",
+      requestId: expect.any(String),
       errors: [{ path: "body.extra", message: "Unknown field." }],
     });
     expect(query.body.errors).toEqual([
@@ -91,6 +92,7 @@ describe("validate middleware", () => {
       success: false,
       message: "Name must be text.",
       code: "VALIDATION_ERROR",
+      requestId: expect.any(String),
       errors: [{ path: "body.name", message: "Name must be text." }],
     });
   });

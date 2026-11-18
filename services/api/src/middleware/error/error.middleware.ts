@@ -1,7 +1,8 @@
 import { ErrorRequestHandler } from "express";
 import { logger } from "../../config/logger.js";
-import { ApiError } from "../../shared/errors/api-error.js";
+import { ApiError, defaultErrorCode } from "../../shared/errors/api-error.js";
 import { ApiResponse } from "../../types/common.types.js";
+import { randomUUID } from "node:crypto";
 import {
   errorLogAttributes,
   sanitizeForLog,
@@ -53,6 +54,7 @@ export const errorHandler: ErrorRequestHandler = (
   }
 
   const statusCode = resolveStatusCode(error);
+  const requestId = request.requestId ?? randomUUID();
 
   if (statusCode >= 500) {
     (request.logger ?? logger)
@@ -63,7 +65,7 @@ export const errorHandler: ErrorRequestHandler = (
           "http.route": request.path,
           "http.method": request.method,
           "http.status_code": statusCode,
-          "request.id": request.requestId,
+          "request.id": requestId,
           "error.type": error instanceof Error ? error.name : "unknown",
           "error.name": error instanceof Error ? error.name : "unknown",
           ...errorLogAttributes(error),
@@ -78,22 +80,26 @@ export const errorHandler: ErrorRequestHandler = (
     response.status(statusCode).json({
       success: false,
       message: "Internal server error.",
-      requestId: request.requestId,
-    } satisfies ApiResponse<never>);
+      code:
+        error instanceof ApiError ? error.code : defaultErrorCode(statusCode),
+      requestId,
+    } satisfies ApiResponse<never> & { code: string });
     return;
   }
 
   const message =
     error instanceof Error ? error.message : "Request could not be processed.";
 
-  const code = error instanceof ApiError ? error.code : undefined;
+  const code =
+    error instanceof ApiError ? error.code : defaultErrorCode(statusCode);
 
   const errors = error instanceof ApiError ? error.details : undefined;
 
   response.status(statusCode).json({
     success: false,
     message,
-    ...(code ? { code } : {}),
+    code,
+    requestId,
     ...(errors ? { errors } : {}),
-  } satisfies ApiResponse<never> & { code?: string; errors?: unknown });
+  } satisfies ApiResponse<never> & { code: string; errors?: unknown });
 };

@@ -842,12 +842,17 @@
           "message": {
             "type": "string"
           },
+          "requestId": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          },
           "success": {
             "const": false,
             "type": "boolean"
           }
         },
-        "required": ["success", "message", "code"],
+        "required": ["success", "message", "code", "requestId"],
         "type": "object"
       },
       "AgencyInvitationResponse": {
@@ -2548,6 +2553,7 @@
         "additionalProperties": false,
         "properties": {
           "code": {
+            "minLength": 1,
             "type": "string"
           },
           "errors": {
@@ -2569,12 +2575,17 @@
           "message": {
             "type": "string"
           },
+          "requestId": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          },
           "success": {
             "const": false,
             "type": "boolean"
           }
         },
-        "required": ["success", "message"],
+        "required": ["success", "message", "code", "requestId"],
         "type": "object"
       },
       "FreelancerEarningsOverview": {
@@ -3913,6 +3924,10 @@
       "InternalErrorBody": {
         "additionalProperties": false,
         "properties": {
+          "code": {
+            "const": "INTERNAL_ERROR",
+            "type": "string"
+          },
           "message": {
             "const": "Internal server error.",
             "type": "string"
@@ -3927,7 +3942,7 @@
             "type": "boolean"
           }
         },
-        "required": ["success", "message", "requestId"],
+        "required": ["success", "message", "code", "requestId"],
         "type": "object"
       },
       "IsoDateTime": {
@@ -6268,6 +6283,10 @@
       "RateLimitBody": {
         "additionalProperties": false,
         "properties": {
+          "code": {
+            "const": "RATE_LIMITED",
+            "type": "string"
+          },
           "message": {
             "const": "Too many requests. Please try again later.",
             "type": "string"
@@ -6282,7 +6301,7 @@
             "type": "boolean"
           }
         },
-        "required": ["success", "message", "requestId"],
+        "required": ["success", "message", "code", "requestId"],
         "type": "object"
       },
       "ValidationErrorBody": {
@@ -6312,12 +6331,17 @@
           "message": {
             "type": "string"
           },
+          "requestId": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          },
           "success": {
             "const": false,
             "type": "boolean"
           }
         },
-        "required": ["success", "message", "code", "errors"],
+        "required": ["success", "message", "code", "requestId", "errors"],
         "type": "object"
       }
     },
@@ -7993,10 +8017,28 @@
                   "additionalProperties": false,
                   "properties": {
                     "code": {
-                      "enum": ["ALREADY_IN_AGENCY"],
+                      "enum": [
+                        "BAD_REQUEST",
+                        "UNAUTHORIZED",
+                        "FORBIDDEN",
+                        "NOT_FOUND",
+                        "CONFLICT",
+                        "PAYLOAD_TOO_LARGE",
+                        "UNSUPPORTED_MEDIA_TYPE",
+                        "LOCKED",
+                        "RATE_LIMITED",
+                        "INTERNAL_ERROR",
+                        "SERVICE_UNAVAILABLE",
+                        "ALREADY_IN_AGENCY"
+                      ],
                       "type": "string"
                     },
                     "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "maxLength": 64,
+                      "minLength": 1,
                       "type": "string"
                     },
                     "success": {
@@ -8004,7 +8046,7 @@
                       "type": "boolean"
                     }
                   },
-                  "required": ["success", "message", "code"],
+                  "required": ["success", "message", "code", "requestId"],
                   "type": "object"
                 }
               }
@@ -8619,10 +8661,28 @@
                   "additionalProperties": false,
                   "properties": {
                     "code": {
-                      "const": "AGENCY_PERMISSION_DENIED",
+                      "enum": [
+                        "BAD_REQUEST",
+                        "UNAUTHORIZED",
+                        "FORBIDDEN",
+                        "NOT_FOUND",
+                        "CONFLICT",
+                        "PAYLOAD_TOO_LARGE",
+                        "UNSUPPORTED_MEDIA_TYPE",
+                        "LOCKED",
+                        "RATE_LIMITED",
+                        "INTERNAL_ERROR",
+                        "SERVICE_UNAVAILABLE",
+                        "AGENCY_PERMISSION_DENIED"
+                      ],
                       "type": "string"
                     },
                     "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "maxLength": 64,
+                      "minLength": 1,
                       "type": "string"
                     },
                     "success": {
@@ -8630,7 +8690,7 @@
                       "type": "boolean"
                     }
                   },
-                  "required": ["success", "message"],
+                  "required": ["success", "message", "code", "requestId"],
                   "type": "object"
                 }
               }
@@ -8843,10 +8903,28 @@
                   "additionalProperties": false,
                   "properties": {
                     "code": {
-                      "const": "AGENCY_PERMISSION_DENIED",
+                      "enum": [
+                        "BAD_REQUEST",
+                        "UNAUTHORIZED",
+                        "FORBIDDEN",
+                        "NOT_FOUND",
+                        "CONFLICT",
+                        "PAYLOAD_TOO_LARGE",
+                        "UNSUPPORTED_MEDIA_TYPE",
+                        "LOCKED",
+                        "RATE_LIMITED",
+                        "INTERNAL_ERROR",
+                        "SERVICE_UNAVAILABLE",
+                        "AGENCY_PERMISSION_DENIED"
+                      ],
                       "type": "string"
                     },
                     "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "maxLength": 64,
+                      "minLength": 1,
                       "type": "string"
                     },
                     "success": {
@@ -8854,7 +8932,7 @@
                       "type": "boolean"
                     }
                   },
-                  "required": ["success", "message"],
+                  "required": ["success", "message", "code", "requestId"],
                   "type": "object"
                 }
               }
@@ -8956,10 +9034,28 @@
                   "additionalProperties": false,
                   "properties": {
                     "code": {
-                      "const": "AGENCY_PERMISSION_DENIED",
+                      "enum": [
+                        "BAD_REQUEST",
+                        "UNAUTHORIZED",
+                        "FORBIDDEN",
+                        "NOT_FOUND",
+                        "CONFLICT",
+                        "PAYLOAD_TOO_LARGE",
+                        "UNSUPPORTED_MEDIA_TYPE",
+                        "LOCKED",
+                        "RATE_LIMITED",
+                        "INTERNAL_ERROR",
+                        "SERVICE_UNAVAILABLE",
+                        "AGENCY_PERMISSION_DENIED"
+                      ],
                       "type": "string"
                     },
                     "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "maxLength": 64,
+                      "minLength": 1,
                       "type": "string"
                     },
                     "success": {
@@ -8967,7 +9063,7 @@
                       "type": "boolean"
                     }
                   },
-                  "required": ["success", "message"],
+                  "required": ["success", "message", "code", "requestId"],
                   "type": "object"
                 }
               }
@@ -9221,6 +9317,17 @@
                   "properties": {
                     "code": {
                       "enum": [
+                        "BAD_REQUEST",
+                        "UNAUTHORIZED",
+                        "FORBIDDEN",
+                        "NOT_FOUND",
+                        "CONFLICT",
+                        "PAYLOAD_TOO_LARGE",
+                        "UNSUPPORTED_MEDIA_TYPE",
+                        "LOCKED",
+                        "RATE_LIMITED",
+                        "INTERNAL_ERROR",
+                        "SERVICE_UNAVAILABLE",
                         "INVITATION_ALREADY_HANDLED",
                         "ALREADY_IN_AGENCY"
                       ],
@@ -9229,12 +9336,17 @@
                     "message": {
                       "type": "string"
                     },
+                    "requestId": {
+                      "maxLength": 64,
+                      "minLength": 1,
+                      "type": "string"
+                    },
                     "success": {
                       "const": false,
                       "type": "boolean"
                     }
                   },
-                  "required": ["success", "message", "code"],
+                  "required": ["success", "message", "code", "requestId"],
                   "type": "object"
                 }
               }
@@ -10077,10 +10189,28 @@
                   "additionalProperties": false,
                   "properties": {
                     "code": {
-                      "const": "AGENCY_PERMISSION_DENIED",
+                      "enum": [
+                        "BAD_REQUEST",
+                        "UNAUTHORIZED",
+                        "FORBIDDEN",
+                        "NOT_FOUND",
+                        "CONFLICT",
+                        "PAYLOAD_TOO_LARGE",
+                        "UNSUPPORTED_MEDIA_TYPE",
+                        "LOCKED",
+                        "RATE_LIMITED",
+                        "INTERNAL_ERROR",
+                        "SERVICE_UNAVAILABLE",
+                        "AGENCY_PERMISSION_DENIED"
+                      ],
                       "type": "string"
                     },
                     "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "maxLength": 64,
+                      "minLength": 1,
                       "type": "string"
                     },
                     "success": {
@@ -10088,7 +10218,7 @@
                       "type": "boolean"
                     }
                   },
-                  "required": ["success", "message"],
+                  "required": ["success", "message", "code", "requestId"],
                   "type": "object"
                 }
               }
@@ -10454,10 +10584,28 @@
                   "additionalProperties": false,
                   "properties": {
                     "code": {
-                      "const": "AGENCY_PERMISSION_DENIED",
+                      "enum": [
+                        "BAD_REQUEST",
+                        "UNAUTHORIZED",
+                        "FORBIDDEN",
+                        "NOT_FOUND",
+                        "CONFLICT",
+                        "PAYLOAD_TOO_LARGE",
+                        "UNSUPPORTED_MEDIA_TYPE",
+                        "LOCKED",
+                        "RATE_LIMITED",
+                        "INTERNAL_ERROR",
+                        "SERVICE_UNAVAILABLE",
+                        "AGENCY_PERMISSION_DENIED"
+                      ],
                       "type": "string"
                     },
                     "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "maxLength": 64,
+                      "minLength": 1,
                       "type": "string"
                     },
                     "success": {
@@ -10465,7 +10613,7 @@
                       "type": "boolean"
                     }
                   },
-                  "required": ["success", "message"],
+                  "required": ["success", "message", "code", "requestId"],
                   "type": "object"
                 }
               }
@@ -10608,6 +10756,17 @@
                   "properties": {
                     "code": {
                       "enum": [
+                        "BAD_REQUEST",
+                        "UNAUTHORIZED",
+                        "FORBIDDEN",
+                        "NOT_FOUND",
+                        "CONFLICT",
+                        "PAYLOAD_TOO_LARGE",
+                        "UNSUPPORTED_MEDIA_TYPE",
+                        "LOCKED",
+                        "RATE_LIMITED",
+                        "INTERNAL_ERROR",
+                        "SERVICE_UNAVAILABLE",
                         "INVITEE_ALREADY_MEMBER",
                         "INVITATION_ALREADY_PENDING"
                       ],
@@ -10616,12 +10775,17 @@
                     "message": {
                       "type": "string"
                     },
+                    "requestId": {
+                      "maxLength": 64,
+                      "minLength": 1,
+                      "type": "string"
+                    },
                     "success": {
                       "const": false,
                       "type": "boolean"
                     }
                   },
-                  "required": ["success", "message", "code"],
+                  "required": ["success", "message", "code", "requestId"],
                   "type": "object"
                 }
               }
@@ -12153,14 +12317,7 @@
                   "additionalProperties": false,
                   "properties": {
                     "data": {
-                      "anyOf": [
-                        {
-                          "$ref": "#/components/schemas/ClientProfile"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
+                      "$ref": "#/components/schemas/ClientProfile"
                     },
                     "message": {
                       "type": "string"
@@ -12206,6 +12363,16 @@
               }
             },
             "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Not Found"
           },
           "429": {
             "content": {
@@ -12928,10 +13095,29 @@
                   "additionalProperties": false,
                   "properties": {
                     "code": {
-                      "enum": ["CONTRACT_EXISTS", "JOB_ALREADY_HIRED"],
+                      "enum": [
+                        "BAD_REQUEST",
+                        "UNAUTHORIZED",
+                        "FORBIDDEN",
+                        "NOT_FOUND",
+                        "CONFLICT",
+                        "PAYLOAD_TOO_LARGE",
+                        "UNSUPPORTED_MEDIA_TYPE",
+                        "LOCKED",
+                        "RATE_LIMITED",
+                        "INTERNAL_ERROR",
+                        "SERVICE_UNAVAILABLE",
+                        "CONTRACT_EXISTS",
+                        "JOB_ALREADY_HIRED"
+                      ],
                       "type": "string"
                     },
                     "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "maxLength": 64,
+                      "minLength": 1,
                       "type": "string"
                     },
                     "success": {
@@ -12939,7 +13125,7 @@
                       "type": "boolean"
                     }
                   },
-                  "required": ["success", "message", "code"],
+                  "required": ["success", "message", "code", "requestId"],
                   "type": "object"
                 }
               }
@@ -13348,10 +13534,28 @@
                   "additionalProperties": false,
                   "properties": {
                     "code": {
-                      "enum": ["AGENCY_PERMISSION_DENIED"],
+                      "enum": [
+                        "BAD_REQUEST",
+                        "UNAUTHORIZED",
+                        "FORBIDDEN",
+                        "NOT_FOUND",
+                        "CONFLICT",
+                        "PAYLOAD_TOO_LARGE",
+                        "UNSUPPORTED_MEDIA_TYPE",
+                        "LOCKED",
+                        "RATE_LIMITED",
+                        "INTERNAL_ERROR",
+                        "SERVICE_UNAVAILABLE",
+                        "AGENCY_PERMISSION_DENIED"
+                      ],
                       "type": "string"
                     },
                     "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "maxLength": 64,
+                      "minLength": 1,
                       "type": "string"
                     },
                     "success": {
@@ -13359,7 +13563,7 @@
                       "type": "boolean"
                     }
                   },
-                  "required": ["success", "message"],
+                  "required": ["success", "message", "code", "requestId"],
                   "type": "object"
                 }
               }
@@ -13383,10 +13587,28 @@
                   "additionalProperties": false,
                   "properties": {
                     "code": {
-                      "enum": ["CONTRACT_OFFER_NOT_ACCEPTABLE"],
+                      "enum": [
+                        "BAD_REQUEST",
+                        "UNAUTHORIZED",
+                        "FORBIDDEN",
+                        "NOT_FOUND",
+                        "CONFLICT",
+                        "PAYLOAD_TOO_LARGE",
+                        "UNSUPPORTED_MEDIA_TYPE",
+                        "LOCKED",
+                        "RATE_LIMITED",
+                        "INTERNAL_ERROR",
+                        "SERVICE_UNAVAILABLE",
+                        "CONTRACT_OFFER_NOT_ACCEPTABLE"
+                      ],
                       "type": "string"
                     },
                     "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "maxLength": 64,
+                      "minLength": 1,
                       "type": "string"
                     },
                     "success": {
@@ -13394,7 +13616,7 @@
                       "type": "boolean"
                     }
                   },
-                  "required": ["success", "message"],
+                  "required": ["success", "message", "code", "requestId"],
                   "type": "object"
                 }
               }
@@ -13556,10 +13778,28 @@
                   "additionalProperties": false,
                   "properties": {
                     "code": {
-                      "enum": ["AGENCY_PERMISSION_DENIED"],
+                      "enum": [
+                        "BAD_REQUEST",
+                        "UNAUTHORIZED",
+                        "FORBIDDEN",
+                        "NOT_FOUND",
+                        "CONFLICT",
+                        "PAYLOAD_TOO_LARGE",
+                        "UNSUPPORTED_MEDIA_TYPE",
+                        "LOCKED",
+                        "RATE_LIMITED",
+                        "INTERNAL_ERROR",
+                        "SERVICE_UNAVAILABLE",
+                        "AGENCY_PERMISSION_DENIED"
+                      ],
                       "type": "string"
                     },
                     "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "maxLength": 64,
+                      "minLength": 1,
                       "type": "string"
                     },
                     "success": {
@@ -13567,7 +13807,7 @@
                       "type": "boolean"
                     }
                   },
-                  "required": ["success", "message"],
+                  "required": ["success", "message", "code", "requestId"],
                   "type": "object"
                 }
               }
@@ -13592,6 +13832,17 @@
                   "properties": {
                     "code": {
                       "enum": [
+                        "BAD_REQUEST",
+                        "UNAUTHORIZED",
+                        "FORBIDDEN",
+                        "NOT_FOUND",
+                        "CONFLICT",
+                        "PAYLOAD_TOO_LARGE",
+                        "UNSUPPORTED_MEDIA_TYPE",
+                        "LOCKED",
+                        "RATE_LIMITED",
+                        "INTERNAL_ERROR",
+                        "SERVICE_UNAVAILABLE",
                         "REVIEW_ALREADY_SUBMITTED",
                         "CONTRACT_ALREADY_FINISHED",
                         "CONTRACT_HAS_INCOMPLETE_MILESTONES"
@@ -13601,12 +13852,17 @@
                     "message": {
                       "type": "string"
                     },
+                    "requestId": {
+                      "maxLength": 64,
+                      "minLength": 1,
+                      "type": "string"
+                    },
                     "success": {
                       "const": false,
                       "type": "boolean"
                     }
                   },
-                  "required": ["success", "message"],
+                  "required": ["success", "message", "code", "requestId"],
                   "type": "object"
                 }
               }
@@ -13800,10 +14056,28 @@
                   "additionalProperties": false,
                   "properties": {
                     "code": {
-                      "enum": ["MILESTONE_ADD_NOT_ALLOWED"],
+                      "enum": [
+                        "BAD_REQUEST",
+                        "UNAUTHORIZED",
+                        "FORBIDDEN",
+                        "NOT_FOUND",
+                        "CONFLICT",
+                        "PAYLOAD_TOO_LARGE",
+                        "UNSUPPORTED_MEDIA_TYPE",
+                        "LOCKED",
+                        "RATE_LIMITED",
+                        "INTERNAL_ERROR",
+                        "SERVICE_UNAVAILABLE",
+                        "MILESTONE_ADD_NOT_ALLOWED"
+                      ],
                       "type": "string"
                     },
                     "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "maxLength": 64,
+                      "minLength": 1,
                       "type": "string"
                     },
                     "success": {
@@ -13811,7 +14085,7 @@
                       "type": "boolean"
                     }
                   },
-                  "required": ["success", "message", "code"],
+                  "required": ["success", "message", "code", "requestId"],
                   "type": "object"
                 }
               }
@@ -13980,7 +14254,28 @@
                 "schema": {
                   "additionalProperties": false,
                   "properties": {
+                    "code": {
+                      "enum": [
+                        "BAD_REQUEST",
+                        "UNAUTHORIZED",
+                        "FORBIDDEN",
+                        "NOT_FOUND",
+                        "CONFLICT",
+                        "PAYLOAD_TOO_LARGE",
+                        "UNSUPPORTED_MEDIA_TYPE",
+                        "LOCKED",
+                        "RATE_LIMITED",
+                        "INTERNAL_ERROR",
+                        "SERVICE_UNAVAILABLE"
+                      ],
+                      "type": "string"
+                    },
                     "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "maxLength": 64,
+                      "minLength": 1,
                       "type": "string"
                     },
                     "success": {
@@ -13988,7 +14283,7 @@
                       "type": "boolean"
                     }
                   },
-                  "required": ["success", "message"],
+                  "required": ["success", "message", "code", "requestId"],
                   "type": "object"
                 }
               }
@@ -14164,7 +14459,28 @@
                 "schema": {
                   "additionalProperties": false,
                   "properties": {
+                    "code": {
+                      "enum": [
+                        "BAD_REQUEST",
+                        "UNAUTHORIZED",
+                        "FORBIDDEN",
+                        "NOT_FOUND",
+                        "CONFLICT",
+                        "PAYLOAD_TOO_LARGE",
+                        "UNSUPPORTED_MEDIA_TYPE",
+                        "LOCKED",
+                        "RATE_LIMITED",
+                        "INTERNAL_ERROR",
+                        "SERVICE_UNAVAILABLE"
+                      ],
+                      "type": "string"
+                    },
                     "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "maxLength": 64,
+                      "minLength": 1,
                       "type": "string"
                     },
                     "success": {
@@ -14172,7 +14488,7 @@
                       "type": "boolean"
                     }
                   },
-                  "required": ["success", "message"],
+                  "required": ["success", "message", "code", "requestId"],
                   "type": "object"
                 }
               }
@@ -14369,10 +14685,28 @@
                   "additionalProperties": false,
                   "properties": {
                     "code": {
-                      "enum": ["MILESTONE_NOT_SUBMITTABLE"],
+                      "enum": [
+                        "BAD_REQUEST",
+                        "UNAUTHORIZED",
+                        "FORBIDDEN",
+                        "NOT_FOUND",
+                        "CONFLICT",
+                        "PAYLOAD_TOO_LARGE",
+                        "UNSUPPORTED_MEDIA_TYPE",
+                        "LOCKED",
+                        "RATE_LIMITED",
+                        "INTERNAL_ERROR",
+                        "SERVICE_UNAVAILABLE",
+                        "MILESTONE_NOT_SUBMITTABLE"
+                      ],
                       "type": "string"
                     },
                     "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "maxLength": 64,
+                      "minLength": 1,
                       "type": "string"
                     },
                     "success": {
@@ -14380,7 +14714,7 @@
                       "type": "boolean"
                     }
                   },
-                  "required": ["success", "message", "code"],
+                  "required": ["success", "message", "code", "requestId"],
                   "type": "object"
                 }
               }
@@ -16079,14 +16413,7 @@
                   "additionalProperties": false,
                   "properties": {
                     "data": {
-                      "anyOf": [
-                        {
-                          "$ref": "#/components/schemas/FreelancerProfile"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
+                      "$ref": "#/components/schemas/FreelancerProfile"
                     },
                     "message": {
                       "type": "string"
@@ -16132,6 +16459,16 @@
               }
             },
             "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Not Found"
           },
           "429": {
             "content": {
@@ -16878,7 +17215,28 @@
                 "schema": {
                   "additionalProperties": false,
                   "properties": {
+                    "code": {
+                      "enum": [
+                        "BAD_REQUEST",
+                        "UNAUTHORIZED",
+                        "FORBIDDEN",
+                        "NOT_FOUND",
+                        "CONFLICT",
+                        "PAYLOAD_TOO_LARGE",
+                        "UNSUPPORTED_MEDIA_TYPE",
+                        "LOCKED",
+                        "RATE_LIMITED",
+                        "INTERNAL_ERROR",
+                        "SERVICE_UNAVAILABLE"
+                      ],
+                      "type": "string"
+                    },
                     "message": {
+                      "type": "string"
+                    },
+                    "requestId": {
+                      "maxLength": 64,
+                      "minLength": 1,
                       "type": "string"
                     },
                     "success": {
@@ -16886,7 +17244,7 @@
                       "type": "boolean"
                     }
                   },
-                  "required": ["success", "message"],
+                  "required": ["success", "message", "code", "requestId"],
                   "type": "object"
                 }
               }
@@ -17264,7 +17622,7 @@
                   "status": {
                     "anyOf": [
                       {
-                        "maxLength": 50,
+                        "enum": ["DRAFT", "PUBLISHED"],
                         "type": "string"
                       },
                       {
@@ -17665,7 +18023,7 @@
                   "additionalProperties": false,
                   "properties": {
                     "data": {
-                      "$ref": "#/components/schemas/JobsSavedLink"
+                      "type": "null"
                     },
                     "message": {
                       "type": "string"
@@ -17898,6 +18256,9 @@
                 "schema": {
                   "additionalProperties": false,
                   "properties": {
+                    "data": {
+                      "type": "null"
+                    },
                     "message": {
                       "type": "string"
                     },
@@ -17906,7 +18267,7 @@
                       "type": "boolean"
                     }
                   },
-                  "required": ["success", "message"],
+                  "required": ["success", "message", "data"],
                   "type": "object"
                 }
               }
@@ -17966,12 +18327,17 @@
                     "message": {
                       "type": "string"
                     },
+                    "requestId": {
+                      "maxLength": 64,
+                      "minLength": 1,
+                      "type": "string"
+                    },
                     "success": {
                       "const": false,
                       "type": "boolean"
                     }
                   },
-                  "required": ["success", "message", "code"],
+                  "required": ["success", "message", "code", "requestId"],
                   "type": "object"
                 }
               }
@@ -18037,14 +18403,7 @@
                   "additionalProperties": false,
                   "properties": {
                     "data": {
-                      "anyOf": [
-                        {
-                          "$ref": "#/components/schemas/JobsPostWithStats"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
+                      "$ref": "#/components/schemas/JobsPostWithStats"
                     },
                     "message": {
                       "type": "string"
@@ -18090,6 +18449,16 @@
               }
             },
             "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Not Found"
           },
           "429": {
             "content": {
@@ -18307,7 +18676,7 @@
                   "status": {
                     "anyOf": [
                       {
-                        "maxLength": 50,
+                        "enum": ["DRAFT", "PUBLISHED"],
                         "type": "string"
                       },
                       {
@@ -18415,12 +18784,17 @@
                     "message": {
                       "type": "string"
                     },
+                    "requestId": {
+                      "maxLength": 64,
+                      "minLength": 1,
+                      "type": "string"
+                    },
                     "success": {
                       "const": false,
                       "type": "boolean"
                     }
                   },
-                  "required": ["success", "message", "code"],
+                  "required": ["success", "message", "code", "requestId"],
                   "type": "object"
                 }
               }
@@ -18658,6 +19032,9 @@
                 "schema": {
                   "additionalProperties": false,
                   "properties": {
+                    "data": {
+                      "type": "null"
+                    },
                     "message": {
                       "type": "string"
                     },
@@ -18666,7 +19043,7 @@
                       "type": "boolean"
                     }
                   },
-                  "required": ["success", "message"],
+                  "required": ["success", "message", "data"],
                   "type": "object"
                 }
               }
@@ -19699,6 +20076,10 @@
                 "schema": {
                   "additionalProperties": false,
                   "properties": {
+                    "code": {
+                      "const": "SERVICE_UNAVAILABLE",
+                      "type": "string"
+                    },
                     "data": {
                       "additionalProperties": false,
                       "properties": {
@@ -19729,12 +20110,23 @@
                       "const": "Service is not ready",
                       "type": "string"
                     },
+                    "requestId": {
+                      "maxLength": 64,
+                      "minLength": 1,
+                      "type": "string"
+                    },
                     "success": {
                       "const": false,
                       "type": "boolean"
                     }
                   },
-                  "required": ["success", "message", "data"],
+                  "required": [
+                    "success",
+                    "message",
+                    "code",
+                    "requestId",
+                    "data"
+                  ],
                   "type": "object"
                 }
               }

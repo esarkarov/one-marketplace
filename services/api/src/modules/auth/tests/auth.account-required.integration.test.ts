@@ -106,6 +106,8 @@ describe("claimed role requires an account", () => {
     expect(response.body).toEqual({
       success: false,
       message: "An account for this role is required.",
+      code: "FORBIDDEN",
+      requestId: expect.any(String),
     });
   });
 
@@ -120,7 +122,7 @@ describe("claimed role requires an account", () => {
     expect(response.status).toBe(403);
   });
 
-  it("answers 200 for the user's own role", async () => {
+  it("passes the account check for the user's own role", async () => {
     const userId = newAuthId();
     await insertAccount(userId, "CLIENT");
     signInAs(userId);
@@ -130,7 +132,8 @@ describe("claimed role requires an account", () => {
       .query({ role: "client" })
       .set(bearer);
 
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(404);
+    expect(response.body.code).toBe("PROFILE_NOT_FOUND");
   });
 });
 
@@ -177,7 +180,8 @@ describe("POST /auth/sign-up", () => {
       .get("/api/v1/client/profile")
       .query({ role: "client" })
       .set(bearer);
-    expect(profile.status).toBe(200);
+    expect(profile.status).toBe(404);
+    expect(profile.body.code).toBe("PROFILE_NOT_FOUND");
   });
 });
 

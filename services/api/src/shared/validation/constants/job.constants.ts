@@ -12,5 +12,4 @@ export const JOB_LIMITS = {
   feedLevelsMax: 256,
   expertiseLevelMax: 50,
   expectedDurationMax: 50,
-  statusMax: 50,
 } as const;

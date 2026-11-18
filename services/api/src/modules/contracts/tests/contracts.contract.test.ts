@@ -1142,6 +1142,8 @@ describe("POST /contracts/:contractId/milestones/:milestoneId/checkout", () => {
     expect(denied.body).toEqual({
       success: false,
       message: "Contract milestone not found.",
+      code: "NOT_FOUND",
+      requestId: expect.any(String),
     });
     expect(mocks.customersCreate).not.toHaveBeenCalled();
     expect(mocks.sessionsCreate).not.toHaveBeenCalled();
@@ -1209,6 +1211,8 @@ describe("POST /contracts/:contractId/milestones", () => {
     expect(denied.body).toEqual({
       success: false,
       message: "Contract not found.",
+      code: "NOT_FOUND",
+      requestId: expect.any(String),
     });
     expect(mocks.sendNotification).not.toHaveBeenCalled();
     expect(await snapshot(fixture)).toBe(before);
@@ -1284,6 +1288,8 @@ describe("POST /contracts/:contractId/finish", () => {
     expect(denied.body).toEqual({
       success: false,
       message: "Contract not found.",
+      code: "NOT_FOUND",
+      requestId: expect.any(String),
     });
     expect(mocks.sendNotification).not.toHaveBeenCalled();
     expect(await snapshot(fixture)).toBe(before);

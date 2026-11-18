@@ -35,27 +35,38 @@ describe("response schemas", () => {
         data: { id: "a", extra: 1 },
       }).success,
     ).toBe(false);
+    expect(
+      okNoData.safeParse({ success: true, message: "Done", data: null })
+        .success,
+    ).toBe(true);
     expect(okNoData.safeParse({ success: true, message: "Done" }).success).toBe(
-      true,
+      false,
     );
   });
 
-  it("ErrorBody accepts optional code and errors and rejects drift", () => {
-    expect(ErrorBody.safeParse({ success: false, message: "No" }).success).toBe(
-      true,
-    );
+  it("ErrorBody requires code and requestId, allows errors and rejects drift", () => {
+    const base = {
+      success: false,
+      message: "No",
+      code: "NOT_FOUND",
+      requestId: "abc",
+    };
+    expect(ErrorBody.safeParse(base).success).toBe(true);
     expect(
       ErrorBody.safeParse({
-        success: false,
-        message: "No",
-        code: "X",
+        ...base,
         errors: [{ path: "body.a", message: "Bad" }],
       }).success,
     ).toBe(true);
     expect(
-      ErrorBody.safeParse({ success: false, message: "No", stack: "x" })
+      ErrorBody.safeParse({ success: false, message: "No", requestId: "abc" })
         .success,
     ).toBe(false);
+    expect(
+      ErrorBody.safeParse({ success: false, message: "No", code: "NOT_FOUND" })
+        .success,
+    ).toBe(false);
+    expect(ErrorBody.safeParse({ ...base, stack: "x" }).success).toBe(false);
   });
 
   it("ValidationErrorBody caps errors at 50", () => {
@@ -64,10 +75,19 @@ describe("response schemas", () => {
       success: false,
       message: "Bad",
       code: "VALIDATION_ERROR",
+      requestId: "abc",
     };
     expect(
       ValidationErrorBody.safeParse({ ...base, errors: [error] }).success,
     ).toBe(true);
+    expect(
+      ValidationErrorBody.safeParse({
+        success: false,
+        message: "Bad",
+        code: "VALIDATION_ERROR",
+        errors: [error],
+      }).success,
+    ).toBe(false);
     expect(
       ValidationErrorBody.safeParse({
         ...base,
@@ -89,11 +109,12 @@ describe("response schemas", () => {
     ).toBe(false);
   });
 
-  it("InternalErrorBody and RateLimitBody require requestId", () => {
+  it("InternalErrorBody and RateLimitBody require code and requestId", () => {
     expect(
       InternalErrorBody.safeParse({
         success: false,
         message: "Internal server error.",
+        code: "INTERNAL_ERROR",
         requestId: "abc",
       }).success,
     ).toBe(true);
@@ -101,12 +122,14 @@ describe("response schemas", () => {
       InternalErrorBody.safeParse({
         success: false,
         message: "Internal server error.",
+        code: "INTERNAL_ERROR",
       }).success,
     ).toBe(false);
     expect(
       RateLimitBody.safeParse({
         success: false,
         message: "Too many requests. Please try again later.",
+        code: "RATE_LIMITED",
         requestId: "abc",
       }).success,
     ).toBe(true);
@@ -114,6 +137,14 @@ describe("response schemas", () => {
       RateLimitBody.safeParse({
         success: false,
         message: "Too many requests. Please try again later.",
+        code: "RATE_LIMITED",
+      }).success,
+    ).toBe(false);
+    expect(
+      RateLimitBody.safeParse({
+        success: false,
+        message: "Too many requests. Please try again later.",
+        code: "RATE_LIMITED",
         requestId: "abc",
         extra: 1,
       }).success,
@@ -147,12 +178,17 @@ describe("response schemas", () => {
         success: false,
         message: "Invalid request.",
         code: "VALIDATION_ERROR",
+        requestId: "abc",
         errors: [{ path: "body.title", message: "Required" }],
       }).success,
     ).toBe(true);
     expect(
-      BadRequestBody.safeParse({ success: false, message: "Bad request." })
-        .success,
+      BadRequestBody.safeParse({
+        success: false,
+        message: "Bad request.",
+        code: "BAD_REQUEST",
+        requestId: "abc",
+      }).success,
     ).toBe(true);
   });
 

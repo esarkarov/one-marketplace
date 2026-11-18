@@ -149,6 +149,7 @@ describe("PATCH /notifications/read-all", () => {
       .query({ role: "freelancer" })
       .set(as(fixture.authId));
     expect(response.status).toBe(200);
+    expect(response.body).toHaveProperty("data", null);
     notificationsResponses.readAll[200].parse(response.body);
 
     const list = await request(app)

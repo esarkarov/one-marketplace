@@ -33,11 +33,17 @@ export const getLoggedInClientProfile: RequestHandler = asyncHandler(
     }
 
     const profile = await getClientProfile(request.auth.userId);
-    const responseBody: ApiResponse<ClientMetadataData | null> = {
+    if (!profile) {
+      throw new ApiError(
+        404,
+        "Client profile has not been completed.",
+        "PROFILE_NOT_FOUND",
+      );
+    }
+
+    const responseBody: ApiResponse<ClientMetadataData> = {
       success: true,
-      message: profile
-        ? "Client profile retrieved"
-        : "Client profile has not been completed.",
+      message: "Client profile retrieved",
       data: profile,
     };
 

@@ -38,6 +38,8 @@ describe("publicSearchLimiter", () => {
     expect(blocked.body).toMatchObject({
       success: false,
       message: "Too many requests. Please try again later.",
+      code: "RATE_LIMITED",
+      requestId: expect.any(String),
     });
   });
 });

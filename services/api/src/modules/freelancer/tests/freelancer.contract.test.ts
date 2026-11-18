@@ -434,16 +434,21 @@ beforeEach(() => {
 });
 
 describe("freelancer contract", () => {
-  it("GET /profile answers null before onboarding and the full profile after", async () => {
+  it("GET /profile answers 404 PROFILE_NOT_FOUND before onboarding and the full profile after", async () => {
     const freelancerId = await insertAccount(newAuthId(), "FREELANCER");
 
     const empty = await request(app)
       .get(`${API}/profile`)
       .query(q)
       .set(as(freelancerId));
-    expect(empty.status).toBe(200);
-    expect(empty.body.data).toBeNull();
-    freelancerProfileGetResponses[200].parse(empty.body);
+    expect(empty.status).toBe(404);
+    expect(empty.body).toEqual({
+      success: false,
+      message: "Freelancer profile has not been completed.",
+      code: "PROFILE_NOT_FOUND",
+      requestId: expect.any(String),
+    });
+    freelancerProfileGetResponses[404].parse(empty.body);
 
     const saved = await request(app)
       .put(`${API}/profile`)

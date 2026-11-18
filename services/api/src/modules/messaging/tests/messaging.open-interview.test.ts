@@ -44,7 +44,7 @@ describe("openInterviewConversation empty inserts", () => {
     const error = await rejection([[], []]);
     expect(error.statusCode).toBe(500);
     expect(error.message).toBe("Conversation could not be created.");
-    expect(error.code).toBeUndefined();
+    expect(error.code).toBe("INTERNAL_ERROR");
   });
 
   it("answers 500 when the proposal message insert returns no row", async () => {

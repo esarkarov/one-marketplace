@@ -103,6 +103,7 @@ describe("error handler", () => {
       success: false,
       message: "bad field",
       code: "VALIDATION_ERROR",
+      requestId: expect.any(String),
       errors: [{ path: "body.title", message: "bad field" }],
     });
   });

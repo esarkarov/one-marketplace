@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import { SERVICE_NAME } from "../../../config/constants.js";
 import { redis } from "../../../infrastructure/cache/redis.client.js";
 import { errorLogAttributes } from "../../../shared/logging/sanitize-log.js";
+import { defaultErrorCode } from "../../../shared/errors/api-error.js";
 import { ApiResponse } from "../../../types/common.types.js";
 import { pingDatabase } from "../repositories/health.repository.js";
 
@@ -120,10 +121,13 @@ export const readinessHandler = async (
   const body: ApiResponse<{
     status: "ready" | "not_ready";
     checks: ReadinessChecks;
-  }> = {
+  }> & { code?: string } = {
     success: ready,
     message: ready ? "Service is ready" : "Service is not ready",
     data: { status: ready ? "ready" : "not_ready", checks },
+    ...(ready
+      ? {}
+      : { code: defaultErrorCode(503), requestId: request.requestId }),
   };
 
   response.status(ready ? 200 : 503).json(body);

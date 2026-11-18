@@ -167,10 +167,16 @@ export const getClientJobPosts: RequestHandler = asyncHandler(
         ? request.params.jobId
         : undefined;
     const jobs = await getJobPosts(auth.userId, jobId);
+    const job = jobId ? jobs[0] : undefined;
+
+    if (jobId && !job) {
+      throw new ApiError(404, "Job post not found.", "JOB_NOT_FOUND");
+    }
+
     response.status(200).json({
       success: true,
       message: "Job posts retrieved.",
-      data: jobId ? (jobs[0] ?? null) : jobs,
+      data: jobId ? job : jobs,
     });
   },
 );
@@ -215,7 +221,9 @@ export const removeClientJobPost: RequestHandler = asyncHandler(
         "order.job_post.status": job.status,
       },
     });
-    response.status(200).json({ success: true, message: "Job post deleted." });
+    response
+      .status(200)
+      .json({ success: true, message: "Job post deleted.", data: null });
   },
 );
 
@@ -288,14 +296,14 @@ export const getPublicJobFeedHandler: RequestHandler = asyncHandler(
 export const unsaveFreelancerJobPost: RequestHandler = asyncHandler(
   async (request, response) => {
     const auth = requireFreelancer(request);
-    const savedJob = await removeSavedJobPost(
+    await removeSavedJobPost(
       auth.userId,
       requireText(request.params.jobId, "Job post id"),
     );
     response.status(200).json({
       success: true,
       message: "Job post removed from saved jobs.",
-      data: savedJob,
+      data: null,
     });
   },
 );

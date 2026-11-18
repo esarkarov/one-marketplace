@@ -1028,7 +1028,12 @@ describe("review controller on a lost race", () => {
 
     expect(first.status).toBe(200);
     expect(second.status).toBe(409);
-    expect(second.body).toEqual({ success: false, message: NOT_AWAITING });
+    expect(second.body).toEqual({
+      success: false,
+      message: NOT_AWAITING,
+      code: "CONFLICT",
+      requestId: expect.any(String),
+    });
     expect(mocks.sendNotification).toHaveBeenCalledTimes(1);
     expect(mocks.emitConversationUpdate).toHaveBeenCalledTimes(1);
   });
@@ -1064,7 +1069,12 @@ describe("review controller on a lost race", () => {
     const response = await send(fixture, "APPROVE");
 
     expect(response.status).toBe(409);
-    expect(response.body).toEqual({ success: false, message: NOT_AWAITING });
+    expect(response.body).toEqual({
+      success: false,
+      message: NOT_AWAITING,
+      code: "CONFLICT",
+      requestId: expect.any(String),
+    });
     expect(mocks.sendNotification).not.toHaveBeenCalled();
     expect(mocks.emitConversationUpdate).not.toHaveBeenCalled();
     const [row] = await db

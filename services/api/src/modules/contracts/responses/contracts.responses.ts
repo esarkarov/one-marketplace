@@ -1,7 +1,9 @@
 import { z } from "zod";
 import {
   ErrorBody,
+  errorCodeEnum,
   ok,
+  requestIdField,
   BadRequestBody,
 } from "../../../shared/responses/api-envelope.responses.js";
 import {
@@ -11,22 +13,24 @@ import {
 
 const codedError = <const C extends readonly [string, ...string[]]>(
   codes: C,
-  optionalCode = false,
 ) => {
-  const code = z.enum(codes);
+  const code = errorCodeEnum(...codes);
   return z.strictObject({
     success: z.literal(false),
     message: z.string(),
-    code: optionalCode ? code.optional() : code,
+    code,
+    requestId: requestIdField,
   });
 };
 
 const uncodedError = z.strictObject({
   success: z.literal(false),
   message: z.string(),
+  code: errorCodeEnum(),
+  requestId: requestIdField,
 });
 
-const agencyForbidden = codedError(["AGENCY_PERMISSION_DENIED"], true);
+const agencyForbidden = codedError(["AGENCY_PERMISSION_DENIED"]);
 
 const nullableDateTime = isoDateTime.nullable();
 
@@ -87,7 +91,7 @@ export const contractsResponses = {
     ),
     403: agencyForbidden,
     404: ErrorBody,
-    409: codedError(["CONTRACT_OFFER_NOT_ACCEPTABLE"], true),
+    409: codedError(["CONTRACT_OFFER_NOT_ACCEPTABLE"]),
   },
   submit: {
     200: ok(
@@ -140,13 +144,10 @@ export const contractsResponses = {
     ),
     403: agencyForbidden,
     404: ErrorBody,
-    409: codedError(
-      [
-        "REVIEW_ALREADY_SUBMITTED",
-        "CONTRACT_ALREADY_FINISHED",
-        "CONTRACT_HAS_INCOMPLETE_MILESTONES",
-      ],
-      true,
-    ),
+    409: codedError([
+      "REVIEW_ALREADY_SUBMITTED",
+      "CONTRACT_ALREADY_FINISHED",
+      "CONTRACT_HAS_INCOMPLETE_MILESTONES",
+    ]),
   },
 };

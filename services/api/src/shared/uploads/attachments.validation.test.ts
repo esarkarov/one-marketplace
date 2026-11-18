@@ -290,6 +290,8 @@ describe("large routes require an account for the claimed role", () => {
       expect(response.body).toEqual({
         success: false,
         message: "An account for this role is required.",
+        code: "FORBIDDEN",
+        requestId: expect.any(String),
       });
       expect(mocks.upload).not.toHaveBeenCalled();
     },
