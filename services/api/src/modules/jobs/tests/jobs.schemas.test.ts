@@ -185,6 +185,7 @@ describe("publicJobFeedQuerySchema", () => {
         query: "a",
         sort: "budget",
         offset: "5",
+        limit: "7",
         levels: "x,y",
         paymentVerified: "true",
         minBudgetCents: "100",
@@ -194,7 +195,8 @@ describe("publicJobFeedQuerySchema", () => {
     ).toEqual({
       query: "a",
       sort: "budget",
-      offset: "5",
+      offset: 5,
+      limit: 7,
       levels: "x,y",
       paymentVerified: "true",
       minBudgetCents: 100,

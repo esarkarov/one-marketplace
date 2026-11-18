@@ -88,6 +88,9 @@ describe("client query validation", () => {
   it.each([
     ["an oversized query", { query: "a".repeat(101) }],
     ["a bad offset", { offset: "-1" }],
+    ["a zero limit", { limit: "0" }],
+    ["a limit over the maximum", { limit: "101" }],
+    ["a non-numeric limit", { limit: "abc" }],
     ["an oversized type", { type: "a".repeat(33) }],
     ["an invalid type", { type: "company" }],
   ])("GET /marketplace/search answers 400 for %s", async (_name, query) => {
@@ -108,6 +111,20 @@ describe("client query validation", () => {
       offset: "0",
     });
 
+    expect(response.status).not.toBe(400);
+  });
+
+  it("GET /marketplace/search defaults limit to 20 and accepts an explicit limit", async () => {
+    const { marketplaceSearchQuerySchema } =
+      await import("../schemas/client.schema.js");
+
+    expect(marketplaceSearchQuerySchema.parse({})).toMatchObject({
+      limit: 20,
+      offset: 0,
+    });
+    const response = await authed("get", "/api/v1/client/marketplace/search", {
+      limit: "100",
+    });
     expect(response.status).not.toBe(400);
   });
 

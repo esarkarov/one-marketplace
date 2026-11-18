@@ -1,4 +1,9 @@
 import { db } from "../../../database/client.js";
+import { PAGINATION } from "../../../shared/validation/constants/pagination.constants.js";
+import {
+  fetchSize,
+  toOffsetPage,
+} from "../../../shared/validation/utils/pagination.utils.js";
 import { searchFreelancerRows } from "../repositories/freelancer.search.repository.js";
 import {
   PublicTalentSummary,
@@ -8,8 +13,6 @@ import {
 import { env } from "../../../config/env.js";
 import { clerk } from "../../../infrastructure/auth/clerk.client.js";
 
-const PUBLIC_TALENT_PAGE_SIZE = 20;
-
 const publicTalentRegionNames = new Intl.DisplayNames(["en"], {
   type: "region",
 });
@@ -18,13 +21,17 @@ export const searchPublicFreelancers = async (
   filters: PublicTalentSearchFilters,
   pagination: { limit?: number; offset?: number } = {},
 ): Promise<PublicTalentSearchPage> => {
-  const limit = pagination.limit ?? PUBLIC_TALENT_PAGE_SIZE;
+  const limit = pagination.limit ?? PAGINATION.defaultLimit;
   const offset = pagination.offset ?? 0;
   const normalizedQuery = (filters.query ?? "").trim().toLowerCase();
 
-  const rows = await searchFreelancerRows(db, filters, { limit, offset });
-
-  const hasMore = rows.length === limit;
+  const { rows, hasMore } = toOffsetPage(
+    await searchFreelancerRows(db, filters, {
+      limit: fetchSize(limit),
+      offset,
+    }),
+    limit,
+  );
   if (!rows.length || !env.clerkSecretKey)
     return { results: [], hasMore: false };
 

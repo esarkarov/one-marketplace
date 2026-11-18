@@ -6375,9 +6375,10 @@
             "name": "limit",
             "required": false,
             "schema": {
-              "maxLength": 10,
-              "pattern": "^\\d+$",
-              "type": "string"
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
             }
           },
           {
@@ -6385,9 +6386,10 @@
             "name": "offset",
             "required": false,
             "schema": {
-              "maxLength": 10,
-              "pattern": "^\\d+$",
-              "type": "string"
+              "default": 0,
+              "maximum": 10000,
+              "minimum": 0,
+              "type": "integer"
             }
           }
         ],
@@ -6598,9 +6600,10 @@
             "name": "limit",
             "required": false,
             "schema": {
-              "maxLength": 10,
-              "pattern": "^\\d+$",
-              "type": "string"
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
             }
           },
           {
@@ -6608,9 +6611,10 @@
             "name": "offset",
             "required": false,
             "schema": {
-              "maxLength": 10,
-              "pattern": "^\\d+$",
-              "type": "string"
+              "default": 0,
+              "maximum": 10000,
+              "minimum": 0,
+              "type": "integer"
             }
           }
         ],
@@ -6710,9 +6714,10 @@
             "name": "limit",
             "required": false,
             "schema": {
-              "maxLength": 10,
-              "pattern": "^\\d+$",
-              "type": "string"
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
             }
           },
           {
@@ -6720,9 +6725,10 @@
             "name": "offset",
             "required": false,
             "schema": {
-              "maxLength": 10,
-              "pattern": "^\\d+$",
-              "type": "string"
+              "default": 0,
+              "maximum": 10000,
+              "minimum": 0,
+              "type": "integer"
             }
           }
         ],
@@ -7058,9 +7064,10 @@
             "name": "limit",
             "required": false,
             "schema": {
-              "maxLength": 10,
-              "pattern": "^\\d+$",
-              "type": "string"
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
             }
           },
           {
@@ -7068,9 +7075,10 @@
             "name": "offset",
             "required": false,
             "schema": {
-              "maxLength": 10,
-              "pattern": "^\\d+$",
-              "type": "string"
+              "default": 0,
+              "maximum": 10000,
+              "minimum": 0,
+              "type": "integer"
             }
           }
         ],
@@ -7170,9 +7178,10 @@
             "name": "limit",
             "required": false,
             "schema": {
-              "maxLength": 10,
-              "pattern": "^\\d+$",
-              "type": "string"
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
             }
           },
           {
@@ -7180,9 +7189,10 @@
             "name": "offset",
             "required": false,
             "schema": {
-              "maxLength": 10,
-              "pattern": "^\\d+$",
-              "type": "string"
+              "default": 0,
+              "maximum": 10000,
+              "minimum": 0,
+              "type": "integer"
             }
           }
         ],
@@ -7743,9 +7753,10 @@
             "name": "limit",
             "required": false,
             "schema": {
-              "maxLength": 10,
-              "pattern": "^\\d+$",
-              "type": "string"
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
             }
           },
           {
@@ -7753,9 +7764,10 @@
             "name": "offset",
             "required": false,
             "schema": {
-              "maxLength": 10,
-              "pattern": "^\\d+$",
-              "type": "string"
+              "default": 0,
+              "maximum": 10000,
+              "minimum": 0,
+              "type": "integer"
             }
           }
         ],
@@ -10387,11 +10399,23 @@
           },
           {
             "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
             "name": "offset",
             "required": false,
             "schema": {
+              "default": 0,
               "maximum": 10000,
-              "minimum": -9007199254740991,
+              "minimum": 0,
               "type": "integer"
             }
           },
@@ -12180,11 +12204,23 @@
           },
           {
             "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
             "name": "offset",
             "required": false,
             "schema": {
+              "default": 0,
               "maximum": 10000,
-              "minimum": -9007199254740991,
+              "minimum": 0,
               "type": "integer"
             }
           },
@@ -15197,9 +15233,10 @@
             "name": "limit",
             "required": false,
             "schema": {
-              "maxLength": 10,
-              "pattern": "^\\d+$",
-              "type": "string"
+              "default": 30,
+              "maximum": 50,
+              "minimum": 1,
+              "type": "integer"
             }
           }
         ],
@@ -15213,17 +15250,17 @@
                     "data": {
                       "additionalProperties": false,
                       "properties": {
-                        "messages": {
+                        "nextCursor": {
+                          "type": ["string", "null"]
+                        },
+                        "results": {
                           "items": {
                             "$ref": "#/components/schemas/MessagingMessage"
                           },
                           "type": "array"
-                        },
-                        "nextCursor": {
-                          "type": ["string", "null"]
                         }
                       },
-                      "required": ["messages", "nextCursor"],
+                      "required": ["results", "nextCursor"],
                       "type": "object"
                     },
                     "message": {
@@ -16902,11 +16939,23 @@
           },
           {
             "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
             "name": "offset",
             "required": false,
             "schema": {
+              "default": 0,
               "maximum": 10000,
-              "minimum": -9007199254740991,
+              "minimum": 0,
               "type": "integer"
             }
           },
@@ -17760,12 +17809,24 @@
           },
           {
             "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
             "name": "offset",
             "required": false,
             "schema": {
-              "maxLength": 10,
-              "pattern": "^\\d+$",
-              "type": "string"
+              "default": 0,
+              "maximum": 10000,
+              "minimum": 0,
+              "type": "integer"
             }
           },
           {

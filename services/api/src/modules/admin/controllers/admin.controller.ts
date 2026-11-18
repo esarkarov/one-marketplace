@@ -22,24 +22,12 @@ import {
 } from "../services/admin.system.service.js";
 import { Pagination } from "../types/admin.types.js";
 
-const DEFAULT_PAGE_SIZE = 20;
-const MAX_PAGE_SIZE = 100;
-
 const parsePagination = (
   request: Parameters<RequestHandler>[0],
-): Pagination => {
-  const rawLimit = Number(request.query.limit);
-  const limit =
-    Number.isFinite(rawLimit) && rawLimit > 0
-      ? Math.min(Math.floor(rawLimit), MAX_PAGE_SIZE)
-      : DEFAULT_PAGE_SIZE;
-
-  const rawOffset = Number(request.query.offset);
-  const offset =
-    Number.isFinite(rawOffset) && rawOffset > 0 ? Math.floor(rawOffset) : 0;
-
-  return { limit, offset };
-};
+): Pagination => ({
+  limit: Number(request.query.limit),
+  offset: Number(request.query.offset),
+});
 
 const passwordsMatch = (provided: string, expected: string) => {
   const providedBuffer = Buffer.from(provided);

@@ -3,7 +3,7 @@ import { z } from "zod";
 import { milestoneCheckoutBodySchema } from "../../modules/contracts/schemas/contracts.schema.js";
 import { withIgnoredKeys } from "../../shared/validation/schemas/common.schema.js";
 import { centsQueryParam } from "../../shared/validation/schemas/money.schema.js";
-import { searchOffsetParam } from "../../shared/validation/schemas/search.schema.js";
+import { offsetParam } from "../../shared/validation/schemas/pagination.schema.js";
 import { convertSchema, registerComponent } from "./convert-schema.js";
 import { IGNORED_PROPERTY_DESCRIPTION } from "../constants/openapi.constants.js";
 import type { ComponentSchemas, JsonObject } from "../types/openapi.types.js";
@@ -45,7 +45,7 @@ describe("convertSchema fixtures", () => {
   });
 
   it("documents a digit transform pipe as the integer it parses to", () => {
-    const offset = input(z.strictObject({ offset: searchOffsetParam }));
+    const offset = input(z.strictObject({ offset: offsetParam }));
     const cents = input(z.strictObject({ minCents: centsQueryParam }));
     const properties = offset.properties as Record<string, JsonObject>;
     const centsProperties = cents.properties as Record<string, JsonObject>;

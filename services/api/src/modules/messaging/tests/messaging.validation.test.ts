@@ -249,6 +249,8 @@ describe("messaging request validation", () => {
       { query: { limit: "abc" } },
     ],
     ["negative limit", "get", messages, "client", { query: { limit: "-5" } }],
+    ["zero limit", "get", messages, "client", { query: { limit: "0" } }],
+    ["limit over 50", "get", messages, "client", { query: { limit: "51" } }],
     [
       "oversized cursor",
       "get",

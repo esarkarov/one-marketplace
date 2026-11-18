@@ -72,13 +72,8 @@ export const offsetPage = <T extends z.ZodType>(item: T) =>
     hasMore: z.boolean(),
   });
 
-export const cursorPage = <K extends string, T extends z.ZodType>(
-  key: K,
-  item: T,
-) =>
+export const cursorPage = <T extends z.ZodType>(item: T) =>
   z.strictObject({
-    [key]: z.array(item),
+    results: z.array(item),
     nextCursor: z.string().nullable(),
-  } as { [P in K]: z.ZodArray<T> } & {
-    nextCursor: z.ZodNullable<z.ZodString>;
   });

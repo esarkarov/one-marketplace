@@ -276,7 +276,8 @@ export const searchPublicAgenciesHandler: RequestHandler = asyncHandler(
       typeof request.query.query === "string" ? request.query.query : "";
     const sort = (request.query.sort ??
       "recommended") as PublicAgencyFilters["sort"];
-    const offset = Math.max(0, Number(request.query.offset) || 0);
+    const limit = Number(request.query.limit);
+    const offset = Number(request.query.offset);
     const sizes =
       typeof request.query.sizes === "string" && request.query.sizes
         ? request.query.sizes.split(",").filter(Boolean)
@@ -298,7 +299,7 @@ export const searchPublicAgenciesHandler: RequestHandler = asyncHandler(
           : undefined,
     };
 
-    const page = await searchPublicAgencies(filters, { offset });
+    const page = await searchPublicAgencies(filters, { limit, offset });
     const responseBody: ApiResponse<PublicAgencyFeedPage> = {
       success: true,
       message: "Agency search results retrieved.",

@@ -8,6 +8,10 @@ import {
   uuidParam,
   withIgnoredKeys,
 } from "../../../shared/validation/schemas/common.schema.js";
+import {
+  limitParam,
+  offsetParam,
+} from "../../../shared/validation/schemas/pagination.schema.js";
 import { moneyCents } from "../../../shared/money/money.js";
 import { COMMON_LIMITS } from "../../../shared/validation/constants/validation.constants.js";
 import { JOB_LIMITS } from "../../../shared/validation/constants/job.constants.js";
@@ -166,7 +170,8 @@ export const publicJobFeedQuerySchema = z.strictObject({
       error: "Sort is invalid.",
     })
     .optional(),
-  offset: pagingDigits("Offset").optional(),
+  limit: limitParam(),
+  offset: offsetParam,
   levels: z
     .string()
     .max(JOB_LIMITS.feedLevelsMax, { error: "Levels filter is too long." })

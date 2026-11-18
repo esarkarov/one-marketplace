@@ -160,14 +160,14 @@ describe("response schemas", () => {
       offset.safeParse({ results: ["a"], hasMore: false, total: 1 }).success,
     ).toBe(false);
 
-    const cursor = cursorPage("messages", z.string());
+    const cursor = cursorPage(z.string());
+    expect(cursor.safeParse({ results: ["a"], nextCursor: null }).success).toBe(
+      true,
+    );
     expect(
-      cursor.safeParse({ messages: ["a"], nextCursor: null }).success,
-    ).toBe(true);
-    expect(
-      cursor.safeParse({ messages: ["a"], nextCursor: "c", extra: 1 }).success,
+      cursor.safeParse({ results: ["a"], nextCursor: "c", extra: 1 }).success,
     ).toBe(false);
-    expect(cursor.safeParse({ messages: ["a"], nextCursor: 5 }).success).toBe(
+    expect(cursor.safeParse({ results: ["a"], nextCursor: 5 }).success).toBe(
       false,
     );
   });

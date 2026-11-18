@@ -200,9 +200,10 @@ export const searchMarketplaceHandler: RequestHandler = asyncHandler(
       typeof request.query.query === "string" ? request.query.query : "";
     const type = (request.query.type ?? "all") as
       "all" | "freelancer" | "agency";
-    const offset = Math.max(0, Number(request.query.offset) || 0);
+    const limit = Number(request.query.limit);
+    const offset = Number(request.query.offset);
 
-    const page = await searchMarketplace(query, type, { offset });
+    const page = await searchMarketplace(query, type, { limit, offset });
     const responseBody: ApiResponse<MarketplaceSearchPage> = {
       success: true,
       message: "Marketplace search results retrieved.",

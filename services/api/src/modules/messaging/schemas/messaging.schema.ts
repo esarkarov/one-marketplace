@@ -3,7 +3,6 @@ import {
   authRoleShape,
   boundedDataUrl,
   optionalBoundedText,
-  pagingDigits,
   scopeField,
   uuidParam,
 } from "../../../shared/validation/schemas/common.schema.js";
@@ -11,7 +10,11 @@ import {
   MAX_ATTACHMENT_FILE_NAME_LENGTH,
   MAX_ATTACHMENTS,
 } from "../../../shared/uploads/constants/attachments.constants.js";
-import { MESSAGING_LIMITS } from "../../../shared/validation/constants/messaging.constants.js";
+import {
+  MESSAGES_PAGE,
+  MESSAGING_LIMITS,
+} from "../../../shared/validation/constants/messaging.constants.js";
+import { limitParam } from "../../../shared/validation/schemas/pagination.schema.js";
 
 const ATTACHMENT_ERROR = "Attachment metadata is invalid.";
 
@@ -83,7 +86,10 @@ export const listMessagesQuerySchema = z.strictObject({
     .string({ error: "Cursor is invalid." })
     .max(MESSAGING_LIMITS.cursor, { error: "Cursor is invalid." })
     .optional(),
-  limit: pagingDigits("Limit").optional(),
+  limit: limitParam({
+    defaultLimit: MESSAGES_PAGE.defaultLimit,
+    max: MESSAGES_PAGE.maxLimit,
+  }),
 });
 
 export const readConversationBodySchema = z.strictObject({

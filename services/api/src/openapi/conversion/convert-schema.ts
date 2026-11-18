@@ -62,6 +62,8 @@ export const registerComponent = (
 
 interface Def {
   type: string;
+  defaultValue?: unknown;
+  innerType?: { _zod: { def: Def } };
   in?: { _zod: { def: Def } };
   out?: { _zod: { def: Def } } & z.ZodType;
 }
@@ -90,6 +92,16 @@ const widenDigitPipe = (zodSchema: z.ZodType, jsonSchema: JsonObject) => {
   Object.assign(jsonSchema, out);
 };
 
+const documentDefault = (zodSchema: z.ZodType, jsonSchema: JsonObject) => {
+  const def = defOf(zodSchema);
+  if (def.type !== "default" || !isDigitPipe(def.innerType?._zod.def ?? def)) {
+    return;
+  }
+  if (typeof def.defaultValue === "number") {
+    jsonSchema.default = def.defaultValue;
+  }
+};
+
 export const convertSchema = (
   schema: z.ZodType,
   io: Io,
@@ -100,11 +112,12 @@ export const convertSchema = (
     io,
     unrepresentable: "throw",
     ...(io === "input" && {
-      override: (ctx) =>
-        widenDigitPipe(
-          ctx.zodSchema as unknown as z.ZodType,
-          ctx.jsonSchema as JsonObject,
-        ),
+      override: (ctx) => {
+        const zodSchema = ctx.zodSchema as unknown as z.ZodType;
+        const jsonSchema = ctx.jsonSchema as JsonObject;
+        widenDigitPipe(zodSchema, jsonSchema);
+        documentDefault(zodSchema, jsonSchema);
+      },
     }),
   }) as unknown as JsonObject;
 

@@ -96,7 +96,7 @@ export const getMessages = async (
   const page = rows.slice(0, limit);
   const oldest = page.at(-1);
   return {
-    messages: (await hydrateMessages(page)).reverse(),
+    results: (await hydrateMessages(page)).reverse(),
     nextCursor: hasMore && oldest ? encodeCursor(oldest) : null,
   };
 };

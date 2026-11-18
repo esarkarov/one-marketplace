@@ -108,6 +108,10 @@ describe("jobs params and query validation", () => {
     ["an unknown key", "extra=1"],
     ["a role", "role=client"],
     ["a non-numeric offset", "offset=abc"],
+    ["a zero limit", "limit=0"],
+    ["a limit over the maximum", "limit=101"],
+    ["a non-numeric limit", "limit=abc"],
+    ["an offset over the maximum", "offset=10001"],
     ["an oversized search", `query=${"a".repeat(101)}`],
     ["an invalid budget", "minBudgetCents=1.5"],
     ["an array value", "sort[]=x"],
@@ -117,6 +121,19 @@ describe("jobs params and query validation", () => {
 
     expect(response.status).toBe(400);
     expect(response.body.code).toBe("VALIDATION_ERROR");
+  });
+
+  it("GET /jobs/public defaults limit to 20 and offset to 0 and accepts an explicit limit", async () => {
+    const { publicJobFeedQuerySchema } =
+      await import("../schemas/jobs.schema.js");
+
+    expect(publicJobFeedQuerySchema.parse({})).toMatchObject({
+      limit: 20,
+      offset: 0,
+    });
+    expect(publicJobFeedQuerySchema.parse({ limit: "100" }).limit).toBe(100);
+    const response = await request(app).get("/api/v1/jobs/public?limit=5");
+    expect(response.status).not.toBe(400);
   });
 
   it("GET /jobs/public passes validation for a valid query", async () => {

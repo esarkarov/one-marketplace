@@ -66,7 +66,7 @@ export const listRecentAccounts = (executor: DbExecutor, limit: number) =>
       createdAt: accounts.created_at,
     })
     .from(accounts)
-    .orderBy(desc(accounts.created_at))
+    .orderBy(desc(accounts.created_at), desc(accounts.id))
     .limit(limit);
 
 export const listRecentAgencies = (executor: DbExecutor, limit: number) =>
@@ -77,7 +77,7 @@ export const listRecentAgencies = (executor: DbExecutor, limit: number) =>
       createdAt: agency_metadata.created_at,
     })
     .from(agency_metadata)
-    .orderBy(desc(agency_metadata.created_at))
+    .orderBy(desc(agency_metadata.created_at), desc(agency_metadata.id))
     .limit(limit);
 
 export const listRecentJobPosts = (executor: DbExecutor, limit: number) =>
@@ -88,7 +88,7 @@ export const listRecentJobPosts = (executor: DbExecutor, limit: number) =>
       createdAt: job_posts.created_at,
     })
     .from(job_posts)
-    .orderBy(desc(job_posts.created_at))
+    .orderBy(desc(job_posts.created_at), desc(job_posts.id))
     .limit(limit);
 
 export const listRecentContracts = (executor: DbExecutor, limit: number) =>
@@ -99,7 +99,7 @@ export const listRecentContracts = (executor: DbExecutor, limit: number) =>
       createdAt: contracts.created_at,
     })
     .from(contracts)
-    .orderBy(desc(contracts.created_at))
+    .orderBy(desc(contracts.created_at), desc(contracts.id))
     .limit(limit);
 
 export const listAccountsWithCompany = (executor: DbExecutor, limit: number) =>
@@ -116,7 +116,7 @@ export const listAccountsWithCompany = (executor: DbExecutor, limit: number) =>
     })
     .from(accounts)
     .leftJoin(client_metadata, eq(client_metadata.auth_id, accounts.auth_id))
-    .orderBy(desc(accounts.created_at))
+    .orderBy(desc(accounts.created_at), desc(accounts.auth_id))
     .limit(limit);
 
 export const listAgenciesWithOwner = (executor: DbExecutor, limit: number) =>
@@ -133,7 +133,7 @@ export const listAgenciesWithOwner = (executor: DbExecutor, limit: number) =>
     })
     .from(agency_metadata)
     .innerJoin(accounts, eq(accounts.auth_id, agency_metadata.owner_id))
-    .orderBy(desc(agency_metadata.created_at))
+    .orderBy(desc(agency_metadata.created_at), desc(agency_metadata.id))
     .limit(limit);
 
 export const listJobPostsPage = (
@@ -175,7 +175,7 @@ export const listJobPostsPage = (
     .from(job_posts)
     .leftJoin(client_metadata, eq(client_metadata.auth_id, job_posts.client_id))
     .leftJoin(accounts, eq(accounts.auth_id, job_posts.client_id))
-    .orderBy(desc(job_posts.created_at))
+    .orderBy(desc(job_posts.created_at), desc(job_posts.id))
     .limit(limit)
     .offset(offset);
 
@@ -213,7 +213,7 @@ export const listProposalsPage = (
         sql`${proposals.sender_id} = ${agency_metadata.id}::text`,
       ),
     )
-    .orderBy(desc(proposals.created_at))
+    .orderBy(desc(proposals.created_at), desc(proposals.id))
     .limit(limit)
     .offset(offset);
 
@@ -246,7 +246,7 @@ export const listContractsPage = (
     .leftJoin(client_metadata, eq(client_metadata.auth_id, contracts.client_id))
     .leftJoin(accounts, eq(accounts.auth_id, contracts.client_id))
     .leftJoin(agency_metadata, eq(agency_metadata.id, contracts.agency_id))
-    .orderBy(desc(contracts.created_at))
+    .orderBy(desc(contracts.created_at), desc(contracts.id))
     .limit(limit)
     .offset(offset);
 
@@ -283,7 +283,7 @@ export const listFundedMilestones = (executor: DbExecutor, limit: number) =>
     })
     .from(contract_milestones)
     .where(sql`${contract_milestones.funded_at} IS NOT NULL`)
-    .orderBy(desc(contract_milestones.funded_at))
+    .orderBy(desc(contract_milestones.funded_at), desc(contract_milestones.id))
     .limit(limit);
 
 export const listRecentEarnings = (executor: DbExecutor, limit: number) =>
@@ -298,7 +298,7 @@ export const listRecentEarnings = (executor: DbExecutor, limit: number) =>
       createdAt: earning_history.created_at,
     })
     .from(earning_history)
-    .orderBy(desc(earning_history.created_at))
+    .orderBy(desc(earning_history.created_at), desc(earning_history.id))
     .limit(limit);
 
 export const listPaidPayouts = (executor: DbExecutor, limit: number) =>
@@ -317,6 +317,7 @@ export const listPaidPayouts = (executor: DbExecutor, limit: number) =>
       desc(
         sql`coalesce(${payout_history.paid_at}, ${payout_history.created_at})`,
       ),
+      desc(payout_history.id),
     )
     .limit(limit);
 
@@ -333,7 +334,10 @@ export const listConnectsPurchases = (executor: DbExecutor, limit: number) =>
     })
     .from(connects_purchase_history)
     .innerJoin(connects, eq(connects.id, connects_purchase_history.connects_id))
-    .orderBy(desc(connects_purchase_history.created_at))
+    .orderBy(
+      desc(connects_purchase_history.created_at),
+      desc(connects_purchase_history.id),
+    )
     .limit(limit);
 
 export const listAgencyNamesByIds = (

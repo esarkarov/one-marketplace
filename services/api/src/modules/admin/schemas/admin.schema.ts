@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { pagingDigits } from "../../../shared/validation/schemas/common.schema.js";
+import { paginationQuerySchema } from "../../../shared/validation/schemas/pagination.schema.js";
 import { ADMIN_LIMITS } from "../constants/admin.constants.js";
 
 export const adminLoginBodySchema = z.strictObject({
@@ -16,7 +16,4 @@ export const adminLogStreamQuerySchema = z.strictObject({
     .optional(),
 });
 
-export const adminListQuerySchema = z.strictObject({
-  limit: pagingDigits("Limit").optional(),
-  offset: pagingDigits("Offset").optional(),
-});
+export const adminListQuerySchema = paginationQuerySchema;

@@ -1,8 +1,6 @@
 import { z } from "zod";
-import {
-  SEARCH_OFFSET_MAX,
-  SEARCH_QUERY_MAX_LENGTH,
-} from "../constants/search.constants.js";
+import { SEARCH_QUERY_MAX_LENGTH } from "../constants/search.constants.js";
+import { limitParam, offsetParam } from "./pagination.schema.js";
 
 const searchTextParam = z
   .string()
@@ -11,21 +9,8 @@ const searchTextParam = z
   })
   .optional();
 
-export const searchOffsetParam = z
-  .string()
-  .regex(/^\d+$/, { error: "Offset must be a non-negative integer." })
-  .transform(Number)
-  .pipe(
-    z
-      .number()
-      .int()
-      .max(SEARCH_OFFSET_MAX, {
-        error: `Offset must be at most ${SEARCH_OFFSET_MAX}.`,
-      }),
-  )
-  .optional();
-
 export const searchPagingShape = {
   query: searchTextParam,
-  offset: searchOffsetParam,
+  limit: limitParam(),
+  offset: offsetParam,
 };

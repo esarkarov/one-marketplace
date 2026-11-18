@@ -298,7 +298,7 @@ export const findPublishedJobFeedRows = (
     )
     .leftJoin(client_spents, eq(job_posts.client_id, client_spents.client_id))
     .where(and(...conditions))
-    .orderBy(orderBy)
+    .orderBy(orderBy, asc(job_posts.id))
     .limit(limit)
     .offset(offset);
 };

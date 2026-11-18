@@ -16,6 +16,7 @@ import {
   sumPaidPayoutCents,
 } from "../repositories/admin.repository.js";
 import { Pagination } from "../types/admin.types.js";
+import { fetchSize } from "../../../shared/validation/utils/pagination.utils.js";
 import { mergePages } from "../utils/admin.pagination.js";
 
 export const getAdminOverviewTotals = async () => {
@@ -62,7 +63,7 @@ export const getAdminOverviewTotals = async () => {
 };
 
 export const getAdminOverviewActivity = async (pagination: Pagination) => {
-  const fetchLimit = pagination.offset + pagination.limit;
+  const fetchLimit = pagination.offset + fetchSize(pagination.limit);
 
   const [recentAccounts, recentAgencies, recentJobs, recentContracts] =
     await Promise.all([

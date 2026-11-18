@@ -1,4 +1,9 @@
 import { MARKETPLACE_ACCOUNT_TYPE } from "../constants/client.constants.js";
+import { PAGINATION } from "../../../shared/validation/constants/pagination.constants.js";
+import {
+  fetchSize,
+  toOffsetPage,
+} from "../../../shared/validation/utils/pagination.utils.js";
 import { clerk } from "../../../infrastructure/auth/clerk.client.js";
 import { db } from "../../../database/client.js";
 import { toSafeCents } from "../../../shared/money/money.js";
@@ -288,7 +293,6 @@ export const getClientFinanceManagementUrl = async (
   return session.url;
 };
 
-const MARKETPLACE_SEARCH_PAGE_SIZE = 20;
 const regionNames = new Intl.DisplayNames(["en"], { type: "region" });
 
 export const searchMarketplace = async (
@@ -296,16 +300,20 @@ export const searchMarketplace = async (
   type: "all" | "freelancer" | "agency",
   pagination: { limit?: number; offset?: number } = {},
 ): Promise<MarketplaceSearchPage> => {
-  const limit = pagination.limit ?? MARKETPLACE_SEARCH_PAGE_SIZE;
+  const limit = pagination.limit ?? PAGINATION.defaultLimit;
   const offset = pagination.offset ?? 0;
   const normalizedQuery = query.trim().toLowerCase();
   const results: MarketplaceSearchResult[] = [];
   let hasMore = false;
 
   if (type === "all" || type === "freelancer") {
-    const rows = await findFreelancerSearchRows(db, { limit, offset });
+    const page = toOffsetPage(
+      await findFreelancerSearchRows(db, { limit: fetchSize(limit), offset }),
+      limit,
+    );
+    const rows = page.rows;
 
-    if (rows.length === limit) hasMore = true;
+    if (page.hasMore) hasMore = true;
 
     if (rows.length && env.clerkSecretKey) {
       const clerkUsers = await Promise.all(
@@ -354,9 +362,16 @@ export const searchMarketplace = async (
   }
 
   if (type === "all" || type === "agency") {
-    const rows = await findOnboardedAgencySearchRows(db, { limit, offset });
+    const page = toOffsetPage(
+      await findOnboardedAgencySearchRows(db, {
+        limit: fetchSize(limit),
+        offset,
+      }),
+      limit,
+    );
+    const rows = page.rows;
 
-    if (rows.length === limit) hasMore = true;
+    if (page.hasMore) hasMore = true;
 
     for (const row of rows) {
       const title = row.professionalTitle || row.specialty;

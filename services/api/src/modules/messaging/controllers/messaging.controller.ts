@@ -130,7 +130,7 @@ export const listMessages: RequestHandler = asyncHandler(
       typeof request.query.cursor === "string"
         ? request.query.cursor
         : undefined,
-      Math.min(Math.max(Number(request.query.limit) || 30, 1), 50),
+      Number(request.query.limit),
     );
 
     response.json({

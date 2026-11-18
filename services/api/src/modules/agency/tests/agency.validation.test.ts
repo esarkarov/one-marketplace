@@ -148,6 +148,9 @@ describe("agency query and params validation", () => {
     ["a role", "role=freelancer"],
     ["an oversized query", `query=${"a".repeat(101)}`],
     ["a bad rate", "maxRateCents=1.5"],
+    ["a zero limit", "limit=0"],
+    ["a limit over the maximum", "limit=101"],
+    ["a non-numeric limit", "limit=abc"],
     ["a bad flag", "verifiedOnly=yes"],
     ["an array value", "sizes[]=x"],
     ["an invalid sort", "sort=popular"],
@@ -157,6 +160,18 @@ describe("agency query and params validation", () => {
 
     expect(response.status).toBe(400);
     expect(response.body.code).toBe("VALIDATION_ERROR");
+  });
+
+  it("GET /search defaults limit to 20 and accepts an explicit limit", async () => {
+    const { agencyTalentSearchQuerySchema } =
+      await import("../schemas/agency.schema.js");
+
+    expect(agencyTalentSearchQuerySchema.parse({})).toMatchObject({
+      limit: 20,
+      offset: 0,
+    });
+    const response = await request(app).get("/api/v1/agency/search?limit=100");
+    expect(response.status).not.toBe(400);
   });
 
   it("GET /search passes validation for a valid query", async () => {

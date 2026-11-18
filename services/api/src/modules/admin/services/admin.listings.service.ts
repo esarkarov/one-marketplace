@@ -20,6 +20,10 @@ import {
   listRecentEarnings,
 } from "../repositories/admin.repository.js";
 import { Pagination, AdminTransactionRow } from "../types/admin.types.js";
+import {
+  fetchSize,
+  toOffsetPage,
+} from "../../../shared/validation/utils/pagination.utils.js";
 import { mergePages } from "../utils/admin.pagination.js";
 
 const clerkNames = async (authIds: string[]) => {
@@ -56,7 +60,7 @@ const personAccountType = (role: string): AdminAccountType =>
     : ADMIN_ACCOUNT_TYPE.CLIENT;
 
 export const getAdminAccounts = async (pagination: Pagination) => {
-  const fetchLimit = pagination.offset + pagination.limit;
+  const fetchLimit = pagination.offset + fetchSize(pagination.limit);
 
   const [personalRows, agencyRows] = await Promise.all([
     listAccountsWithCompany(db, fetchLimit),
@@ -96,19 +100,25 @@ export const getAdminAccounts = async (pagination: Pagination) => {
 };
 
 export const getAdminJobPosts = async ({ limit, offset }: Pagination) => {
-  const rows = await listJobPostsPage(db, { limit, offset });
+  const { rows, hasMore } = toOffsetPage(
+    await listJobPostsPage(db, { limit: fetchSize(limit), offset }),
+    limit,
+  );
 
   return {
     results: rows.map((row) => ({
       ...row,
       clientName: row.companyName ?? "Unknown client",
     })),
-    hasMore: rows.length === limit,
+    hasMore,
   };
 };
 
 export const getAdminProposals = async ({ limit, offset }: Pagination) => {
-  const rows = await listProposalsPage(db, { limit, offset });
+  const { rows, hasMore } = toOffsetPage(
+    await listProposalsPage(db, { limit: fetchSize(limit), offset }),
+    limit,
+  );
 
   const freelancerIds = rows
     .filter((row) => row.senderType === "FREELANCER")
@@ -146,11 +156,14 @@ export const getAdminProposals = async ({ limit, offset }: Pagination) => {
     };
   });
 
-  return { results, hasMore: rows.length === limit };
+  return { results, hasMore };
 };
 
 export const getAdminContracts = async ({ limit, offset }: Pagination) => {
-  const rows = await listContractsPage(db, { limit, offset });
+  const { rows, hasMore } = toOffsetPage(
+    await listContractsPage(db, { limit: fetchSize(limit), offset }),
+    limit,
+  );
 
   const freelancerIds = rows
     .map((row) => row.freelancerId)
@@ -201,11 +214,11 @@ export const getAdminContracts = async ({ limit, offset }: Pagination) => {
     };
   });
 
-  return { results, hasMore: rows.length === limit };
+  return { results, hasMore };
 };
 
 export const getAdminTransactions = async (pagination: Pagination) => {
-  const fetchLimit = pagination.offset + pagination.limit;
+  const fetchLimit = pagination.offset + fetchSize(pagination.limit);
 
   const [funded, earned, paidOut, connectsPurchases] = await Promise.all([
     listFundedMilestones(db, fetchLimit),

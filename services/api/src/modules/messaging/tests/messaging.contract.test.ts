@@ -397,7 +397,8 @@ describe("GET /conversations/:conversationId/messages", () => {
       .set(as(fixture.clientId));
     expect(first.status).toBe(200);
     const page = messagingResponses.messages[200].parse(first.body);
-    expect(page.data.messages).toHaveLength(2);
+    expect(page.data.results).toHaveLength(2);
+    expect(page.data).not.toHaveProperty("messages");
     expect(page.data.nextCursor).not.toBeNull();
 
     const second = await request(app)
@@ -406,7 +407,7 @@ describe("GET /conversations/:conversationId/messages", () => {
       .set(as(fixture.clientId));
     expect(second.status).toBe(200);
     const rest = messagingResponses.messages[200].parse(second.body);
-    const restMessages = rest.data.messages as { attachments: unknown[] }[];
+    const restMessages = rest.data.results as { attachments: unknown[] }[];
     expect(restMessages).toHaveLength(1);
     expect(restMessages[0]?.attachments).toHaveLength(1);
     expect(

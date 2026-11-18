@@ -111,17 +111,37 @@ describe("admin list and overview validation", () => {
       .get(path)
       .set(bearer())
       .query({ limit: "1".repeat(11) });
+    const zero = await request(app)
+      .get(path)
+      .set(bearer())
+      .query({ limit: "0" });
+    const overMax = await request(app)
+      .get(path)
+      .set(bearer())
+      .query({ limit: "101" });
+    const offsetOverMax = await request(app)
+      .get(path)
+      .set(bearer())
+      .query({ offset: "10001" });
     const valid = await request(app)
       .get(path)
       .set(bearer())
       .query({ limit: "10", offset: "0" });
+    const max = await request(app)
+      .get(path)
+      .set(bearer())
+      .query({ limit: "100" });
 
     expect(unknown.status).toBe(400);
     expect(unknown.body.code).toBe("VALIDATION_ERROR");
     expect(badLimit.status).toBe(400);
     expect(badOffset.status).toBe(400);
     expect(oversized.status).toBe(400);
+    expect(zero.status).toBe(400);
+    expect(overMax.status).toBe(400);
+    expect(offsetOverMax.status).toBe(400);
     expect(valid.status).not.toBe(400);
+    expect(max.status).not.toBe(400);
   });
 
   it.each(["/admin/overview", "/admin/system/health"])(

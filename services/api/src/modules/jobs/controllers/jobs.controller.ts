@@ -259,7 +259,8 @@ export const getPublicJobFeedHandler: RequestHandler = asyncHandler(
     const query =
       typeof request.query.query === "string" ? request.query.query : "";
     const sort = (request.query.sort ?? "newest") as PublicJobFilters["sort"];
-    const offset = Math.max(0, Number(request.query.offset) || 0);
+    const limit = Number(request.query.limit);
+    const offset = Number(request.query.offset);
     const numberParam = (key: string) => {
       const value = Number(request.query[key]);
       return Number.isSafeInteger(value) && value > 0 ? value : undefined;
@@ -282,7 +283,7 @@ export const getPublicJobFeedHandler: RequestHandler = asyncHandler(
           : undefined,
     };
 
-    const page = await getPublicJobFeed(filters, { offset });
+    const page = await getPublicJobFeed(filters, { limit, offset });
     const responseBody = {
       success: true,
       message: "Job feed retrieved.",

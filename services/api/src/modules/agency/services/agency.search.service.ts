@@ -1,13 +1,16 @@
 import { db } from "../../../database/client.js";
 import { toSafeCents } from "../../../shared/money/money.js";
+import { PAGINATION } from "../../../shared/validation/constants/pagination.constants.js";
+import {
+  fetchSize,
+  toOffsetPage,
+} from "../../../shared/validation/utils/pagination.utils.js";
 import { searchAgencyRows } from "../repositories/agency.search.repository.js";
 import {
   PublicAgencySummary,
   PublicAgencyFilters,
   PublicAgencyFeedPage,
 } from "../types/agency.types.js";
-
-const PUBLIC_AGENCY_PAGE_SIZE = 20;
 
 const publicAgencyRegionNames = new Intl.DisplayNames(["en"], {
   type: "region",
@@ -17,13 +20,14 @@ export const searchPublicAgencies = async (
   filters: PublicAgencyFilters,
   pagination: { limit?: number; offset?: number } = {},
 ): Promise<PublicAgencyFeedPage> => {
-  const limit = pagination.limit ?? PUBLIC_AGENCY_PAGE_SIZE;
+  const limit = pagination.limit ?? PAGINATION.defaultLimit;
   const offset = pagination.offset ?? 0;
   const normalizedQuery = (filters.query ?? "").trim().toLowerCase();
 
-  const rows = await searchAgencyRows(db, filters, { limit, offset });
-
-  const hasMore = rows.length === limit;
+  const { rows, hasMore } = toOffsetPage(
+    await searchAgencyRows(db, filters, { limit: fetchSize(limit), offset }),
+    limit,
+  );
   if (!rows.length) return { results: [], hasMore: false };
 
   const results: PublicAgencySummary[] = [];

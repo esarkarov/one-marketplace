@@ -24,6 +24,11 @@ import {
   uploadDocuments,
 } from "../../../shared/uploads/upload-documents.js";
 import { reuseStoredAttachments } from "../../../shared/uploads/attachments.js";
+import { PAGINATION } from "../../../shared/validation/constants/pagination.constants.js";
+import {
+  fetchSize,
+  toOffsetPage,
+} from "../../../shared/validation/utils/pagination.utils.js";
 import { clerk } from "../../../infrastructure/auth/clerk.client.js";
 import {
   toJobPostResponse,
@@ -186,20 +191,23 @@ export interface PublicJobFeedPage {
   hasMore: boolean;
 }
 
-const PUBLIC_JOB_PAGE_SIZE = 20;
 const jobRegionNames = new Intl.DisplayNames(["en"], { type: "region" });
 
 export const getPublicJobFeed = async (
   filters: PublicJobFilters,
   pagination: { limit?: number; offset?: number } = {},
 ): Promise<PublicJobFeedPage> => {
-  const limit = pagination.limit ?? PUBLIC_JOB_PAGE_SIZE;
+  const limit = pagination.limit ?? PAGINATION.defaultLimit;
   const offset = pagination.offset ?? 0;
   const normalizedQuery = (filters.query ?? "").trim().toLowerCase();
 
-  const rows = await findPublishedJobFeedRows(db, filters, { limit, offset });
-
-  const hasMore = rows.length === limit;
+  const { rows, hasMore } = toOffsetPage(
+    await findPublishedJobFeedRows(db, filters, {
+      limit: fetchSize(limit),
+      offset,
+    }),
+    limit,
+  );
   if (!rows.length) return { results: [], hasMore: false };
 
   const clientCountries = new Map<string, string | null>();

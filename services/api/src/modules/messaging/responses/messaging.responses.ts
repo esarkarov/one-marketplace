@@ -117,7 +117,7 @@ export const messagingResponses = {
     423: ErrorBody,
   },
   messages: {
-    200: ok(cursorPage("messages", Message)),
+    200: ok(cursorPage(Message)),
     400: BadRequestBody,
     404: ErrorBody,
   },
