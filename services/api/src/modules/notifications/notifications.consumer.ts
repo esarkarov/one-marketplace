@@ -1,3 +1,4 @@
+import { toNotificationResponse } from "./utils/notifications.mappers.js";
 import type { ChannelWrapper } from "amqp-connection-manager";
 import type { ConsumeMessage } from "amqplib";
 import { getRabbitConsumerChannel } from "../../infrastructure/events/rabbitmq.client.js";
@@ -198,9 +199,15 @@ export const createNotificationConsumer = (options: {
     try {
       for (const notification of inserted) {
         if (notification.agency_id) {
-          emitAgencyNotification(notification.agency_id, notification);
+          emitAgencyNotification(
+            notification.agency_id,
+            toNotificationResponse(notification),
+          );
         } else {
-          emitNotification(notification.recipient_id!, notification);
+          emitNotification(
+            notification.recipient_id!,
+            toNotificationResponse(notification),
+          );
         }
       }
     } catch (error) {

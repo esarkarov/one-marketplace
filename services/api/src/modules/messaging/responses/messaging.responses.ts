@@ -10,15 +10,15 @@ import { isoDateTime } from "../../../shared/responses/scalar.responses.js";
 const MessageAttachment = z
   .strictObject({
     id: z.uuid(),
-    message_id: z.uuid(),
-    storage_key: z.string(),
-    file_url: z.string(),
-    file_name: z.string(),
-    mime_type: z.string(),
-    file_size: z.number().int().min(0),
-    attachment_type: z.string(),
-    is_available: z.boolean(),
-    created_at: isoDateTime,
+    messageId: z.uuid(),
+    storageKey: z.string(),
+    fileUrl: z.string(),
+    fileName: z.string(),
+    mimeType: z.string(),
+    fileSize: z.number().int().min(0),
+    attachmentType: z.string(),
+    isAvailable: z.boolean(),
+    createdAt: isoDateTime,
   })
   .meta({ id: "MessagingMessageAttachment" });
 

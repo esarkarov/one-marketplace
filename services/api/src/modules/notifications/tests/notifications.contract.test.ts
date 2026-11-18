@@ -156,7 +156,7 @@ describe("PATCH /notifications/read-all", () => {
       .query({ role: "freelancer" })
       .set(as(fixture.authId));
     const body = notificationsResponses.list[200].parse(list.body);
-    expect(body.data.every((item) => item.is_read && item.read_at)).toBe(true);
+    expect(body.data.every((item) => item.isRead && item.readAt)).toBe(true);
   });
 });
 

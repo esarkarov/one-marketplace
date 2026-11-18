@@ -10,8 +10,8 @@ const HistoryEntry = z
     id: z.uuid(),
     type: z.string(),
     description: z.string(),
-    amount: z.number().int(),
-    created_at: isoDateTime.nullable(),
+    connects: z.number().int(),
+    createdAt: isoDateTime.nullable(),
   })
   .meta({ id: "ConnectsHistoryEntry" });
 

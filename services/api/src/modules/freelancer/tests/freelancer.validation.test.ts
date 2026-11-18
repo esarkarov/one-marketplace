@@ -45,25 +45,25 @@ const bearer = { Authorization: "Bearer test-token" };
 
 const validProfile = () => ({
   role: "freelancer",
-  freelancer_metadata: {
-    professional_title: "Developer",
-    professional_description: "Builds things",
-    hourly_rate_cents: 5000,
+  freelancerMetadata: {
+    professionalTitle: "Developer",
+    professionalDescription: "Builds things",
+    hourlyRateCents: 5000,
     country: "US",
     city: "NYC",
-    availability_status: "available",
-    weekly_availability: "30",
-    experience_level: "expert",
+    availabilityStatus: "available",
+    weeklyAvailability: "30",
+    experienceLevel: "expert",
     skills: ["react", "node", "sql"],
     languages: [{ language: "English", proficiency: "Native" }],
   },
-  freelancer_portfolios: [
+  freelancerPortfolios: [
     {
       title: "Site",
       category: "Web",
       description: "A site",
-      live_url: null,
-      cover_image: { url: "https://example.test/a.png", imageId: "x" },
+      liveUrl: null,
+      coverImage: { url: "https://example.test/a.png", imageId: "x" },
     },
   ],
 });
@@ -179,19 +179,52 @@ describe("PUT /freelancer/profile validation", () => {
   const cases: [string, (body: Profile) => unknown][] = [
     ["an unknown key", (body) => ({ ...body, extra: 1 })],
     [
+      "the old snake_case metadata key",
+      ({ freelancerMetadata, ...rest }) => ({
+        ...rest,
+        freelancer_metadata: freelancerMetadata,
+      }),
+    ],
+    [
+      "the old snake_case portfolios key",
+      ({ freelancerPortfolios, ...rest }) => ({
+        ...rest,
+        freelancer_portfolios: freelancerPortfolios,
+      }),
+    ],
+    [
+      "an old snake_case metadata field",
+      (body) => ({
+        ...body,
+        freelancerMetadata: {
+          ...body.freelancerMetadata,
+          professional_title: "Developer",
+        },
+      }),
+    ],
+    [
+      "an old snake_case portfolio field",
+      (body) => ({
+        ...body,
+        freelancerPortfolios: [
+          { ...body.freelancerPortfolios[0], live_url: null },
+        ],
+      }),
+    ],
+    [
       "an unknown metadata key",
       (body) => ({
         ...body,
-        freelancer_metadata: { ...body.freelancer_metadata, extra: 1 },
+        freelancerMetadata: { ...body.freelancerMetadata, extra: 1 },
       }),
     ],
     [
       "an oversized title",
       (body) => ({
         ...body,
-        freelancer_metadata: {
-          ...body.freelancer_metadata,
-          professional_title: "a".repeat(101),
+        freelancerMetadata: {
+          ...body.freelancerMetadata,
+          professionalTitle: "a".repeat(101),
         },
       }),
     ],
@@ -199,8 +232,8 @@ describe("PUT /freelancer/profile validation", () => {
       "an oversized skill",
       (body) => ({
         ...body,
-        freelancer_metadata: {
-          ...body.freelancer_metadata,
+        freelancerMetadata: {
+          ...body.freelancerMetadata,
           skills: ["a", "b", "a".repeat(21)],
         },
       }),
@@ -209,8 +242,8 @@ describe("PUT /freelancer/profile validation", () => {
       "too many skills",
       (body) => ({
         ...body,
-        freelancer_metadata: {
-          ...body.freelancer_metadata,
+        freelancerMetadata: {
+          ...body.freelancerMetadata,
           skills: Array.from({ length: 16 }, (_, index) => `s${index}`),
         },
       }),
@@ -219,27 +252,27 @@ describe("PUT /freelancer/profile validation", () => {
       "too many portfolios",
       (body) => ({
         ...body,
-        freelancer_portfolios: Array.from(
+        freelancerPortfolios: Array.from(
           { length: 11 },
-          () => body.freelancer_portfolios[0],
+          () => body.freelancerPortfolios[0],
         ),
       }),
     ],
     [
       "a missing metadata object",
-      ({ freelancer_metadata: _unused, ...rest }) => rest,
+      ({ freelancerMetadata: _unused, ...rest }) => rest,
     ],
     [
       "a string rate",
       (body) => ({
         ...body,
-        freelancer_metadata: {
-          ...body.freelancer_metadata,
-          hourly_rate_cents: "5000",
+        freelancerMetadata: {
+          ...body.freelancerMetadata,
+          hourlyRateCents: "5000",
         },
       }),
     ],
-    ["a wrong type title", (body) => ({ ...body, freelancer_portfolios: "x" })],
+    ["a wrong type title", (body) => ({ ...body, freelancerPortfolios: "x" })],
   ];
 
   it.each(cases)("answers 400 for %s", async (_name, mutate) => {

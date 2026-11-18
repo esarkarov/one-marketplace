@@ -156,25 +156,25 @@ const purge = async () => {
 
 const profileBody = {
   role: "freelancer",
-  freelancer_metadata: {
-    professional_title: "Backend developer",
-    professional_description: "I build APIs.",
-    hourly_rate_cents: 6000,
+  freelancerMetadata: {
+    professionalTitle: "Backend developer",
+    professionalDescription: "I build APIs.",
+    hourlyRateCents: 6000,
     country: "US",
     city: "Austin",
-    availability_status: "AVAILABLE",
-    weekly_availability: "30",
-    experience_level: "EXPERT",
+    availabilityStatus: "AVAILABLE",
+    weeklyAvailability: "30",
+    experienceLevel: "EXPERT",
     skills: ["node", "postgres", "typescript"],
     languages: [{ language: "English", proficiency: "Fluent" }],
   },
-  freelancer_portfolios: [
+  freelancerPortfolios: [
     {
       title: "Shop",
       category: "Web",
       description: "A shop.",
-      live_url: "https://shop.example.test",
-      cover_image: { url: "data:image/png;base64,iVBORw0KGgo=" },
+      liveUrl: "https://shop.example.test",
+      coverImage: { url: "data:image/png;base64,iVBORw0KGgo=" },
     },
   ],
 };

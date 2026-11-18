@@ -6,12 +6,12 @@ import {
   upsertProfileBodySchema,
 } from "../schemas/freelancer.schema.js";
 
-const body = (hourly_rate_cents: unknown) => ({
-  freelancer_metadata: { hourly_rate_cents },
+const body = (hourlyRateCents: unknown) => ({
+  freelancerMetadata: { hourlyRateCents },
 });
 
 describe("upsertProfileBodySchema", () => {
-  it.each([500, 100_000])("accepts hourly_rate_cents %s", (value) => {
+  it.each([500, 100_000])("accepts hourlyRateCents %s", (value) => {
     expect(upsertProfileBodySchema.safeParse(body(value)).success).toBe(true);
   });
 
@@ -22,7 +22,7 @@ describe("upsertProfileBodySchema", () => {
     ["above the limit", 100_001],
     ["a string", "5000"],
     ["missing", undefined],
-  ])("rejects %s hourly_rate_cents", (_name, value) => {
+  ])("rejects %s hourlyRateCents", (_name, value) => {
     const result = upsertProfileBodySchema.safeParse(body(value));
     expect(result.success).toBe(false);
   });

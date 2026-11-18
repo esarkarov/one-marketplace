@@ -409,6 +409,20 @@ describe("GET /conversations/:conversationId/messages", () => {
     const restMessages = rest.data.messages as { attachments: unknown[] }[];
     expect(restMessages).toHaveLength(1);
     expect(restMessages[0]?.attachments).toHaveLength(1);
+    expect(
+      Object.keys(restMessages[0]!.attachments[0] as object).sort(),
+    ).toEqual([
+      "attachmentType",
+      "createdAt",
+      "fileName",
+      "fileSize",
+      "fileUrl",
+      "id",
+      "isAvailable",
+      "messageId",
+      "mimeType",
+      "storageKey",
+    ]);
   });
 
   it("matches the 404 schema", async () => {

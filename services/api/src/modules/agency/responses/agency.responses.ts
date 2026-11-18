@@ -194,8 +194,8 @@ const AgencyConnectsHistoryItem = z
     id: z.uuid(),
     type: z.string(),
     description: z.string(),
-    amount: z.number().int(),
-    created_at: isoDateTime.nullable(),
+    connects: z.number().int(),
+    createdAt: isoDateTime.nullable(),
   })
   .meta({ id: "AgencyConnectsHistoryItem" });
 
@@ -223,19 +223,19 @@ const AgencyProposalListItem = z
 
 const AgencyProposalRow = z.strictObject({
   id: z.uuid(),
-  job_id: z.uuid(),
-  sender_id: z.string(),
-  sender_type: z.string(),
-  cover_letter: z.string(),
-  bid_amount_cents: cents,
+  jobId: z.uuid(),
+  senderId: z.string(),
+  senderType: z.string(),
+  coverLetter: z.string(),
+  bidAmountCents: cents,
   duration: z.string(),
-  screening_answers: z.array(
+  screeningAnswers: z.array(
     z.strictObject({ question: z.string(), answer: z.string() }),
   ),
   status: z.string(),
-  is_shortlisted: z.boolean(),
-  created_at: isoDateTime.nullable(),
-  updated_at: isoDateTime.nullable(),
+  isShortlisted: z.boolean(),
+  createdAt: isoDateTime.nullable(),
+  updatedAt: isoDateTime.nullable(),
 });
 
 const AgencyProposalSubmitted = z

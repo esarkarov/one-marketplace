@@ -54,14 +54,12 @@ const MONEY_NAME =
   /(amount|total|price|earning|balance|spent|fee|budget|rate|available|pending|lifetime)/i;
 
 const MONEY_NAME_ALLOWLIST: Readonly<Record<string, string>> = {
-  amount:
-    "connects count (connects_history.amount is a connects delta), not money",
   availableAt: "timestamp when an earning becomes available",
   feeRatePercent: "percentage, not money",
   heapTotal: "bytes of process memory",
   hireRate: "integer percentage of jobs that led to a hire",
   hasEarnings: "boolean flag",
-  is_available: "boolean flag on a message attachment",
+  isAvailable: "boolean flag on a message attachment",
   recentEarnings: "array of items; its money fields are named *Cents",
   total: "count of proposals",
   totalContracts: "count",

@@ -15,33 +15,33 @@ const CoverImage = z.strictObject({ imageId: z.string(), url: z.string() });
 const FreelancerPortfolio = z
   .strictObject({
     id: z.uuid(),
-    freelancer_id: z.uuid(),
+    freelancerId: z.uuid(),
     title: z.string(),
     category: z.string(),
     description: z.string(),
-    live_url: z.string().nullable(),
-    cover_image: CoverImage,
-    created_at: isoDateTime.nullable(),
-    updated_at: isoDateTime.nullable(),
+    liveUrl: z.string().nullable(),
+    coverImage: CoverImage,
+    createdAt: isoDateTime.nullable(),
+    updatedAt: isoDateTime.nullable(),
   })
   .meta({ id: "FreelancerPortfolio" });
 
 const profileFields = {
-  professional_title: z.string(),
-  professional_description: z.string(),
-  hourly_rate_cents: cents,
+  professionalTitle: z.string(),
+  professionalDescription: z.string(),
+  hourlyRateCents: cents,
   country: z.string(),
   city: z.string(),
-  availability_status: z.string(),
-  weekly_availability: z.string(),
-  experience_level: z.string(),
+  availabilityStatus: z.string(),
+  weeklyAvailability: z.string(),
+  experienceLevel: z.string(),
   skills: z.array(z.string()),
   languages: z.array(
     z.strictObject({ language: z.string(), proficiency: z.string() }),
   ),
   portfolios: z.array(FreelancerPortfolio),
   identityVerified: z.boolean(),
-  joined_at: isoDateTime.nullable(),
+  joinedAt: isoDateTime.nullable(),
 };
 
 const FreelancerAgency = z.strictObject({
@@ -65,7 +65,7 @@ const FreelancerWorkHistoryItem = z.strictObject({
   client: z.string(),
   status: z.enum(["ACTIVE", "COMPLETED"]),
   completed: isoDateTime.nullable(),
-  created_at: isoDateTime,
+  createdAt: isoDateTime,
   amountCents: cents,
   rating: z.number().int().nullable(),
   review: z.string().nullable(),
@@ -83,8 +83,8 @@ const detailFields = {
 const FreelancerProfile = z
   .strictObject({
     id: z.uuid(),
-    created_at: isoDateTime.nullable(),
-    updated_at: isoDateTime.nullable(),
+    createdAt: isoDateTime.nullable(),
+    updatedAt: isoDateTime.nullable(),
     ...profileFields,
     ...detailFields,
   })
@@ -97,8 +97,8 @@ const FreelancerProfileSaved = z
 const FreelancerPublicProfile = z
   .strictObject({
     id: z.uuid(),
-    created_at: isoDateTime.nullable(),
-    updated_at: isoDateTime.nullable(),
+    createdAt: isoDateTime.nullable(),
+    updatedAt: isoDateTime.nullable(),
     name: z.string(),
     avatarUrl: z.string().nullable(),
     ...profileFields,

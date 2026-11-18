@@ -917,6 +917,8 @@ describe("agency contract: jobs, proposals and connects", () => {
     expect(history.status).toBe(200);
     expect(history.body.data).toHaveLength(1);
     agencyConnectsHistoryResponses[200].parse(history.body);
+    expect(history.body.data[0]).toHaveProperty("connects");
+    expect(history.body.data[0]).not.toHaveProperty("amount");
 
     const checkout = await request(app)
       .post(`${API}/connects/checkout`)

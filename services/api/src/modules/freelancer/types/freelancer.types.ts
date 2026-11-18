@@ -11,6 +11,13 @@ export interface PortfolioData {
   cover_image: { imageId: string; url: string };
 }
 
+export interface StoredPortfolio extends PortfolioData {
+  id: string;
+  freelancer_id: string;
+  created_at: Date | null;
+  updated_at: Date | null;
+}
+
 interface PortfolioInput extends Omit<PortfolioData, "cover_image"> {
   cover_image: { url: string };
 }
@@ -26,7 +33,7 @@ export interface FreelancerProfileData {
   experience_level: string;
   skills: string[];
   languages: LanguageData[];
-  portfolios: PortfolioData[];
+  portfolios: StoredPortfolio[];
   identityVerified: boolean;
   joined_at: Date | null;
   agency?: { id: string; name: string; avatarUrl: string | null } | null;
@@ -52,6 +59,12 @@ export interface FreelancerProfileData {
     freelancerHasReviewed: boolean;
     skills: string[];
   }>;
+}
+
+export interface FreelancerProfileRecord extends FreelancerProfileData {
+  id: string;
+  created_at: Date | null;
+  updated_at: Date | null;
 }
 
 export interface SaveFreelancerProfileInput {

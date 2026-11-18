@@ -1,3 +1,4 @@
+import { toProposalResponse } from "../utils/proposals.mappers.js";
 import { db } from "../../../database/client.js";
 import {
   findAgencyName,
@@ -92,7 +93,7 @@ export const submitProposal = async (
     metadata: { proposalId: result.proposal.id, jobId: input.jobId },
   });
 
-  return result;
+  return { ...result, proposal: toProposalResponse(result.proposal) };
 };
 
 export const submitAgencyProposal = async (
@@ -183,5 +184,5 @@ export const submitAgencyProposal = async (
     metadata: { proposalId: result.proposal.id, jobId: input.jobId },
   });
 
-  return result;
+  return { ...result, proposal: toProposalResponse(result.proposal) };
 };

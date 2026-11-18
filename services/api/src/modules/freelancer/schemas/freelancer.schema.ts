@@ -64,26 +64,26 @@ const portfolioSchema = withIgnoredKeys(
       "Portfolio description",
       FREELANCER_LIMITS.portfolioDescriptionMax,
     ).optional(),
-    live_url: z
+    liveUrl: z
       .string({ error: "Live URL must be text." })
       .max(MAX_LIVE_URL_LENGTH, { error: "Live URL is too long." })
       .nullish(),
-    cover_image: coverImageSchema.optional(),
+    coverImage: coverImageSchema.optional(),
   },
   IGNORED_KEYS,
 );
 
 const metadataSchema = withIgnoredKeys(
   {
-    professional_title: optionalBoundedText(
+    professionalTitle: optionalBoundedText(
       "Professional title",
       FREELANCER_LIMITS.professionalTitleMax,
     ).optional(),
-    professional_description: optionalBoundedText(
+    professionalDescription: optionalBoundedText(
       "Professional description",
       FREELANCER_LIMITS.professionalDescriptionMax,
     ).optional(),
-    hourly_rate_cents: moneyCents
+    hourlyRateCents: moneyCents
       .min(MIN_HOURLY_RATE_CENTS, {
         error: "Hourly rate must be between 5 and 1000$.",
       })
@@ -95,15 +95,15 @@ const metadataSchema = withIgnoredKeys(
       FREELANCER_LIMITS.countryMax,
     ).optional(),
     city: optionalBoundedText("City", FREELANCER_LIMITS.cityMax).optional(),
-    availability_status: optionalBoundedText(
+    availabilityStatus: optionalBoundedText(
       "Availability status",
       FREELANCER_LIMITS.availabilityMax,
     ).optional(),
-    weekly_availability: optionalBoundedText(
+    weeklyAvailability: optionalBoundedText(
       "Weekly availability",
       FREELANCER_LIMITS.weeklyAvailabilityMax,
     ).optional(),
-    experience_level: optionalBoundedText(
+    experienceLevel: optionalBoundedText(
       "Experience level",
       FREELANCER_LIMITS.experienceLevelMax,
     ).optional(),
@@ -124,8 +124,8 @@ const metadataSchema = withIgnoredKeys(
 export const upsertProfileBodySchema = withIgnoredKeys(
   {
     ...authRoleShape,
-    freelancer_metadata: metadataSchema,
-    freelancer_portfolios: z
+    freelancerMetadata: metadataSchema,
+    freelancerPortfolios: z
       .array(portfolioSchema, {
         error: "At least one portfolio project is required.",
       })

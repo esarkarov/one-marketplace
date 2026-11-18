@@ -655,12 +655,12 @@
       "AgencyConnectsHistoryItem": {
         "additionalProperties": false,
         "properties": {
-          "amount": {
+          "connects": {
             "maximum": 9007199254740991,
             "minimum": -9007199254740991,
             "type": "integer"
           },
-          "created_at": {
+          "createdAt": {
             "anyOf": [
               {
                 "$ref": "#/components/schemas/IsoDateTime"
@@ -682,7 +682,7 @@
             "type": "string"
           }
         },
-        "required": ["id", "type", "description", "amount", "created_at"],
+        "required": ["id", "type", "description", "connects", "createdAt"],
         "type": "object"
       },
       "AgencyEarningsOverview": {
@@ -1670,13 +1670,13 @@
           "proposal": {
             "additionalProperties": false,
             "properties": {
-              "bid_amount_cents": {
+              "bidAmountCents": {
                 "$ref": "#/components/schemas/Cents"
               },
-              "cover_letter": {
+              "coverLetter": {
                 "type": "string"
               },
-              "created_at": {
+              "createdAt": {
                 "anyOf": [
                   {
                     "$ref": "#/components/schemas/IsoDateTime"
@@ -1694,15 +1694,15 @@
                 "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
                 "type": "string"
               },
-              "is_shortlisted": {
+              "isShortlisted": {
                 "type": "boolean"
               },
-              "job_id": {
+              "jobId": {
                 "format": "uuid",
                 "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
                 "type": "string"
               },
-              "screening_answers": {
+              "screeningAnswers": {
                 "items": {
                   "additionalProperties": false,
                   "properties": {
@@ -1718,16 +1718,16 @@
                 },
                 "type": "array"
               },
-              "sender_id": {
+              "senderId": {
                 "type": "string"
               },
-              "sender_type": {
+              "senderType": {
                 "type": "string"
               },
               "status": {
                 "type": "string"
               },
-              "updated_at": {
+              "updatedAt": {
                 "anyOf": [
                   {
                     "$ref": "#/components/schemas/IsoDateTime"
@@ -1740,17 +1740,17 @@
             },
             "required": [
               "id",
-              "job_id",
-              "sender_id",
-              "sender_type",
-              "cover_letter",
-              "bid_amount_cents",
+              "jobId",
+              "senderId",
+              "senderType",
+              "coverLetter",
+              "bidAmountCents",
               "duration",
-              "screening_answers",
+              "screeningAnswers",
               "status",
-              "is_shortlisted",
-              "created_at",
-              "updated_at"
+              "isShortlisted",
+              "createdAt",
+              "updatedAt"
             ],
             "type": "object"
           }
@@ -2320,12 +2320,12 @@
       "ConnectsHistoryEntry": {
         "additionalProperties": false,
         "properties": {
-          "amount": {
+          "connects": {
             "maximum": 9007199254740991,
             "minimum": -9007199254740991,
             "type": "integer"
           },
-          "created_at": {
+          "createdAt": {
             "anyOf": [
               {
                 "$ref": "#/components/schemas/IsoDateTime"
@@ -2347,7 +2347,7 @@
             "type": "string"
           }
         },
-        "required": ["id", "type", "description", "amount", "created_at"],
+        "required": ["id", "type", "description", "connects", "createdAt"],
         "type": "object"
       },
       "ContractsContract": {
@@ -3142,7 +3142,7 @@
           "category": {
             "type": "string"
           },
-          "cover_image": {
+          "coverImage": {
             "additionalProperties": false,
             "properties": {
               "imageId": {
@@ -3155,7 +3155,7 @@
             "required": ["imageId", "url"],
             "type": "object"
           },
-          "created_at": {
+          "createdAt": {
             "anyOf": [
               {
                 "$ref": "#/components/schemas/IsoDateTime"
@@ -3168,7 +3168,7 @@
           "description": {
             "type": "string"
           },
-          "freelancer_id": {
+          "freelancerId": {
             "format": "uuid",
             "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
             "type": "string"
@@ -3178,13 +3178,13 @@
             "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
             "type": "string"
           },
-          "live_url": {
+          "liveUrl": {
             "type": ["string", "null"]
           },
           "title": {
             "type": "string"
           },
-          "updated_at": {
+          "updatedAt": {
             "anyOf": [
               {
                 "$ref": "#/components/schemas/IsoDateTime"
@@ -3197,14 +3197,14 @@
         },
         "required": [
           "id",
-          "freelancer_id",
+          "freelancerId",
           "title",
           "category",
           "description",
-          "live_url",
-          "cover_image",
-          "created_at",
-          "updated_at"
+          "liveUrl",
+          "coverImage",
+          "createdAt",
+          "updatedAt"
         ],
         "type": "object"
       },
@@ -3236,7 +3236,7 @@
               }
             ]
           },
-          "availability_status": {
+          "availabilityStatus": {
             "type": "string"
           },
           "city": {
@@ -3245,7 +3245,7 @@
           "country": {
             "type": "string"
           },
-          "created_at": {
+          "createdAt": {
             "anyOf": [
               {
                 "$ref": "#/components/schemas/IsoDateTime"
@@ -3255,10 +3255,10 @@
               }
             ]
           },
-          "experience_level": {
+          "experienceLevel": {
             "type": "string"
           },
-          "hourly_rate_cents": {
+          "hourlyRateCents": {
             "$ref": "#/components/schemas/Cents"
           },
           "id": {
@@ -3269,7 +3269,7 @@
           "identityVerified": {
             "type": "boolean"
           },
-          "joined_at": {
+          "joinedAt": {
             "anyOf": [
               {
                 "$ref": "#/components/schemas/IsoDateTime"
@@ -3301,10 +3301,10 @@
             },
             "type": "array"
           },
-          "professional_description": {
+          "professionalDescription": {
             "type": "string"
           },
-          "professional_title": {
+          "professionalTitle": {
             "type": "string"
           },
           "skills": {
@@ -3351,7 +3351,7 @@
             ],
             "type": "object"
           },
-          "updated_at": {
+          "updatedAt": {
             "anyOf": [
               {
                 "$ref": "#/components/schemas/IsoDateTime"
@@ -3361,7 +3361,7 @@
               }
             ]
           },
-          "weekly_availability": {
+          "weeklyAvailability": {
             "type": "string"
           },
           "workHistory": {
@@ -3387,7 +3387,7 @@
                     }
                   ]
                 },
-                "created_at": {
+                "createdAt": {
                   "$ref": "#/components/schemas/IsoDateTime"
                 },
                 "freelancerHasReviewed": {
@@ -3433,7 +3433,7 @@
                 "client",
                 "status",
                 "completed",
-                "created_at",
+                "createdAt",
                 "amountCents",
                 "rating",
                 "review",
@@ -3448,21 +3448,21 @@
         },
         "required": [
           "id",
-          "created_at",
-          "updated_at",
-          "professional_title",
-          "professional_description",
-          "hourly_rate_cents",
+          "createdAt",
+          "updatedAt",
+          "professionalTitle",
+          "professionalDescription",
+          "hourlyRateCents",
           "country",
           "city",
-          "availability_status",
-          "weekly_availability",
-          "experience_level",
+          "availabilityStatus",
+          "weeklyAvailability",
+          "experienceLevel",
           "skills",
           "languages",
           "portfolios",
           "identityVerified",
-          "joined_at",
+          "joinedAt",
           "agency",
           "stats",
           "workHistory"
@@ -3472,7 +3472,7 @@
       "FreelancerProfileSaved": {
         "additionalProperties": false,
         "properties": {
-          "availability_status": {
+          "availabilityStatus": {
             "type": "string"
           },
           "city": {
@@ -3481,16 +3481,16 @@
           "country": {
             "type": "string"
           },
-          "experience_level": {
+          "experienceLevel": {
             "type": "string"
           },
-          "hourly_rate_cents": {
+          "hourlyRateCents": {
             "$ref": "#/components/schemas/Cents"
           },
           "identityVerified": {
             "type": "boolean"
           },
-          "joined_at": {
+          "joinedAt": {
             "anyOf": [
               {
                 "$ref": "#/components/schemas/IsoDateTime"
@@ -3522,10 +3522,10 @@
             },
             "type": "array"
           },
-          "professional_description": {
+          "professionalDescription": {
             "type": "string"
           },
-          "professional_title": {
+          "professionalTitle": {
             "type": "string"
           },
           "skills": {
@@ -3534,24 +3534,24 @@
             },
             "type": "array"
           },
-          "weekly_availability": {
+          "weeklyAvailability": {
             "type": "string"
           }
         },
         "required": [
-          "professional_title",
-          "professional_description",
-          "hourly_rate_cents",
+          "professionalTitle",
+          "professionalDescription",
+          "hourlyRateCents",
           "country",
           "city",
-          "availability_status",
-          "weekly_availability",
-          "experience_level",
+          "availabilityStatus",
+          "weeklyAvailability",
+          "experienceLevel",
           "skills",
           "languages",
           "portfolios",
           "identityVerified",
-          "joined_at"
+          "joinedAt"
         ],
         "type": "object"
       },
@@ -3583,7 +3583,7 @@
               }
             ]
           },
-          "availability_status": {
+          "availabilityStatus": {
             "type": "string"
           },
           "avatarUrl": {
@@ -3595,7 +3595,7 @@
           "country": {
             "type": "string"
           },
-          "created_at": {
+          "createdAt": {
             "anyOf": [
               {
                 "$ref": "#/components/schemas/IsoDateTime"
@@ -3605,10 +3605,10 @@
               }
             ]
           },
-          "experience_level": {
+          "experienceLevel": {
             "type": "string"
           },
-          "hourly_rate_cents": {
+          "hourlyRateCents": {
             "$ref": "#/components/schemas/Cents"
           },
           "id": {
@@ -3619,7 +3619,7 @@
           "identityVerified": {
             "type": "boolean"
           },
-          "joined_at": {
+          "joinedAt": {
             "anyOf": [
               {
                 "$ref": "#/components/schemas/IsoDateTime"
@@ -3654,10 +3654,10 @@
             },
             "type": "array"
           },
-          "professional_description": {
+          "professionalDescription": {
             "type": "string"
           },
-          "professional_title": {
+          "professionalTitle": {
             "type": "string"
           },
           "skills": {
@@ -3704,7 +3704,7 @@
             ],
             "type": "object"
           },
-          "updated_at": {
+          "updatedAt": {
             "anyOf": [
               {
                 "$ref": "#/components/schemas/IsoDateTime"
@@ -3714,7 +3714,7 @@
               }
             ]
           },
-          "weekly_availability": {
+          "weeklyAvailability": {
             "type": "string"
           },
           "workHistory": {
@@ -3740,7 +3740,7 @@
                     }
                   ]
                 },
-                "created_at": {
+                "createdAt": {
                   "$ref": "#/components/schemas/IsoDateTime"
                 },
                 "freelancerHasReviewed": {
@@ -3786,7 +3786,7 @@
                 "client",
                 "status",
                 "completed",
-                "created_at",
+                "createdAt",
                 "amountCents",
                 "rating",
                 "review",
@@ -3801,23 +3801,23 @@
         },
         "required": [
           "id",
-          "created_at",
-          "updated_at",
+          "createdAt",
+          "updatedAt",
           "name",
           "avatarUrl",
-          "professional_title",
-          "professional_description",
-          "hourly_rate_cents",
+          "professionalTitle",
+          "professionalDescription",
+          "hourlyRateCents",
           "country",
           "city",
-          "availability_status",
-          "weekly_availability",
-          "experience_level",
+          "availabilityStatus",
+          "weeklyAvailability",
+          "experienceLevel",
           "skills",
           "languages",
           "portfolios",
           "identityVerified",
-          "joined_at",
+          "joinedAt",
           "agency",
           "stats",
           "workHistory"
@@ -4865,21 +4865,21 @@
       "MessagingMessageAttachment": {
         "additionalProperties": false,
         "properties": {
-          "attachment_type": {
+          "attachmentType": {
             "type": "string"
           },
-          "created_at": {
+          "createdAt": {
             "$ref": "#/components/schemas/IsoDateTime"
           },
-          "file_name": {
+          "fileName": {
             "type": "string"
           },
-          "file_size": {
+          "fileSize": {
             "maximum": 9007199254740991,
             "minimum": 0,
             "type": "integer"
           },
-          "file_url": {
+          "fileUrl": {
             "type": "string"
           },
           "id": {
@@ -4887,32 +4887,32 @@
             "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
             "type": "string"
           },
-          "is_available": {
+          "isAvailable": {
             "type": "boolean"
           },
-          "message_id": {
+          "messageId": {
             "format": "uuid",
             "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
             "type": "string"
           },
-          "mime_type": {
+          "mimeType": {
             "type": "string"
           },
-          "storage_key": {
+          "storageKey": {
             "type": "string"
           }
         },
         "required": [
           "id",
-          "message_id",
-          "storage_key",
-          "file_url",
-          "file_name",
-          "mime_type",
-          "file_size",
-          "attachment_type",
-          "is_available",
-          "created_at"
+          "messageId",
+          "storageKey",
+          "fileUrl",
+          "fileName",
+          "mimeType",
+          "fileSize",
+          "attachmentType",
+          "isAvailable",
+          "createdAt"
         ],
         "type": "object"
       },
@@ -4972,7 +4972,7 @@
       "NotificationsNotification": {
         "additionalProperties": false,
         "properties": {
-          "agency_id": {
+          "agencyId": {
             "anyOf": [
               {
                 "format": "uuid",
@@ -4984,7 +4984,7 @@
               }
             ]
           },
-          "created_at": {
+          "createdAt": {
             "anyOf": [
               {
                 "$ref": "#/components/schemas/IsoDateTime"
@@ -4994,7 +4994,7 @@
               }
             ]
           },
-          "event_id": {
+          "eventId": {
             "type": "string"
           },
           "id": {
@@ -5002,7 +5002,7 @@
             "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
             "type": "string"
           },
-          "is_read": {
+          "isRead": {
             "type": "boolean"
           },
           "link": {
@@ -5025,7 +5025,7 @@
               }
             ]
           },
-          "read_at": {
+          "readAt": {
             "anyOf": [
               {
                 "$ref": "#/components/schemas/IsoDateTime"
@@ -5035,7 +5035,7 @@
               }
             ]
           },
-          "recipient_id": {
+          "recipientId": {
             "type": ["string", "null"]
           },
           "title": {
@@ -5047,17 +5047,17 @@
         },
         "required": [
           "id",
-          "event_id",
-          "recipient_id",
-          "agency_id",
+          "eventId",
+          "recipientId",
+          "agencyId",
           "type",
           "title",
           "message",
           "link",
           "metadata",
-          "is_read",
-          "read_at",
-          "created_at"
+          "isRead",
+          "readAt",
+          "createdAt"
         ],
         "type": "object"
       },
@@ -5755,13 +5755,13 @@
       "ProposalsRow": {
         "additionalProperties": false,
         "properties": {
-          "bid_amount_cents": {
+          "bidAmountCents": {
             "$ref": "#/components/schemas/Cents"
           },
-          "cover_letter": {
+          "coverLetter": {
             "type": "string"
           },
-          "created_at": {
+          "createdAt": {
             "anyOf": [
               {
                 "$ref": "#/components/schemas/IsoDateTime"
@@ -5779,15 +5779,15 @@
             "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
             "type": "string"
           },
-          "is_shortlisted": {
+          "isShortlisted": {
             "type": "boolean"
           },
-          "job_id": {
+          "jobId": {
             "format": "uuid",
             "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
             "type": "string"
           },
-          "screening_answers": {
+          "screeningAnswers": {
             "items": {
               "additionalProperties": false,
               "properties": {
@@ -5803,16 +5803,16 @@
             },
             "type": "array"
           },
-          "sender_id": {
+          "senderId": {
             "type": "string"
           },
-          "sender_type": {
+          "senderType": {
             "type": "string"
           },
           "status": {
             "type": "string"
           },
-          "updated_at": {
+          "updatedAt": {
             "anyOf": [
               {
                 "$ref": "#/components/schemas/IsoDateTime"
@@ -5825,17 +5825,17 @@
         },
         "required": [
           "id",
-          "job_id",
-          "sender_id",
-          "sender_type",
-          "cover_letter",
-          "bid_amount_cents",
+          "jobId",
+          "senderId",
+          "senderType",
+          "coverLetter",
+          "bidAmountCents",
           "duration",
-          "screening_answers",
+          "screeningAnswers",
           "status",
-          "is_shortlisted",
-          "created_at",
-          "updated_at"
+          "isShortlisted",
+          "createdAt",
+          "updatedAt"
         ],
         "type": "object"
       },
@@ -16162,10 +16162,10 @@
                   "createdAt": {
                     "description": "Accepted for compatibility and ignored by the server."
                   },
-                  "freelancer_metadata": {
+                  "freelancerMetadata": {
                     "additionalProperties": false,
                     "properties": {
-                      "availability_status": {
+                      "availabilityStatus": {
                         "maxLength": 50,
                         "minLength": 0,
                         "type": "string"
@@ -16183,12 +16183,12 @@
                       "createdAt": {
                         "description": "Accepted for compatibility and ignored by the server."
                       },
-                      "experience_level": {
+                      "experienceLevel": {
                         "maxLength": 50,
                         "minLength": 0,
                         "type": "string"
                       },
-                      "hourly_rate_cents": {
+                      "hourlyRateCents": {
                         "maximum": 100000,
                         "minimum": 500,
                         "type": "integer"
@@ -16220,12 +16220,12 @@
                         "minItems": 1,
                         "type": "array"
                       },
-                      "professional_description": {
+                      "professionalDescription": {
                         "maxLength": 5000,
                         "minLength": 0,
                         "type": "string"
                       },
-                      "professional_title": {
+                      "professionalTitle": {
                         "maxLength": 100,
                         "minLength": 0,
                         "type": "string"
@@ -16243,16 +16243,16 @@
                       "updatedAt": {
                         "description": "Accepted for compatibility and ignored by the server."
                       },
-                      "weekly_availability": {
+                      "weeklyAvailability": {
                         "maxLength": 50,
                         "minLength": 0,
                         "type": "string"
                       }
                     },
-                    "required": ["hourly_rate_cents"],
+                    "required": ["hourlyRateCents"],
                     "type": "object"
                   },
-                  "freelancer_portfolios": {
+                  "freelancerPortfolios": {
                     "items": {
                       "additionalProperties": false,
                       "properties": {
@@ -16261,7 +16261,7 @@
                           "minLength": 0,
                           "type": "string"
                         },
-                        "cover_image": {
+                        "coverImage": {
                           "additionalProperties": false,
                           "properties": {
                             "createdAt": {
@@ -16297,7 +16297,7 @@
                         "imageId": {
                           "description": "Accepted for compatibility and ignored by the server."
                         },
-                        "live_url": {
+                        "liveUrl": {
                           "anyOf": [
                             {
                               "maxLength": 2048,
@@ -16336,7 +16336,7 @@
                     "description": "Accepted for compatibility and ignored by the server."
                   }
                 },
-                "required": ["freelancer_metadata"],
+                "required": ["freelancerMetadata"],
                 "type": "object"
               }
             }

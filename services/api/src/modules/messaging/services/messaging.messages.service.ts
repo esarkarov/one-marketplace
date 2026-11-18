@@ -26,6 +26,7 @@ import { emitConversationUpdate } from "../messaging.socket.js";
 import { getAgencyTeamMemberIds } from "../../agency/index.js";
 import { AttachmentInput } from "../types/messaging.types.js";
 import { requireMember } from "./messaging.conversations.service.js";
+import { toMessageAttachmentResponse } from "../utils/messaging.mappers.js";
 
 const encodeCursor = (message: { createdAt: Date; id: string }) =>
   Buffer.from(
@@ -70,9 +71,9 @@ export const hydrateMessages = async (
 
   return rows.map((message) => ({
     ...message,
-    attachments: attachments.filter(
-      ({ message_id }) => message_id === message.id,
-    ),
+    attachments: attachments
+      .filter(({ message_id }) => message_id === message.id)
+      .map(toMessageAttachmentResponse),
     replyTo: replies.find(({ id }) => id === message.replyToMessageId) ?? null,
   }));
 };

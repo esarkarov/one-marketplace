@@ -11,19 +11,6 @@ import type { JsonObject } from "../types/openapi.types.js";
 
 const CAMEL_CASE = /^[a-z][a-zA-Z0-9]*$/;
 
-const SNAKE_CASE_OPERATIONS = new Set([
-  "freelancer_get_profile",
-  "freelancer_put_profile",
-  "freelancer_get_profile_by_id",
-  "agency_post_proposals",
-  "proposals_post",
-  "agency_get_connects_history",
-  "connects_get_history",
-  "messaging_get_by_conversation_id_messages",
-  "messaging_post_by_conversation_id_messages",
-  "notifications_get",
-]);
-
 const METHODS = ["get", "post", "put", "patch", "delete"];
 
 const document = createOpenApiDocument(apiRouter, [
@@ -76,19 +63,7 @@ const operations = Object.values(document.paths as Record<string, JsonObject>)
   });
 
 describe("openapi property naming", () => {
-  it.each(operations.filter(({ id }) => !SNAKE_CASE_OPERATIONS.has(id)))(
-    "$id uses lowerCamelCase property names",
-    ({ names }) => {
-      expect(names.filter((name) => !CAMEL_CASE.test(name))).toEqual([]);
-    },
-  );
-
-  it("lists only operations that still have a non-camelCase property", () => {
-    const stale = [...SNAKE_CASE_OPERATIONS].filter((id) => {
-      const operation = operations.find((item) => item.id === id);
-      return !operation?.names.some((name) => !CAMEL_CASE.test(name));
-    });
-
-    expect(stale).toEqual([]);
+  it.each(operations)("$id uses lowerCamelCase property names", ({ names }) => {
+    expect(names.filter((name) => !CAMEL_CASE.test(name))).toEqual([]);
   });
 });

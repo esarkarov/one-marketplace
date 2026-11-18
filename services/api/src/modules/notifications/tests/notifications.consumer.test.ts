@@ -41,8 +41,41 @@ vi.mock("../services/notifications.sse.js", () => ({
 
 const { createNotificationConsumer } =
   await import("../notifications.consumer.js");
+const { notificationsResponses } =
+  await import("../responses/notifications.responses.js");
 
 type Handler = (message: ConsumeMessage) => void;
+
+const notificationRow = (overrides: Record<string, unknown> = {}) => ({
+  id: "3f2b8c1e-9a4d-4e7f-8b21-5c6d7e8f9a01",
+  event_id: "evt_1",
+  recipient_id: null,
+  agency_id: null,
+  type: "T",
+  title: "a",
+  message: "b",
+  link: null,
+  metadata: null,
+  is_read: false,
+  read_at: null,
+  created_at: new Date("2024-01-01T00:00:00.000Z"),
+  ...overrides,
+});
+
+const camelNotification = (row: ReturnType<typeof notificationRow>) => ({
+  id: row.id,
+  eventId: row.event_id,
+  recipientId: row.recipient_id,
+  agencyId: row.agency_id,
+  type: row.type,
+  title: row.title,
+  message: row.message,
+  link: row.link,
+  metadata: row.metadata,
+  isRead: row.is_read,
+  readAt: row.read_at,
+  createdAt: row.created_at,
+});
 
 const setup = () => {
   let handler: Handler = () => undefined;
@@ -105,7 +138,7 @@ describe("notification consumer", () => {
   it("inserts one row with event_id = envelope id, acks, then emits", async () => {
     const { channel, consumer, deliver } = setup();
     const env = envelope();
-    const row = { id: "n1", agency_id: null, recipient_id: "user_1" };
+    const row = notificationRow({ recipient_id: "user_1" });
     mocks.returning.mockResolvedValue([row]);
     await consumer.start();
 
@@ -122,13 +155,20 @@ describe("notification consumer", () => {
     });
     expect(channel.ack).toHaveBeenCalledTimes(1);
     expect(channel.nack).not.toHaveBeenCalled();
-    expect(mocks.emit).toHaveBeenCalledWith("user_1", row);
+    const emitted = mocks.emit.mock.calls[0]![1];
+    expect(emitted).toEqual(camelNotification(row));
+    expect(Object.keys(emitted).some((key) => key.includes("_"))).toBe(false);
+    notificationsResponses.list[200].parse({
+      success: true,
+      message: "Notifications retrieved.",
+      data: [JSON.parse(JSON.stringify(emitted))],
+    });
   });
 
   it("emits to the agency channel for agency notifications", async () => {
     const { consumer, deliver } = setup();
     const agencyId = "3f2b8c1e-9a4d-4e7f-8b21-5c6d7e8f9a0b";
-    const row = { id: "n1", agency_id: agencyId, recipient_id: null };
+    const row = notificationRow({ agency_id: agencyId });
     mocks.returning.mockResolvedValue([row]);
     await consumer.start();
 
@@ -144,7 +184,10 @@ describe("notification consumer", () => {
     );
     await consumer.stop();
 
-    expect(mocks.emitAgency).toHaveBeenCalledWith(agencyId, row);
+    expect(mocks.emitAgency).toHaveBeenCalledWith(
+      agencyId,
+      camelNotification(row),
+    );
     expect(mocks.emit).not.toHaveBeenCalled();
   });
 

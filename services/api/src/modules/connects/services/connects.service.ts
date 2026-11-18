@@ -1,3 +1,4 @@
+import { toConnectsHistoryEntryResponse } from "../utils/connects.mappers.js";
 import {
   CONNECTS_CACHE_TTL_SECONDS,
   CONNECTS_PLANS,
@@ -105,10 +106,14 @@ export const getAgencyConnectsBalance = async (
 };
 
 export const getAgencyConnectsHistory = async (agencyId: string) =>
-  await findAgencyConnectsHistory(db, agencyId);
+  (await findAgencyConnectsHistory(db, agencyId)).map(
+    toConnectsHistoryEntryResponse,
+  );
 
 export const getConnectsHistory = async (freelancerId: string) =>
-  await findFreelancerConnectsHistory(db, freelancerId);
+  (await findFreelancerConnectsHistory(db, freelancerId)).map(
+    toConnectsHistoryEntryResponse,
+  );
 
 export const createConnectsCheckout = async (
   freelancerId: string,

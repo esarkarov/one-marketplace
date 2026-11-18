@@ -32,11 +32,15 @@ import {
   isImageDataUrl,
   reuseStoredImage,
 } from "../../../shared/uploads/portfolio-images.js";
+import {
+  toFreelancerProfileResponse,
+  toFreelancerProfileSavedResponse,
+} from "../utils/freelancer.mappers.js";
 import { getJSSContribution } from "./freelancer.jobs.service.js";
 
 export const getFreelancerProfile = async (
   userId: string,
-): Promise<FreelancerProfileData | null> => {
+): Promise<ReturnType<typeof toFreelancerProfileResponse> | null> => {
   const result = await findFreelancerWithAccount(db, userId);
 
   if (!result) return null;
@@ -110,7 +114,7 @@ export const getFreelancerProfile = async (
 
   const agency = await getAgencyIdentityForMember(userId);
 
-  return {
+  return toFreelancerProfileResponse({
     ...profile,
     identityVerified: result.accounts.identityVerified === true,
     joined_at: profile.created_at,
@@ -131,7 +135,7 @@ export const getFreelancerProfile = async (
       rating: revealedRatingAverage,
     },
     workHistory,
-  };
+  });
 };
 
 const uploadPortfolioImages = async (
@@ -181,7 +185,7 @@ const uploadPortfolioImages = async (
 export const saveFreelancerProfile = async (
   input: SaveFreelancerProfileInput,
   isOnboarded: boolean | undefined,
-): Promise<FreelancerProfileData> => {
+): Promise<ReturnType<typeof toFreelancerProfileSavedResponse>> => {
   const existingImages = await listStoredPortfolioCoverImages(db, input.userId);
 
   const storedImages = existingImages.map(({ cover_image }) => cover_image);
@@ -310,7 +314,7 @@ export const saveFreelancerProfile = async (
     });
   }
 
-  return profile;
+  return toFreelancerProfileSavedResponse(profile);
 };
 
 export const getPublicFreelancerProfile = async (profileId: string) => {

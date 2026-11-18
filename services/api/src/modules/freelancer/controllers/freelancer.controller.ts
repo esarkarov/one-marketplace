@@ -4,7 +4,6 @@ import { requireFreelancer } from "../../../middleware/auth/role-guards.middlewa
 import { asyncHandler } from "../../../middleware/utils/async-handler.utils.js";
 import { ApiResponse } from "../../../types/common.types.js";
 import {
-  FreelancerProfileData,
   PublicTalentSearchFilters,
   PublicTalentSearchPage,
   SaveFreelancerProfileInput,
@@ -28,13 +27,19 @@ import {
   saveFreelancerProfile,
 } from "../services/freelancer.profile.service.js";
 import { searchPublicFreelancers } from "../services/freelancer.search.service.js";
+import {
+  toFreelancerProfileResponse,
+  toFreelancerProfileSavedResponse,
+} from "../utils/freelancer.mappers.js";
 import { renderEarningsCertificatePdf } from "../utils/earnings-certificate.pdf.js";
 
 export const getLoggedInFreelancerProfile: RequestHandler = asyncHandler(
   async (request, response) => {
     const auth = requireFreelancer(request);
     const profile = await getFreelancerProfile(auth.userId);
-    const body: ApiResponse<FreelancerProfileData | null> = {
+    const body: ApiResponse<ReturnType<
+      typeof toFreelancerProfileResponse
+    > | null> = {
       success: true,
       message: profile
         ? "Freelancer profile retrieved."
@@ -48,10 +53,10 @@ export const getLoggedInFreelancerProfile: RequestHandler = asyncHandler(
 export const upsertFreelanceProfile: RequestHandler = asyncHandler(
   async (request, response) => {
     const auth = requireFreelancer(request);
-    const metadata: UpsertProfileBody["freelancer_metadata"] | undefined =
-      request.body?.freelancer_metadata;
-    const portfolios: UpsertProfileBody["freelancer_portfolios"] =
-      request?.body?.freelancer_portfolios;
+    const metadata: UpsertProfileBody["freelancerMetadata"] | undefined =
+      request.body?.freelancerMetadata;
+    const portfolios: UpsertProfileBody["freelancerPortfolios"] =
+      request?.body?.freelancerPortfolios;
 
     if (!metadata) throw new ApiError(400, "Freelancer metadata is required.");
     if (!Array.isArray(portfolios) || portfolios.length < 1) {
@@ -89,26 +94,26 @@ export const upsertFreelanceProfile: RequestHandler = asyncHandler(
     const input: SaveFreelancerProfileInput = {
       userId: auth.userId,
       professional_title: requireText(
-        metadata.professional_title,
+        metadata.professionalTitle,
         "Professional title",
       ),
       professional_description: requireText(
-        metadata.professional_description,
+        metadata.professionalDescription,
         "Professional description",
       ),
-      hourly_rate_cents: metadata.hourly_rate_cents as number,
+      hourly_rate_cents: metadata.hourlyRateCents as number,
       country: requireText(metadata.country, "Country"),
       city: requireText(metadata.city, "City"),
       availability_status: requireText(
-        metadata.availability_status,
+        metadata.availabilityStatus,
         "Availability status",
       ),
       weekly_availability: requireText(
-        metadata.weekly_availability,
+        metadata.weeklyAvailability,
         "Weekly availability",
       ),
       experience_level: requireText(
-        metadata.experience_level,
+        metadata.experienceLevel,
         "Experience level",
       ),
       skills: skills.map((skill) => String(skill).trim()),
@@ -124,7 +129,7 @@ export const upsertFreelanceProfile: RequestHandler = asyncHandler(
       }),
       portfolios: portfolios.map((item) => {
         const portfolio = item;
-        const coverImage = portfolio.cover_image as
+        const coverImage = portfolio.coverImage as
           Record<string, string> | undefined;
         if (!coverImage)
           throw new ApiError(400, "Portfolio cover image is required.");
@@ -140,7 +145,7 @@ export const upsertFreelanceProfile: RequestHandler = asyncHandler(
             portfolio.description,
             "Portfolio description",
           ),
-          live_url: parseLiveUrl(portfolio.live_url) ?? null,
+          live_url: parseLiveUrl(portfolio.liveUrl) ?? null,
           cover_image: { url: imageUrl },
         };
       }),
@@ -159,7 +164,9 @@ export const upsertFreelanceProfile: RequestHandler = asyncHandler(
       },
     });
 
-    const body: ApiResponse<FreelancerProfileData> = {
+    const body: ApiResponse<
+      ReturnType<typeof toFreelancerProfileSavedResponse>
+    > = {
       success: true,
       message: "Freelancer profile saved.",
       data: profile,

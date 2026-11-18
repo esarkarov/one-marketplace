@@ -214,6 +214,13 @@ describe("GET /connects/history", () => {
     expect(response.status).toBe(200);
     const body = connectsResponses.history[200].parse(response.body);
     expect(body.data).toHaveLength(2);
+    for (const entry of response.body.data) {
+      expect(entry).toHaveProperty("connects");
+      expect(entry).toHaveProperty("createdAt");
+      expect(entry).not.toHaveProperty("amount");
+      expect(entry).not.toHaveProperty("created_at");
+    }
+    expect(body.data.map((entry) => entry.connects).sort()).toEqual([-5, 30]);
   });
 
   it("matches the 403 schema for a client account", async () => {
