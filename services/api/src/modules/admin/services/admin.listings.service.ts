@@ -6,7 +6,9 @@ import {
 import { clerk } from "../../../infrastructure/auth/clerk.client.js";
 import { db } from "../../../database/client.js";
 import { env } from "../../../config/env.js";
+import { requirePublicId } from "../../../shared/ids/public-ids.js";
 import {
+  listAccountPublicIdsByAuthIds,
   listAccountsWithCompany,
   listAgenciesWithOwner,
   listAgencyNamesByIds,
@@ -19,7 +21,11 @@ import {
   listProposalsPage,
   listRecentEarnings,
 } from "../repositories/admin.repository.js";
-import { Pagination, AdminTransactionRow } from "../types/admin.types.js";
+import {
+  Pagination,
+  AdminAccountRow,
+  AdminTransactionRow,
+} from "../types/admin.types.js";
 import {
   fetchSize,
   toOffsetPage,
@@ -70,7 +76,8 @@ export const getAdminAccounts = async (pagination: Pagination) => {
   const names = await clerkNames(personalRows.map((row) => row.authId));
 
   const people = personalRows.map((row) => ({
-    id: row.authId,
+    id: row.id,
+    authId: row.authId,
     type: personAccountType(row.role),
     name:
       row.role === "CLIENT" && row.companyName
@@ -86,6 +93,7 @@ export const getAdminAccounts = async (pagination: Pagination) => {
 
   const agencies = agencyRows.map((row) => ({
     id: row.id,
+    authId: null,
     type: ADMIN_ACCOUNT_TYPE.AGENCY,
     name: row.name,
     avatarUrl: row.avatarImage?.url ?? null,
@@ -96,7 +104,7 @@ export const getAdminAccounts = async (pagination: Pagination) => {
     createdAt: row.createdAt,
   }));
 
-  return mergePages([people, agencies], pagination);
+  return mergePages<AdminAccountRow>([people, agencies], pagination);
 };
 
 export const getAdminJobPosts = async ({ limit, offset }: Pagination) => {
@@ -108,6 +116,7 @@ export const getAdminJobPosts = async ({ limit, offset }: Pagination) => {
   return {
     results: rows.map((row) => ({
       ...row,
+      clientId: requirePublicId(row.clientId, "admin_get_job_posts", row.id),
       clientName: row.companyName ?? "Unknown client",
     })),
     hasMore,
@@ -122,18 +131,21 @@ export const getAdminProposals = async ({ limit, offset }: Pagination) => {
 
   const freelancerIds = rows
     .filter((row) => row.senderType === "FREELANCER")
-    .map((row) => row.senderId);
+    .map((row) => row.senderAuthId);
   const names = await clerkNames(freelancerIds);
 
   const results = rows.map((row) => {
-    const freelancer = names.get(row.senderId);
+    const freelancer = names.get(row.senderAuthId);
     return {
       id: row.id,
       jobId: row.jobId,
       jobTitle: row.jobTitle,
       jobBudgetCents: row.jobBudgetCents,
       jobStatus: row.jobStatus,
-      senderId: row.senderId,
+      senderId:
+        row.senderType === "AGENCY"
+          ? row.senderAuthId
+          : requirePublicId(row.senderAccountId, "admin_get_proposals", row.id),
       senderType: row.senderType,
       senderName:
         row.senderType === "AGENCY"
@@ -166,9 +178,17 @@ export const getAdminContracts = async ({ limit, offset }: Pagination) => {
   );
 
   const freelancerIds = rows
-    .map((row) => row.freelancerId)
+    .map((row) => row.freelancerAuthId)
     .filter((id): id is string => Boolean(id));
-  const names = await clerkNames(freelancerIds);
+  const [names, talentAccounts] = await Promise.all([
+    clerkNames(freelancerIds),
+    freelancerIds.length
+      ? listAccountPublicIdsByAuthIds(db, [...new Set(freelancerIds)])
+      : Promise.resolve([]),
+  ]);
+  const accountIdByAuthId = new Map(
+    talentAccounts.map((account) => [account.authId, account.id]),
+  );
 
   const milestoneRows = rows.length
     ? await listMilestonesForContracts(
@@ -178,9 +198,18 @@ export const getAdminContracts = async ({ limit, offset }: Pagination) => {
     : [];
 
   const results = rows.map((row) => {
-    const freelancer = row.freelancerId
-      ? names.get(row.freelancerId)
+    const freelancer = row.freelancerAuthId
+      ? names.get(row.freelancerAuthId)
       : undefined;
+    const talentId = row.agencyId
+      ? row.agencyId
+      : row.freelancerAuthId
+        ? requirePublicId(
+            accountIdByAuthId.get(row.freelancerAuthId),
+            "admin_get_contracts",
+            row.id,
+          )
+        : null;
     return {
       id: row.id,
       title: row.title,
@@ -188,13 +217,13 @@ export const getAdminContracts = async ({ limit, offset }: Pagination) => {
       totalAmountCents: row.totalAmountCents,
       jobId: row.jobId,
       proposalId: row.proposalId,
-      clientId: row.clientId,
+      clientId: requirePublicId(row.clientId, "admin_get_contracts", row.id),
       clientName: row.companyName ?? "Unknown client",
       clientEmail: row.clientEmail,
-      talentId: row.agencyId ?? row.freelancerId,
+      talentId,
       talentName:
         row.agencyName ??
-        (row.freelancerId
+        (row.freelancerAuthId
           ? (freelancer?.name ?? "Unknown freelancer")
           : "Unknown"),
       talentAvatarUrl: row.agencyId ? null : (freelancer?.avatarUrl ?? null),

@@ -349,6 +349,7 @@ describe("endMeetingByRoomName against real Postgres", () => {
     expect(mocks.emitConversationUpdate).toHaveBeenCalledWith(
       fixture.conversationId,
       undefined,
+      null,
     );
     expect(emittedBeforeCommit).toBe(false);
   });

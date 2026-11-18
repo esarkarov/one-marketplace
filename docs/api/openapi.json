@@ -4,6 +4,9 @@
       "AdminAccountItem": {
         "additionalProperties": false,
         "properties": {
+          "authId": {
+            "type": ["string", "null"]
+          },
           "avatarUrl": {
             "type": ["string", "null"]
           },
@@ -14,6 +17,8 @@
             "type": "string"
           },
           "id": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
             "type": "string"
           },
           "name": {
@@ -35,6 +40,7 @@
         },
         "required": [
           "id",
+          "authId",
           "type",
           "name",
           "avatarUrl",
@@ -80,6 +86,8 @@
             "type": ["string", "null"]
           },
           "clientId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
             "type": "string"
           },
           "clientName": {
@@ -140,7 +148,16 @@
             "type": ["string", "null"]
           },
           "talentId": {
-            "type": ["string", "null"]
+            "anyOf": [
+              {
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "talentKind": {
             "enum": ["AGENCY", "FREELANCER"],
@@ -306,6 +323,8 @@
             "type": ["string", "null"]
           },
           "clientId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
             "type": "string"
           },
           "clientName": {
@@ -540,6 +559,8 @@
             "type": ["string", "null"]
           },
           "senderId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
             "type": "string"
           },
           "senderName": {

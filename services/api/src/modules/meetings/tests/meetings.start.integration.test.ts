@@ -324,6 +324,9 @@ describe("startMeeting against real Postgres", () => {
     expect(mocks.emitConversationUpdate).toHaveBeenCalledWith(
       fixture.conversationId,
       fixture.actorId,
+      expect.stringMatching(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+      ),
     );
     expect(visibleAtEmit).toEqual({ meeting: true, message: true });
     const state = await readState(fixture);

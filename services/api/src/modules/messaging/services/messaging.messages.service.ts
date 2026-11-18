@@ -215,7 +215,7 @@ export const sendMessage = async (
       "messaging_post_by_conversation_id_messages",
     )
   )[0]!;
-  await emitConversationUpdate(conversationId, senderId);
+  await emitConversationUpdate(conversationId, senderId, senderAccountId);
   return hydrated;
 };
 

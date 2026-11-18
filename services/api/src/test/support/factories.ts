@@ -134,7 +134,7 @@ export const createTestData = (prefix: string = TEST_PREFIX) => {
     const authId = `${prefix}${randomUUID()}`;
     await db.insert(accounts).values({
       auth_id: authId,
-      email: `${authId}@example.test`,
+      email: `${randomUUID()}@example.test`,
       role,
       stripe_connect_account_id: connectAccountId,
       created_at: new Date(),
@@ -204,7 +204,7 @@ export const createTestData = (prefix: string = TEST_PREFIX) => {
       .insert(proposals)
       .values({
         job_id: job!.id,
-        sender_id: owner.freelancerId ?? `${prefix}${owner.agencyId}`,
+        sender_id: owner.freelancerId ?? owner.agencyId!,
         sender_type: owner.freelancerId ? "FREELANCER" : "AGENCY",
         cover_letter: "integration",
         bid_amount_cents: amountCents,

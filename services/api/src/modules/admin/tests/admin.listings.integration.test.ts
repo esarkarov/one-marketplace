@@ -1,10 +1,17 @@
 import { randomUUID } from "node:crypto";
-import { count } from "drizzle-orm";
+import { count, like as likeOp } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { db, pool } from "../../../database/client.js";
-import { accounts, job_posts } from "../../../test/support/tables.js";
+import {
+  accounts,
+  agency_metadata,
+  job_posts,
+} from "../../../test/support/tables.js";
 import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
-import { getAdminJobPosts } from "../services/admin.listings.service.js";
+import {
+  getAdminAccounts,
+  getAdminJobPosts,
+} from "../services/admin.listings.service.js";
 
 const PREFIX = "admin-listings-it-";
 const like = `${PREFIX}%`;
@@ -12,6 +19,9 @@ const TIED_AT = new Date("2024-01-01T00:00:00.000Z");
 
 const purge = async () => {
   await pool.query("delete from job_posts where client_id like $1", [like]);
+  await pool.query("delete from agency_metadata where owner_id like $1", [
+    like,
+  ]);
   await pool.query("delete from accounts where auth_id like $1", [like]);
 };
 
@@ -101,5 +111,85 @@ describe("getAdminJobPosts against Postgres", () => {
 
     expect(new Set(paged).size).toBe(paged.length);
     expect(mine).toEqual([...seeded].sort().reverse());
+  });
+});
+
+const seedTiedAccountsAndAgencies = async (
+  people: number,
+  agencyCount: number,
+) => {
+  const authIds = Array.from(
+    { length: people },
+    () => `${PREFIX}${randomUUID()}`,
+  );
+  const inserted = await db
+    .insert(accounts)
+    .values(
+      authIds.map((authId) => ({
+        auth_id: authId,
+        email: `${authId}@example.test`,
+        role: "FREELANCER" as const,
+        created_at: TIED_AT,
+      })),
+    )
+    .returning({ id: accounts.id, authId: accounts.auth_id });
+  const agencies = await db
+    .insert(agency_metadata)
+    .values(
+      authIds.slice(0, agencyCount).map((ownerId) => ({
+        owner_id: ownerId,
+        name: `${PREFIX}agency-${randomUUID()}`,
+        size: "1-10",
+        specialty: "testing",
+        overview: "tie test",
+        is_onboarded: true,
+        created_at: TIED_AT,
+      })),
+    )
+    .returning({ id: agency_metadata.id });
+  return { people: inserted, agencies };
+};
+
+describe("admin ids against Postgres", () => {
+  it("returns the client accounts.id on job posts, never the Clerk id", async () => {
+    const seeded = await seedJobs(1);
+    const [client] = await db
+      .select({ id: accounts.id, authId: accounts.auth_id })
+      .from(accounts)
+      .where(likeOp(accounts.auth_id, like));
+    const { results } = await getAdminJobPosts({ limit: 100, offset: 0 });
+    const row = results.find((job) => job.id === seeded[0]);
+
+    expect(row?.clientId).toBe(client!.id);
+    expect(row?.clientId).not.toBe(client!.authId);
+  });
+
+  it("orders accounts and agencies with an identical created_at by public id across pages", async () => {
+    const seeded = await seedTiedAccountsAndAgencies(6, 3);
+    const expected = [
+      ...seeded.people.map((row) => row.id),
+      ...seeded.agencies.map((row) => row.id),
+    ]
+      .sort()
+      .reverse();
+
+    const paged: Awaited<ReturnType<typeof getAdminAccounts>>["results"] = [];
+    for (let offset = 0; ; offset += 4) {
+      const page = await getAdminAccounts({ limit: 4, offset });
+      paged.push(...page.results);
+      if (!page.hasMore) break;
+    }
+    const mine = paged.filter((row) => expected.includes(row.id));
+
+    expect(new Set(paged.map((row) => row.id)).size).toBe(paged.length);
+    expect(mine.map((row) => row.id)).toEqual(expected);
+    const personAuthIds = new Map(
+      seeded.people.map((row) => [row.id, row.authId]),
+    );
+    mine.forEach((row) => {
+      expect(row.authId).toBe(
+        row.type === "AGENCY" ? null : personAuthIds.get(row.id),
+      );
+    });
   });
 });

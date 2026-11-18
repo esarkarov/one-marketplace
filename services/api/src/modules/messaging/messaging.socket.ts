@@ -7,10 +7,19 @@ import {
   listParticipantsOfConversations,
   markReadIfMessageInConversation,
 } from "./repositories/messaging.participants.repository.js";
-import { authenticateAccount } from "../auth/index.js";
+import { authenticateAccount, findAccountIdByAuthId } from "../auth/index.js";
+import { requirePublicId } from "../../shared/ids/public-ids.js";
 import { ApiError } from "../../shared/errors/api-error.js";
 import { getAgencyIdForMember } from "../agency/index.js";
 import { ConversationScope } from "./types/messaging.types.js";
+import { loadSocketPublicIds } from "./services/messaging.socket-ids.service.js";
+import {
+  toConversationUpdatePayload,
+  toPresenceOfflinePayload,
+  toPresenceOnlinePayload,
+  toPresenceSnapshotPayload,
+  toTypingUpdatePayload,
+} from "./utils/messaging.socket-payloads.js";
 
 let io: Server | undefined;
 const userSockets = new Map<string, Set<string>>();
@@ -95,6 +104,11 @@ export const initializeMessagingSocket = (server: HttpServer) => {
       agencyId,
     );
     const partnerIds = [...new Set(participants.map((p) => p.userId))];
+    const publicIds = await loadSocketPublicIds(db, {
+      userId,
+      participants,
+      agencyId,
+    });
     socket.join(scopeRoom(selfRoomId, scope));
     conversationIds.forEach((id) => socket.join(`conversation:${id}`));
 
@@ -102,26 +116,35 @@ export const initializeMessagingSocket = (server: HttpServer) => {
     const cameOnline = sockets.size === 0;
     sockets.add(socket.id);
     userSockets.set(selfRoomId, sockets);
-    socket.emit("presence:snapshot", {
-      userIds: partnerIds.filter((id) => userSockets.has(id)),
-    });
+    socket.emit(
+      "presence:snapshot",
+      toPresenceSnapshotPayload(
+        publicIds,
+        partnerIds.filter((id) => userSockets.has(id)),
+      ),
+    );
     if (cameOnline) {
       participants.forEach(({ userId: id, scope: theirScope }) =>
-        io?.to(scopeRoom(id, theirScope)).emit("presence:update", {
-          userId: selfRoomId,
-          online: true,
-        }),
+        io
+          ?.to(scopeRoom(id, theirScope))
+          .emit(
+            "presence:update",
+            toPresenceOnlinePayload(publicIds, selfRoomId),
+          ),
       );
     }
 
     socket.on("typing:set", ({ conversationId, isTyping }) => {
       const room = `conversation:${conversationId}`;
       if (socket.rooms.has(room)) {
-        socket.to(room).emit("typing:update", {
-          conversationId,
-          userId,
-          isTyping: Boolean(isTyping),
-        });
+        socket.to(room).emit(
+          "typing:update",
+          toTypingUpdatePayload(publicIds, {
+            conversationId,
+            userId,
+            isTyping,
+          }),
+        );
       }
     });
 
@@ -159,12 +182,14 @@ export const initializeMessagingSocket = (server: HttpServer) => {
       activeSockets?.delete(socket.id);
       if (activeSockets?.size) return;
       userSockets.delete(selfRoomId);
+      const lastActiveAt = new Date();
       participants.forEach(({ userId: id, scope: theirScope }) =>
-        io?.to(scopeRoom(id, theirScope)).emit("presence:update", {
-          userId: selfRoomId,
-          online: false,
-          lastActiveAt: new Date().toISOString(),
-        }),
+        io
+          ?.to(scopeRoom(id, theirScope))
+          .emit(
+            "presence:update",
+            toPresenceOfflinePayload(publicIds, selfRoomId, lastActiveAt),
+          ),
       );
     });
   });
@@ -179,8 +204,19 @@ export const closeMessagingSocket = async (): Promise<void> => {
 export const emitConversationUpdate = async (
   conversationId: string,
   excludedUserId?: string,
+  senderAccountId?: string | null,
 ) => {
   if (!io) return;
+  const publicSenderId =
+    senderAccountId !== undefined
+      ? senderAccountId
+      : excludedUserId
+        ? requirePublicId(
+            await findAccountIdByAuthId(db, excludedUserId),
+            "socket_conversation_update",
+            conversationId,
+          )
+        : null;
   const participants = await listParticipantsOfConversations(db, [
     conversationId,
   ]);
@@ -191,10 +227,9 @@ export const emitConversationUpdate = async (
     const scope: ConversationScope = isAgency ? "agency" : "default";
     const room = scopeRoom(roomId, scope);
     io?.in(room).socketsJoin(`conversation:${conversationId}`);
-    io?.to(room).emit("conversation:update", {
-      conversationId,
-      messagesChanged: true,
-      senderId: excludedUserId ?? null,
-    });
+    io?.to(room).emit(
+      "conversation:update",
+      toConversationUpdatePayload(conversationId, publicSenderId),
+    );
   });
 };

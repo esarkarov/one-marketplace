@@ -69,7 +69,11 @@ const publishSystemEventMessage = async (
       "messaging_system_event",
     )
   )[0]!;
-  await emitConversationUpdate(message.conversation_id, actorId);
+  await emitConversationUpdate(
+    message.conversation_id,
+    actorId,
+    senderAccountId,
+  );
   return hydrated;
 };
 

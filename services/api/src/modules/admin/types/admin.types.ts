@@ -41,3 +41,16 @@ export type AdminTransactionRow =
       amountCents: number;
       createdAt: Date | null;
     };
+
+export interface AdminAccountRow {
+  id: string;
+  authId: string | null;
+  type: string;
+  name: string;
+  avatarUrl: string | null;
+  email: string;
+  verified: boolean;
+  paymentVerified: boolean;
+  onboarded: boolean;
+  createdAt: Date | null;
+}

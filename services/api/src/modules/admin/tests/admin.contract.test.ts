@@ -43,6 +43,7 @@ import {
   job_posts,
   proposals,
 } from "../../../test/support/tables.js";
+import { expectNoClerkIds } from "../../../test/support/clerk-id-scan.js";
 import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
 import {
   createTestData,
@@ -366,7 +367,7 @@ describe("admin reports against real Postgres", () => {
       const authId = qid();
       return {
         auth_id: authId,
-        email: `${authId}@example.test`,
+        email: `${randomUUID()}@example.test`,
         role: row.role,
         created_at: row.createdAt,
         updated_at: row.createdAt,
@@ -425,13 +426,25 @@ describe("admin reports against real Postgres", () => {
       )
       .returning({ id: job_posts.id });
 
-  const insertProposals = async (jobId: string, createdAts: Date[]) =>
-    db
+  const insertProposals = async (
+    jobId: string,
+    createdAts: Date[],
+    existingSenderAuthIds?: string[],
+  ) => {
+    const senders = existingSenderAuthIds
+      ? existingSenderAuthIds.map((authId) => ({ authId }))
+      : await insertAccounts(
+          createdAts.map(() => ({
+            role: "FREELANCER" as const,
+            createdAt: OLD,
+          })),
+        );
+    return db
       .insert(proposals)
       .values(
-        createdAts.map((createdAt) => ({
+        createdAts.map((createdAt, index) => ({
           job_id: jobId,
-          sender_id: qid(),
+          sender_id: senders[index]!.authId,
           sender_type: "FREELANCER",
           cover_letter: "hi",
           bid_amount_cents: 1000,
@@ -441,6 +454,7 @@ describe("admin reports against real Postgres", () => {
         })),
       )
       .returning({ id: proposals.id });
+  };
 
   const insertContract = async (input: {
     clientId: string;
@@ -449,8 +463,13 @@ describe("admin reports against real Postgres", () => {
     status: "PENDING" | "ACTIVE" | "COMPLETED";
     createdAt: Date;
     totalAmountCents?: number;
+    senderAuthId?: string;
   }) => {
-    const [proposal] = await insertProposals(input.jobId, [OLD]);
+    const [proposal] = await insertProposals(
+      input.jobId,
+      [OLD],
+      input.senderAuthId ? [input.senderAuthId] : undefined,
+    );
     const [contract] = await db
       .insert(contracts)
       .values({
@@ -500,6 +519,12 @@ describe("admin reports against real Postgres", () => {
 
     it("counts each entity by its own table, role and status", async () => {
       await purgeQuery();
+      const senders = await insertAccounts(
+        Array.from({ length: 7 }, () => ({
+          role: "FREELANCER" as const,
+          createdAt: OLD,
+        })),
+      );
       const before = await totals();
       const freelancers = await insertAccounts([
         { role: "FREELANCER", createdAt: OLD },
@@ -515,7 +540,11 @@ describe("admin reports against real Postgres", () => {
         [OLD, OLD],
       );
       const jobs = await insertJobs(clients[0]!.authId, [OLD, OLD, OLD]);
-      await insertProposals(jobs[0]!.id, [OLD, OLD]);
+      await insertProposals(
+        jobs[0]!.id,
+        [OLD, OLD],
+        senders.slice(0, 2).map((row) => row.authId),
+      );
       const amounts: Array<["PENDING" | "ACTIVE" | "COMPLETED", number]> = [
         ["ACTIVE", 100],
         ["ACTIVE", 200],
@@ -523,8 +552,9 @@ describe("admin reports against real Postgres", () => {
         ["PENDING", 400],
         ["PENDING", 500],
       ];
-      for (const [status, totalAmountCents] of amounts) {
+      for (const [index, [status, totalAmountCents]] of amounts.entries()) {
         await insertContract({
+          senderAuthId: senders[2 + index]!.authId,
           clientId: clients[0]!.authId,
           freelancerId: freelancers[0]!.authId,
           jobId: jobs[0]!.id,
@@ -1060,6 +1090,124 @@ describe("admin reports against real Postgres", () => {
       expect(ids(rows)).toEqual([proposal!.id]);
       expect(rows[0]!.senderType).toBe("AGENCY");
       expect(rows[0]!.senderName).toBe(expected[0]!.name);
+    });
+
+    it("exposes only public ids on every admin report that carries an account or party", async () => {
+      const [client, talent, agencyOwner] = await insertAccounts([
+        { role: "CLIENT", createdAt: far(4, 1) },
+        { role: "FREELANCER", createdAt: far(4, 2) },
+        { role: "FREELANCER", createdAt: far(4, 3) },
+      ]);
+      const [agency] = await insertAgencies([agencyOwner!.authId], [far(4, 4)]);
+      const [job] = await insertJobs(client!.authId, [far(5, 3)]);
+      const [freelancerProposal] = await insertProposals(
+        job!.id,
+        [far(6, 2)],
+        [talent!.authId],
+      );
+      const [agencyProposal] = await db
+        .insert(proposals)
+        .values({
+          job_id: job!.id,
+          sender_id: agency!.id,
+          sender_type: "AGENCY",
+          cover_letter: "agency bid",
+          bid_amount_cents: 1000,
+          duration: "1 month",
+          created_at: far(6, 3),
+          updated_at: far(6, 3),
+        })
+        .returning({ id: proposals.id });
+      const freelancerContract = await insertContract({
+        clientId: client!.authId,
+        freelancerId: talent!.authId,
+        jobId: job!.id,
+        status: "PENDING",
+        createdAt: far(7, 2),
+      });
+      const [agencyContract] = await db
+        .insert(contracts)
+        .values({
+          proposal_id: agencyProposal!.id,
+          job_id: job!.id,
+          client_id: client!.authId,
+          agency_id: agency!.id,
+          title: `${Q}contract-${randomUUID()}`,
+          total_amount_cents: 10000,
+          status: "PENDING",
+          created_at: far(7, 3),
+          updated_at: far(7, 3),
+        })
+        .returning({ id: contracts.id });
+      await qdata.createPayoutFixture({
+        owner: "freelancer",
+        payout: { status: "PAID" },
+        earning: { ageMs: 0 },
+      });
+      const clerkIds = (
+        await pool.query<{ auth_id: string }>(
+          "select auth_id from accounts where auth_id like $1",
+          [`${PREFIX.slice(0, 6)}%`],
+        )
+      ).rows.map((row) => row.auth_id);
+      expect(clerkIds).toContain(client!.authId);
+
+      const reports = await Promise.all(
+        [
+          "accounts",
+          "job-posts",
+          "proposals",
+          "contracts",
+          "transactions",
+          "overview/activity",
+        ].map(async (path) => {
+          const response = await getAdmin(path, { limit: 100 });
+          expect(response.status).toBe(200);
+          return [path, response.body] as const;
+        }),
+      );
+      for (const [path, body] of reports) {
+        const scanned =
+          path === "accounts"
+            ? {
+                ...body,
+                data: {
+                  ...body.data,
+                  results: body.data.results.map(
+                    ({ authId: _authId, ...rest }: Record<string, unknown>) =>
+                      rest,
+                  ),
+                },
+              }
+            : body;
+        expectNoClerkIds(scanned, clerkIds);
+      }
+      const byPath = Object.fromEntries(reports);
+      const find = (path: string, id: string) =>
+        (
+          byPath[path].data.results as Array<
+            { id: string } & Record<string, unknown>
+          >
+        ).find((row) => row.id === id);
+
+      const accountRows = byPath.accounts.data.results as Array<{
+        id: string;
+        authId: string | null;
+      }>;
+      expect(accountRows.find((row) => row.id === client!.id)?.authId).toBe(
+        client!.authId,
+      );
+      expect(
+        accountRows.find((row) => row.id === agency!.id)?.authId,
+      ).toBeNull();
+      expect(find("job-posts", job!.id)?.clientId).toBe(client!.id);
+      expect(find("proposals", freelancerProposal!.id)?.senderId).toBe(
+        talent!.id,
+      );
+      expect(find("proposals", agencyProposal!.id)?.senderId).toBe(agency!.id);
+      expect(find("contracts", freelancerContract)?.clientId).toBe(client!.id);
+      expect(find("contracts", freelancerContract)?.talentId).toBe(talent!.id);
+      expect(find("contracts", agencyContract!.id)?.talentId).toBe(agency!.id);
     });
 
     it("orders PAID payouts by paid_at, falling back to created_at, before truncating", async () => {

@@ -31,7 +31,8 @@ const ActivityItem = z
 
 const AccountItem = z
   .strictObject({
-    id: z.string(),
+    id: z.uuid(),
+    authId: z.string().nullable(),
     type: z.enum(ADMIN_ACCOUNT_TYPE),
     name: z.string(),
     avatarUrl: z.string().nullable(),
@@ -73,7 +74,7 @@ const JobPostItem = z
         }),
       )
       .nullable(),
-    clientId: z.string(),
+    clientId: z.uuid(),
     companyName: z.string().nullable(),
     companyWebsite: z.string().nullable(),
     industry: z.string().nullable(),
@@ -96,7 +97,7 @@ const ProposalItem = z
     jobTitle: z.string(),
     jobBudgetCents: cents,
     jobStatus: z.string(),
-    senderId: z.string(),
+    senderId: z.uuid(),
     senderType: z.enum(["FREELANCER", "AGENCY"]),
     senderName: z.string(),
     senderAvatarUrl: z.string().nullable(),
@@ -142,10 +143,10 @@ const ContractItem = z
     totalAmountCents: cents,
     jobId: z.uuid(),
     proposalId: z.uuid(),
-    clientId: z.string(),
+    clientId: z.uuid(),
     clientName: z.string(),
     clientEmail: z.string().nullable(),
-    talentId: z.string().nullable(),
+    talentId: z.uuid().nullable(),
     talentName: z.string(),
     talentAvatarUrl: z.string().nullable(),
     talentEmail: z.string().nullable(),

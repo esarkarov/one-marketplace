@@ -105,6 +105,7 @@ export const listRecentContracts = (executor: DbExecutor, limit: number) =>
 export const listAccountsWithCompany = (executor: DbExecutor, limit: number) =>
   executor
     .select({
+      id: accounts.id,
       authId: accounts.auth_id,
       role: accounts.role,
       email: accounts.email,
@@ -116,7 +117,7 @@ export const listAccountsWithCompany = (executor: DbExecutor, limit: number) =>
     })
     .from(accounts)
     .leftJoin(client_metadata, eq(client_metadata.auth_id, accounts.auth_id))
-    .orderBy(desc(accounts.created_at), desc(accounts.auth_id))
+    .orderBy(desc(accounts.created_at), desc(accounts.id))
     .limit(limit);
 
 export const listAgenciesWithOwner = (executor: DbExecutor, limit: number) =>
@@ -125,7 +126,6 @@ export const listAgenciesWithOwner = (executor: DbExecutor, limit: number) =>
       id: agency_metadata.id,
       name: agency_metadata.name,
       avatarImage: agency_metadata.avatar_image,
-      ownerId: agency_metadata.owner_id,
       isOnboarded: agency_metadata.is_onboarded,
       createdAt: agency_metadata.created_at,
       ownerEmail: accounts.email,
@@ -153,7 +153,7 @@ export const listJobPostsPage = (
       milestones: job_posts.milestones,
       screeningQuestions: job_posts.screening_questions,
       attachments: job_posts.attachments,
-      clientId: job_posts.client_id,
+      clientId: accounts.id,
       companyName: client_metadata.company_name,
       companyWebsite: client_metadata.company_website,
       industry: client_metadata.industry,
@@ -190,7 +190,8 @@ export const listProposalsPage = (
       jobTitle: job_posts.title,
       jobBudgetCents: job_posts.total_budget_cents,
       jobStatus: job_posts.status,
-      senderId: proposals.sender_id,
+      senderAuthId: proposals.sender_id,
+      senderAccountId: accounts.id,
       senderType: proposals.sender_type,
       coverLetter: proposals.cover_letter,
       bidAmountCents: proposals.bid_amount_cents,
@@ -206,6 +207,13 @@ export const listProposalsPage = (
     })
     .from(proposals)
     .innerJoin(job_posts, eq(job_posts.id, proposals.job_id))
+    .leftJoin(
+      accounts,
+      and(
+        eq(proposals.sender_type, "FREELANCER"),
+        eq(accounts.auth_id, proposals.sender_id),
+      ),
+    )
     .leftJoin(
       agency_metadata,
       and(
@@ -229,8 +237,8 @@ export const listContractsPage = (
       totalAmountCents: contracts.total_amount_cents,
       jobId: contracts.job_id,
       proposalId: contracts.proposal_id,
-      clientId: contracts.client_id,
-      freelancerId: contracts.freelancer_id,
+      clientId: accounts.id,
+      freelancerAuthId: contracts.freelancer_id,
       agencyId: contracts.agency_id,
       companyName: client_metadata.company_name,
       clientEmail: accounts.email,
@@ -339,6 +347,15 @@ export const listConnectsPurchases = (executor: DbExecutor, limit: number) =>
       desc(connects_purchase_history.id),
     )
     .limit(limit);
+
+export const listAccountPublicIdsByAuthIds = (
+  executor: DbExecutor,
+  authIds: string[],
+) =>
+  executor
+    .select({ authId: accounts.auth_id, id: accounts.id })
+    .from(accounts)
+    .where(inArray(accounts.auth_id, authIds));
 
 export const listAgencyNamesByIds = (
   executor: DbExecutor,
