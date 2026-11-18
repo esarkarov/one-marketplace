@@ -36,14 +36,23 @@ describe.each(schemas)("%s paging and text caps", (_name, schema) => {
     },
   );
 
-  it.each(["query", "q"])("caps %s at the maximum length", (key) => {
+  it("caps query at the maximum length", () => {
     expect(
-      schema.safeParse({ [key]: "a".repeat(SEARCH_QUERY_MAX_LENGTH) }).success,
+      schema.safeParse({ query: "a".repeat(SEARCH_QUERY_MAX_LENGTH) }).success,
     ).toBe(true);
     expect(
-      schema.safeParse({ [key]: "a".repeat(SEARCH_QUERY_MAX_LENGTH + 1) })
+      schema.safeParse({ query: "a".repeat(SEARCH_QUERY_MAX_LENGTH + 1) })
         .success,
     ).toBe(false);
+  });
+
+  it("rejects the removed q alias like any other unknown key", () => {
+    const withQ = schema.safeParse({ q: "react" });
+    const withExtra = schema.safeParse({ extra: "react" });
+
+    expect(withQ.success).toBe(false);
+    expect(withQ.error?.issues[0]?.code).toBe("unrecognized_keys");
+    expect(withQ.error?.issues[0]?.code).toBe(withExtra.error?.issues[0]?.code);
   });
 
   it("rejects repeated text parameters", () => {

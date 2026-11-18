@@ -199,3 +199,19 @@ describe("client authentication order", () => {
     expect(response.status).toBe(400);
   });
 });
+
+describe("search query alias", () => {
+  it("rejects the removed q parameter like any other unknown key", async () => {
+    const withQ = await authed("get", "/api/v1/client/marketplace/search", {
+      q: "x",
+    });
+    const withExtra = await authed("get", "/api/v1/client/marketplace/search", {
+      extra: "x",
+    });
+
+    expect(withQ.status).toBe(400);
+    expect(withQ.body.code).toBe("VALIDATION_ERROR");
+    expect(withQ.status).toBe(withExtra.status);
+    expect(withQ.body.code).toBe(withExtra.body.code);
+  });
+});

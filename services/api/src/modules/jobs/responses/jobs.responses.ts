@@ -36,7 +36,7 @@ const jobPostFields = {
         fileName: z.string(),
         fileUrl: z.string(),
         fileType: z.string(),
-        fileSize: z.number(),
+        fileSize: z.number().int(),
       }),
     )
     .nullable(),

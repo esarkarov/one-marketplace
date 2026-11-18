@@ -872,7 +872,9 @@
                       "type": "string"
                     },
                     "fileSize": {
-                      "type": "number"
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer"
                     },
                     "fileType": {
                       "type": "string"
@@ -1489,7 +1491,7 @@
             "$ref": "#/components/schemas/Cents"
           },
           "clientRating": {
-            "type": ["string", "null"]
+            "type": ["number", "null"]
           },
           "clientReviewCount": {
             "anyOf": [
@@ -2702,7 +2704,9 @@
                       "type": "string"
                     },
                     "fileSize": {
-                      "type": "number"
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer"
                     },
                     "fileType": {
                       "type": "string"
@@ -2924,7 +2928,9 @@
                       "type": "string"
                     },
                     "fileSize": {
-                      "type": "number"
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer"
                     },
                     "fileType": {
                       "type": "string"
@@ -3230,9 +3236,6 @@
               }
             ]
           },
-          "auth_id": {
-            "type": "string"
-          },
           "availability_status": {
             "type": "string"
           },
@@ -3445,7 +3448,6 @@
         },
         "required": [
           "id",
-          "auth_id",
           "created_at",
           "updated_at",
           "professional_title",
@@ -3938,7 +3940,9 @@
                       "type": "string"
                     },
                     "fileSize": {
-                      "type": "number"
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer"
                     },
                     "fileType": {
                       "type": "string"
@@ -4107,7 +4111,9 @@
                       "type": "string"
                     },
                     "fileSize": {
-                      "type": "number"
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer"
                     },
                     "fileType": {
                       "type": "string"
@@ -4402,7 +4408,9 @@
                       "type": "string"
                     },
                     "fileSize": {
-                      "type": "number"
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer"
                     },
                     "fileType": {
                       "type": "string"
@@ -10228,15 +10236,6 @@
           },
           {
             "in": "query",
-            "name": "q",
-            "required": false,
-            "schema": {
-              "maxLength": 100,
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
             "name": "offset",
             "required": false,
             "schema": {
@@ -11988,15 +11987,6 @@
           {
             "in": "query",
             "name": "query",
-            "required": false,
-            "schema": {
-              "maxLength": 100,
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "q",
             "required": false,
             "schema": {
               "maxLength": 100,
@@ -16554,15 +16544,6 @@
           },
           {
             "in": "query",
-            "name": "q",
-            "required": false,
-            "schema": {
-              "maxLength": 100,
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
             "name": "offset",
             "required": false,
             "schema": {
@@ -17127,8 +17108,9 @@
                             "fileSize": {
                               "anyOf": [
                                 {
+                                  "maximum": 9007199254740991,
                                   "minimum": 0,
-                                  "type": "number"
+                                  "type": "integer"
                                 },
                                 {
                                   "type": "null"
@@ -18169,8 +18151,9 @@
                             "fileSize": {
                               "anyOf": [
                                 {
+                                  "maximum": 9007199254740991,
                                   "minimum": 0,
-                                  "type": "number"
+                                  "type": "integer"
                                 },
                                 {
                                   "type": "null"

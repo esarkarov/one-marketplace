@@ -128,6 +128,11 @@ describe("POST /identity/session", () => {
       .send({});
     expect(response.status).toBe(200);
     identityResponses.session[200].parse(response.body);
+    expect(mocks.sessionsCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        return_url: "http://localhost:3999/settings?section=verifications",
+      }),
+    );
   });
 
   it("matches the 200 schema for a freelancer", async () => {
@@ -139,6 +144,11 @@ describe("POST /identity/session", () => {
       .send({});
     expect(response.status).toBe(200);
     identityResponses.session[200].parse(response.body);
+    expect(mocks.sessionsCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        return_url: "http://localhost:3998/settings?section=verifications",
+      }),
+    );
   });
 
   it("matches the 409 schema for a verified account", async () => {

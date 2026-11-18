@@ -922,6 +922,14 @@ describe("agency contract: jobs, proposals and connects", () => {
       .send({ role: "freelancer", connects: 20 });
     expect(checkout.status).toBe(200);
     agencyConnectsCheckoutResponses[200].parse(checkout.body);
+    expect(mocks.sessionsCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success_url:
+          "http://localhost:3999/finances?section=connects&payment=success",
+        cancel_url:
+          "http://localhost:3999/finances?section=connects&payment=cancelled",
+      }),
+    );
 
     const { freelancerId: plainMember } = await addMember(
       agencyId,
@@ -985,6 +993,7 @@ describe("agency contract: jobs, proposals and connects", () => {
     expect(list.status).toBe(200);
     expect(list.body.data).toHaveLength(1);
     agencyProposalsResponses[200].parse(list.body);
+    expect(list.body.data[0].clientRating).toBe(4);
 
     const metadata = await request(app)
       .get(`${API}/proposals/metadata`)

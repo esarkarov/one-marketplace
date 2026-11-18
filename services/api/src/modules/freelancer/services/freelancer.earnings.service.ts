@@ -251,7 +251,7 @@ export const getFreelancerPayoutManagementUrl = async (userId: string) => {
     );
   }
 
-  const returnUrl = `${env.freelancerDashboard}/settings?section=withdrawal`;
+  const returnUrl = `${env.freelancerDashboard}/settings?section=withdrawals`;
 
   if (hasPendingRequirements) {
     const accountLink = await stripe.v2.core.accountLinks.create({

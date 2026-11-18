@@ -27,6 +27,5 @@ export const searchOffsetParam = z
 
 export const searchPagingShape = {
   query: searchTextParam,
-  q: searchTextParam,
   offset: searchOffsetParam,
 };

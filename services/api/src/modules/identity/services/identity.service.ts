@@ -31,7 +31,7 @@ export const createIdentitySession = async (
   const session = await stripe.identity.verificationSessions.create({
     type: "document",
     metadata: { accountId, role },
-    return_url: `${dashboard}/settings?section=${role === "client" ? "verifications" : "verification"}`,
+    return_url: `${dashboard}/settings?section=verifications`,
   });
 
   if (!session.url) {

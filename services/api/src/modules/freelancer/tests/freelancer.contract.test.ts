@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => ({
   accountsCreate: vi.fn(),
   accountsRetrieve: vi.fn(),
   loginLink: vi.fn(),
+  accountLinksCreate: vi.fn(),
 }));
 
 vi.mock("../../../config/env.js", async (importOriginal) => {
@@ -50,6 +51,7 @@ vi.mock("../../../infrastructure/payments/stripe.client.js", () => ({
           create: mocks.accountsCreate,
           retrieve: mocks.accountsRetrieve,
         },
+        accountLinks: { create: mocks.accountLinksCreate },
       },
     },
     accounts: { createLoginLink: mocks.loginLink },
@@ -413,6 +415,7 @@ beforeEach(() => {
   mocks.upload.mockReset();
   mocks.accountsCreate.mockReset();
   mocks.loginLink.mockReset();
+  mocks.accountLinksCreate.mockReset();
   mocks.verifyToken.mockImplementation(async (token: string) => ({
     sub: token,
     sid: `sess_${token}`,
@@ -459,6 +462,8 @@ describe("freelancer contract", () => {
     expect(full.body.data.workHistory.length).toBe(2);
     expect(full.body.data.agency).not.toBeNull();
     expect(full.body.data.portfolios.length).toBe(1);
+    expect(full.body.data).not.toHaveProperty("auth_id");
+    expect(saved.body.data).not.toHaveProperty("auth_id");
     freelancerProfileGetResponses[200].parse(full.body);
   });
 
@@ -757,5 +762,41 @@ describe("freelancer account writes", () => {
       .set(as(freelancerId));
     expect(second.status).toBe(200);
     expect(mocks.accountsCreate).not.toHaveBeenCalled();
+  });
+
+  it("returns the payout onboarding link to the plural withdrawals section", async () => {
+    const { freelancerId } = await seedFreelancer();
+    mocks.accountsCreate.mockResolvedValue({
+      id: `acct_${randomUUID()}`,
+      requirements: {
+        entries: [
+          {
+            awaiting_action_from: "user",
+            minimum_deadline: { status: "currently_due" },
+          },
+        ],
+      },
+    });
+    mocks.accountLinksCreate.mockResolvedValue({
+      url: "https://connect.example.test/onboarding",
+    });
+
+    const response = await request(app)
+      .get(`${API}/payouts/connect-link`)
+      .query(q)
+      .set(as(freelancerId));
+
+    expect(response.status).toBe(200);
+    expect(mocks.accountLinksCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        use_case: {
+          type: "account_onboarding",
+          account_onboarding: expect.objectContaining({
+            return_url: "http://localhost:3002/settings?section=withdrawals",
+            refresh_url: "http://localhost:3002/settings?section=withdrawals",
+          }),
+        },
+      }),
+    );
   });
 });

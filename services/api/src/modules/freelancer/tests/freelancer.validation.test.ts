@@ -304,3 +304,19 @@ describe("freelancer authentication order", () => {
     expect(response.status).toBe(403);
   });
 });
+
+describe("search query alias", () => {
+  it("rejects the removed q parameter like any other unknown key", async () => {
+    const withQ = await request(app)
+      .get("/api/v1/freelancer/search")
+      .query({ q: "x" });
+    const withExtra = await request(app)
+      .get("/api/v1/freelancer/search")
+      .query({ extra: "x" });
+
+    expect(withQ.status).toBe(400);
+    expect(withQ.body.code).toBe("VALIDATION_ERROR");
+    expect(withQ.status).toBe(withExtra.status);
+    expect(withQ.body.code).toBe(withExtra.body.code);
+  });
+});

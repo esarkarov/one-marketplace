@@ -152,7 +152,7 @@ export const createConnectsCheckout = async (
       purchasedConnects: String(purchasedConnects),
     },
     success_url: `${env.freelancerDashboard}/settings?section=connects&payment=success`,
-    cancel_url: `${env.freelancerDashboard}/settings?section=connects`,
+    cancel_url: `${env.freelancerDashboard}/settings?section=connects&payment=cancelled`,
   });
   if (!session.url) throw new ApiError(502, "Stripe Checkout could not start.");
   return session.url;
@@ -236,7 +236,7 @@ export const createAgencyConnectsCheckout = async (
       purchasedConnects: String(purchasedConnects),
     },
     success_url: `${env.agencyDashboard}/finances?section=connects&payment=success`,
-    cancel_url: `${env.agencyDashboard}/finances?section=connects`,
+    cancel_url: `${env.agencyDashboard}/finances?section=connects&payment=cancelled`,
   });
   if (!session.url) throw new ApiError(502, "Stripe Checkout could not start.");
   return session.url;

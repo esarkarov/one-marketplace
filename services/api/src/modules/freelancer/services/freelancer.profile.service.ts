@@ -41,7 +41,7 @@ export const getFreelancerProfile = async (
 
   if (!result) return null;
 
-  const profile = result.freelancer_metadata;
+  const { auth_id: _authId, ...profile } = result.freelancer_metadata;
 
   const portfolios = await listPortfoliosOfFreelancer(db, profile.id);
 
@@ -326,13 +326,8 @@ export const getPublicFreelancerProfile = async (profileId: string) => {
   } catch {
     return null;
   }
-  const { auth_id: _authId, ...publicProfile } =
-    profile as FreelancerProfileData & {
-      auth_id?: string;
-    };
-
   return {
-    ...publicProfile,
+    ...profile,
     id: profileId,
     name: user.fullName ?? "Freelancer",
     avatarUrl: user.imageUrl || null,

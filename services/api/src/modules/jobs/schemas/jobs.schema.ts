@@ -83,6 +83,7 @@ const attachmentSchema = z.strictObject(
       .optional(),
     fileSize: z
       .number({ error: "Attachment size must be a number." })
+      .int({ error: "Attachment size must be a number." })
       .min(0, { error: "Attachment size must be a number." })
       .nullish(),
   },

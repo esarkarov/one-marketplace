@@ -164,7 +164,7 @@ const AgencyJobFeedItem = z
           fileName: z.string(),
           fileUrl: z.string(),
           fileType: z.string(),
-          fileSize: z.number(),
+          fileSize: z.number().int(),
         }),
       )
       .nullable(),
@@ -214,7 +214,7 @@ const AgencyProposalListItem = z
     duration: z.string(),
     coverLetter: z.string(),
     skills: z.array(z.string()),
-    clientRating: z.string().nullable(),
+    clientRating: z.number().nullable(),
     clientReviewCount: z.number().int().nullable(),
     clientTotalSpentCents: cents.nullable(),
     conversationId: z.uuid().nullable(),

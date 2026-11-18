@@ -77,8 +77,14 @@ export const getAgencyProposalMetadata = async (agencyId: string) => {
 export const getFreelancerProposals = async (freelancerId: string) =>
   listFreelancerProposals(db, freelancerId);
 
-export const getAgencyProposals = async (agencyId: string) =>
-  listAgencyProposals(db, agencyId);
+export const getAgencyProposals = async (agencyId: string) => {
+  const rows = await listAgencyProposals(db, agencyId);
+
+  return rows.map((row) => ({
+    ...row,
+    clientRating: row.clientRating === null ? null : Number(row.clientRating),
+  }));
+};
 
 export const getClientJobProposals = async (
   clientId: string,

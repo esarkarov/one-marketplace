@@ -83,7 +83,6 @@ const detailFields = {
 const FreelancerProfile = z
   .strictObject({
     id: z.uuid(),
-    auth_id: z.string(),
     created_at: isoDateTime.nullable(),
     updated_at: isoDateTime.nullable(),
     ...profileFields,
@@ -194,7 +193,7 @@ const jobPostFields = {
         fileName: z.string(),
         fileUrl: z.string(),
         fileType: z.string(),
-        fileSize: z.number(),
+        fileSize: z.number().int(),
       }),
     )
     .nullable(),

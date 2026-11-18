@@ -237,6 +237,14 @@ describe("POST /connects/checkout", () => {
       .send({ connects: 20 });
     expect(response.status).toBe(200);
     connectsResponses.checkout[200].parse(response.body);
+    expect(mocks.sessionsCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success_url:
+          "http://localhost:3998/settings?section=connects&payment=success",
+        cancel_url:
+          "http://localhost:3998/settings?section=connects&payment=cancelled",
+      }),
+    );
   });
 
   it("matches the 403 schema for a client account", async () => {
