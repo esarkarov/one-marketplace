@@ -10,6 +10,7 @@ import {
   sql,
 } from "drizzle-orm";
 import type { DbExecutor } from "../../../database/database.types.js";
+import { accounts } from "../../auth/models/auth.model.js";
 import { message_attachments, messages } from "../models/messaging.model.js";
 
 export type NewMessage = Omit<typeof messages.$inferInsert, "conversation_id">;
@@ -49,6 +50,7 @@ export const listMessagesPage = (
       id: messages.id,
       conversationId: messages.conversation_id,
       senderId: messages.sender_id,
+      senderAccountId: accounts.id,
       messageType: messages.message_type,
       body: messages.body,
       eventType: messages.event_type,
@@ -57,6 +59,7 @@ export const listMessagesPage = (
       createdAt: messages.created_at,
     })
     .from(messages)
+    .leftJoin(accounts, eq(accounts.auth_id, messages.sender_id))
     .where(
       and(
         eq(messages.conversation_id, input.conversationId),
@@ -88,11 +91,13 @@ export const listReplyPreviews = (executor: DbExecutor, messageIds: string[]) =>
     .select({
       id: messages.id,
       senderId: messages.sender_id,
+      senderAccountId: accounts.id,
       messageType: messages.message_type,
       body: messages.body,
       eventType: messages.event_type,
     })
     .from(messages)
+    .leftJoin(accounts, eq(accounts.auth_id, messages.sender_id))
     .where(inArray(messages.id, messageIds));
 
 export const findMessageInConversation = async (

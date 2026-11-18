@@ -26,7 +26,13 @@ import { emitConversationUpdate } from "../messaging.socket.js";
 import { getAgencyTeamMemberIds } from "../../agency/index.js";
 import { AttachmentInput } from "../types/messaging.types.js";
 import { requireMember } from "./messaging.conversations.service.js";
-import { toMessageAttachmentResponse } from "../utils/messaging.mappers.js";
+import {
+  toMessageAttachmentResponse,
+  toMessageResponse,
+} from "../utils/messaging.mappers.js";
+import { findAccountIdByAuthId } from "../../auth/index.js";
+import { requirePublicId } from "../../../shared/ids/public-ids.js";
+import { messageAttachmentFolder } from "../../../shared/uploads/storage-paths.js";
 
 const encodeCursor = (message: { createdAt: Date; id: string }) =>
   Buffer.from(
@@ -51,6 +57,7 @@ export const hydrateMessages = async (
     id: string;
     conversationId: string;
     senderId: string | null;
+    senderAccountId: string | null;
     messageType: string;
     body: string | null;
     eventType: string | null;
@@ -58,6 +65,7 @@ export const hydrateMessages = async (
     replyToMessageId: string | null;
     createdAt: Date;
   }>,
+  operation: string,
 ) => {
   if (!rows.length) return [];
   const attachments = await listAttachmentsForMessages(
@@ -69,13 +77,16 @@ export const hydrateMessages = async (
     .filter((id): id is string => Boolean(id));
   const replies = replyIds.length ? await listReplyPreviews(db, replyIds) : [];
 
-  return rows.map((message) => ({
-    ...message,
-    attachments: attachments
-      .filter(({ message_id }) => message_id === message.id)
-      .map(toMessageAttachmentResponse),
-    replyTo: replies.find(({ id }) => id === message.replyToMessageId) ?? null,
-  }));
+  return rows.map((message) =>
+    toMessageResponse(
+      message,
+      attachments
+        .filter(({ message_id }) => message_id === message.id)
+        .map(toMessageAttachmentResponse),
+      replies.find(({ id }) => id === message.replyToMessageId),
+      operation,
+    ),
+  );
 };
 
 export const getMessages = async (
@@ -96,7 +107,9 @@ export const getMessages = async (
   const page = rows.slice(0, limit);
   const oldest = page.at(-1);
   return {
-    results: (await hydrateMessages(page)).reverse(),
+    results: (
+      await hydrateMessages(page, "messaging_get_by_conversation_id_messages")
+    ).reverse(),
     nextCursor: hasMore && oldest ? encodeCursor(oldest) : null,
   };
 };
@@ -129,8 +142,13 @@ export const sendMessage = async (
     if (!reply) throw new ApiError(400, "Reply message is invalid.");
   }
 
+  const senderAccountId = requirePublicId(
+    await findAccountIdByAuthId(db, senderId),
+    "messaging_post_by_conversation_id_messages",
+    conversationId,
+  );
   const { documents: uploaded, uploadedIds } = await uploadDocuments(
-    `/onemarketplace/messages/${conversationId}/${senderId}`,
+    messageAttachmentFolder(conversationId, senderAccountId),
     input.attachments,
   );
   let message;
@@ -179,19 +197,23 @@ export const sendMessage = async (
   }
 
   const hydrated = (
-    await hydrateMessages([
-      {
-        id: message.id,
-        conversationId: message.conversation_id,
-        senderId: message.sender_id,
-        messageType: message.message_type,
-        body: message.body,
-        eventType: message.event_type,
-        eventPayload: message.event_payload,
-        replyToMessageId: message.reply_to_message_id,
-        createdAt: message.created_at,
-      },
-    ])
+    await hydrateMessages(
+      [
+        {
+          id: message.id,
+          conversationId: message.conversation_id,
+          senderId: message.sender_id,
+          senderAccountId,
+          messageType: message.message_type,
+          body: message.body,
+          eventType: message.event_type,
+          eventPayload: message.event_payload,
+          replyToMessageId: message.reply_to_message_id,
+          createdAt: message.created_at,
+        },
+      ],
+      "messaging_post_by_conversation_id_messages",
+    )
   )[0]!;
   await emitConversationUpdate(conversationId, senderId);
   return hydrated;

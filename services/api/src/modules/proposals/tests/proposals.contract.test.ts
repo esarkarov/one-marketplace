@@ -426,6 +426,10 @@ describe("proposals contract", () => {
       .send({ role: "client", message: "Let us talk." });
     expect(interview.status).toBe(201);
     proposalsInterviewResponses[201].parse(interview.body);
+    expect(interview.body.data.freelancerId).toBe(
+      await accountUuid(freelancerId),
+    );
+    expectNoClerkIds(interview.body, clerkIds);
 
     const interviewAgain = await request(app)
       .post(`${API}/${proposalId}/interview`)
@@ -441,6 +445,10 @@ describe("proposals contract", () => {
     expect(agencyInterview.status).toBe(201);
     expect(agencyInterview.body.data.agencyId).toBe(agencyId);
     proposalsInterviewResponses[201].parse(agencyInterview.body);
+    expect(agencyInterview.body.data.freelancerId).toBe(
+      await accountUuid(ownerId),
+    );
+    expectNoClerkIds(agencyInterview.body, clerkIds);
 
     const interviewMissing = await request(app)
       .post(`${API}/${randomUUID()}/interview`)

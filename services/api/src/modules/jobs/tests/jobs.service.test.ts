@@ -82,6 +82,15 @@ describe("updateJobPost", () => {
     });
   });
 
+  it("uploads attachments under the account's public id, never the Clerk id", async () => {
+    await updateJobPost("user_1", "job_1", { attachments: [newAttachment] });
+
+    expect(mocks.upload).toHaveBeenCalledWith(
+      expect.objectContaining({ folder: "job_1" }),
+    );
+    expect(mocks.upload.mock.calls[0]![0].folder).not.toContain("user_1");
+  });
+
   it("returns 404 and removes uploaded files when the update matches no row", async () => {
     mocks.updateRows = [];
 

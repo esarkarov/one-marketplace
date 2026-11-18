@@ -98,7 +98,7 @@ describe("messaging authentication and role order", () => {
 
   it("returns 403 for a freelancer opening a conversation", async () => {
     const response = await call("post", base, "freelancer", {
-      body: { recipientId: "user_2" },
+      body: { recipientId: id },
     });
 
     expect(response.status).toBe(403);
@@ -120,7 +120,7 @@ describe("messaging request validation", () => {
       "post",
       base,
       "client",
-      { body: { recipientId: "u", extra: 1 } },
+      { body: { recipientId: id, extra: 1 } },
     ],
     [
       "oversized recipient",
@@ -131,11 +131,18 @@ describe("messaging request validation", () => {
     ],
     ["numeric recipient", "post", base, "client", { body: { recipientId: 5 } }],
     [
+      "clerk id recipient",
+      "post",
+      base,
+      "client",
+      { body: { recipientId: "user_2abcdefghijklmnop" } },
+    ],
+    [
       "bad job id on open",
       "post",
       base,
       "client",
-      { body: { recipientId: "u", jobId: "nope" } },
+      { body: { recipientId: id, jobId: "nope" } },
     ],
     [
       "bad proposal id on open",
@@ -324,13 +331,13 @@ describe("messaging request validation", () => {
   it.each([
     ["list", "get", base, "client", {}],
     ["agency list", "get", base, "freelancer", { query: { scope: "agency" } }],
-    ["open", "post", base, "client", { body: { recipientId: "user_2" } }],
+    ["open", "post", base, "client", { body: { recipientId: id } }],
     [
       "open with ids",
       "post",
       base,
       "client",
-      { body: { recipientId: "u", jobId: id, proposalId: "" } },
+      { body: { recipientId: id, jobId: id, proposalId: "" } },
     ],
     ["text message", "post", messages, "client", { body: { body: "hi" } }],
     [

@@ -6,7 +6,7 @@ import {
   toOffsetPage,
 } from "../../../shared/validation/utils/pagination.utils.js";
 import {
-  findAccountRole,
+  findAccountByPublicId,
   findJobOwnedByClient,
   findProposalWithJobClient,
   insertOrFindConversationByContextKey,
@@ -27,6 +27,7 @@ import {
   getAgencyTeamMemberIds,
 } from "../../agency/index.js";
 import { ConversationScope } from "../types/messaging.types.js";
+import { toConversationResponse } from "../utils/messaging.mappers.js";
 
 export const requireMember = async (
   conversationId: string,
@@ -133,10 +134,17 @@ export const getConversations = async (
   ]);
   const { rows, hasMore } = toOffsetPage(page, limit);
 
-  return { results: await hydrateConversations(rows), hasMore, totalUnread };
+  return {
+    results: await hydrateConversations(rows, "messaging_get"),
+    hasMore,
+    totalUnread,
+  };
 };
 
-const hydrateConversations = async (rows: ConversationRow[]) => {
+const hydrateConversations = async (
+  rows: ConversationRow[],
+  operation: string,
+) => {
   const profiles = await getParticipantProfiles(rows.map(({ id }) => id));
   const activeMeetings = rows.length
     ? await listActiveMeetingsForConversations(
@@ -148,18 +156,21 @@ const hydrateConversations = async (rows: ConversationRow[]) => {
     activeMeetings.map((meeting) => [meeting.conversationId, meeting]),
   );
 
-  return rows.map((row) => ({
-    ...row,
-    participants: profiles.get(row.id) ?? [],
-    activeMeeting: activeMeetingByConversation.get(row.id) ?? null,
-  }));
+  return rows.map((row) =>
+    toConversationResponse(
+      row,
+      profiles.get(row.id) ?? [],
+      activeMeetingByConversation.get(row.id),
+      operation,
+    ),
+  );
 };
 
 export const createConversation = async (
   clientId: string,
   input: { recipientId?: string; jobId?: string; proposalId?: string },
 ) => {
-  let recipientId = input.recipientId;
+  let recipientId: string | undefined;
   let jobId = input.jobId;
   let isAgencyConversation = false;
   let agencyIdForKey: string | undefined;
@@ -192,14 +203,15 @@ export const createConversation = async (
     }
     jobId = proposal.jobId;
   } else {
-    if (!recipientId) throw new ApiError(400, "Recipient is required.");
-    if (recipientId === clientId) {
+    if (!input.recipientId) throw new ApiError(400, "Recipient is required.");
+    const recipient = await findAccountByPublicId(db, input.recipientId);
+    if (recipient?.authId === clientId) {
       throw new ApiError(400, "You cannot start a conversation with yourself.");
     }
-    const recipient = await findAccountRole(db, recipientId);
     if (recipient?.role !== "FREELANCER") {
       throw new ApiError(404, "Freelancer not found.");
     }
+    recipientId = recipient.authId;
     if (jobId) {
       const job = await findJobOwnedByClient(db, jobId, clientId);
       if (!job) throw new ApiError(404, "Job post not found.");
@@ -236,6 +248,6 @@ export const createConversation = async (
     { agencyId: null, userId: clientId },
     { conversationId },
   );
-  const [conversation] = await hydrateConversations(rows);
+  const [conversation] = await hydrateConversations(rows, "messaging_post");
   return conversation!;
 };

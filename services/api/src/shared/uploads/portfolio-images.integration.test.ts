@@ -280,6 +280,16 @@ describe("freelancer portfolio images", () => {
     );
 
     expect(mocks.upload).toHaveBeenCalledTimes(1);
+    const accountRow = await pool.query<{ id: string }>(
+      "select id from accounts where auth_id = $1",
+      [userId],
+    );
+    expect(mocks.upload).toHaveBeenCalledWith(
+      expect.objectContaining({
+        folder: `/onemarketplace/freelancer-portfolios/${accountRow.rows[0]!.id}`,
+      }),
+    );
+    expect(mocks.upload.mock.calls[0]![0].folder).not.toContain(userId);
     expect(deletedIds()).toEqual(["ik-own-2"]);
     const covers = await readFreelancerCovers(metadataId);
     expect(covers.map((cover) => cover.imageId).sort()).toEqual([
@@ -361,6 +371,12 @@ describe("agency portfolio images", () => {
     );
 
     expect(mocks.upload).toHaveBeenCalledTimes(1);
+    expect(mocks.upload).toHaveBeenCalledWith(
+      expect.objectContaining({
+        folder: `/onemarketplace/agency-portfolios/${agencyId}`,
+      }),
+    );
+    expect(mocks.upload.mock.calls[0]![0].folder).not.toContain(ownerId);
     expect(deletedIds()).toEqual(["ik-agency-own-2"]);
     const covers = await readAgencyCovers(agencyId);
     expect(covers.map((cover) => cover.imageId).sort()).toEqual([

@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import { and, eq } from "drizzle-orm";
+import { expectNoClerkIds } from "../../../test/support/clerk-id-scan.js";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 vi.mock("../../../infrastructure/auth/clerk.client.js", () => ({
@@ -59,14 +61,17 @@ const countLeftovers = async () => {
 const createAccount = async (role: "CLIENT" | "FREELANCER") => {
   const authId = `${PREFIX}${randomUUID()}`;
   const email = `${authId}@example.test`;
-  await db.insert(accounts).values({
-    auth_id: authId,
-    email,
-    role,
-    created_at: new Date(),
-    updated_at: new Date(),
-  });
-  return { authId, email };
+  const [account] = await db
+    .insert(accounts)
+    .values({
+      auth_id: authId,
+      email,
+      role,
+      created_at: new Date(),
+      updated_at: new Date(),
+    })
+    .returning({ id: accounts.id });
+  return { authId, email, accountId: account!.id };
 };
 
 const collectKeys = (value: unknown, keys = new Set<string>()) => {
@@ -223,7 +228,7 @@ describe("createConversation self-dealing", () => {
     const user = await createAccount("CLIENT");
 
     await expect(
-      createConversation(user.authId, { recipientId: user.authId }),
+      createConversation(user.authId, { recipientId: user.accountId }),
     ).rejects.toMatchObject({ statusCode: 400 });
 
     const data = await getConversations(user.authId, "default", {
@@ -231,6 +236,45 @@ describe("createConversation self-dealing", () => {
       offset: 0,
     });
     expect(data.results).toHaveLength(0);
+  });
+
+  it("answers 404 for an unknown recipient uuid and for a non-freelancer", async () => {
+    const client = await createAccount("CLIENT");
+    const otherClient = await createAccount("CLIENT");
+
+    await expect(
+      createConversation(client.authId, { recipientId: randomUUID() }),
+    ).rejects.toMatchObject({
+      statusCode: 404,
+      message: "Freelancer not found.",
+    });
+    await expect(
+      createConversation(client.authId, { recipientId: otherClient.accountId }),
+    ).rejects.toMatchObject({
+      statusCode: 404,
+      message: "Freelancer not found.",
+    });
+  });
+
+  it("opens a conversation with the freelancer's accounts id", async () => {
+    const client = await createAccount("CLIENT");
+    const freelancer = await createAccount("FREELANCER");
+
+    const conversation = await createConversation(client.authId, {
+      recipientId: freelancer.accountId,
+    });
+
+    const [participant] = await db
+      .select({ accountId: conversation_participants.account_id })
+      .from(conversation_participants)
+      .where(
+        and(
+          eq(conversation_participants.conversation_id, conversation.id),
+          eq(conversation_participants.participant_type, "FREELANCER"),
+        ),
+      );
+    expect(participant?.accountId).toBe(freelancer.authId);
+    expectNoClerkIds(conversation, [client.authId, freelancer.authId]);
   });
 });
 

@@ -2,7 +2,6 @@ import { z } from "zod";
 import {
   authRoleShape,
   boundedDataUrl,
-  optionalBoundedText,
   scopeField,
   uuidParam,
 } from "../../../shared/validation/schemas/common.schema.js";
@@ -40,10 +39,7 @@ export const listConversationsQuerySchema = z.strictObject({
 
 export const openConversationBodySchema = z.strictObject({
   ...authRoleShape,
-  recipientId: optionalBoundedText(
-    "Recipient",
-    MESSAGING_LIMITS.recipientId,
-  ).optional(),
+  recipientId: uuidParam("Recipient").optional(),
   jobId: optionalUuid("Job post"),
   proposalId: optionalUuid("Proposal"),
 });

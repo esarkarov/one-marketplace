@@ -36,6 +36,7 @@ import {
   ALREADY_IN_AGENCY_MESSAGE,
 } from "../utils/agency.errors.js";
 import { getAgencyIdForMember } from "./agency.membership.service.js";
+import { agencyPortfolioFolder } from "../../../shared/uploads/storage-paths.js";
 import {
   deletePortfolioOfAgency,
   findAgencyByOwner,
@@ -334,7 +335,7 @@ export const createAgency = async (
 };
 
 const resolveAgencyImages = async (
-  ownerId: string,
+  agencyId: string,
   input: UpdateAgencyInput,
   stored: {
     avatarImage: StoredImage | null;
@@ -368,7 +369,7 @@ const resolveAgencyImages = async (
     const result = await imageKit.files.upload({
       file: image.url,
       fileName: `${prefix}-${randomUUID()}`,
-      folder: `/onemarketplace/agency-portfolios/${ownerId}`,
+      folder: agencyPortfolioFolder(agencyId),
     });
 
     if (!result.fileId || !result.url) {
@@ -413,7 +414,7 @@ export const updateAgencyProfile = async (
   }
 
   const { avatarImage, portfolio, uploadedFileIds } = await resolveAgencyImages(
-    input.ownerId,
+    existing.id,
     input,
     {
       avatarImage: existing.avatarImage ?? null,

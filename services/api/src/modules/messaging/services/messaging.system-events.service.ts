@@ -7,6 +7,8 @@ import { appendConversationMessages } from "../repositories/messaging.conversati
 import { SystemEventInput } from "../types/messaging.types.js";
 import { requireMember } from "./messaging.conversations.service.js";
 import { hydrateMessages } from "./messaging.messages.service.js";
+import { findAccountIdByAuthId } from "../../auth/index.js";
+import { requirePublicId } from "../../../shared/ids/public-ids.js";
 
 const writeSystemEventMessage = async (
   executor: DbExecutor,
@@ -41,20 +43,31 @@ const publishSystemEventMessage = async (
   message: typeof messages.$inferSelect,
   actorId: string | undefined,
 ) => {
+  const senderAccountId = actorId
+    ? requirePublicId(
+        await findAccountIdByAuthId(db, actorId),
+        "messaging_system_event",
+        message.id,
+      )
+    : null;
   const hydrated = (
-    await hydrateMessages([
-      {
-        id: message.id,
-        conversationId: message.conversation_id,
-        senderId: message.sender_id,
-        messageType: message.message_type,
-        body: message.body,
-        eventType: message.event_type,
-        eventPayload: message.event_payload,
-        replyToMessageId: message.reply_to_message_id,
-        createdAt: message.created_at,
-      },
-    ])
+    await hydrateMessages(
+      [
+        {
+          id: message.id,
+          conversationId: message.conversation_id,
+          senderId: message.sender_id,
+          senderAccountId,
+          messageType: message.message_type,
+          body: message.body,
+          eventType: message.event_type,
+          eventPayload: message.event_payload,
+          replyToMessageId: message.reply_to_message_id,
+          createdAt: message.created_at,
+        },
+      ],
+      "messaging_system_event",
+    )
   )[0]!;
   await emitConversationUpdate(message.conversation_id, actorId);
   return hydrated;

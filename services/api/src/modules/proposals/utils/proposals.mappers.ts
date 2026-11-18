@@ -56,3 +56,21 @@ export const toProposalResponse = (
   createdAt: proposal.created_at,
   updatedAt: proposal.updated_at,
 });
+
+export const toProposalInterviewResponse = (result: {
+  conversationId: string;
+  proposalId: string;
+  senderType: string;
+  freelancerAccountId: string;
+  agencyId: string | null;
+  jobTitle: string;
+  connects: number;
+}) => ({
+  conversationId: result.conversationId,
+  proposalId: result.proposalId,
+  senderType: result.senderType,
+  freelancerId: result.freelancerAccountId,
+  agencyId: result.agencyId,
+  jobTitle: result.jobTitle,
+  connects: result.connects,
+});

@@ -1,3 +1,4 @@
+import { toProposalInterviewResponse } from "../utils/proposals.mappers.js";
 import { RequestHandler } from "express";
 import type { z } from "zod";
 import { asyncHandler } from "../../../middleware/utils/async-handler.utils.js";
@@ -185,7 +186,7 @@ export const interviewProposal: RequestHandler = asyncHandler(
     response.status(201).json({
       success: true,
       message: "Interview started.",
-      data: result,
+      data: toProposalInterviewResponse(result),
     });
   },
 );

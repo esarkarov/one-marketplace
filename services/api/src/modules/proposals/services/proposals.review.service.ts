@@ -8,6 +8,8 @@ import {
 } from "../repositories/proposals.repository.js";
 import { creditConnects, recordConnectsHistory } from "../../connects/index.js";
 import { toProposalSenderId } from "../utils/proposals.mappers.js";
+import { findAccountIdByAuthId } from "../../auth/index.js";
+import { requirePublicId } from "../../../shared/ids/public-ids.js";
 import { ApiError } from "../../../shared/errors/api-error.js";
 import {
   CONNECTS_CACHE_TTL_SECONDS,
@@ -91,6 +93,12 @@ export const startProposalInterview = async (
       throw new ApiError(404, "Agency workspace not found.");
     }
 
+    const freelancerAccountId = requirePublicId(
+      await findAccountIdByAuthId(transaction, accountId),
+      "proposals_post_by_proposal_id_interview",
+      proposal.id,
+    );
+
     const interviewed = await markProposalInterviewedIfOpen(
       transaction,
       proposal.id,
@@ -136,6 +144,7 @@ export const startProposalInterview = async (
       proposalId: proposal.id,
       senderType: proposal.senderType,
       freelancerId: accountId,
+      freelancerAccountId,
       agencyId: isAgency ? proposal.freelancerId : null,
       jobTitle: proposal.jobTitle,
       connects: balance.connects,

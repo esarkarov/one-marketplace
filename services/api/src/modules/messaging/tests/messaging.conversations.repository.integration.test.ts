@@ -17,7 +17,7 @@ import {
 import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
 import {
   appendConversationMessages,
-  findAccountRole,
+  findAccountByPublicId,
   findActiveMeetingForConversation,
   findJobOwnedByClient,
   findProposalWithJobClient,
@@ -402,14 +402,23 @@ describe("proposal, role and job lookups", () => {
     expect(await findProposalWithJobClient(db, randomUUID())).toBe(undefined);
   });
 
-  it("finds the role of one account", async () => {
+  it("finds the auth id and role of one account by its public id", async () => {
     const clientId = await insertAccount("CLIENT");
     const freelancerId = await insertAccount("FREELANCER");
-    expect(await findAccountRole(db, freelancerId)).toEqual({
-      role: "FREELANCER",
-    });
-    expect(await findAccountRole(db, clientId)).toEqual({ role: "CLIENT" });
-    expect(await findAccountRole(db, newAuthId())).toBe(undefined);
+    const publicIdOf = async (authId: string) => {
+      const [row] = await db
+        .select({ id: accounts.id })
+        .from(accounts)
+        .where(eq(accounts.auth_id, authId));
+      return row!.id;
+    };
+    expect(
+      await findAccountByPublicId(db, await publicIdOf(freelancerId)),
+    ).toEqual({ authId: freelancerId, role: "FREELANCER" });
+    expect(await findAccountByPublicId(db, await publicIdOf(clientId))).toEqual(
+      { authId: clientId, role: "CLIENT" },
+    );
+    expect(await findAccountByPublicId(db, randomUUID())).toBe(undefined);
   });
 
   it("finds a job only for the client that owns it", async () => {

@@ -65,6 +65,7 @@ export const listConversationRowsOfParticipant = (
         eventType: messages.event_type,
         createdAt: messages.created_at,
       },
+      lastMessageSenderAccountId: accounts.id,
       lastAttachmentName: sql<string | null>`(
         SELECT ${message_attachments.file_name}
         FROM ${message_attachments}
@@ -81,6 +82,7 @@ export const listConversationRowsOfParticipant = (
       eq(conversation_participants.conversation_id, conversations.id),
     )
     .leftJoin(messages, eq(conversations.last_message_id, messages.id))
+    .leftJoin(accounts, eq(accounts.auth_id, messages.sender_id))
     .leftJoin(job_posts, eq(conversations.job_id, job_posts.id))
     .leftJoin(contracts, eq(conversations.proposal_id, contracts.proposal_id))
     .where(
@@ -114,8 +116,10 @@ export const listActiveMeetingsForConversations = (
       joinUrl: meetings.join_url,
       startedAt: meetings.started_at,
       startedByAccountId: meetings.started_by_account_id,
+      startedByPublicId: accounts.id,
     })
     .from(meetings)
+    .leftJoin(accounts, eq(accounts.auth_id, meetings.started_by_account_id))
     .where(
       and(
         inArray(meetings.conversation_id, conversationIds),
@@ -158,11 +162,14 @@ export const findProposalWithJobClient = async (
   return proposal;
 };
 
-export const findAccountRole = async (executor: DbExecutor, authId: string) => {
+export const findAccountByPublicId = async (
+  executor: DbExecutor,
+  accountId: string,
+) => {
   const [recipient] = await executor
-    .select({ role: accounts.role })
+    .select({ authId: accounts.auth_id, role: accounts.role })
     .from(accounts)
-    .where(eq(accounts.auth_id, authId))
+    .where(eq(accounts.id, accountId))
     .limit(1);
   return recipient;
 };

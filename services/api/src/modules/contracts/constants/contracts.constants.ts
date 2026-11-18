@@ -11,3 +11,7 @@ export const CONTRACT_LIMITS = {
   feedbackMax: 5000,
   submissionDeliveryLinkMax: 2048,
 } as const;
+
+export const COUNTERPARTY_TYPES = ["CLIENT", "FREELANCER", "AGENCY"] as const;
+
+export type CounterpartyType = (typeof COUNTERPARTY_TYPES)[number];

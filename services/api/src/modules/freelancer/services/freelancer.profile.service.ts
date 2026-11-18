@@ -1,5 +1,8 @@
 import { db } from "../../../database/client.js";
-import { markFreelancerOnboardingComplete } from "../../auth/index.js";
+import {
+  findAccountIdByAuthId,
+  markFreelancerOnboardingComplete,
+} from "../../auth/index.js";
 import {
   deletePortfoliosOfFreelancer,
   findEarningStats,
@@ -25,6 +28,8 @@ import { errorLogAttributes } from "../../../shared/logging/sanitize-log.js";
 import { ApiError } from "../../../shared/errors/api-error.js";
 import { imageKit } from "../../../infrastructure/storage/image-kit.client.js";
 import { randomUUID } from "crypto";
+import { requirePublicId } from "../../../shared/ids/public-ids.js";
+import { freelancerPortfolioFolder } from "../../../shared/uploads/storage-paths.js";
 import { invalidateAccountAuthCache } from "../../../infrastructure/cache/account-auth.cache.js";
 import { addConnects } from "../../connects/index.js";
 import { clerk } from "../../../infrastructure/auth/clerk.client.js";
@@ -148,6 +153,7 @@ const uploadPortfolioImages = async (
 
   const uploadedFileIds: string[] = [];
   const uploadedPortfolios: PortfolioData[] = [];
+  let folder: string | undefined;
 
   try {
     for (const portfolio of portfolios) {
@@ -156,10 +162,18 @@ const uploadPortfolioImages = async (
         continue;
       }
 
+      folder ??= freelancerPortfolioFolder(
+        requirePublicId(
+          await findAccountIdByAuthId(db, userId),
+          "freelancer_put_profile",
+          userId,
+        ),
+      );
+
       const upload = await imageKit.files.upload({
         file: portfolio.cover_image.url,
         fileName: `portfolio-${randomUUID()}`,
-        folder: `/onemarketplace/freelancer-portfolios/${userId}`,
+        folder,
       });
 
       if (!upload.fileId || !upload.url) {

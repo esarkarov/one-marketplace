@@ -16,12 +16,20 @@ const mocks = vi.hoisted(() => ({
   verifyToken: vi.fn(),
   getUser: vi.fn(),
   emitConversationUpdate: vi.fn(),
+  upload: vi.fn(),
 }));
 
 vi.mock("../../../config/env.js", async (importOriginal) => {
   const original =
     await importOriginal<typeof import("../../../config/env.js")>();
-  return { ...original, env: { ...original.env, clerkSecretKey: "sk_test" } };
+  return {
+    ...original,
+    env: {
+      ...original.env,
+      clerkSecretKey: "sk_test",
+      imageKitPrivateKey: "ik_test",
+    },
+  };
 });
 
 vi.mock("../../../infrastructure/auth/clerk.client.js", () => ({
@@ -30,7 +38,7 @@ vi.mock("../../../infrastructure/auth/clerk.client.js", () => ({
 }));
 
 vi.mock("../../../infrastructure/storage/image-kit.client.js", () => ({
-  imageKit: { files: { upload: vi.fn(), delete: vi.fn() } },
+  imageKit: { files: { upload: mocks.upload, delete: vi.fn() } },
 }));
 
 vi.mock("../../../infrastructure/cache/redis.client.js", () => ({
@@ -72,6 +80,7 @@ import {
 } from "../../../test/support/tables.js";
 import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
 import { messagingResponses } from "../responses/messaging.responses.js";
+import { expectNoClerkIds } from "../../../test/support/clerk-id-scan.js";
 
 const { app } = await import("../../../app.js");
 
@@ -80,6 +89,14 @@ const API = "/api/v1/conversations";
 
 const as = (userId: string) => ({ Authorization: `Bearer ${userId}` });
 const newAuthId = () => `${PREFIX}${randomUUID()}`;
+
+const publicIdOf = async (authId: string) => {
+  const [row] = await db
+    .select({ id: accounts.id })
+    .from(accounts)
+    .where(eq(accounts.auth_id, authId));
+  return row!.id;
+};
 
 const insertAccount = async (role: "CLIENT" | "FREELANCER") => {
   const authId = newAuthId();
@@ -260,6 +277,13 @@ beforeEach(() => {
   mocks.getUser.mockReset();
   mocks.emitConversationUpdate.mockReset();
   mocks.emitConversationUpdate.mockResolvedValue(undefined);
+  mocks.upload.mockReset();
+  mocks.upload.mockImplementation(
+    async ({ folder, fileName }: { folder: string; fileName: string }) => ({
+      fileId: `file_${randomUUID()}`,
+      url: `https://ik.example.test${folder}/${fileName}`,
+    }),
+  );
   mocks.getUser.mockResolvedValue({
     firstName: "Test",
     lastName: "User",
@@ -290,6 +314,13 @@ describe("GET /conversations", () => {
     expect(body.data.results).toHaveLength(1);
     expect(body.data.results[0]?.activeMeeting).not.toBeNull();
     expect(body.data.results[0]?.lastMessage).not.toBeNull();
+    expectNoClerkIds(response.body, [fixture.clientId, fixture.freelancerId]);
+    expect(body.data.results[0]?.activeMeeting?.startedByAccountId).toBe(
+      await publicIdOf(fixture.clientId),
+    );
+    expect(body.data.results[0]?.lastMessage?.senderId).toBe(
+      await publicIdOf(fixture.clientId),
+    );
   });
 
   it("matches the 200 schema for a conversation without messages", async () => {
@@ -322,9 +353,33 @@ describe("POST /conversations", () => {
       .post(API)
       .query({ role: "client" })
       .set(as(clientId))
-      .send({ recipientId: freelancerId });
+      .send({ recipientId: await publicIdOf(freelancerId) });
     expect(response.status).toBe(201);
     messagingResponses.open[201].parse(response.body);
+    expectNoClerkIds(response.body, [clientId, freelancerId]);
+  });
+
+  it("rejects a Clerk-id-shaped recipientId with 400", async () => {
+    const clientId = await insertAccount("CLIENT");
+    const freelancerId = await insertAccount("FREELANCER");
+    const response = await request(app)
+      .post(API)
+      .query({ role: "client" })
+      .set(as(clientId))
+      .send({ recipientId: freelancerId });
+    expect(response.status).toBe(400);
+    expect(response.body.code).toBe("VALIDATION_ERROR");
+  });
+
+  it("answers 404 for an unknown recipient uuid", async () => {
+    const clientId = await insertAccount("CLIENT");
+    const response = await request(app)
+      .post(API)
+      .query({ role: "client" })
+      .set(as(clientId))
+      .send({ recipientId: randomUUID() });
+    expect(response.status).toBe(404);
+    expect(response.body.message).toBe("Freelancer not found.");
   });
 
   it("matches the 201 schema for a proposal conversation", async () => {
@@ -336,6 +391,7 @@ describe("POST /conversations", () => {
       .send({ proposalId: fixture.proposalId });
     expect(response.status).toBe(201);
     messagingResponses.open[201].parse(response.body);
+    expectNoClerkIds(response.body, [fixture.clientId, fixture.freelancerId]);
   });
 
   it("matches the 403 schema for a freelancer account", async () => {
@@ -344,7 +400,7 @@ describe("POST /conversations", () => {
       .post(API)
       .query({ role: "freelancer" })
       .set(as(fixture.freelancerId))
-      .send({ recipientId: fixture.clientId });
+      .send({ recipientId: await publicIdOf(fixture.clientId) });
     expect(response.status).toBe(403);
     messagingResponses.open[403].parse(response.body);
   });
@@ -373,6 +429,42 @@ describe("POST /conversations/:conversationId/messages", () => {
     expect(response.status).toBe(201);
     const body = messagingResponses.send[201].parse(response.body);
     expect(body.data.replyTo).not.toBeNull();
+    expectNoClerkIds(response.body, [fixture.clientId, fixture.freelancerId]);
+    expect(body.data.senderId).toBe(await publicIdOf(fixture.freelancerId));
+    expect(body.data.replyTo?.senderId).toBe(
+      await publicIdOf(fixture.clientId),
+    );
+  });
+
+  it("stores attachments under the sender's accounts id", async () => {
+    const fixture = await seed();
+    const bytes = Buffer.alloc(32);
+    bytes.write("%PDF-1.7" + String.fromCharCode(10));
+    const response = await request(app)
+      .post(`${API}/${fixture.conversationId}/messages`)
+      .query({ role: "freelancer" })
+      .set(as(fixture.freelancerId))
+      .send({
+        attachments: [
+          {
+            fileUrl: `data:application/pdf;base64,${bytes.toString("base64")}`,
+            fileName: "brief.pdf",
+            fileSize: bytes.length,
+            mimeType: "application/pdf",
+          },
+        ],
+      });
+    expect(response.status).toBe(201);
+    const body = messagingResponses.send[201].parse(response.body);
+    const senderAccountId = await publicIdOf(fixture.freelancerId);
+    expect(mocks.upload).toHaveBeenCalledWith(
+      expect.objectContaining({
+        folder: `/onemarketplace/messages/${fixture.conversationId}/${senderAccountId}`,
+      }),
+    );
+    const attachment = body.data.attachments[0]!;
+    expect(attachment.fileUrl).toContain(senderAccountId);
+    expectNoClerkIds(response.body, [fixture.clientId, fixture.freelancerId]);
   });
 
   it("matches the 404 schema", async () => {
@@ -400,6 +492,7 @@ describe("GET /conversations/:conversationId/messages", () => {
     expect(page.data.results).toHaveLength(2);
     expect(page.data).not.toHaveProperty("messages");
     expect(page.data.nextCursor).not.toBeNull();
+    expectNoClerkIds(first.body, [fixture.clientId, fixture.freelancerId]);
 
     const second = await request(app)
       .get(`${API}/${fixture.conversationId}/messages`)
@@ -409,6 +502,7 @@ describe("GET /conversations/:conversationId/messages", () => {
     const rest = messagingResponses.messages[200].parse(second.body);
     const restMessages = rest.data.results as { attachments: unknown[] }[];
     expect(restMessages).toHaveLength(1);
+    expectNoClerkIds(second.body, [fixture.clientId, fixture.freelancerId]);
     expect(restMessages[0]?.attachments).toHaveLength(1);
     expect(
       Object.keys(restMessages[0]!.attachments[0] as object).sort(),

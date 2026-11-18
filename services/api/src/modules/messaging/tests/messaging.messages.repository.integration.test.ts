@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { db, pool } from "../../../database/client.js";
 import {
@@ -19,6 +20,14 @@ import {
 
 const PREFIX = "messaging-messages-repo-";
 const like = `${PREFIX}%`;
+
+const publicIdOf = async (authId: string) => {
+  const [row] = await db
+    .select({ id: accounts.id })
+    .from(accounts)
+    .where(eq(accounts.auth_id, authId));
+  return row!.id;
+};
 
 const purge = async () => {
   await pool.query("delete from conversations where context_key like $1", [
@@ -204,6 +213,7 @@ describe("listMessagesPage", () => {
     expect(reply.replyToMessageId).toBe(fixture.oldest.id);
     expect(reply.body).toBe("reply");
     expect(reply.senderId).toBe(fixture.senderId);
+    expect(reply.senderAccountId).toBe(await publicIdOf(fixture.senderId));
   });
 
   it("pages strictly before a cursor, including messages that share its timestamp", async () => {
@@ -263,6 +273,7 @@ describe("attachment and reply lookups", () => {
       {
         id: fixture.oldest.id,
         senderId: fixture.senderId,
+        senderAccountId: await publicIdOf(fixture.senderId),
         messageType: "USER",
         body: "oldest",
         eventType: null,
@@ -276,6 +287,7 @@ describe("attachment and reply lookups", () => {
     expect(previews.find((row) => row.id === fixture.event.id)).toEqual({
       id: fixture.event.id,
       senderId: fixture.senderId,
+      senderAccountId: await publicIdOf(fixture.senderId),
       messageType: "SYSTEM_EVENT",
       body: null,
       eventType: "CONTRACT_OFFER",

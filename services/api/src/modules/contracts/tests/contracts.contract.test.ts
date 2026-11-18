@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { eq } from "drizzle-orm";
 import request from "supertest";
 import {
   afterAll,
@@ -102,12 +103,21 @@ import {
 } from "../../../test/support/tables.js";
 import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
 import { contractsResponses } from "../responses/contracts.responses.js";
+import { expectNoClerkIds } from "../../../test/support/clerk-id-scan.js";
 
 const { app } = await import("../../../app.js");
 
 const PREFIX = "contracts-contract-it-";
 const API = "/api/v1/contracts";
 const AMOUNT = 20000;
+
+const publicIdOf = async (authId: string) => {
+  const [row] = await db
+    .select({ id: accounts.id })
+    .from(accounts)
+    .where(eq(accounts.auth_id, authId));
+  return row!.id;
+};
 
 const as = (userId: string) => ({ Authorization: `Bearer ${userId}` });
 const newAuthId = () => `${PREFIX}${randomUUID()}`;
@@ -408,6 +418,11 @@ describe("GET /contracts/client", () => {
     expect(body.data.results).toHaveLength(1);
     expect(body.data.hasMore).toBe(false);
     expect(body.data.results[0]?.milestones).toHaveLength(3);
+    expectNoClerkIds(response.body, [fixture.clientId, fixture.ownerId]);
+    expect(body.data.results[0]?.counterpartyId).toBe(
+      await publicIdOf(fixture.ownerId),
+    );
+    expect(body.data.results[0]?.counterpartyType).toBe("FREELANCER");
   });
 
   it("matches the 200 schema for an agency counterparty", async () => {
@@ -420,6 +435,10 @@ describe("GET /contracts/client", () => {
     const body = contractsResponses.client[200].parse(response.body);
     expect(body.data.results).toHaveLength(1);
     expect(body.data.hasMore).toBe(false);
+    expectNoClerkIds(response.body, [fixture.clientId, fixture.ownerId]);
+    expect(body.data.results[0]?.counterpartyId).toBe(fixture.agencyId);
+    expect(body.data.results[0]?.counterpartyType).toBe("AGENCY");
+    expect(body.data.results[0]).toHaveProperty("counterpartyName");
   });
 
   it("matches the 403 schema for a freelancer account", async () => {
@@ -844,6 +863,11 @@ describe("GET /contracts/freelancer", () => {
     const body = contractsResponses.freelancer[200].parse(response.body);
     expect(body.data.results).toHaveLength(1);
     expect(body.data.hasMore).toBe(false);
+    expectNoClerkIds(response.body, [fixture.clientId, fixture.ownerId]);
+    expect(body.data.results[0]?.counterpartyId).toBe(
+      await publicIdOf(fixture.clientId),
+    );
+    expect(body.data.results[0]?.counterpartyType).toBe("CLIENT");
   });
 
   it("matches the 200 schema for the agency scope", async () => {
@@ -856,6 +880,11 @@ describe("GET /contracts/freelancer", () => {
     const body = contractsResponses.freelancer[200].parse(response.body);
     expect(body.data.results).toHaveLength(1);
     expect(body.data.hasMore).toBe(false);
+    expectNoClerkIds(response.body, [fixture.clientId, fixture.ownerId]);
+    expect(body.data.results[0]?.counterpartyId).toBe(
+      await publicIdOf(fixture.clientId),
+    );
+    expect(body.data.results[0]?.counterpartyType).toBe("CLIENT");
   });
 
   it("matches the 403 schema for a client account", async () => {

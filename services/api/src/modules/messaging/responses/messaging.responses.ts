@@ -26,7 +26,7 @@ const MessageAttachment = z
 const MessageReply = z
   .strictObject({
     id: z.uuid(),
-    senderId: z.string().nullable(),
+    senderId: z.uuid().nullable(),
     messageType: z.string(),
     body: z.string().nullable(),
     eventType: z.string().nullable(),
@@ -37,7 +37,7 @@ const Message = z
   .strictObject({
     id: z.uuid(),
     conversationId: z.uuid(),
-    senderId: z.string().nullable(),
+    senderId: z.uuid().nullable(),
     messageType: z.enum(["USER", "SYSTEM_EVENT"]),
     body: z.string().nullable(),
     eventType: z.string().nullable(),
@@ -65,7 +65,7 @@ const ActiveMeeting = z
     id: z.uuid(),
     joinUrl: z.string(),
     startedAt: isoDateTime,
-    startedByAccountId: z.string(),
+    startedByAccountId: z.uuid(),
   })
   .meta({ id: "MessagingActiveMeeting" });
 
@@ -80,7 +80,7 @@ const Conversation = z
     lastMessage: z
       .strictObject({
         id: z.uuid(),
-        senderId: z.string().nullable(),
+        senderId: z.uuid().nullable(),
         messageType: z.enum(["USER", "SYSTEM_EVENT"]),
         body: z.string().nullable(),
         eventType: z.string().nullable(),

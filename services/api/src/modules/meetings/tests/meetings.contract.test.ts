@@ -63,6 +63,7 @@ import {
 } from "../../../test/support/tables.js";
 import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
 import { meetingsResponses } from "../responses/meetings.responses.js";
+import { expectNoClerkIds } from "../../../test/support/clerk-id-scan.js";
 
 const { app } = await import("../../../app.js");
 
@@ -141,6 +142,7 @@ describe("POST /conversations/:conversationId/meetings", () => {
       .send({});
     expect(created.status).toBe(201);
     const first = meetingsResponses.create[201].parse(created.body);
+    expectNoClerkIds(created.body, [fixture.clientId]);
 
     const existing = await request(app)
       .post(`${API}/${fixture.conversationId}/meetings`)
@@ -149,6 +151,7 @@ describe("POST /conversations/:conversationId/meetings", () => {
       .send({});
     expect(existing.status).toBe(201);
     const second = meetingsResponses.create[201].parse(existing.body);
+    expectNoClerkIds(existing.body, [fixture.clientId]);
     expect(second.data.id).toBe(first.data.id);
     expect(mocks.createDailyRoom).toHaveBeenCalledTimes(1);
   });

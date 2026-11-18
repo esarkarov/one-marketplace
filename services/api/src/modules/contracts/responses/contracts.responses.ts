@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { COUNTERPARTY_TYPES } from "../constants/contracts.constants.js";
 import {
   ErrorBody,
   errorCodeEnum,
@@ -67,7 +68,8 @@ const ContractSummary = z
     completedAt: nullableDateTime,
     createdAt: isoDateTime,
     conversationId: z.uuid().nullable(),
-    counterpartyId: z.string().nullable(),
+    counterpartyId: z.uuid().nullable(),
+    counterpartyType: z.enum(COUNTERPARTY_TYPES),
     counterpartyName: z.string(),
     counterpartyAvatar: z.string().nullable(),
     reviewedByCurrentUser: z.boolean(),

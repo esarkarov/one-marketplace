@@ -148,7 +148,7 @@ const ProposalsInterview = z
     conversationId: z.uuid(),
     proposalId: z.uuid(),
     senderType: z.string(),
-    freelancerId: z.string(),
+    freelancerId: z.uuid(),
     agencyId: z.uuid().nullable(),
     jobTitle: z.string(),
     connects: z.number().int(),

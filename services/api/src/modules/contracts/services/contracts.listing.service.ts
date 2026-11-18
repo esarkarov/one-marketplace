@@ -4,8 +4,11 @@ import {
   listAccountContractIds,
   listAgencySummariesByIds,
   listContractRows,
+  listPublicAccountIds,
 } from "../repositories/contracts.repository.js";
 import { db } from "../../../database/client.js";
+import { requirePublicId } from "../../../shared/ids/public-ids.js";
+import type { CounterpartyType } from "../constants/contracts.constants.js";
 import {
   fetchSize,
   toOffsetPage,
@@ -41,6 +44,14 @@ export const getAccountContracts = async (
         .filter((id): id is string => Boolean(id)),
     ),
   ];
+  const publicIds = new Map(
+    counterpartyIds.length
+      ? (await listPublicAccountIds(db, counterpartyIds)).map((account) => [
+          account.authId,
+          account.id,
+        ])
+      : [],
+  );
   const names = new Map<string, string>();
   const avatars = new Map<string, string | null>();
   if (env.clerkSecretKey && counterpartyIds.length) {
@@ -98,6 +109,7 @@ export const getAccountContracts = async (
     | "reviewedByCurrentUser"
   > & {
     counterpartyId: string | null;
+    counterpartyType: CounterpartyType;
     counterpartyName: string;
     counterpartyAvatar: string | null;
     milestones: {
@@ -116,10 +128,23 @@ export const getAccountContracts = async (
   };
   const result = new Map<string, ContractListItem>();
   for (const row of rows) {
-    const counterpartyId =
+    const operation =
+      role === "client" ? "contracts_get_client" : "contracts_get_freelancer";
+    const counterpartyAuthId =
       role === "client" ? (row.freelancerId ?? row.agencyId) : row.clientId;
     const isAgencyCounterparty =
       role === "client" && !row.freelancerId && Boolean(row.agencyId);
+    const counterpartyType: CounterpartyType =
+      role !== "client"
+        ? "CLIENT"
+        : isAgencyCounterparty
+          ? "AGENCY"
+          : "FREELANCER";
+    const counterpartyId = isAgencyCounterparty
+      ? row.agencyId
+      : counterpartyAuthId
+        ? requirePublicId(publicIds.get(counterpartyAuthId), operation, row.id)
+        : null;
     const contract = result.get(row.id) ?? {
       id: row.id,
       proposalId: row.proposalId,
@@ -133,16 +158,17 @@ export const getAccountContracts = async (
       createdAt: row.createdAt,
       conversationId: row.conversationId,
       counterpartyId,
+      counterpartyType,
       counterpartyName: isAgencyCounterparty
         ? (agencyNames.get(row.agencyId!) ?? "Agency")
         : ((role === "freelancer" || role === "agency"
             ? row.clientCompanyName
             : null) ??
-          names.get(counterpartyId ?? "") ??
+          names.get(counterpartyAuthId ?? "") ??
           "Marketplace user"),
       counterpartyAvatar: isAgencyCounterparty
         ? (agencyAvatars.get(row.agencyId!) ?? null)
-        : (avatars.get(counterpartyId ?? "") ?? null),
+        : (avatars.get(counterpartyAuthId ?? "") ?? null),
       reviewedByCurrentUser: row.reviewedByCurrentUser,
       milestones: [],
     };

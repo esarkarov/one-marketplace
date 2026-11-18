@@ -25,6 +25,8 @@ import {
   uploadDocuments,
 } from "../../../shared/uploads/upload-documents.js";
 import { reuseStoredAttachments } from "../../../shared/uploads/attachments.js";
+import { requirePublicId } from "../../../shared/ids/public-ids.js";
+import { jobAttachmentFolder } from "../../../shared/uploads/storage-paths.js";
 import { PAGINATION } from "../../../shared/validation/constants/pagination.constants.js";
 import {
   fetchSize,
@@ -41,7 +43,7 @@ export type { PublicJobFilters } from "../repositories/jobs.repository.js";
 export const createJobPost = async (userId: string, data: JobData) => {
   const clientAccountId = await findAccountIdByAuthId(db, userId);
   const { documents: attachments, uploadedIds } = await uploadDocuments(
-    userId,
+    jobAttachmentFolder(requirePublicId(clientAccountId, "jobs_post", userId)),
     data.attachments ?? [],
   );
 
@@ -116,8 +118,11 @@ export const updateJobPost = async (
     throw await jobNotEditable(userId, jobId, "Editable job post not found.");
   }
 
+  const clientAccountId = await findAccountIdByAuthId(db, userId);
   const { documents: attachments, uploadedIds } = await uploadDocuments(
-    userId,
+    jobAttachmentFolder(
+      requirePublicId(clientAccountId, "jobs_put_by_job_id", jobId),
+    ),
     reuseStoredAttachments(
       existingJob.attachments ?? [],
       data.attachments ?? [],
@@ -148,11 +153,7 @@ export const updateJobPost = async (
     existingJob.attachments?.filter(({ fileId }) => !retainedIds.has(fileId)),
   );
 
-  return toJobPostResponse(
-    job,
-    await findAccountIdByAuthId(db, userId),
-    "jobs_put_by_job_id",
-  );
+  return toJobPostResponse(job, clientAccountId, "jobs_put_by_job_id");
 };
 
 export const deleteJobPost = async (userId: string, jobId: string) => {
