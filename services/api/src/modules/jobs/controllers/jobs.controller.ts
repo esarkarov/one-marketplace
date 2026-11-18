@@ -71,12 +71,12 @@ const buildJobData = (body: JobBody, allowStoredAttachments: boolean) => {
     );
   }
 
-  const total_budget_cents = milestones.reduce(
+  const totalBudgetCents = milestones.reduce(
     (total, item) => total + item.budgetCents,
     0,
   );
 
-  if (total_budget_cents < 500 || total_budget_cents > MAX_JOB_BUDGET_CENTS) {
+  if (totalBudgetCents < 500 || totalBudgetCents > MAX_JOB_BUDGET_CENTS) {
     throw new ApiError(400, "Total budget must be between $5 and $1,000,000.");
   }
 
@@ -116,13 +116,13 @@ const buildJobData = (body: JobBody, allowStoredAttachments: boolean) => {
   return {
     title: requireText(body.title, "Job title"),
     description: requireText(body.description, "Job description"),
-    expertise_level: requireText(body.expertise_level, "Expertise level"),
-    expected_duration: requireText(body.expected_duration, "Expected duration"),
+    expertise_level: requireText(body.expertiseLevel, "Expertise level"),
+    expected_duration: requireText(body.expectedDuration, "Expected duration"),
     skills,
-    total_budget_cents,
+    total_budget_cents: totalBudgetCents,
     milestones,
-    screening_questions: Array.isArray(body.screening_questions)
-      ? body.screening_questions
+    screening_questions: Array.isArray(body.screeningQuestions)
+      ? body.screeningQuestions
           .map(String)
           .map((item) => item.trim())
           .filter(Boolean)

@@ -25,6 +25,10 @@ import {
 } from "../../../shared/uploads/upload-documents.js";
 import { reuseStoredAttachments } from "../../../shared/uploads/attachments.js";
 import { clerk } from "../../../infrastructure/auth/clerk.client.js";
+import {
+  toJobPostResponse,
+  toSavedJobLinkResponse,
+} from "../utils/jobs.mappers.js";
 
 export type { PublicJobFilters } from "../repositories/jobs.repository.js";
 
@@ -35,11 +39,12 @@ export const createJobPost = async (userId: string, data: JobData) => {
   );
 
   try {
-    return await insertJobPost(db, {
+    const job = await insertJobPost(db, {
       ...data,
       attachments,
       client_id: userId,
     });
+    return job && toJobPostResponse(job);
   } catch (error) {
     await Promise.allSettled(
       uploadedIds.map((fileId) => imageKit.files.delete(fileId)),
@@ -49,7 +54,8 @@ export const createJobPost = async (userId: string, data: JobData) => {
 };
 
 export const getJobPosts = async (userId: string, jobId?: string) => {
-  return findJobPostsWithCounts(db, userId, jobId);
+  const jobs = await findJobPostsWithCounts(db, userId, jobId);
+  return jobs.map(toJobPostResponse);
 };
 
 const jobNotEditable = async (
@@ -110,7 +116,7 @@ export const updateJobPost = async (
     existingJob.attachments?.filter(({ fileId }) => !retainedIds.has(fileId)),
   );
 
-  return job;
+  return toJobPostResponse(job);
 };
 
 export const deleteJobPost = async (userId: string, jobId: string) => {
@@ -130,9 +136,9 @@ export const saveJobPost = async (freelancerId: string, jobId: string) => {
 
   const savedJob = await insertSavedJobIfAbsent(db, freelancerId, jobId);
 
-  if (savedJob) return savedJob;
+  if (savedJob) return toSavedJobLinkResponse(savedJob);
   const existingSavedJob = await findSavedJob(db, freelancerId, jobId);
-  return existingSavedJob!;
+  return toSavedJobLinkResponse(existingSavedJob!);
 };
 
 export const getSavedJobPosts = async (freelancerId: string) => {
@@ -140,7 +146,7 @@ export const getSavedJobPosts = async (freelancerId: string) => {
 
   return rows.map(
     ({ job, savedAt, companyName, paymentVerified, proposalCount }) => ({
-      ...job,
+      ...toJobPostResponse(job),
       savedAt,
       companyName,
       paymentVerified: paymentVerified === true,
@@ -155,7 +161,7 @@ export const removeSavedJobPost = async (
 ) => {
   const savedJob = await deleteSavedJob(db, freelancerId, jobId);
   if (!savedJob) throw new ApiError(404, "Saved job post not found.");
-  return savedJob;
+  return toSavedJobLinkResponse(savedJob);
 };
 
 interface PublicJobSummary {

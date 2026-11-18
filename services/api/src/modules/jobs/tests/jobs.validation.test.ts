@@ -48,8 +48,8 @@ const validJob = () => ({
   role: "client",
   title: "Build a site",
   description: "Details",
-  expertise_level: "Expert",
-  expected_duration: "1 month",
+  expertiseLevel: "Expert",
+  expectedDuration: "1 month",
   skills: ["react"],
   milestones: [{ title: "M1", budgetCents: 10000, dueDate }],
 });

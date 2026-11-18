@@ -102,11 +102,11 @@ export const jobBodySchema = withIgnoredKeys(
       "Job description",
       JOB_LIMITS.descriptionMax,
     ).optional(),
-    expertise_level: optionalBoundedText(
+    expertiseLevel: optionalBoundedText(
       "Expertise level",
       JOB_LIMITS.expertiseLevelMax,
     ).optional(),
-    expected_duration: optionalBoundedText(
+    expectedDuration: optionalBoundedText(
       "Expected duration",
       JOB_LIMITS.expectedDurationMax,
     ).optional(),
@@ -120,7 +120,7 @@ export const jobBodySchema = withIgnoredKeys(
       JOB_LIMITS.skillMaxLength,
       "Skills must be an array.",
     ),
-    screening_questions: textList(
+    screeningQuestions: textList(
       "Screening questions",
       JOB_LIMITS.screeningQuestionsMaxItems,
       JOB_LIMITS.screeningQuestionMaxLength,

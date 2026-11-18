@@ -243,7 +243,7 @@ const addMember = async (agencyId: string, role: string) => {
 };
 
 const seedClientWithJob = async (
-  options: { skills?: string[]; title?: string } = {},
+  options: { skills?: string[]; title?: string; withSpents?: boolean } = {},
 ) => {
   const clientId = await insertAccount(newAuthId(), "CLIENT", {
     paymentMethodVerified: true,
@@ -259,12 +259,14 @@ const seedClientWithJob = async (
     created_at: new Date(),
     updated_at: new Date(),
   });
-  await db.insert(client_spents).values({
-    client_id: clientId,
-    total_spent_cents: 50000,
-    review_count: 1,
-    rating: "4.00",
-  });
+  if (options.withSpents ?? true) {
+    await db.insert(client_spents).values({
+      client_id: clientId,
+      total_spent_cents: 50000,
+      review_count: 1,
+      rating: "4.00",
+    });
+  }
   const [job] = await db
     .insert(job_posts)
     .values({
@@ -1045,6 +1047,31 @@ describe("agency contract: jobs, proposals and connects", () => {
       .set(as(clientId));
     expect(metadataWrongRole.status).toBe(403);
     agencyProposalMetadataResponses[403].parse(metadataWrongRole.body);
+  });
+});
+
+describe("agency contract: proposal client rating", () => {
+  it("keeps clientRating null when the client has no spend record", async () => {
+    const { ownerId, agencyId } = await seedAgency();
+    const { jobId } = await seedClientWithJob({ withSpents: false });
+    await db.insert(proposals).values({
+      job_id: jobId,
+      sender_id: agencyId,
+      sender_type: "AGENCY",
+      cover_letter: "hello",
+      bid_amount_cents: 100000,
+      duration: "1 month",
+    });
+
+    const list = await request(app)
+      .get(`${API}/proposals`)
+      .query(q)
+      .set(as(ownerId));
+
+    expect(list.status).toBe(200);
+    agencyProposalsResponses[200].parse(list.body);
+    expect(list.body.data).toHaveLength(1);
+    expect(list.body.data[0].clientRating).toBeNull();
   });
 });
 

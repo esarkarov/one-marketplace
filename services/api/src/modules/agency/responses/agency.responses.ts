@@ -141,13 +141,13 @@ const AgencyVerification = z
 const AgencyJobFeedItem = z
   .strictObject({
     id: z.uuid(),
-    client_id: z.string(),
+    clientId: z.string(),
     title: z.string(),
     description: z.string(),
-    expertise_level: z.string(),
-    expected_duration: z.string(),
+    expertiseLevel: z.string(),
+    expectedDuration: z.string(),
     skills: z.array(z.string()),
-    total_budget_cents: cents,
+    totalBudgetCents: cents,
     milestones: z.array(
       z.strictObject({
         id: z.string(),
@@ -156,7 +156,7 @@ const AgencyJobFeedItem = z
         dueDate: z.string(),
       }),
     ),
-    screening_questions: z.array(z.string()).nullable(),
+    screeningQuestions: z.array(z.string()).nullable(),
     attachments: z
       .array(
         z.strictObject({
@@ -169,10 +169,10 @@ const AgencyJobFeedItem = z
       )
       .nullable(),
     status: z.string(),
-    published_at: isoDateTime.nullable(),
-    hired_at: isoDateTime.nullable(),
-    created_at: isoDateTime.nullable(),
-    updated_at: isoDateTime.nullable(),
+    publishedAt: isoDateTime.nullable(),
+    hiredAt: isoDateTime.nullable(),
+    createdAt: isoDateTime.nullable(),
+    updatedAt: isoDateTime.nullable(),
     companyName: z.string(),
     clientCountry: z.string().nullable(),
     paymentVerified: z.boolean(),

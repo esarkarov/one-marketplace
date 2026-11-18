@@ -902,6 +902,9 @@
           "clientCountry": {
             "type": ["string", "null"]
           },
+          "clientId": {
+            "type": "string"
+          },
           "clientRating": {
             "type": "number"
           },
@@ -913,13 +916,10 @@
           "clientTotalSpentCents": {
             "$ref": "#/components/schemas/Cents"
           },
-          "client_id": {
-            "type": "string"
-          },
           "companyName": {
             "type": "string"
           },
-          "created_at": {
+          "createdAt": {
             "anyOf": [
               {
                 "$ref": "#/components/schemas/IsoDateTime"
@@ -932,10 +932,10 @@
           "description": {
             "type": "string"
           },
-          "expected_duration": {
+          "expectedDuration": {
             "type": "string"
           },
-          "expertise_level": {
+          "expertiseLevel": {
             "type": "string"
           },
           "hireCount": {
@@ -943,7 +943,7 @@
             "minimum": -9007199254740991,
             "type": "integer"
           },
-          "hired_at": {
+          "hiredAt": {
             "anyOf": [
               {
                 "$ref": "#/components/schemas/IsoDateTime"
@@ -993,7 +993,7 @@
             "minimum": -9007199254740991,
             "type": "integer"
           },
-          "published_at": {
+          "publishedAt": {
             "anyOf": [
               {
                 "$ref": "#/components/schemas/IsoDateTime"
@@ -1003,7 +1003,7 @@
               }
             ]
           },
-          "screening_questions": {
+          "screeningQuestions": {
             "anyOf": [
               {
                 "items": {
@@ -1028,10 +1028,10 @@
           "title": {
             "type": "string"
           },
-          "total_budget_cents": {
+          "totalBudgetCents": {
             "$ref": "#/components/schemas/Cents"
           },
-          "updated_at": {
+          "updatedAt": {
             "anyOf": [
               {
                 "$ref": "#/components/schemas/IsoDateTime"
@@ -1044,21 +1044,21 @@
         },
         "required": [
           "id",
-          "client_id",
+          "clientId",
           "title",
           "description",
-          "expertise_level",
-          "expected_duration",
+          "expertiseLevel",
+          "expectedDuration",
           "skills",
-          "total_budget_cents",
+          "totalBudgetCents",
           "milestones",
-          "screening_questions",
+          "screeningQuestions",
           "attachments",
           "status",
-          "published_at",
-          "hired_at",
-          "created_at",
-          "updated_at",
+          "publishedAt",
+          "hiredAt",
+          "createdAt",
+          "updatedAt",
           "companyName",
           "clientCountry",
           "paymentVerified",
@@ -2734,6 +2734,9 @@
           "clientCountry": {
             "type": ["string", "null"]
           },
+          "clientId": {
+            "type": "string"
+          },
           "clientJoinedAt": {
             "anyOf": [
               {
@@ -2755,16 +2758,13 @@
           "clientTotalSpentCents": {
             "$ref": "#/components/schemas/Cents"
           },
-          "client_id": {
-            "type": "string"
-          },
           "companyDescription": {
             "type": "string"
           },
           "companyName": {
             "type": "string"
           },
-          "created_at": {
+          "createdAt": {
             "anyOf": [
               {
                 "$ref": "#/components/schemas/IsoDateTime"
@@ -2777,10 +2777,10 @@
           "description": {
             "type": "string"
           },
-          "expected_duration": {
+          "expectedDuration": {
             "type": "string"
           },
-          "expertise_level": {
+          "expertiseLevel": {
             "type": "string"
           },
           "hireCount": {
@@ -2788,7 +2788,7 @@
             "minimum": -9007199254740991,
             "type": "integer"
           },
-          "hired_at": {
+          "hiredAt": {
             "anyOf": [
               {
                 "$ref": "#/components/schemas/IsoDateTime"
@@ -2833,7 +2833,7 @@
             "minimum": -9007199254740991,
             "type": "integer"
           },
-          "published_at": {
+          "publishedAt": {
             "anyOf": [
               {
                 "$ref": "#/components/schemas/IsoDateTime"
@@ -2843,7 +2843,7 @@
               }
             ]
           },
-          "screening_questions": {
+          "screeningQuestions": {
             "anyOf": [
               {
                 "items": {
@@ -2868,10 +2868,10 @@
           "title": {
             "type": "string"
           },
-          "total_budget_cents": {
+          "totalBudgetCents": {
             "$ref": "#/components/schemas/Cents"
           },
-          "updated_at": {
+          "updatedAt": {
             "anyOf": [
               {
                 "$ref": "#/components/schemas/IsoDateTime"
@@ -2884,21 +2884,21 @@
         },
         "required": [
           "id",
-          "client_id",
+          "clientId",
           "title",
           "description",
-          "expertise_level",
-          "expected_duration",
+          "expertiseLevel",
+          "expectedDuration",
           "skills",
-          "total_budget_cents",
+          "totalBudgetCents",
           "milestones",
-          "screening_questions",
+          "screeningQuestions",
           "attachments",
           "status",
-          "published_at",
-          "hired_at",
-          "created_at",
-          "updated_at",
+          "publishedAt",
+          "hiredAt",
+          "createdAt",
+          "updatedAt",
           "clientCountry",
           "paymentVerified",
           "proposalCount",
@@ -2958,6 +2958,9 @@
           "clientCountry": {
             "type": ["string", "null"]
           },
+          "clientId": {
+            "type": "string"
+          },
           "clientRating": {
             "type": "number"
           },
@@ -2969,13 +2972,10 @@
           "clientTotalSpentCents": {
             "$ref": "#/components/schemas/Cents"
           },
-          "client_id": {
-            "type": "string"
-          },
           "companyName": {
             "type": "string"
           },
-          "created_at": {
+          "createdAt": {
             "anyOf": [
               {
                 "$ref": "#/components/schemas/IsoDateTime"
@@ -2988,10 +2988,10 @@
           "description": {
             "type": "string"
           },
-          "expected_duration": {
+          "expectedDuration": {
             "type": "string"
           },
-          "expertise_level": {
+          "expertiseLevel": {
             "type": "string"
           },
           "hireCount": {
@@ -2999,7 +2999,7 @@
             "minimum": -9007199254740991,
             "type": "integer"
           },
-          "hired_at": {
+          "hiredAt": {
             "anyOf": [
               {
                 "$ref": "#/components/schemas/IsoDateTime"
@@ -3049,7 +3049,7 @@
             "minimum": -9007199254740991,
             "type": "integer"
           },
-          "published_at": {
+          "publishedAt": {
             "anyOf": [
               {
                 "$ref": "#/components/schemas/IsoDateTime"
@@ -3059,7 +3059,7 @@
               }
             ]
           },
-          "screening_questions": {
+          "screeningQuestions": {
             "anyOf": [
               {
                 "items": {
@@ -3084,10 +3084,10 @@
           "title": {
             "type": "string"
           },
-          "total_budget_cents": {
+          "totalBudgetCents": {
             "$ref": "#/components/schemas/Cents"
           },
-          "updated_at": {
+          "updatedAt": {
             "anyOf": [
               {
                 "$ref": "#/components/schemas/IsoDateTime"
@@ -3100,21 +3100,21 @@
         },
         "required": [
           "id",
-          "client_id",
+          "clientId",
           "title",
           "description",
-          "expertise_level",
-          "expected_duration",
+          "expertiseLevel",
+          "expectedDuration",
           "skills",
-          "total_budget_cents",
+          "totalBudgetCents",
           "milestones",
-          "screening_questions",
+          "screeningQuestions",
           "attachments",
           "status",
-          "published_at",
-          "hired_at",
-          "created_at",
-          "updated_at",
+          "publishedAt",
+          "hiredAt",
+          "createdAt",
+          "updatedAt",
           "clientCountry",
           "paymentVerified",
           "proposalCount",
@@ -3967,10 +3967,10 @@
               }
             ]
           },
-          "client_id": {
+          "clientId": {
             "type": "string"
           },
-          "created_at": {
+          "createdAt": {
             "anyOf": [
               {
                 "$ref": "#/components/schemas/IsoDateTime"
@@ -3983,13 +3983,13 @@
           "description": {
             "type": "string"
           },
-          "expected_duration": {
+          "expectedDuration": {
             "type": "string"
           },
-          "expertise_level": {
+          "expertiseLevel": {
             "type": "string"
           },
-          "hired_at": {
+          "hiredAt": {
             "anyOf": [
               {
                 "$ref": "#/components/schemas/IsoDateTime"
@@ -4026,7 +4026,7 @@
             },
             "type": "array"
           },
-          "published_at": {
+          "publishedAt": {
             "anyOf": [
               {
                 "$ref": "#/components/schemas/IsoDateTime"
@@ -4036,7 +4036,7 @@
               }
             ]
           },
-          "screening_questions": {
+          "screeningQuestions": {
             "anyOf": [
               {
                 "items": {
@@ -4061,10 +4061,10 @@
           "title": {
             "type": "string"
           },
-          "total_budget_cents": {
+          "totalBudgetCents": {
             "$ref": "#/components/schemas/Cents"
           },
-          "updated_at": {
+          "updatedAt": {
             "anyOf": [
               {
                 "$ref": "#/components/schemas/IsoDateTime"
@@ -4077,21 +4077,21 @@
         },
         "required": [
           "id",
-          "client_id",
+          "clientId",
           "title",
           "description",
-          "expertise_level",
-          "expected_duration",
+          "expertiseLevel",
+          "expectedDuration",
           "skills",
-          "total_budget_cents",
+          "totalBudgetCents",
           "milestones",
-          "screening_questions",
+          "screeningQuestions",
           "attachments",
           "status",
-          "published_at",
-          "hired_at",
-          "created_at",
-          "updated_at"
+          "publishedAt",
+          "hiredAt",
+          "createdAt",
+          "updatedAt"
         ],
         "type": "object"
       },
@@ -4138,10 +4138,10 @@
               }
             ]
           },
-          "client_id": {
+          "clientId": {
             "type": "string"
           },
-          "created_at": {
+          "createdAt": {
             "anyOf": [
               {
                 "$ref": "#/components/schemas/IsoDateTime"
@@ -4154,10 +4154,10 @@
           "description": {
             "type": "string"
           },
-          "expected_duration": {
+          "expectedDuration": {
             "type": "string"
           },
-          "expertise_level": {
+          "expertiseLevel": {
             "type": "string"
           },
           "hireCount": {
@@ -4165,7 +4165,7 @@
             "minimum": -9007199254740991,
             "type": "integer"
           },
-          "hired_at": {
+          "hiredAt": {
             "anyOf": [
               {
                 "$ref": "#/components/schemas/IsoDateTime"
@@ -4207,7 +4207,7 @@
             "minimum": -9007199254740991,
             "type": "integer"
           },
-          "published_at": {
+          "publishedAt": {
             "anyOf": [
               {
                 "$ref": "#/components/schemas/IsoDateTime"
@@ -4217,7 +4217,7 @@
               }
             ]
           },
-          "screening_questions": {
+          "screeningQuestions": {
             "anyOf": [
               {
                 "items": {
@@ -4247,10 +4247,10 @@
           "title": {
             "type": "string"
           },
-          "total_budget_cents": {
+          "totalBudgetCents": {
             "$ref": "#/components/schemas/Cents"
           },
-          "updated_at": {
+          "updatedAt": {
             "anyOf": [
               {
                 "$ref": "#/components/schemas/IsoDateTime"
@@ -4263,21 +4263,21 @@
         },
         "required": [
           "id",
-          "client_id",
+          "clientId",
           "title",
           "description",
-          "expertise_level",
-          "expected_duration",
+          "expertiseLevel",
+          "expectedDuration",
           "skills",
-          "total_budget_cents",
+          "totalBudgetCents",
           "milestones",
-          "screening_questions",
+          "screeningQuestions",
           "attachments",
           "status",
-          "published_at",
-          "hired_at",
-          "created_at",
-          "updated_at",
+          "publishedAt",
+          "hiredAt",
+          "createdAt",
+          "updatedAt",
           "proposalCount",
           "shortlistCount",
           "hireCount"
@@ -4365,7 +4365,7 @@
       "JobsSavedLink": {
         "additionalProperties": false,
         "properties": {
-          "created_at": {
+          "createdAt": {
             "anyOf": [
               {
                 "$ref": "#/components/schemas/IsoDateTime"
@@ -4375,7 +4375,7 @@
               }
             ]
           },
-          "freelancer_id": {
+          "freelancerId": {
             "type": "string"
           },
           "id": {
@@ -4383,13 +4383,13 @@
             "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
             "type": "string"
           },
-          "job_id": {
+          "jobId": {
             "format": "uuid",
             "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
             "type": "string"
           }
         },
-        "required": ["id", "job_id", "freelancer_id", "created_at"],
+        "required": ["id", "jobId", "freelancerId", "createdAt"],
         "type": "object"
       },
       "JobsSavedPost": {
@@ -4435,13 +4435,13 @@
               }
             ]
           },
-          "client_id": {
+          "clientId": {
             "type": "string"
           },
           "companyName": {
             "type": "string"
           },
-          "created_at": {
+          "createdAt": {
             "anyOf": [
               {
                 "$ref": "#/components/schemas/IsoDateTime"
@@ -4454,13 +4454,13 @@
           "description": {
             "type": "string"
           },
-          "expected_duration": {
+          "expectedDuration": {
             "type": "string"
           },
-          "expertise_level": {
+          "expertiseLevel": {
             "type": "string"
           },
-          "hired_at": {
+          "hiredAt": {
             "anyOf": [
               {
                 "$ref": "#/components/schemas/IsoDateTime"
@@ -4505,7 +4505,7 @@
             "minimum": -9007199254740991,
             "type": "integer"
           },
-          "published_at": {
+          "publishedAt": {
             "anyOf": [
               {
                 "$ref": "#/components/schemas/IsoDateTime"
@@ -4525,7 +4525,7 @@
               }
             ]
           },
-          "screening_questions": {
+          "screeningQuestions": {
             "anyOf": [
               {
                 "items": {
@@ -4550,10 +4550,10 @@
           "title": {
             "type": "string"
           },
-          "total_budget_cents": {
+          "totalBudgetCents": {
             "$ref": "#/components/schemas/Cents"
           },
-          "updated_at": {
+          "updatedAt": {
             "anyOf": [
               {
                 "$ref": "#/components/schemas/IsoDateTime"
@@ -4566,21 +4566,21 @@
         },
         "required": [
           "id",
-          "client_id",
+          "clientId",
           "title",
           "description",
-          "expertise_level",
-          "expected_duration",
+          "expertiseLevel",
+          "expectedDuration",
           "skills",
-          "total_budget_cents",
+          "totalBudgetCents",
           "milestones",
-          "screening_questions",
+          "screeningQuestions",
           "attachments",
           "status",
-          "published_at",
-          "hired_at",
-          "created_at",
-          "updated_at",
+          "publishedAt",
+          "hiredAt",
+          "createdAt",
+          "updatedAt",
           "savedAt",
           "companyName",
           "paymentVerified",
@@ -17144,12 +17144,12 @@
                     "minLength": 0,
                     "type": "string"
                   },
-                  "expected_duration": {
+                  "expectedDuration": {
                     "maxLength": 50,
                     "minLength": 0,
                     "type": "string"
                   },
-                  "expertise_level": {
+                  "expertiseLevel": {
                     "maxLength": 50,
                     "minLength": 0,
                     "type": "string"
@@ -17208,7 +17208,7 @@
                     "enum": ["client", "freelancer"],
                     "type": "string"
                   },
-                  "screening_questions": {
+                  "screeningQuestions": {
                     "anyOf": [
                       {
                         "items": {
@@ -18187,12 +18187,12 @@
                     "minLength": 0,
                     "type": "string"
                   },
-                  "expected_duration": {
+                  "expectedDuration": {
                     "maxLength": 50,
                     "minLength": 0,
                     "type": "string"
                   },
-                  "expertise_level": {
+                  "expertiseLevel": {
                     "maxLength": 50,
                     "minLength": 0,
                     "type": "string"
@@ -18251,7 +18251,7 @@
                     "enum": ["client", "freelancer"],
                     "type": "string"
                   },
-                  "screening_questions": {
+                  "screeningQuestions": {
                     "anyOf": [
                       {
                         "items": {

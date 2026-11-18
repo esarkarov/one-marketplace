@@ -156,14 +156,14 @@ const jobBody = (overrides: Record<string, unknown> = {}) => ({
   role: "client",
   title: "Build an API",
   description: "Node and postgres work",
-  expertise_level: "EXPERT",
-  expected_duration: "1 month",
+  expertiseLevel: "EXPERT",
+  expectedDuration: "1 month",
   skills: ["node", "postgres"],
   milestones: [
     { title: "First", budgetCents: 50000, dueDate: dueDate(10) },
     { title: "Second", budgetCents: 30000, dueDate: dueDate(20) },
   ],
-  screening_questions: ["Why you?"],
+  screeningQuestions: ["Why you?"],
   attachments: [
     {
       fileName: "brief.png",
@@ -773,8 +773,8 @@ describe("jobs queries against real Postgres", () => {
       const repeated = await save(freelancerA, first.id);
       expect(repeated.status).toBe(201);
       expect(repeated.body.data).toMatchObject({
-        freelancer_id: freelancerA,
-        job_id: first.id,
+        freelancerId: freelancerA,
+        jobId: first.id,
       });
 
       const listed = await savedFor(freelancerA);

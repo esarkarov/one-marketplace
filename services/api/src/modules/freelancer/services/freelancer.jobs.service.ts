@@ -12,6 +12,7 @@ import { JobFeedFilters } from "../types/freelancer.types.js";
 import { env } from "../../../config/env.js";
 import { ApiError } from "../../../shared/errors/api-error.js";
 import { clerk } from "../../../infrastructure/auth/clerk.client.js";
+import { toJobPostResponse } from "../../jobs/index.js";
 
 const getClientCountry = async (clientId: string) => {
   if (!env.clerkSecretKey) {
@@ -43,7 +44,7 @@ const normalizeSkill = (skill: string) =>
 // Shared by both the freelancer and agency job feeds — "skills" is either a
 // freelancer's own skills or an agency's tags, matched against each job's
 // required skills and title/description text the same way either side.
-export const getMatchedJobPostsBySkills = async (
+const matchJobPostsBySkills = async (
   skillList: string[],
   filters: JobFeedFilters = {},
 ) => {
@@ -136,6 +137,11 @@ export const getMatchedJobPostsBySkills = async (
     );
 };
 
+export const getMatchedJobPostsBySkills = async (
+  skillList: string[],
+  filters: JobFeedFilters = {},
+) => (await matchJobPostsBySkills(skillList, filters)).map(toJobPostResponse);
+
 export const getMatchedJobPosts = async (
   userId: string,
   filters: JobFeedFilters = {},
@@ -158,7 +164,7 @@ export const getFreelancerJobPost = async (jobId: string) => {
   const clientCountry = await getClientCountry(result.job.client_id);
 
   return {
-    ...result.job,
+    ...toJobPostResponse(result.job),
     companyName: result.companyName,
     companyDescription: result.companyDescription,
     clientCountry,

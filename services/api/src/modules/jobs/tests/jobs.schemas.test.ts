@@ -20,11 +20,11 @@ describe("jobBodySchema", () => {
       role: "client",
       title: "T",
       description: "D",
-      expertise_level: "Expert",
-      expected_duration: "1 month",
+      expertiseLevel: "Expert",
+      expectedDuration: "1 month",
       status: "DRAFT",
       skills: ["a", "b"],
-      screening_questions: ["q"],
+      screeningQuestions: ["q"],
       milestones: [
         {
           id: "m",
@@ -49,11 +49,11 @@ describe("jobBodySchema", () => {
         "role",
         "title",
         "description",
-        "expertise_level",
-        "expected_duration",
+        "expertiseLevel",
+        "expectedDuration",
         "status",
         "skills",
-        "screening_questions",
+        "screeningQuestions",
         "milestones",
         "attachments",
       ].sort(),
@@ -62,6 +62,9 @@ describe("jobBodySchema", () => {
 
   it.each([
     [{ client_id: "x" }],
+    [{ expected_duration: "1 month" }],
+    [{ expertise_level: "Expert" }],
+    [{ screening_questions: ["q"] }],
     [{ isAdmin: true }],
     [{ milestones: [{ budgetCents: 1000, extra: 1 }] }],
     [{ attachments: [{ fileName: "a", extra: 1 }] }],
@@ -77,7 +80,7 @@ describe("jobBodySchema", () => {
 
   it.each([
     [{ skills: "a" }, "Skills must be an array."],
-    [{ screening_questions: {} }, "Screening questions must be an array."],
+    [{ screeningQuestions: {} }, "Screening questions must be an array."],
     [{ milestones: "x" }, "Milestones must be an array."],
     [{ attachments: 1 }, "Attachments must be an array."],
     [{ milestones: [null] }, "Each milestone must be an object."],
@@ -235,7 +238,7 @@ describe("jobBodySchema previously accepted nulls", () => {
     expect(
       jobBodySchema.safeParse({
         attachments: null,
-        screening_questions: null,
+        screeningQuestions: null,
         skills: null,
         status: null,
       }).success,
