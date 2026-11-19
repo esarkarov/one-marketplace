@@ -1,5 +1,12 @@
 import { RequestHandler } from "express";
 import { asyncHandler } from "../../../middleware/utils/async-handler.utils.js";
+import { getValidated } from "../../../middleware/utils/validated-request.utils.js";
+import {
+  listNotificationsRequest,
+  markAllNotificationsReadRequest,
+  markNotificationReadRequest,
+  notificationStreamRequest,
+} from "../schemas/notifications.schema.js";
 import { ApiResponse } from "../../../types/common.types.js";
 import {
   getNotifications,
@@ -27,15 +34,16 @@ const resolveScopeAgencyId = async (userId: string, scope: Scope) =>
 
 export const listNotifications: RequestHandler = asyncHandler(
   async (request, response) => {
-    const scope = requestedScope(request.query.scope);
+    const { query } = getValidated(request, listNotificationsRequest);
+    const scope = requestedScope(query.scope);
     const agencyId = await resolveScopeAgencyId(request.auth!.userId, scope);
 
     const data =
       scope === "agency" && !agencyId
         ? { results: [], hasMore: false }
         : await getNotifications(request.auth!.userId, agencyId, {
-            limit: Number(request.query.limit),
-            offset: Number(request.query.offset),
+            limit: query.limit,
+            offset: query.offset,
           });
 
     response.json({
@@ -48,7 +56,8 @@ export const listNotifications: RequestHandler = asyncHandler(
 
 export const markAllNotificationsRead: RequestHandler = asyncHandler(
   async (request, response) => {
-    const scope = requestedScope(request.query.scope);
+    const { query } = getValidated(request, markAllNotificationsReadRequest);
+    const scope = requestedScope(query.scope);
     const agencyId = await resolveScopeAgencyId(request.auth!.userId, scope);
 
     if (scope !== "agency" || agencyId) {
@@ -67,9 +76,10 @@ export const markNotificationRead: RequestHandler = asyncHandler(
   async (request, response) => {
     const userId = request.auth!.userId;
     const agencyId = await getAgencyIdForMember(userId);
+    const { params } = getValidated(request, markNotificationReadRequest);
     const [notification] = await readNotification(
       userId,
-      request.params.notificationId as string,
+      params.notificationId,
       agencyId,
     );
     if (!notification) throw new ApiError(404, "Notification not found.");
@@ -99,7 +109,8 @@ export const notificationStream: RequestHandler = async (request, response) => {
     if (!response.writableEnded) response.write(": heartbeat\n\n");
   }, 25_000);
 
-  const scope = requestedScope(request.query.scope);
+  const { query } = getValidated(request, notificationStreamRequest);
+  const scope = requestedScope(query.scope);
   const agencyId = await resolveScopeAgencyId(
     request.auth!.userId,
     scope,

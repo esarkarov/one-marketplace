@@ -2,16 +2,18 @@ import { RequestHandler } from "express";
 import { requireFreelancer } from "../../../middleware/auth/role-guards.middleware.js";
 import { ApiResponse } from "../../../types/common.types.js";
 import { asyncHandler } from "../../../middleware/utils/async-handler.utils.js";
+import { getValidated } from "../../../middleware/utils/validated-request.utils.js";
+import {
+  buyConnectsRequest,
+  connectsHistoryRequest,
+} from "../schemas/connects.schema.js";
 import {
   completeAgencyConnectsPurchase,
   completeConnectsPurchase,
   createConnectsCheckout,
   getConnectsHistory,
 } from "../services/connects.service.js";
-import {
-  CONNECTS_PLANS,
-  ConnectsPlan,
-} from "../constants/connects.constants.js";
+import { CONNECTS_PLANS } from "../constants/connects.constants.js";
 import { isConnectsPlan } from "../utils/connects.plans.js";
 import { env } from "../../../config/env.js";
 import { verifyStripeWebhook } from "../../../infrastructure/payments/stripe.webhook.js";
@@ -34,9 +36,10 @@ export const getAvailableConnects: RequestHandler = async (
 export const getLoggedInFreelancerConnectsHistory: RequestHandler =
   asyncHandler(async (request, response) => {
     const auth = requireFreelancer(request);
+    const { query } = getValidated(request, connectsHistoryRequest);
     const history = await getConnectsHistory(auth.userId, {
-      limit: Number(request.query.limit),
-      offset: Number(request.query.offset),
+      limit: query.limit,
+      offset: query.offset,
     });
     const body: ApiResponse<typeof history> = {
       success: true,
@@ -50,7 +53,8 @@ export const getLoggedInFreelancerConnectsHistory: RequestHandler =
 export const buyConnects: RequestHandler = asyncHandler(
   async (request, response) => {
     const auth = requireFreelancer(request);
-    const purchasedConnects = request.body.connects as ConnectsPlan;
+    const { body } = getValidated(request, buyConnectsRequest);
+    const purchasedConnects = body.connects;
 
     const url = await createConnectsCheckout(auth.userId, purchasedConnects);
     response.status(200).json({

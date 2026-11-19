@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { RequestSchemas } from "../../../middleware/types/validate.types.js";
 
 import {
   authRoleShape,
@@ -8,3 +9,8 @@ import {
 export const signUpBodySchema = z.strictObject({ role: roleField });
 
 export const authStatusQuerySchema = z.strictObject(authRoleShape);
+
+export const signUpRequest = {
+  body: signUpBodySchema,
+  query: {},
+} satisfies RequestSchemas;

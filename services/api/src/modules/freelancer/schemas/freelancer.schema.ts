@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { RequestSchemas } from "../../../middleware/types/validate.types.js";
 
 import {
   authRoleShape,
@@ -187,3 +188,26 @@ export const talentSearchQuerySchema = z.strictObject({
   minRateCents: centsQueryParam,
   maxRateCents: centsQueryParam,
 });
+
+export const upsertProfileRequest = {
+  body: upsertProfileBodySchema,
+  query: authRoleShape,
+} satisfies RequestSchemas;
+
+export const jobFeedRequest = {
+  query: jobFeedQuerySchema,
+} satisfies RequestSchemas;
+
+export const freelancerJobDetailsRequest = {
+  params: idParamsSchema,
+  query: authRoleShape,
+} satisfies RequestSchemas;
+
+export const publicFreelancerRequest = {
+  params: idParamsSchema,
+  query: {},
+} satisfies RequestSchemas;
+
+export const talentSearchRequest = {
+  query: talentSearchQuerySchema,
+} satisfies RequestSchemas;

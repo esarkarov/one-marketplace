@@ -1,11 +1,15 @@
 import { z } from "zod";
+import type { RequestSchemas } from "../../../middleware/types/validate.types.js";
 import {
   authRoleShape,
   boundedText,
   scopeField,
   uuidParam,
 } from "../../../shared/validation/schemas/common.schema.js";
-import { paginationShape } from "../../../shared/validation/schemas/pagination.schema.js";
+import {
+  paginationShape,
+  roleListQuerySchema,
+} from "../../../shared/validation/schemas/pagination.schema.js";
 import { MAX_MONEY_CENTS } from "../../../shared/money/money.js";
 import { CONTRACT_LIMITS } from "../constants/contracts.constants.js";
 
@@ -128,3 +132,61 @@ export const finishContractBodySchema = z.strictObject({
       error: "Review must be 10–1000 characters.",
     }),
 });
+
+export const clientContractsRequest = {
+  query: roleListQuerySchema,
+} satisfies RequestSchemas;
+
+export const freelancerContractsRequest = {
+  query: freelancerContractsQuerySchema,
+} satisfies RequestSchemas;
+
+export const acceptContractRequest = {
+  params: contractIdParamsSchema,
+  query: scopeQuerySchema,
+} satisfies RequestSchemas;
+
+export const declineContractRequest = {
+  params: contractIdParamsSchema,
+  query: scopeQuerySchema,
+} satisfies RequestSchemas;
+
+export const withdrawContractRequest = {
+  params: contractIdParamsSchema,
+  query: roleOnlyQuerySchema,
+} satisfies RequestSchemas;
+
+export const submitMilestoneRequest = {
+  params: milestoneParamsSchema,
+  query: scopeQuerySchema,
+  body: submitMilestoneBodySchema,
+} satisfies RequestSchemas;
+
+export const reviewMilestoneRequest = {
+  params: milestoneParamsSchema,
+  query: roleOnlyQuerySchema,
+  body: reviewMilestoneBodySchema,
+} satisfies RequestSchemas;
+
+export const contractCheckoutRequest = {
+  query: roleOnlyQuerySchema,
+  body: contractCheckoutBodySchema,
+} satisfies RequestSchemas;
+
+export const milestoneCheckoutRequest = {
+  params: milestoneParamsSchema,
+  query: roleOnlyQuerySchema,
+  body: milestoneCheckoutBodySchema,
+} satisfies RequestSchemas;
+
+export const addMilestoneRequest = {
+  params: contractIdParamsSchema,
+  query: roleOnlyQuerySchema,
+  body: addMilestoneBodySchema,
+} satisfies RequestSchemas;
+
+export const finishContractRequest = {
+  params: contractIdParamsSchema,
+  query: scopeQuerySchema,
+  body: finishContractBodySchema,
+} satisfies RequestSchemas;

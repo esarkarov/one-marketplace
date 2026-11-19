@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { RequestSchemas } from "../../../middleware/types/validate.types.js";
 import { paginationShape } from "../../../shared/validation/schemas/pagination.schema.js";
 import {
   authRoleShape,
@@ -22,3 +23,20 @@ export const listNotificationsQuerySchema = z.strictObject({
   ...paginationShape,
   scope: scopeField(["agency", "default"] as const).optional(),
 });
+
+export const listNotificationsRequest = {
+  query: listNotificationsQuerySchema,
+} satisfies RequestSchemas;
+
+export const markAllNotificationsReadRequest = {
+  query: scopeQuerySchema,
+} satisfies RequestSchemas;
+
+export const markNotificationReadRequest = {
+  params: notificationIdParamsSchema,
+  query: roleOnlyQuerySchema,
+} satisfies RequestSchemas;
+
+export const notificationStreamRequest = {
+  query: scopeQuerySchema,
+} satisfies RequestSchemas;

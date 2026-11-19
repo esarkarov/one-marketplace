@@ -2,6 +2,14 @@ import { RequestHandler } from "express";
 import { ApiError } from "../../../shared/errors/api-error.js";
 import { requireFreelancer } from "../../../middleware/auth/role-guards.middleware.js";
 import { asyncHandler } from "../../../middleware/utils/async-handler.utils.js";
+import { getValidated } from "../../../middleware/utils/validated-request.utils.js";
+import {
+  freelancerJobDetailsRequest,
+  jobFeedRequest,
+  publicFreelancerRequest,
+  talentSearchRequest,
+  upsertProfileRequest,
+} from "../schemas/freelancer.schema.js";
 import { ApiResponse } from "../../../types/common.types.js";
 import {
   PublicTalentSearchFilters,
@@ -57,10 +65,11 @@ export const getLoggedInFreelancerProfile: RequestHandler = asyncHandler(
 export const upsertFreelanceProfile: RequestHandler = asyncHandler(
   async (request, response) => {
     const auth = requireFreelancer(request);
+    const { body: requestBody } = getValidated(request, upsertProfileRequest);
     const metadata: UpsertProfileBody["freelancerMetadata"] | undefined =
-      request.body?.freelancerMetadata;
+      requestBody.freelancerMetadata;
     const portfolios: UpsertProfileBody["freelancerPortfolios"] =
-      request?.body?.freelancerPortfolios;
+      requestBody.freelancerPortfolios;
 
     if (!metadata) throw new ApiError(400, "Freelancer metadata is required.");
     if (!Array.isArray(portfolios) || portfolios.length < 1) {
@@ -105,7 +114,7 @@ export const upsertFreelanceProfile: RequestHandler = asyncHandler(
         metadata.professionalDescription,
         "Professional description",
       ),
-      hourly_rate_cents: metadata.hourlyRateCents as number,
+      hourly_rate_cents: metadata.hourlyRateCents,
       country: requireText(metadata.country, "Country"),
       city: requireText(metadata.city, "City"),
       availability_status: requireText(
@@ -247,20 +256,21 @@ export const getFreelancerJobFeed: RequestHandler = asyncHandler(
         : undefined;
     };
 
+    const { query } = getValidated(request, jobFeedRequest);
     const filters = {
-      sort: request.query.filter === "recent" ? "recent" : "best-match",
-      levels: list(request.query.levels),
-      durations: list(request.query.durations),
-      minBudgetCents: number(request.query.minBudgetCents),
-      maxBudgetCents: number(request.query.maxBudgetCents),
-      minProposals: number(request.query.minProposals),
-      maxProposals: number(request.query.maxProposals),
-      paymentVerified: request.query.paymentVerified === "true",
+      sort: query.filter === "recent" ? "recent" : "best-match",
+      levels: list(query.levels),
+      durations: list(query.durations),
+      minBudgetCents: number(query.minBudgetCents),
+      maxBudgetCents: number(query.maxBudgetCents),
+      minProposals: number(query.minProposals),
+      maxProposals: number(query.maxProposals),
+      paymentVerified: query.paymentVerified === "true",
     } as const;
 
     const jobs = await getMatchedJobPosts(auth.userId, filters, {
-      limit: Number(request.query.limit),
-      offset: Number(request.query.offset),
+      limit: query.limit,
+      offset: query.offset,
     });
 
     response.status(200).json({
@@ -277,9 +287,8 @@ export const getFreelancerJobFeed: RequestHandler = asyncHandler(
 export const getFreelancerJobDetails: RequestHandler = asyncHandler(
   async (request, response) => {
     requireFreelancer(request);
-    const job = await getFreelancerJobPost(
-      requireText(request.params.id, "Job ID"),
-    );
+    const { params } = getValidated(request, freelancerJobDetailsRequest);
+    const job = await getFreelancerJobPost(requireText(params.id, "Job ID"));
 
     response.status(200).json({
       success: true,
@@ -291,8 +300,9 @@ export const getFreelancerJobDetails: RequestHandler = asyncHandler(
 
 export const getPublicFreelancer: RequestHandler = asyncHandler(
   async (request, response) => {
+    const { params } = getValidated(request, publicFreelancerRequest);
     const profile = await getPublicFreelancerProfile(
-      requireText(request.params.id, "Freelancer"),
+      requireText(params.id, "Freelancer"),
     );
     if (!profile) throw new ApiError(404, "Freelancer profile not found.");
 
@@ -306,26 +316,24 @@ export const getPublicFreelancer: RequestHandler = asyncHandler(
 
 export const searchPublicFreelancersHandler: RequestHandler = asyncHandler(
   async (request, response) => {
-    const query =
-      typeof request.query.query === "string" ? request.query.query : "";
-    const sort = (request.query.sort ??
-      "recommended") as PublicTalentSearchFilters["sort"];
-    const limit = Number(request.query.limit);
-    const offset = Number(request.query.offset);
-    const numberParam = (key: string) => {
-      const value = Number(request.query[key]);
+    const { query: input } = getValidated(request, talentSearchRequest);
+    const query = input.query ?? "";
+    const sort = input.sort ?? "recommended";
+    const { limit, offset } = input;
+    const numberParam = (raw: unknown) => {
+      const value = Number(raw);
       return Number.isFinite(value) && value > 0 ? value : undefined;
     };
 
     const filters: PublicTalentSearchFilters = {
       query,
       sort,
-      verifiedOnly: request.query.verifiedOnly === "true",
-      availableOnly: request.query.availableOnly === "true",
-      minRating: numberParam("minRating"),
-      minSuccess: numberParam("minSuccess"),
-      minRateCents: numberParam("minRateCents"),
-      maxRateCents: numberParam("maxRateCents"),
+      verifiedOnly: input.verifiedOnly === "true",
+      availableOnly: input.availableOnly === "true",
+      minRating: numberParam(input.minRating),
+      minSuccess: numberParam(input.minSuccess),
+      minRateCents: numberParam(input.minRateCents),
+      maxRateCents: numberParam(input.maxRateCents),
     };
 
     const page = await searchPublicFreelancers(filters, { limit, offset });

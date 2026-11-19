@@ -72,7 +72,9 @@ import { assertTestDatabase } from "../../../test/setup/assert-test-database.js"
 import { ApiError } from "../../../shared/errors/api-error.js";
 import { splitFee } from "../../../shared/money/money.js";
 import { holdRowLock, raceBlocked } from "../../../test/support/lock-holder.js";
+import { validate } from "../../../middleware/validate/validate.middleware.js";
 import { reviewMilestoneWork } from "../controllers/contracts.controller.js";
+import { reviewMilestoneRequest } from "../schemas/contracts.schema.js";
 import {
   acceptContract,
   createContractFromPayment,
@@ -1009,6 +1011,7 @@ describe("review controller on a lost race", () => {
   });
   app.post(
     "/contracts/:contractId/milestones/:milestoneId/review",
+    validate(reviewMilestoneRequest),
     reviewMilestoneWork,
   );
   app.use(errorHandler);

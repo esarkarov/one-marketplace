@@ -1,5 +1,11 @@
 import { RequestHandler } from "express";
 import { asyncHandler } from "../../../middleware/utils/async-handler.utils.js";
+import { getValidated } from "../../../middleware/utils/validated-request.utils.js";
+import {
+  clientCompletedContractsRequest,
+  clientProfileRequest,
+  marketplaceSearchRequest,
+} from "../schemas/client.schema.js";
 import { ApiError } from "../../../shared/errors/api-error.js";
 import {
   getClientCompletedContracts,
@@ -53,16 +59,6 @@ export const getLoggedInClientProfile: RequestHandler = asyncHandler(
   },
 );
 
-interface ClientProfileBody {
-  professionalRole?: string;
-  companyName?: string;
-  companyWebsite?: string | undefined;
-  companySize?: string;
-  industry?: string;
-  companyDescription?: string;
-  country?: string | null;
-}
-
 export const upsertClientProfile: RequestHandler = asyncHandler(
   async (request, response) => {
     if (!request.auth) {
@@ -73,7 +69,7 @@ export const upsertClientProfile: RequestHandler = asyncHandler(
       throw new ApiError(403, "A client account is required.");
     }
 
-    const body = request.body as ClientProfileBody;
+    const { body } = getValidated(request, clientProfileRequest);
     const input: SaveClientProfileInput = {
       userId: request.auth.userId,
       professionalRole: requireText(body.professionalRole, "Professional role"),
@@ -159,9 +155,10 @@ export const getClientCompletedContractsHandler: RequestHandler = asyncHandler(
       throw new ApiError(403, "A client account is required.");
     }
 
+    const { query } = getValidated(request, clientCompletedContractsRequest);
     const data = await getClientCompletedContracts(request.auth.userId, {
-      limit: Number(request.query.limit),
-      offset: Number(request.query.offset),
+      limit: query.limit,
+      offset: query.offset,
     });
     const responseBody: ApiResponse<typeof data> = {
       success: true,
@@ -203,12 +200,10 @@ export const searchMarketplaceHandler: RequestHandler = asyncHandler(
       throw new ApiError(403, "A client account is required.");
     }
 
-    const query =
-      typeof request.query.query === "string" ? request.query.query : "";
-    const type = (request.query.type ?? "all") as
-      "all" | "freelancer" | "agency";
-    const limit = Number(request.query.limit);
-    const offset = Number(request.query.offset);
+    const { query: input } = getValidated(request, marketplaceSearchRequest);
+    const query = input.query ?? "";
+    const type = input.type ?? "all";
+    const { limit, offset } = input;
 
     const page = await searchMarketplace(query, type, { limit, offset });
     const responseBody: ApiResponse<MarketplaceSearchPage> = {

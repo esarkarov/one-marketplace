@@ -1,7 +1,7 @@
 import { ApiError } from "../../errors/api-error.js";
 
 export const requireText = (
-  value: string | undefined | string[],
+  value: string | string[] | null | undefined,
   fieldName: string,
 ): string => {
   if (typeof value !== "string" || !value.trim()) {
@@ -11,7 +11,7 @@ export const requireText = (
   return value.trim();
 };
 
-export const requireWebsite = (value: string | undefined): string => {
+export const requireWebsite = (value: string | null | undefined): string => {
   const website = requireText(value, "Company website");
 
   try {

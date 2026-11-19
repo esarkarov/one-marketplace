@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { RequestSchemas } from "../../../middleware/types/validate.types.js";
 
 import {
   authRoleShape,
@@ -11,6 +12,7 @@ import {
 import {
   limitParam,
   offsetParam,
+  roleListQuerySchema,
 } from "../../../shared/validation/schemas/pagination.schema.js";
 import { moneyCents } from "../../../shared/money/money.js";
 import { COMMON_LIMITS } from "../../../shared/validation/constants/validation.constants.js";
@@ -187,3 +189,46 @@ export const publicJobFeedQuerySchema = z.strictObject({
   maxBudgetCents: budgetFilter,
   maxProposals: pagingDigits("Max proposals").optional(),
 });
+
+export const createJobRequest = {
+  body: jobBodySchema,
+  query: authRoleShape,
+} satisfies RequestSchemas;
+
+export const clientJobsListRequest = {
+  query: roleListQuerySchema,
+} satisfies RequestSchemas;
+
+export const clientJobRequest = {
+  params: jobIdParamsSchema,
+  query: authRoleShape,
+} satisfies RequestSchemas;
+
+export const editJobRequest = {
+  params: jobIdParamsSchema,
+  body: jobBodySchema,
+  query: authRoleShape,
+} satisfies RequestSchemas;
+
+export const removeJobRequest = {
+  params: jobIdParamsSchema,
+  query: authRoleShape,
+} satisfies RequestSchemas;
+
+export const saveJobRequest = {
+  params: jobIdParamsSchema,
+  query: authRoleShape,
+} satisfies RequestSchemas;
+
+export const unsaveJobRequest = {
+  params: jobIdParamsSchema,
+  query: authRoleShape,
+} satisfies RequestSchemas;
+
+export const savedJobsRequest = {
+  query: roleListQuerySchema,
+} satisfies RequestSchemas;
+
+export const publicJobFeedRequest = {
+  query: publicJobFeedQuerySchema,
+} satisfies RequestSchemas;

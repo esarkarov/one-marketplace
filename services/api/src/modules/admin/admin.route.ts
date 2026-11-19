@@ -15,15 +15,13 @@ import {
 } from "./controllers/admin.controller.js";
 import { validate } from "../../middleware/validate/validate.middleware.js";
 import {
-  adminListQuerySchema,
+  adminListRequest,
+  adminLoginRequest,
   adminLogStreamQuerySchema,
-  adminLoginBodySchema,
+  adminRedisKeyRequest,
+  adminRedisScanRequest,
 } from "./schemas/admin.schema.js";
 import { adminResponses } from "./responses/admin.responses.js";
-import {
-  redisKeyParamsSchema,
-  redisScanQuerySchema,
-} from "./schemas/admin.redis.schema.js";
 import {
   requireAdminSession,
   requireAdminSessionAllowingQueryToken,
@@ -38,11 +36,7 @@ export const adminRouter = Router();
 adminRouter.post(
   "/auth/login",
   adminLoginLimiter,
-  validate({
-    body: adminLoginBodySchema,
-    query: {},
-    responses: adminResponses.login,
-  }),
+  validate({ ...adminLoginRequest, responses: adminResponses.login }),
   loginAdminHandler,
 );
 
@@ -64,50 +58,32 @@ adminRouter.get(
 );
 adminRouter.get(
   "/overview/activity",
-  validate({
-    query: adminListQuerySchema,
-    responses: adminResponses.activity,
-  }),
+  validate({ ...adminListRequest, responses: adminResponses.activity }),
   getOverviewActivityHandler,
 );
 adminRouter.get(
   "/accounts",
-  validate({
-    query: adminListQuerySchema,
-    responses: adminResponses.accounts,
-  }),
+  validate({ ...adminListRequest, responses: adminResponses.accounts }),
   getAccountsHandler,
 );
 adminRouter.get(
   "/job-posts",
-  validate({
-    query: adminListQuerySchema,
-    responses: adminResponses.jobPosts,
-  }),
+  validate({ ...adminListRequest, responses: adminResponses.jobPosts }),
   getJobPostsHandler,
 );
 adminRouter.get(
   "/proposals",
-  validate({
-    query: adminListQuerySchema,
-    responses: adminResponses.proposals,
-  }),
+  validate({ ...adminListRequest, responses: adminResponses.proposals }),
   getProposalsHandler,
 );
 adminRouter.get(
   "/contracts",
-  validate({
-    query: adminListQuerySchema,
-    responses: adminResponses.contracts,
-  }),
+  validate({ ...adminListRequest, responses: adminResponses.contracts }),
   getContractsHandler,
 );
 adminRouter.get(
   "/transactions",
-  validate({
-    query: adminListQuerySchema,
-    responses: adminResponses.transactions,
-  }),
+  validate({ ...adminListRequest, responses: adminResponses.transactions }),
   getTransactionsHandler,
 );
 adminRouter.get(
@@ -117,18 +93,11 @@ adminRouter.get(
 );
 adminRouter.get(
   "/system/redis/keys",
-  validate({
-    query: redisScanQuerySchema,
-    responses: adminResponses.redisKeys,
-  }),
+  validate({ ...adminRedisScanRequest, responses: adminResponses.redisKeys }),
   scanRedisKeysHandler,
 );
 adminRouter.get(
   "/system/redis/keys/:key",
-  validate({
-    params: redisKeyParamsSchema,
-    query: {},
-    responses: adminResponses.redisKey,
-  }),
+  validate({ ...adminRedisKeyRequest, responses: adminResponses.redisKey }),
   getRedisKeyHandler,
 );

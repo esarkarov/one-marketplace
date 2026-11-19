@@ -6,7 +6,7 @@ import {
   startIdentityVerification,
 } from "./controllers/identity.controller.js";
 import { identityResponses } from "./responses/identity.responses.js";
-import { identitySessionQuerySchema } from "./schemas/identity.schema.js";
+import { identitySessionRequest } from "./schemas/identity.schema.js";
 
 export const identityRouter = Router();
 
@@ -14,9 +14,6 @@ identityRouter.post("/webhook", identityWebhook);
 identityRouter.post(
   "/session",
   isAuthenticated,
-  validate({
-    query: identitySessionQuerySchema,
-    responses: identityResponses.session,
-  }),
+  validate({ ...identitySessionRequest, responses: identityResponses.session }),
   startIdentityVerification,
 );

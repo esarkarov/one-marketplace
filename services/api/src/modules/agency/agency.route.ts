@@ -66,19 +66,23 @@ import {
   agencyVerificationResponses,
 } from "./responses/agency.responses.js";
 import { authRoleShape } from "../../shared/validation/schemas/common.schema.js";
-import { roleListQuerySchema } from "../../shared/validation/schemas/pagination.schema.js";
 import {
-  agencyJobFeedQuerySchema,
-  agencyTalentSearchQuerySchema,
-  connectsCheckoutBodySchema,
-  createAgencyBodySchema,
-  inviteMemberBodySchema,
-  invitationParamsSchema,
-  memberParamsSchema,
-  memberRoleBodySchema,
-  publicAgencyParamsSchema,
-  respondInvitationBodySchema,
-  updateAgencyBodySchema,
+  agencyConnectsHistoryRequest,
+  agencyJobFeedRequest,
+  agencySearchRequest,
+  agencyTeamInvitationsRequest,
+  buyAgencyConnectsRequest,
+  cancelAgencyInvitationRequest,
+  createAgencyRequest,
+  inviteAgencyMemberRequest,
+  myAgencyInvitationsRequest,
+  publicAgencyRequest,
+  removeAgencyMemberRequest,
+  resendAgencyInvitationRequest,
+  respondToAgencyInvitationRequest,
+  updateAgencyInvitationRoleRequest,
+  updateAgencyMemberRoleRequest,
+  updateAgencyRequest,
 } from "./schemas/agency.schema.js";
 
 export const agencyRouter = Router();
@@ -88,19 +92,12 @@ const agencyWriteLimiter = contentWriteLimiter("agency-content-write");
 agencyRouter.get(
   "/search",
   publicSearchLimiter,
-  validate({
-    query: agencyTalentSearchQuerySchema,
-    responses: agencySearchResponses,
-  }),
+  validate({ ...agencySearchRequest, responses: agencySearchResponses }),
   searchPublicAgenciesHandler,
 );
 agencyRouter.get(
   "/profile/:id",
-  validate({
-    params: publicAgencyParamsSchema,
-    query: {},
-    responses: agencyPublicProfileResponses,
-  }),
+  validate({ ...publicAgencyRequest, responses: agencyPublicProfileResponses }),
   getPublicAgencyHandler,
 );
 agencyRouter.get(
@@ -124,11 +121,7 @@ agencyRouter.get(
 agencyRouter.post(
   "/",
   isAuthenticated,
-  validate({
-    query: authRoleShape,
-    body: createAgencyBodySchema,
-    responses: agencyCreateResponses,
-  }),
+  validate({ ...createAgencyRequest, responses: agencyCreateResponses }),
   createAgencyHandler,
 );
 agencyRouter.put(
@@ -137,20 +130,13 @@ agencyRouter.put(
   agencyWriteLimiter,
   largeJsonBody,
   resolveAccountRole,
-  validate({
-    query: authRoleShape,
-    body: updateAgencyBodySchema,
-    responses: agencyUpdateResponses,
-  }),
+  validate({ ...updateAgencyRequest, responses: agencyUpdateResponses }),
   updateAgencyHandler,
 );
 agencyRouter.get(
   "/jobs",
   isAuthenticated,
-  validate({
-    query: agencyJobFeedQuerySchema,
-    responses: agencyJobFeedResponses,
-  }),
+  validate({ ...agencyJobFeedRequest, responses: agencyJobFeedResponses }),
   getAgencyJobFeed,
 );
 agencyRouter.get(
@@ -163,7 +149,7 @@ agencyRouter.get(
   "/connects/history",
   isAuthenticated,
   validate({
-    query: roleListQuerySchema,
+    ...agencyConnectsHistoryRequest,
     responses: agencyConnectsHistoryResponses,
   }),
   getAgencyConnectsHistoryHandler,
@@ -172,8 +158,7 @@ agencyRouter.post(
   "/connects/checkout",
   isAuthenticated,
   validate({
-    query: authRoleShape,
-    body: connectsCheckoutBodySchema,
+    ...buyAgencyConnectsRequest,
     responses: agencyConnectsCheckoutResponses,
   }),
   buyAgencyConnects,
@@ -203,7 +188,7 @@ agencyRouter.get(
   "/team/invitations",
   isAuthenticated,
   validate({
-    query: roleListQuerySchema,
+    ...agencyTeamInvitationsRequest,
     responses: agencyTeamInvitationsResponses,
   }),
   getAgencyTeamInvitationsHandler,
@@ -212,11 +197,7 @@ agencyRouter.post(
   "/team/invitations",
   isAuthenticated,
   inviteWriteLimiter,
-  validate({
-    query: authRoleShape,
-    body: inviteMemberBodySchema,
-    responses: agencyInviteResponses,
-  }),
+  validate({ ...inviteAgencyMemberRequest, responses: agencyInviteResponses }),
   inviteAgencyMemberHandler,
 );
 agencyRouter.delete(
@@ -224,8 +205,7 @@ agencyRouter.delete(
   isAuthenticated,
   inviteWriteLimiter,
   validate({
-    params: invitationParamsSchema,
-    query: authRoleShape,
+    ...cancelAgencyInvitationRequest,
     responses: agencyInvitationMutationResponses,
   }),
   cancelAgencyInvitationHandler,
@@ -234,9 +214,7 @@ agencyRouter.patch(
   "/team/invitations/:invitationId",
   isAuthenticated,
   validate({
-    params: invitationParamsSchema,
-    query: authRoleShape,
-    body: memberRoleBodySchema,
+    ...updateAgencyInvitationRoleRequest,
     responses: agencyInvitationMutationResponses,
   }),
   updateAgencyInvitationRoleHandler,
@@ -246,8 +224,7 @@ agencyRouter.post(
   isAuthenticated,
   inviteWriteLimiter,
   validate({
-    params: invitationParamsSchema,
-    query: authRoleShape,
+    ...resendAgencyInvitationRequest,
     responses: agencyResendInvitationResponses,
   }),
   resendAgencyInvitationHandler,
@@ -256,9 +233,7 @@ agencyRouter.patch(
   "/team/members/:memberId",
   isAuthenticated,
   validate({
-    params: memberParamsSchema,
-    query: authRoleShape,
-    body: memberRoleBodySchema,
+    ...updateAgencyMemberRoleRequest,
     responses: agencyMemberMutationResponses,
   }),
   updateAgencyMemberRoleHandler,
@@ -267,8 +242,7 @@ agencyRouter.delete(
   "/team/members/:memberId",
   isAuthenticated,
   validate({
-    params: memberParamsSchema,
-    query: authRoleShape,
+    ...removeAgencyMemberRequest,
     responses: agencyMemberMutationResponses,
   }),
   removeAgencyMemberHandler,
@@ -277,7 +251,7 @@ agencyRouter.get(
   "/invitations/mine",
   isAuthenticated,
   validate({
-    query: roleListQuerySchema,
+    ...myAgencyInvitationsRequest,
     responses: agencyMyInvitationsResponses,
   }),
   getMyAgencyInvitationsHandler,
@@ -286,9 +260,7 @@ agencyRouter.patch(
   "/invitations/:invitationId/respond",
   isAuthenticated,
   validate({
-    params: invitationParamsSchema,
-    query: authRoleShape,
-    body: respondInvitationBodySchema,
+    ...respondToAgencyInvitationRequest,
     responses: agencyRespondResponses,
   }),
   respondToAgencyInvitationHandler,

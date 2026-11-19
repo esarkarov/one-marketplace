@@ -1,6 +1,10 @@
 import { z } from "zod";
-
+import type { RequestSchemas } from "../../../middleware/types/validate.types.js";
 import { paginationQuerySchema } from "../../../shared/validation/schemas/pagination.schema.js";
+import {
+  redisKeyParamsSchema,
+  redisScanQuerySchema,
+} from "./admin.redis.schema.js";
 import { ADMIN_LIMITS } from "../constants/admin.constants.js";
 
 export const adminLoginBodySchema = z.strictObject({
@@ -17,3 +21,21 @@ export const adminLogStreamQuerySchema = z.strictObject({
 });
 
 export const adminListQuerySchema = paginationQuerySchema;
+
+export const adminLoginRequest = {
+  body: adminLoginBodySchema,
+  query: {},
+} satisfies RequestSchemas;
+
+export const adminListRequest = {
+  query: adminListQuerySchema,
+} satisfies RequestSchemas;
+
+export const adminRedisScanRequest = {
+  query: redisScanQuerySchema,
+} satisfies RequestSchemas;
+
+export const adminRedisKeyRequest = {
+  params: redisKeyParamsSchema,
+  query: {},
+} satisfies RequestSchemas;

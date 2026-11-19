@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { RequestSchemas } from "../../../middleware/types/validate.types.js";
 
 import {
   authRoleShape,
@@ -9,7 +10,10 @@ import {
   withIgnoredKeys,
 } from "../../../shared/validation/schemas/common.schema.js";
 import { centsQueryParam } from "../../../shared/validation/schemas/money.schema.js";
-import { paginationShape } from "../../../shared/validation/schemas/pagination.schema.js";
+import {
+  paginationShape,
+  roleListQuerySchema,
+} from "../../../shared/validation/schemas/pagination.schema.js";
 import { searchPagingShape } from "../../../shared/validation/schemas/search.schema.js";
 import { AGENCY_LIMITS, MEMBER_ROLE } from "../constants/agency.constants.js";
 import { COMMON_LIMITS } from "../../../shared/validation/constants/validation.constants.js";
@@ -182,3 +186,81 @@ export const respondInvitationBodySchema = optionalBody(
     accept: z.boolean({ error: "Accept must be true or false." }).optional(),
   }),
 );
+
+export const createAgencyRequest = {
+  query: authRoleShape,
+  body: createAgencyBodySchema,
+} satisfies RequestSchemas;
+
+export const updateAgencyRequest = {
+  query: authRoleShape,
+  body: updateAgencyBodySchema,
+} satisfies RequestSchemas;
+
+export const agencyJobFeedRequest = {
+  query: agencyJobFeedQuerySchema,
+} satisfies RequestSchemas;
+
+export const publicAgencyRequest = {
+  params: publicAgencyParamsSchema,
+  query: {},
+} satisfies RequestSchemas;
+
+export const agencySearchRequest = {
+  query: agencyTalentSearchQuerySchema,
+} satisfies RequestSchemas;
+
+export const agencyConnectsHistoryRequest = {
+  query: roleListQuerySchema,
+} satisfies RequestSchemas;
+
+export const buyAgencyConnectsRequest = {
+  query: authRoleShape,
+  body: connectsCheckoutBodySchema,
+} satisfies RequestSchemas;
+
+export const agencyTeamInvitationsRequest = {
+  query: roleListQuerySchema,
+} satisfies RequestSchemas;
+
+export const inviteAgencyMemberRequest = {
+  query: authRoleShape,
+  body: inviteMemberBodySchema,
+} satisfies RequestSchemas;
+
+export const cancelAgencyInvitationRequest = {
+  params: invitationParamsSchema,
+  query: authRoleShape,
+} satisfies RequestSchemas;
+
+export const updateAgencyInvitationRoleRequest = {
+  params: invitationParamsSchema,
+  query: authRoleShape,
+  body: memberRoleBodySchema,
+} satisfies RequestSchemas;
+
+export const resendAgencyInvitationRequest = {
+  params: invitationParamsSchema,
+  query: authRoleShape,
+} satisfies RequestSchemas;
+
+export const updateAgencyMemberRoleRequest = {
+  params: memberParamsSchema,
+  query: authRoleShape,
+  body: memberRoleBodySchema,
+} satisfies RequestSchemas;
+
+export const removeAgencyMemberRequest = {
+  params: memberParamsSchema,
+  query: authRoleShape,
+} satisfies RequestSchemas;
+
+export const myAgencyInvitationsRequest = {
+  query: roleListQuerySchema,
+} satisfies RequestSchemas;
+
+export const respondToAgencyInvitationRequest = {
+  params: invitationParamsSchema,
+  query: authRoleShape,
+  body: respondInvitationBodySchema,
+} satisfies RequestSchemas;

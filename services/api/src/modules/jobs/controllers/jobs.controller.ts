@@ -2,6 +2,7 @@ import { RequestHandler } from "express";
 import { ApiError } from "../../../shared/errors/api-error.js";
 import { randomUUID } from "crypto";
 import { asyncHandler } from "../../../middleware/utils/async-handler.utils.js";
+import { getValidated } from "../../../middleware/utils/validated-request.utils.js";
 import {
   createJobPost,
   deleteJobPost,
@@ -19,7 +20,19 @@ import {
   requireClient,
   requireFreelancer,
 } from "../../../middleware/auth/role-guards.middleware.js";
-import { MAX_JOB_BUDGET_CENTS, type JobBody } from "../schemas/jobs.schema.js";
+import {
+  MAX_JOB_BUDGET_CENTS,
+  clientJobRequest,
+  clientJobsListRequest,
+  createJobRequest,
+  editJobRequest,
+  publicJobFeedRequest,
+  removeJobRequest,
+  saveJobRequest,
+  savedJobsRequest,
+  type JobBody,
+  unsaveJobRequest,
+} from "../schemas/jobs.schema.js";
 import {
   assertAttachmentFileName,
   validateAttachmentBatch,
@@ -136,7 +149,8 @@ const buildJobData = (body: JobBody, allowStoredAttachments: boolean) => {
 export const createClientJobPost: RequestHandler = asyncHandler(
   async (request, response) => {
     const auth = requireClient(request);
-    const data = buildJobData(request.body as JobBody, false);
+    const { body } = getValidated(request, createJobRequest);
+    const data = buildJobData(body, false);
     const job = await createJobPost(auth.userId, {
       ...data,
       published_at: data.status === "PUBLISHED" ? new Date() : null,
@@ -163,23 +177,24 @@ export const createClientJobPost: RequestHandler = asyncHandler(
 export const getClientJobPosts: RequestHandler = asyncHandler(
   async (request, response) => {
     const auth = requireClient(request);
-    const jobId =
-      typeof request.params.jobId === "string"
-        ? request.params.jobId
-        : undefined;
-    if (!jobId) {
-      const page = await getJobPostsPage(auth.userId, {
-        limit: Number(request.query.limit),
-        offset: Number(request.query.offset),
-      });
-      response.status(200).json({
-        success: true,
-        message: "Job posts retrieved.",
-        data: page,
-      });
-      return;
-    }
+    const { query } = getValidated(request, clientJobsListRequest);
+    const page = await getJobPostsPage(auth.userId, {
+      limit: query.limit,
+      offset: query.offset,
+    });
+    response.status(200).json({
+      success: true,
+      message: "Job posts retrieved.",
+      data: page,
+    });
+  },
+);
 
+export const getClientJobPost: RequestHandler = asyncHandler(
+  async (request, response) => {
+    const auth = requireClient(request);
+    const { params } = getValidated(request, clientJobRequest);
+    const jobId = params.jobId;
     const [job] = await getJobPosts(auth.userId, jobId);
     if (!job) {
       throw new ApiError(404, "Job post not found.", "JOB_NOT_FOUND");
@@ -196,10 +211,11 @@ export const getClientJobPosts: RequestHandler = asyncHandler(
 export const editClientJobPost: RequestHandler = asyncHandler(
   async (request, response) => {
     const auth = requireClient(request);
-    const data = buildJobData(request.body as JobBody, true);
+    const { params, body } = getValidated(request, editJobRequest);
+    const data = buildJobData(body, true);
     const job = await updateJobPost(
       auth.userId,
-      requireText(request.params.jobId, "Job post id"),
+      requireText(params.jobId, "Job post id"),
       data,
     );
     await request.logger.info({
@@ -220,9 +236,10 @@ export const editClientJobPost: RequestHandler = asyncHandler(
 export const removeClientJobPost: RequestHandler = asyncHandler(
   async (request, response) => {
     const auth = requireClient(request);
+    const { params } = getValidated(request, removeJobRequest);
     const job = await deleteJobPost(
       auth.userId,
-      requireText(request.params.jobId, "Job post id"),
+      requireText(params.jobId, "Job post id"),
     );
     await request.logger.info({
       message: "Job post deleted",
@@ -242,9 +259,10 @@ export const removeClientJobPost: RequestHandler = asyncHandler(
 export const saveFreelancerJobPost: RequestHandler = asyncHandler(
   async (request, response) => {
     const auth = requireFreelancer(request);
+    const { params } = getValidated(request, saveJobRequest);
     const savedJob = await saveJobPost(
       auth.userId,
-      requireText(request.params.jobId, "Job post id"),
+      requireText(params.jobId, "Job post id"),
     );
     response.status(201).json({
       success: true,
@@ -257,9 +275,10 @@ export const saveFreelancerJobPost: RequestHandler = asyncHandler(
 export const getFreelancerSavedJobPosts: RequestHandler = asyncHandler(
   async (request, response) => {
     const auth = requireFreelancer(request);
+    const { query } = getValidated(request, savedJobsRequest);
     const jobs = await getSavedJobPosts(auth.userId, {
-      limit: Number(request.query.limit),
-      offset: Number(request.query.offset),
+      limit: query.limit,
+      offset: query.offset,
     });
     response.status(200).json({
       success: true,
@@ -271,30 +290,28 @@ export const getFreelancerSavedJobPosts: RequestHandler = asyncHandler(
 
 export const getPublicJobFeedHandler: RequestHandler = asyncHandler(
   async (request, response) => {
-    const query =
-      typeof request.query.query === "string" ? request.query.query : "";
-    const sort = (request.query.sort ?? "newest") as PublicJobFilters["sort"];
-    const limit = Number(request.query.limit);
-    const offset = Number(request.query.offset);
-    const numberParam = (key: string) => {
-      const value = Number(request.query[key]);
+    const { query: input } = getValidated(request, publicJobFeedRequest);
+    const query = input.query ?? "";
+    const sort = input.sort ?? "newest";
+    const { limit, offset } = input;
+    const numberParam = (raw: unknown) => {
+      const value = Number(raw);
       return Number.isSafeInteger(value) && value > 0 ? value : undefined;
     };
-    const levels =
-      typeof request.query.levels === "string" && request.query.levels
-        ? request.query.levels.split(",").filter(Boolean)
-        : undefined;
+    const levels = input.levels
+      ? input.levels.split(",").filter(Boolean)
+      : undefined;
 
     const filters: PublicJobFilters = {
       query,
       sort,
       levels,
-      paymentVerified: request.query.paymentVerified === "true",
-      minBudgetCents: numberParam("minBudgetCents"),
-      maxBudgetCents: numberParam("maxBudgetCents"),
+      paymentVerified: input.paymentVerified === "true",
+      minBudgetCents: numberParam(input.minBudgetCents),
+      maxBudgetCents: numberParam(input.maxBudgetCents),
       maxProposals:
-        request.query.maxProposals !== undefined
-          ? Number(request.query.maxProposals)
+        input.maxProposals !== undefined
+          ? Number(input.maxProposals)
           : undefined,
     };
 
@@ -312,9 +329,10 @@ export const getPublicJobFeedHandler: RequestHandler = asyncHandler(
 export const unsaveFreelancerJobPost: RequestHandler = asyncHandler(
   async (request, response) => {
     const auth = requireFreelancer(request);
+    const { params } = getValidated(request, unsaveJobRequest);
     await removeSavedJobPost(
       auth.userId,
-      requireText(request.params.jobId, "Job post id"),
+      requireText(params.jobId, "Job post id"),
     );
     response.status(200).json({
       success: true,

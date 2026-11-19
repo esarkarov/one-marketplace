@@ -4,6 +4,18 @@ import {
 } from "../constants/agency.constants.js";
 import { RequestHandler } from "express";
 import { asyncHandler } from "../../../middleware/utils/async-handler.utils.js";
+import { getValidated } from "../../../middleware/utils/validated-request.utils.js";
+import {
+  agencyTeamInvitationsRequest,
+  cancelAgencyInvitationRequest,
+  inviteAgencyMemberRequest,
+  myAgencyInvitationsRequest,
+  removeAgencyMemberRequest,
+  resendAgencyInvitationRequest,
+  respondToAgencyInvitationRequest,
+  updateAgencyInvitationRoleRequest,
+  updateAgencyMemberRoleRequest,
+} from "../schemas/agency.schema.js";
 import { ApiError } from "../../../shared/errors/api-error.js";
 import { isValidEmail } from "../../../shared/validation/utils/email.utils.js";
 import { requireText } from "../../../shared/validation/utils/require-text.utils.js";
@@ -32,10 +44,11 @@ export const getAgencyTeamInvitationsHandler: RequestHandler = asyncHandler(
       auth.userId,
       "team.invitations.view",
     );
+    const { query } = getValidated(request, agencyTeamInvitationsRequest);
     const invitations = agencyId
       ? await getAgencyInvitations(agencyId, {
-          limit: Number(request.query.limit),
-          offset: Number(request.query.offset),
+          limit: query.limit,
+          offset: query.offset,
         })
       : { results: [], hasMore: false };
 
@@ -52,9 +65,10 @@ export const inviteAgencyMemberHandler: RequestHandler = asyncHandler(
     const auth = requireAgencyAuth(request);
     const agency = await requireAgencyOwner(auth.userId);
 
-    const email = requireText(request.body?.email, "Email").toLowerCase();
+    const { body } = getValidated(request, inviteAgencyMemberRequest);
+    const email = requireText(body.email, "Email").toLowerCase();
     const role = toStoredMemberRole(
-      request.body?.memberRole ?? MEMBER_ROLE.AGENCY_MEMBER,
+      body.memberRole ?? MEMBER_ROLE.AGENCY_MEMBER,
     );
     if (!isValidEmail(email)) {
       throw new ApiError(400, "Enter a valid email address.");
@@ -83,9 +97,10 @@ export const cancelAgencyInvitationHandler: RequestHandler = asyncHandler(
     const auth = requireAgencyAuth(request);
     const agency = await requireAgencyOwner(auth.userId);
 
+    const { params } = getValidated(request, cancelAgencyInvitationRequest);
     await cancelAgencyInvitation(
       agency.id,
-      requireText(request.params.invitationId, "Invitation"),
+      requireText(params.invitationId, "Invitation"),
     );
 
     response.status(200).json({
@@ -101,13 +116,17 @@ export const updateAgencyInvitationRoleHandler: RequestHandler = asyncHandler(
     const auth = requireAgencyAuth(request);
     const agency = await requireAgencyOwner(auth.userId);
 
+    const { params, body } = getValidated(
+      request,
+      updateAgencyInvitationRoleRequest,
+    );
     const role = toStoredMemberRole(
-      request.body?.memberRole ?? MEMBER_ROLE.AGENCY_MEMBER,
+      body.memberRole ?? MEMBER_ROLE.AGENCY_MEMBER,
     );
 
     await updateAgencyInvitationRole(
       agency.id,
-      requireText(request.params.invitationId, "Invitation"),
+      requireText(params.invitationId, "Invitation"),
       role,
     );
 
@@ -124,9 +143,10 @@ export const resendAgencyInvitationHandler: RequestHandler = asyncHandler(
     const auth = requireAgencyAuth(request);
     const agency = await requireAgencyOwner(auth.userId);
 
+    const { params } = getValidated(request, resendAgencyInvitationRequest);
     await resendAgencyInvitation(
       agency.id,
-      requireText(request.params.invitationId, "Invitation"),
+      requireText(params.invitationId, "Invitation"),
       agency.name,
     );
 
@@ -143,13 +163,17 @@ export const updateAgencyMemberRoleHandler: RequestHandler = asyncHandler(
     const auth = requireAgencyAuth(request);
     const agency = await requireAgencyOwner(auth.userId);
 
+    const { params, body } = getValidated(
+      request,
+      updateAgencyMemberRoleRequest,
+    );
     const role = toStoredMemberRole(
-      request.body?.memberRole ?? MEMBER_ROLE.AGENCY_MEMBER,
+      body.memberRole ?? MEMBER_ROLE.AGENCY_MEMBER,
     );
 
     await updateAgencyMemberRole(
       agency.id,
-      requireText(request.params.memberId, "Member"),
+      requireText(params.memberId, "Member"),
       role,
     );
 
@@ -166,10 +190,8 @@ export const removeAgencyMemberHandler: RequestHandler = asyncHandler(
     const auth = requireAgencyAuth(request);
     const agency = await requireAgencyOwner(auth.userId);
 
-    await removeAgencyMember(
-      agency.id,
-      requireText(request.params.memberId, "Member"),
-    );
+    const { params } = getValidated(request, removeAgencyMemberRequest);
+    await removeAgencyMember(agency.id, requireText(params.memberId, "Member"));
 
     response.status(200).json({
       success: true,
@@ -182,9 +204,10 @@ export const removeAgencyMemberHandler: RequestHandler = asyncHandler(
 export const getMyAgencyInvitationsHandler: RequestHandler = asyncHandler(
   async (request, response) => {
     const auth = requireAgencyAuth(request);
+    const { query } = getValidated(request, myAgencyInvitationsRequest);
     const invitations = await getMyAgencyInvitations(auth.userId, {
-      limit: Number(request.query.limit),
-      offset: Number(request.query.offset),
+      limit: query.limit,
+      offset: query.offset,
     });
 
     response.status(200).json({
@@ -198,10 +221,14 @@ export const getMyAgencyInvitationsHandler: RequestHandler = asyncHandler(
 export const respondToAgencyInvitationHandler: RequestHandler = asyncHandler(
   async (request, response) => {
     const auth = requireAgencyAuth(request);
-    const accept = request.body?.accept === true;
+    const { params, body } = getValidated(
+      request,
+      respondToAgencyInvitationRequest,
+    );
+    const accept = body.accept === true;
 
     const result = await respondToAgencyInvitation(
-      requireText(request.params.invitationId, "Invitation"),
+      requireText(params.invitationId, "Invitation"),
       auth.userId,
       accept,
     );

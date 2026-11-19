@@ -2,6 +2,8 @@ import { RequestHandler } from "express";
 import { ApiError } from "../../../shared/errors/api-error.js";
 import { ApiResponse } from "../../../types/common.types.js";
 import { asyncHandler } from "../../../middleware/utils/async-handler.utils.js";
+import { getValidated } from "../../../middleware/utils/validated-request.utils.js";
+import { signUpRequest } from "../schemas/auth.schema.js";
 import { receiveSignup } from "../services/auth.service.js";
 import {
   authenticateAccount,
@@ -39,7 +41,7 @@ export const signup: RequestHandler = asyncHandler(
     let auth: Awaited<ReturnType<typeof authenticateAccount>>;
     let accountId: string | null = null;
     const token = getBearerToken(request.headers.authorization);
-    const requestedRole = request.body?.role;
+    const requestedRole = getValidated(request, signUpRequest).body.role;
 
     try {
       auth = await authenticateAccount(token, requestedRole);

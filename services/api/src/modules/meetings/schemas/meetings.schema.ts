@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { RequestSchemas } from "../../../middleware/types/validate.types.js";
 import {
   authRoleShape,
   uuidParam,
@@ -9,3 +10,8 @@ export const createMeetingParamsSchema = z.strictObject({
 });
 
 export const createMeetingQuerySchema = z.strictObject({ ...authRoleShape });
+
+export const createMeetingRequest = {
+  params: createMeetingParamsSchema,
+  query: createMeetingQuerySchema,
+} satisfies RequestSchemas;

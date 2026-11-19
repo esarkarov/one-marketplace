@@ -7,11 +7,10 @@ import {
 import { largeJsonBody } from "../../middleware/json-body/json-body.middleware.js";
 import { contentWriteLimiter } from "../../middleware/rate-limit/user-rate-limit.middleware.js";
 import { validate } from "../../middleware/validate/validate.middleware.js";
-import { authRoleShape } from "../../shared/validation/schemas/common.schema.js";
-import { roleListQuerySchema } from "../../shared/validation/schemas/pagination.schema.js";
 import {
   createClientJobPost,
   editClientJobPost,
+  getClientJobPost,
   getClientJobPosts,
   getFreelancerSavedJobPosts,
   getPublicJobFeedHandler,
@@ -31,9 +30,15 @@ import {
   jobsUpdateResponses,
 } from "./responses/jobs.responses.js";
 import {
-  jobBodySchema,
-  jobIdParamsSchema,
-  publicJobFeedQuerySchema,
+  clientJobRequest,
+  clientJobsListRequest,
+  createJobRequest,
+  editJobRequest,
+  publicJobFeedRequest,
+  removeJobRequest,
+  saveJobRequest,
+  savedJobsRequest,
+  unsaveJobRequest,
 } from "./schemas/jobs.schema.js";
 
 export const jobRouter = Router();
@@ -47,62 +52,43 @@ jobRouter.post(
   createJobLimiter,
   largeJsonBody,
   resolveAccountRole,
-  validate({
-    body: jobBodySchema,
-    query: authRoleShape,
-    responses: jobsCreateResponses,
-  }),
+  validate({ ...createJobRequest, responses: jobsCreateResponses }),
   createClientJobPost,
 );
 jobRouter.get(
   "/",
   isAuthenticated,
-  validate({ query: roleListQuerySchema, responses: jobsListResponses }),
+  validate({ ...clientJobsListRequest, responses: jobsListResponses }),
   getClientJobPosts,
 );
 jobRouter.get(
   "/public",
-  validate({
-    query: publicJobFeedQuerySchema,
-    responses: jobsPublicResponses,
-  }),
+  validate({ ...publicJobFeedRequest, responses: jobsPublicResponses }),
   getPublicJobFeedHandler,
 );
 jobRouter.get(
   "/saved",
   isAuthenticated,
-  validate({ query: roleListQuerySchema, responses: jobsSavedListResponses }),
+  validate({ ...savedJobsRequest, responses: jobsSavedListResponses }),
   getFreelancerSavedJobPosts,
 );
 jobRouter.post(
   "/saved/:jobId",
   isAuthenticated,
-  validate({
-    params: jobIdParamsSchema,
-    query: authRoleShape,
-    responses: jobsSaveResponses,
-  }),
+  validate({ ...saveJobRequest, responses: jobsSaveResponses }),
   saveFreelancerJobPost,
 );
 jobRouter.delete(
   "/saved/:jobId",
   isAuthenticated,
-  validate({
-    params: jobIdParamsSchema,
-    query: authRoleShape,
-    responses: jobsUnsaveResponses,
-  }),
+  validate({ ...unsaveJobRequest, responses: jobsUnsaveResponses }),
   unsaveFreelancerJobPost,
 );
 jobRouter.get(
   "/:jobId",
   isAuthenticated,
-  validate({
-    params: jobIdParamsSchema,
-    query: authRoleShape,
-    responses: jobsGetResponses,
-  }),
-  getClientJobPosts,
+  validate({ ...clientJobRequest, responses: jobsGetResponses }),
+  getClientJobPost,
 );
 jobRouter.put(
   "/:jobId",
@@ -110,21 +96,12 @@ jobRouter.put(
   updateJobLimiter,
   largeJsonBody,
   resolveAccountRole,
-  validate({
-    params: jobIdParamsSchema,
-    body: jobBodySchema,
-    query: authRoleShape,
-    responses: jobsUpdateResponses,
-  }),
+  validate({ ...editJobRequest, responses: jobsUpdateResponses }),
   editClientJobPost,
 );
 jobRouter.delete(
   "/:jobId",
   isAuthenticated,
-  validate({
-    params: jobIdParamsSchema,
-    query: authRoleShape,
-    responses: jobsDeleteResponses,
-  }),
+  validate({ ...removeJobRequest, responses: jobsDeleteResponses }),
   removeClientJobPost,
 );

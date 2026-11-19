@@ -9,10 +9,10 @@ import {
   getLoggedInFreelancerConnectsHistory,
 } from "./controllers/connects.controller.js";
 import {
-  buyConnectsBodySchema,
+  buyConnectsRequest,
+  connectsHistoryRequest,
   roleOnlyQuerySchema,
 } from "./schemas/connects.schema.js";
-import { roleListQuerySchema } from "../../shared/validation/schemas/pagination.schema.js";
 import { connectsResponses } from "./responses/connects.responses.js";
 
 export const connectsRouter = Router();
@@ -29,18 +29,11 @@ connectsRouter.get(
 );
 connectsRouter.get(
   "/history",
-  validate({
-    query: roleListQuerySchema,
-    responses: connectsResponses.history,
-  }),
+  validate({ ...connectsHistoryRequest, responses: connectsResponses.history }),
   getLoggedInFreelancerConnectsHistory,
 );
 connectsRouter.post(
   "/checkout",
-  validate({
-    query: roleOnlyQuerySchema,
-    body: buyConnectsBodySchema,
-    responses: connectsResponses.checkout,
-  }),
+  validate({ ...buyConnectsRequest, responses: connectsResponses.checkout }),
   buyConnects,
 );

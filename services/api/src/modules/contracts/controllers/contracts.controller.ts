@@ -4,6 +4,7 @@ import { verifyStripeWebhook } from "../../../infrastructure/payments/stripe.web
 import { ApiResponse } from "../../../types/common.types.js";
 import { ApiError } from "../../../shared/errors/api-error.js";
 import { asyncHandler } from "../../../middleware/utils/async-handler.utils.js";
+import { getValidated } from "../../../middleware/utils/validated-request.utils.js";
 import {
   requireClient,
   requireFreelancer,
@@ -17,6 +18,19 @@ import {
   createMilestoneFundingCheckout,
   fundContractMilestoneFromPayment,
 } from "../services/contracts.checkout.service.js";
+import {
+  acceptContractRequest,
+  addMilestoneRequest,
+  clientContractsRequest,
+  contractCheckoutRequest,
+  declineContractRequest,
+  finishContractRequest,
+  freelancerContractsRequest,
+  milestoneCheckoutRequest,
+  reviewMilestoneRequest,
+  submitMilestoneRequest,
+  withdrawContractRequest,
+} from "../schemas/contracts.schema.js";
 import { getAccountContracts } from "../services/contracts.listing.service.js";
 import {
   acceptContract,
@@ -35,10 +49,8 @@ import { emitConversationUpdate } from "../../messaging/index.js";
 export const startContractCheckout: RequestHandler = asyncHandler(
   async (request, response) => {
     const auth = requireClient(request);
-    const url = await createContractCheckout(
-      auth.userId,
-      request.body.proposalId as string,
-    );
+    const { body } = getValidated(request, contractCheckoutRequest);
+    const url = await createContractCheckout(auth.userId, body.proposalId);
 
     response.status(200).json({
       success: true,
@@ -51,12 +63,12 @@ export const startContractCheckout: RequestHandler = asyncHandler(
 export const startMilestoneFundingCheckout: RequestHandler = asyncHandler(
   async (request, response) => {
     const auth = requireClient(request);
-    const requirements =
-      (request.body.requirements as string | undefined) ?? "";
+    const { params, body } = getValidated(request, milestoneCheckoutRequest);
+    const requirements = body.requirements ?? "";
     const url = await createMilestoneFundingCheckout(
       auth.userId,
-      request.params.contractId as string,
-      request.params.milestoneId as string,
+      params.contractId,
+      params.milestoneId,
       requirements || undefined,
     );
     response.status(200).json({
@@ -67,19 +79,20 @@ export const startMilestoneFundingCheckout: RequestHandler = asyncHandler(
   },
 );
 
-const pageOf = (request: Parameters<RequestHandler>[0]) => ({
-  limit: Number(request.query.limit),
-  offset: Number(request.query.offset),
+const pageOf = (query: { limit: number; offset: number }) => ({
+  limit: query.limit,
+  offset: query.offset,
 });
 
 export const getClientContracts: RequestHandler = asyncHandler(
   async (request, response) => {
     const auth = requireClient(request);
+    const { query } = getValidated(request, clientContractsRequest);
     const contracts = await getAccountContracts(
       auth.userId,
       "client",
       null,
-      pageOf(request),
+      pageOf(query),
     );
     response.status(200).json({
       success: true,
@@ -92,7 +105,8 @@ export const getClientContracts: RequestHandler = asyncHandler(
 export const getFreelancerContracts: RequestHandler = asyncHandler(
   async (request, response) => {
     const auth = requireFreelancer(request);
-    const scope = request.query.scope === "agency" ? "agency" : "default";
+    const { query } = getValidated(request, freelancerContractsRequest);
+    const scope = query.scope === "agency" ? "agency" : "default";
     const agencyId =
       scope === "agency" ? await getAgencyIdForMember(auth.userId) : null;
     const contracts =
@@ -102,14 +116,14 @@ export const getFreelancerContracts: RequestHandler = asyncHandler(
               auth.userId,
               "agency",
               agencyId,
-              pageOf(request),
+              pageOf(query),
             )
           : { results: [], hasMore: false }
         : await getAccountContracts(
             auth.userId,
             "freelancer",
             null,
-            pageOf(request),
+            pageOf(query),
           );
     response.status(200).json({
       success: true,
@@ -122,7 +136,8 @@ export const getFreelancerContracts: RequestHandler = asyncHandler(
 export const acceptContractOffer: RequestHandler = asyncHandler(
   async (request, response) => {
     const auth = requireFreelancer(request);
-    const scope = request.query.scope === "agency" ? "agency" : "default";
+    const { params, query } = getValidated(request, acceptContractRequest);
+    const scope = query.scope === "agency" ? "agency" : "default";
     const agencyId =
       scope === "agency"
         ? (await requireAgencyPermission(auth.userId, "contract.accept"))
@@ -132,7 +147,7 @@ export const acceptContractOffer: RequestHandler = asyncHandler(
       throw new ApiError(403, "No agency account found.");
     }
     const contract = await acceptContract(
-      request.params.contractId as string,
+      params.contractId,
       auth.userId,
       agencyId,
     );
@@ -181,7 +196,8 @@ export const acceptContractOffer: RequestHandler = asyncHandler(
 export const declineContractOffer: RequestHandler = asyncHandler(
   async (request, response) => {
     const auth = requireFreelancer(request);
-    const scope = request.query.scope === "agency" ? "agency" : "default";
+    const { params, query } = getValidated(request, declineContractRequest);
+    const scope = query.scope === "agency" ? "agency" : "default";
     const agencyId =
       scope === "agency"
         ? (await requireAgencyPermission(auth.userId, "contract.accept"))
@@ -190,10 +206,11 @@ export const declineContractOffer: RequestHandler = asyncHandler(
     if (scope === "agency" && !agencyId) {
       throw new ApiError(403, "No agency account found.");
     }
-    const contract = await cancelPendingContract(
-      request.params.contractId as string,
-      { kind: "talent", freelancerId: auth.userId, agencyId },
-    );
+    const contract = await cancelPendingContract(params.contractId, {
+      kind: "talent",
+      freelancerId: auth.userId,
+      agencyId,
+    });
 
     if (!contract.alreadyCancelled) {
       await emitConversationUpdate(contract.conversationId, auth.userId);
@@ -219,10 +236,11 @@ export const declineContractOffer: RequestHandler = asyncHandler(
 export const withdrawContractOffer: RequestHandler = asyncHandler(
   async (request, response) => {
     const auth = requireClient(request);
-    const contract = await cancelPendingContract(
-      request.params.contractId as string,
-      { kind: "client", clientId: auth.userId },
-    );
+    const { params } = getValidated(request, withdrawContractRequest);
+    const contract = await cancelPendingContract(params.contractId, {
+      kind: "client",
+      clientId: auth.userId,
+    });
 
     if (!contract.alreadyCancelled) {
       await emitConversationUpdate(contract.conversationId, auth.userId);
@@ -255,15 +273,18 @@ export const withdrawContractOffer: RequestHandler = asyncHandler(
 export const submitMilestoneWork: RequestHandler = asyncHandler(
   async (request, response) => {
     const auth = requireFreelancer(request);
-    const scope = request.query.scope === "agency" ? "agency" : "default";
+    const { params, query, body } = getValidated(
+      request,
+      submitMilestoneRequest,
+    );
+    const scope = query.scope === "agency" ? "agency" : "default";
     const agencyId =
       scope === "agency" ? await getAgencyIdForMember(auth.userId) : null;
     if (scope === "agency" && !agencyId) {
       throw new ApiError(403, "No agency account found.");
     }
-    const submissionMessage = request.body.submissionMessage as string;
-    const rawLink =
-      (request.body.submissionDeliveryLink as string | undefined) ?? "";
+    const submissionMessage = body.submissionMessage;
+    const rawLink = body.submissionDeliveryLink ?? "";
     if (rawLink) {
       try {
         const url = new URL(rawLink);
@@ -274,8 +295,8 @@ export const submitMilestoneWork: RequestHandler = asyncHandler(
     }
 
     const milestone = await submitContractMilestone(
-      request.params.contractId as string,
-      request.params.milestoneId as string,
+      params.contractId,
+      params.milestoneId,
       auth.userId,
       submissionMessage,
       rawLink || undefined,
@@ -309,14 +330,15 @@ export const submitMilestoneWork: RequestHandler = asyncHandler(
 export const reviewMilestoneWork: RequestHandler = asyncHandler(
   async (request, response) => {
     const auth = requireClient(request);
-    const action = request.body.action as "APPROVE" | "REQUEST_CHANGES";
-    const feedback = (request.body.feedback as string | undefined) ?? "";
+    const { params, body } = getValidated(request, reviewMilestoneRequest);
+    const action = body.action;
+    const feedback = body.feedback ?? "";
     if (action === "REQUEST_CHANGES" && !feedback) {
       throw new ApiError(400, "Modification message is required.");
     }
     const milestone = await reviewContractMilestone(
-      request.params.contractId as string,
-      request.params.milestoneId as string,
+      params.contractId,
+      params.milestoneId,
       auth.userId,
       action,
       feedback || undefined,
@@ -374,9 +396,10 @@ export const reviewMilestoneWork: RequestHandler = asyncHandler(
 export const createAdditionalMilestone: RequestHandler = asyncHandler(
   async (request, response) => {
     const auth = requireClient(request);
-    const title = request.body.title as string;
-    const amountCents = request.body.amountCents as number;
-    const dueDate = request.body.dueDate as string;
+    const { params, body } = getValidated(request, addMilestoneRequest);
+    const title = body.title;
+    const amountCents = body.amountCents;
+    const dueDate = body.dueDate;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     if (new Date(`${dueDate}T00:00:00`) < today) {
@@ -387,7 +410,7 @@ export const createAdditionalMilestone: RequestHandler = asyncHandler(
     }
 
     const milestone = await addContractMilestone(
-      request.params.contractId as string,
+      params.contractId,
       auth.userId,
       { title, amountCents, dueDate },
     );
@@ -406,13 +429,15 @@ export const finishContract: RequestHandler = asyncHandler(
     if (role !== "client" && role !== "freelancer") {
       throw new ApiError(403, "A marketplace account is required.");
     }
-    const rating = request.body.rating as number;
-    const comment = request.body.comment as string;
+    const { params, query, body } = getValidated(
+      request,
+      finishContractRequest,
+    );
+    const rating = body.rating;
+    const comment = body.comment;
 
     const scope =
-      role === "freelancer" && request.query.scope === "agency"
-        ? "agency"
-        : "default";
+      role === "freelancer" && query.scope === "agency" ? "agency" : "default";
     const agencyId =
       scope === "agency"
         ? (
@@ -427,7 +452,7 @@ export const finishContract: RequestHandler = asyncHandler(
     }
 
     const contract = await finishContractWithReview(
-      request.params.contractId as string,
+      params.contractId,
       request.auth.userId,
       role,
       rating,

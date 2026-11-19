@@ -1,6 +1,7 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { RequestHandler } from "express";
 import { asyncHandler } from "../../../middleware/utils/async-handler.utils.js";
+import { getValidated } from "../../../middleware/utils/validated-request.utils.js";
 import { ApiError } from "../../../shared/errors/api-error.js";
 import { env } from "../../../config/env.js";
 import { signToken } from "../../../middleware/utils/admin-session.utils.js";
@@ -20,13 +21,17 @@ import {
   getSystemHealth,
   scanRedisKeys,
 } from "../services/admin.system.service.js";
+import {
+  adminListRequest,
+  adminLoginRequest,
+  adminRedisKeyRequest,
+  adminRedisScanRequest,
+} from "../schemas/admin.schema.js";
 import { Pagination } from "../types/admin.types.js";
 
-const parsePagination = (
-  request: Parameters<RequestHandler>[0],
-): Pagination => ({
-  limit: Number(request.query.limit),
-  offset: Number(request.query.offset),
+const parsePagination = (query: Pagination): Pagination => ({
+  limit: query.limit,
+  offset: query.offset,
 });
 
 const digest = (value: string) => createHash("sha256").update(value).digest();
@@ -40,8 +45,8 @@ export const loginAdminHandler: RequestHandler = asyncHandler(
       throw new ApiError(503, "Admin authentication is not configured.");
     }
 
-    const password =
-      typeof request.body?.password === "string" ? request.body.password : "";
+    const { body } = getValidated(request, adminLoginRequest);
+    const { password } = body;
 
     if (!passwordsMatch(password, env.adminDashboardPassword)) {
       await request.logger.warn({
@@ -88,7 +93,8 @@ export const getOverviewHandler: RequestHandler = asyncHandler(
 
 export const getOverviewActivityHandler: RequestHandler = asyncHandler(
   async (request, response) => {
-    const data = await getAdminOverviewActivity(parsePagination(request));
+    const { query } = getValidated(request, adminListRequest);
+    const data = await getAdminOverviewActivity(parsePagination(query));
     response.status(200).json({
       success: true,
       message: "Recent activity retrieved.",
@@ -99,7 +105,8 @@ export const getOverviewActivityHandler: RequestHandler = asyncHandler(
 
 export const getAccountsHandler: RequestHandler = asyncHandler(
   async (request, response) => {
-    const data = await getAdminAccounts(parsePagination(request));
+    const { query } = getValidated(request, adminListRequest);
+    const data = await getAdminAccounts(parsePagination(query));
     response
       .status(200)
       .json({ success: true, message: "Accounts retrieved.", data });
@@ -108,7 +115,8 @@ export const getAccountsHandler: RequestHandler = asyncHandler(
 
 export const getJobPostsHandler: RequestHandler = asyncHandler(
   async (request, response) => {
-    const data = await getAdminJobPosts(parsePagination(request));
+    const { query } = getValidated(request, adminListRequest);
+    const data = await getAdminJobPosts(parsePagination(query));
     response
       .status(200)
       .json({ success: true, message: "Job posts retrieved.", data });
@@ -117,7 +125,8 @@ export const getJobPostsHandler: RequestHandler = asyncHandler(
 
 export const getProposalsHandler: RequestHandler = asyncHandler(
   async (request, response) => {
-    const data = await getAdminProposals(parsePagination(request));
+    const { query } = getValidated(request, adminListRequest);
+    const data = await getAdminProposals(parsePagination(query));
     response
       .status(200)
       .json({ success: true, message: "Proposals retrieved.", data });
@@ -126,7 +135,8 @@ export const getProposalsHandler: RequestHandler = asyncHandler(
 
 export const getContractsHandler: RequestHandler = asyncHandler(
   async (request, response) => {
-    const data = await getAdminContracts(parsePagination(request));
+    const { query } = getValidated(request, adminListRequest);
+    const data = await getAdminContracts(parsePagination(query));
     response
       .status(200)
       .json({ success: true, message: "Contracts retrieved.", data });
@@ -135,7 +145,8 @@ export const getContractsHandler: RequestHandler = asyncHandler(
 
 export const getTransactionsHandler: RequestHandler = asyncHandler(
   async (request, response) => {
-    const data = await getAdminTransactions(parsePagination(request));
+    const { query } = getValidated(request, adminListRequest);
+    const data = await getAdminTransactions(parsePagination(query));
     response
       .status(200)
       .json({ success: true, message: "Transactions retrieved.", data });
@@ -153,7 +164,8 @@ export const getSystemHealthHandler: RequestHandler = asyncHandler(
 
 export const scanRedisKeysHandler: RequestHandler = asyncHandler(
   async (request, response) => {
-    const data = await scanRedisKeys(String(request.query.pattern));
+    const { query } = getValidated(request, adminRedisScanRequest);
+    const data = await scanRedisKeys(query.pattern);
     response
       .status(200)
       .json({ success: true, message: "Redis keys scanned.", data });
@@ -162,7 +174,8 @@ export const scanRedisKeysHandler: RequestHandler = asyncHandler(
 
 export const getRedisKeyHandler: RequestHandler = asyncHandler(
   async (request, response) => {
-    const data = await getRedisKeyValue(String(request.params.key));
+    const { params } = getValidated(request, adminRedisKeyRequest);
+    const data = await getRedisKeyValue(params.key);
     response
       .status(200)
       .json({ success: true, message: "Redis key retrieved.", data });

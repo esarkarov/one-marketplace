@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { RequestSchemas } from "../../../middleware/types/validate.types.js";
 import {
   authRoleShape,
   boundedDataUrl,
@@ -96,3 +97,29 @@ export const readConversationBodySchema = z.strictObject({
   ...authRoleShape,
   lastReadMessageId: uuidParam("Last read message"),
 });
+
+export const listConversationsRequest = {
+  query: listConversationsQuerySchema,
+} satisfies RequestSchemas;
+
+export const openConversationRequest = {
+  query: roleOnlyQuerySchema,
+  body: openConversationBodySchema,
+} satisfies RequestSchemas;
+
+export const createMessageRequest = {
+  params: conversationParamsSchema,
+  query: roleOnlyQuerySchema,
+  body: createMessageBodySchema,
+} satisfies RequestSchemas;
+
+export const listMessagesRequest = {
+  params: conversationParamsSchema,
+  query: listMessagesQuerySchema,
+} satisfies RequestSchemas;
+
+export const readConversationRequest = {
+  params: conversationParamsSchema,
+  query: roleOnlyQuerySchema,
+  body: readConversationBodySchema,
+} satisfies RequestSchemas;

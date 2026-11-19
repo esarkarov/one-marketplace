@@ -31,6 +31,7 @@ class FakeResponse extends EventEmitter {
 const open = (scope: string | undefined) => {
   const request = Object.assign(new EventEmitter(), {
     query: scope ? { scope } : {},
+    validated: { query: scope ? { scope } : {} },
     auth: { userId: "user-1" },
   });
   const response = new FakeResponse();

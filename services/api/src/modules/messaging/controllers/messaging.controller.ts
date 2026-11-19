@@ -1,5 +1,13 @@
 import { RequestHandler } from "express";
 import { asyncHandler } from "../../../middleware/utils/async-handler.utils.js";
+import { getValidated } from "../../../middleware/utils/validated-request.utils.js";
+import {
+  createMessageRequest,
+  listConversationsRequest,
+  listMessagesRequest,
+  openConversationRequest,
+  readConversationRequest,
+} from "../schemas/messaging.schema.js";
 import { ApiResponse } from "../../../types/common.types.js";
 import {
   createConversation,
@@ -26,12 +34,13 @@ const requestedScope = (value: unknown): ConversationScope =>
 
 export const listConversations: RequestHandler = asyncHandler(
   async (request, response) => {
+    const { query } = getValidated(request, listConversationsRequest);
     const data = await getConversations(
       request.auth!.userId,
-      requestedScope(request.query.scope),
+      requestedScope(query.scope),
       {
-        limit: Number(request.query.limit),
-        offset: Number(request.query.offset),
+        limit: query.limit,
+        offset: query.offset,
       },
     );
     response.json({
@@ -45,11 +54,8 @@ export const listConversations: RequestHandler = asyncHandler(
 export const openConversation: RequestHandler = asyncHandler(
   async (request, response) => {
     const auth = requireClient(request);
-    const { recipientId, jobId, proposalId } = request.body as {
-      recipientId?: string;
-      jobId?: string | null;
-      proposalId?: string | null;
-    };
+    const { body } = getValidated(request, openConversationRequest);
+    const { recipientId, jobId, proposalId } = body;
     const data = await createConversation(auth.userId, {
       recipientId,
       jobId: jobId || undefined,
@@ -66,12 +72,9 @@ export const openConversation: RequestHandler = asyncHandler(
 
 export const createMessage: RequestHandler = asyncHandler(
   async (request, response) => {
-    const body = (request.body.body as string | undefined) ?? "";
-    const rawAttachments = (request.body.attachments ?? []) as {
-      fileUrl: string;
-      fileName: string;
-      mimeType: string;
-    }[];
+    const { params, body: input } = getValidated(request, createMessageRequest);
+    const body = input.body ?? "";
+    const rawAttachments = input.attachments ?? [];
 
     if (!body && !rawAttachments.length) {
       throw new ApiError(400, "Message or attachment is required.");
@@ -107,13 +110,11 @@ export const createMessage: RequestHandler = asyncHandler(
     );
 
     const data = await sendMessage(
-      request.params.conversationId as string,
+      params.conversationId,
       request.auth!.userId,
       {
         body: body || undefined,
-        replyToMessageId:
-          (request.body.replyToMessageId as string | null | undefined) ||
-          undefined,
+        replyToMessageId: input.replyToMessageId || undefined,
         attachments,
       },
     );
@@ -128,13 +129,12 @@ export const createMessage: RequestHandler = asyncHandler(
 
 export const listMessages: RequestHandler = asyncHandler(
   async (request, response) => {
+    const { params, query } = getValidated(request, listMessagesRequest);
     const data = await getMessages(
-      request.params.conversationId as string,
+      params.conversationId,
       request.auth!.userId,
-      typeof request.query.cursor === "string"
-        ? request.query.cursor
-        : undefined,
-      Number(request.query.limit),
+      query.cursor,
+      query.limit,
     );
 
     response.json({
@@ -147,10 +147,11 @@ export const listMessages: RequestHandler = asyncHandler(
 
 export const readConversation: RequestHandler = asyncHandler(
   async (request, response) => {
+    const { params, body } = getValidated(request, readConversationRequest);
     const data = await markConversationRead(
-      request.params.conversationId as string,
+      params.conversationId,
       request.auth!.userId,
-      request.body.lastReadMessageId as string,
+      body.lastReadMessageId,
     );
 
     response.json({

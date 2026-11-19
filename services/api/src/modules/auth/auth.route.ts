@@ -2,10 +2,7 @@ import { Router } from "express";
 import { identifyAccount } from "./middleware/auth.middleware.js";
 import { signUpLimiter } from "../../middleware/rate-limit/rate-limit.middleware.js";
 import { validate } from "../../middleware/validate/validate.middleware.js";
-import {
-  authStatusQuerySchema,
-  signUpBodySchema,
-} from "./schemas/auth.schema.js";
+import { authStatusQuerySchema, signUpRequest } from "./schemas/auth.schema.js";
 import {
   authStatusResponses,
   signUpResponses,
@@ -16,11 +13,7 @@ export const authRouter = Router();
 authRouter.post(
   "/sign-up",
   signUpLimiter,
-  validate({
-    body: signUpBodySchema,
-    query: {},
-    responses: signUpResponses,
-  }),
+  validate({ ...signUpRequest, responses: signUpResponses }),
   signup,
 );
 authRouter.get(

@@ -1,11 +1,15 @@
 import { z } from "zod";
+import type { RequestSchemas } from "../../../middleware/types/validate.types.js";
 import { moneyCents } from "../../../shared/money/money.js";
 import {
   authRoleShape,
   boundedText,
   uuidParam,
 } from "../../../shared/validation/schemas/common.schema.js";
-import { paginationShape } from "../../../shared/validation/schemas/pagination.schema.js";
+import {
+  paginationShape,
+  roleListQuerySchema,
+} from "../../../shared/validation/schemas/pagination.schema.js";
 import { PROPOSAL_LIMITS } from "../constants/proposals.constants.js";
 
 const MAX_BID_CENTS = 100_000_000;
@@ -72,3 +76,41 @@ export const interviewProposalBodySchema = z.strictObject({
       error: `Interview message cannot exceed ${PROPOSAL_LIMITS.interviewMessageMax.toLocaleString("en-US")} characters.`,
     }),
 });
+
+export const createProposalRequest = {
+  query: roleOnlyQuerySchema,
+  body: submitProposalBodySchema,
+} satisfies RequestSchemas;
+
+export const proposalMetadataRequest = {
+  query: roleListQuerySchema,
+} satisfies RequestSchemas;
+
+export const listProposalsRequest = {
+  query: listProposalsQuerySchema,
+} satisfies RequestSchemas;
+
+export const updateProposalStatusRequest = {
+  params: proposalIdParamsSchema,
+  query: roleOnlyQuerySchema,
+  body: updateProposalStatusBodySchema,
+} satisfies RequestSchemas;
+
+export const interviewProposalRequest = {
+  params: proposalIdParamsSchema,
+  query: roleOnlyQuerySchema,
+  body: interviewProposalBodySchema,
+} satisfies RequestSchemas;
+
+export const submitAgencyProposalRequest = {
+  query: authRoleShape,
+  body: submitProposalBodySchema,
+} satisfies RequestSchemas;
+
+export const agencyProposalMetadataRequest = {
+  query: roleListQuerySchema,
+} satisfies RequestSchemas;
+
+export const agencyProposalsRequest = {
+  query: roleListQuerySchema,
+} satisfies RequestSchemas;

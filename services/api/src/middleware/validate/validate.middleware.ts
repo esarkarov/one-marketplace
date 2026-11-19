@@ -76,6 +76,8 @@ export const validate = (input: ValidationInput): RequestHandler => {
       }
       if (schemas.body) request.body = parsed.body;
 
+      request.validated = { ...request.validated, ...parsed };
+
       next();
     } catch (error) {
       next(error);

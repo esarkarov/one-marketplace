@@ -16,19 +16,18 @@ import {
   finishContract,
 } from "./controllers/contracts.controller.js";
 import {
-  addMilestoneBodySchema,
-  contractCheckoutBodySchema,
-  contractIdParamsSchema,
-  finishContractBodySchema,
-  milestoneCheckoutBodySchema,
-  milestoneParamsSchema,
-  reviewMilestoneBodySchema,
-  roleOnlyQuerySchema,
-  scopeQuerySchema,
-  freelancerContractsQuerySchema,
-  submitMilestoneBodySchema,
+  acceptContractRequest,
+  addMilestoneRequest,
+  clientContractsRequest,
+  contractCheckoutRequest,
+  declineContractRequest,
+  finishContractRequest,
+  freelancerContractsRequest,
+  milestoneCheckoutRequest,
+  reviewMilestoneRequest,
+  submitMilestoneRequest,
+  withdrawContractRequest,
 } from "./schemas/contracts.schema.js";
-import { roleListQuerySchema } from "../../shared/validation/schemas/pagination.schema.js";
 import { contractsResponses } from "./responses/contracts.responses.js";
 
 export const contractsRouter = Router();
@@ -37,17 +36,14 @@ contractsRouter.post("/webhook", contractWebhook);
 contractsRouter.get(
   "/client",
   isAuthenticated,
-  validate({
-    query: roleListQuerySchema,
-    responses: contractsResponses.client,
-  }),
+  validate({ ...clientContractsRequest, responses: contractsResponses.client }),
   getClientContracts,
 );
 contractsRouter.get(
   "/freelancer",
   isAuthenticated,
   validate({
-    query: freelancerContractsQuerySchema,
+    ...freelancerContractsRequest,
     responses: contractsResponses.freelancer,
   }),
   getFreelancerContracts,
@@ -55,19 +51,14 @@ contractsRouter.get(
 contractsRouter.patch(
   "/:contractId/accept",
   isAuthenticated,
-  validate({
-    params: contractIdParamsSchema,
-    query: scopeQuerySchema,
-    responses: contractsResponses.accept,
-  }),
+  validate({ ...acceptContractRequest, responses: contractsResponses.accept }),
   acceptContractOffer,
 );
 contractsRouter.patch(
   "/:contractId/decline",
   isAuthenticated,
   validate({
-    params: contractIdParamsSchema,
-    query: scopeQuerySchema,
+    ...declineContractRequest,
     responses: contractsResponses.decline,
   }),
   declineContractOffer,
@@ -76,8 +67,7 @@ contractsRouter.patch(
   "/:contractId/withdraw",
   isAuthenticated,
   validate({
-    params: contractIdParamsSchema,
-    query: roleOnlyQuerySchema,
+    ...withdrawContractRequest,
     responses: contractsResponses.withdraw,
   }),
   withdrawContractOffer,
@@ -85,31 +75,20 @@ contractsRouter.patch(
 contractsRouter.patch(
   "/:contractId/milestones/:milestoneId/submit",
   isAuthenticated,
-  validate({
-    params: milestoneParamsSchema,
-    query: scopeQuerySchema,
-    body: submitMilestoneBodySchema,
-    responses: contractsResponses.submit,
-  }),
+  validate({ ...submitMilestoneRequest, responses: contractsResponses.submit }),
   submitMilestoneWork,
 );
 contractsRouter.patch(
   "/:contractId/milestones/:milestoneId/review",
   isAuthenticated,
-  validate({
-    params: milestoneParamsSchema,
-    query: roleOnlyQuerySchema,
-    body: reviewMilestoneBodySchema,
-    responses: contractsResponses.review,
-  }),
+  validate({ ...reviewMilestoneRequest, responses: contractsResponses.review }),
   reviewMilestoneWork,
 );
 contractsRouter.post(
   "/checkout",
   isAuthenticated,
   validate({
-    query: roleOnlyQuerySchema,
-    body: contractCheckoutBodySchema,
+    ...contractCheckoutRequest,
     responses: contractsResponses.checkout,
   }),
   startContractCheckout,
@@ -118,9 +97,7 @@ contractsRouter.post(
   "/:contractId/milestones/:milestoneId/checkout",
   isAuthenticated,
   validate({
-    params: milestoneParamsSchema,
-    query: roleOnlyQuerySchema,
-    body: milestoneCheckoutBodySchema,
+    ...milestoneCheckoutRequest,
     responses: contractsResponses.milestoneCheckout,
   }),
   startMilestoneFundingCheckout,
@@ -129,9 +106,7 @@ contractsRouter.post(
   "/:contractId/milestones",
   isAuthenticated,
   validate({
-    params: contractIdParamsSchema,
-    query: roleOnlyQuerySchema,
-    body: addMilestoneBodySchema,
+    ...addMilestoneRequest,
     responses: contractsResponses.addMilestone,
   }),
   createAdditionalMilestone,
@@ -139,11 +114,6 @@ contractsRouter.post(
 contractsRouter.post(
   "/:contractId/finish",
   isAuthenticated,
-  validate({
-    params: contractIdParamsSchema,
-    query: scopeQuerySchema,
-    body: finishContractBodySchema,
-    responses: contractsResponses.finish,
-  }),
+  validate({ ...finishContractRequest, responses: contractsResponses.finish }),
   finishContract,
 );

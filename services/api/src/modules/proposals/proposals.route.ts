@@ -1,9 +1,16 @@
 import { Router } from "express";
 import { validate } from "../../middleware/validate/validate.middleware.js";
 import { isAuthenticated } from "../auth/index.js";
-import { authRoleShape } from "../../shared/validation/schemas/common.schema.js";
-import { roleListQuerySchema } from "../../shared/validation/schemas/pagination.schema.js";
-import { submitProposalBodySchema } from "./schemas/proposals.schema.js";
+import {
+  agencyProposalMetadataRequest,
+  agencyProposalsRequest,
+  createProposalRequest,
+  interviewProposalRequest,
+  listProposalsRequest,
+  proposalMetadataRequest,
+  submitAgencyProposalRequest,
+  updateProposalStatusRequest,
+} from "./schemas/proposals.schema.js";
 import {
   agencyProposalMetadataResponses,
   agencyProposalsResponses,
@@ -26,30 +33,20 @@ import {
   proposalsMetadataResponses,
   proposalsStatusResponses,
 } from "./responses/proposals.responses.js";
-import {
-  interviewProposalBodySchema,
-  listProposalsQuerySchema,
-  proposalIdParamsSchema,
-  roleOnlyQuerySchema,
-  updateProposalStatusBodySchema,
-} from "./schemas/proposals.schema.js";
 
 export const proposalRouter = Router();
 
 proposalRouter.get(
   "/",
   isAuthenticated,
-  validate({
-    query: listProposalsQuerySchema,
-    responses: proposalsListResponses,
-  }),
+  validate({ ...listProposalsRequest, responses: proposalsListResponses }),
   getProposals,
 );
 proposalRouter.get(
   "/metadata",
   isAuthenticated,
   validate({
-    query: roleListQuerySchema,
+    ...proposalMetadataRequest,
     responses: proposalsMetadataResponses,
   }),
   getProposalMetadata,
@@ -57,20 +54,14 @@ proposalRouter.get(
 proposalRouter.post(
   "/",
   isAuthenticated,
-  validate({
-    query: roleOnlyQuerySchema,
-    body: submitProposalBodySchema,
-    responses: proposalsCreateResponses,
-  }),
+  validate({ ...createProposalRequest, responses: proposalsCreateResponses }),
   createProposal,
 );
 proposalRouter.patch(
   "/:proposalId/status",
   isAuthenticated,
   validate({
-    params: proposalIdParamsSchema,
-    query: roleOnlyQuerySchema,
-    body: updateProposalStatusBodySchema,
+    ...updateProposalStatusRequest,
     responses: proposalsStatusResponses,
   }),
   updateProposalStatus,
@@ -79,9 +70,7 @@ proposalRouter.post(
   "/:proposalId/interview",
   isAuthenticated,
   validate({
-    params: proposalIdParamsSchema,
-    query: roleOnlyQuerySchema,
-    body: interviewProposalBodySchema,
+    ...interviewProposalRequest,
     responses: proposalsInterviewResponses,
   }),
   interviewProposal,
@@ -92,15 +81,14 @@ export const agencyProposalsRouter = Router();
 agencyProposalsRouter.get(
   "/proposals",
   isAuthenticated,
-  validate({ query: roleListQuerySchema, responses: agencyProposalsResponses }),
+  validate({ ...agencyProposalsRequest, responses: agencyProposalsResponses }),
   getAgencyProposalsHandler,
 );
 agencyProposalsRouter.post(
   "/proposals",
   isAuthenticated,
   validate({
-    query: authRoleShape,
-    body: submitProposalBodySchema,
+    ...submitAgencyProposalRequest,
     responses: agencySubmitProposalResponses,
   }),
   submitAgencyProposalHandler,
@@ -109,7 +97,7 @@ agencyProposalsRouter.get(
   "/proposals/metadata",
   isAuthenticated,
   validate({
-    query: roleListQuerySchema,
+    ...agencyProposalMetadataRequest,
     responses: agencyProposalMetadataResponses,
   }),
   getAgencyProposalMetadataHandler,

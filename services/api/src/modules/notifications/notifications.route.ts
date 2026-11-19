@@ -8,10 +8,10 @@ import {
   notificationStream,
 } from "./controllers/notifications.controller.js";
 import {
-  listNotificationsQuerySchema,
-  notificationIdParamsSchema,
-  roleOnlyQuerySchema,
-  scopeQuerySchema,
+  listNotificationsRequest,
+  markAllNotificationsReadRequest,
+  markNotificationReadRequest,
+  notificationStreamRequest,
 } from "./schemas/notifications.schema.js";
 import { notificationsResponses } from "./responses/notifications.responses.js";
 
@@ -21,7 +21,7 @@ notificationRouter.use(isAuthenticated);
 notificationRouter.get(
   "/",
   validate({
-    query: listNotificationsQuerySchema,
+    ...listNotificationsRequest,
     responses: notificationsResponses.list,
   }),
   listNotifications,
@@ -29,7 +29,7 @@ notificationRouter.get(
 notificationRouter.patch(
   "/read-all",
   validate({
-    query: scopeQuerySchema,
+    ...markAllNotificationsReadRequest,
     responses: notificationsResponses.readAll,
   }),
   markAllNotificationsRead,
@@ -37,14 +37,13 @@ notificationRouter.patch(
 notificationRouter.patch(
   "/:notificationId/read",
   validate({
-    params: notificationIdParamsSchema,
-    query: roleOnlyQuerySchema,
+    ...markNotificationReadRequest,
     responses: notificationsResponses.read,
   }),
   markNotificationRead,
 );
 notificationRouter.get(
   "/stream",
-  validate({ query: scopeQuerySchema }),
+  validate({ ...notificationStreamRequest }),
   notificationStream,
 );

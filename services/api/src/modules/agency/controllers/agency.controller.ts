@@ -1,5 +1,13 @@
 import { RequestHandler } from "express";
 import { asyncHandler } from "../../../middleware/utils/async-handler.utils.js";
+import { getValidated } from "../../../middleware/utils/validated-request.utils.js";
+import {
+  agencyJobFeedRequest,
+  agencySearchRequest,
+  createAgencyRequest,
+  publicAgencyRequest,
+  updateAgencyRequest,
+} from "../schemas/agency.schema.js";
 import { ApiError } from "../../../shared/errors/api-error.js";
 import { ApiResponse } from "../../../types/common.types.js";
 import { requireText } from "../../../shared/validation/utils/require-text.utils.js";
@@ -23,7 +31,7 @@ import {
 import { getMatchedJobPostsBySkills } from "../../freelancer/index.js";
 
 const requireAgencyWebsite = (
-  value: string | undefined,
+  value: string | null | undefined,
 ): string | undefined => {
   if (!value || !value.trim()) return undefined;
 
@@ -116,14 +124,6 @@ export const getLoggedInAgency: RequestHandler = asyncHandler(
   },
 );
 
-interface CreateAgencyBody {
-  name?: string;
-  size?: string;
-  specialty?: string;
-  website?: string;
-  overview?: string;
-}
-
 export const createAgencyHandler: RequestHandler = asyncHandler(
   async (request, response) => {
     if (!request.auth) {
@@ -134,8 +134,7 @@ export const createAgencyHandler: RequestHandler = asyncHandler(
       throw new ApiError(403, "A freelancer account is required.");
     }
 
-    const body = request.body as CreateAgencyBody;
-
+    const { body } = getValidated(request, createAgencyRequest);
     const agency = await createAgency({
       ownerId: request.auth.userId,
       name: requireText(body.name, "Agency name"),
@@ -155,18 +154,6 @@ export const createAgencyHandler: RequestHandler = asyncHandler(
   },
 );
 
-interface UpdateAgencyBody {
-  name?: string;
-  professionalTitle?: string;
-  size?: string;
-  specialty?: string;
-  website?: string;
-  overview?: string;
-  tags?: unknown;
-  avatarImage?: unknown;
-  portfolio?: unknown;
-}
-
 export const updateAgencyHandler: RequestHandler = asyncHandler(
   async (request, response) => {
     if (!request.auth) {
@@ -177,8 +164,7 @@ export const updateAgencyHandler: RequestHandler = asyncHandler(
       throw new ApiError(403, "A freelancer account is required.");
     }
 
-    const body = request.body as UpdateAgencyBody;
-
+    const { body } = getValidated(request, updateAgencyRequest);
     const agency = await updateAgencyProfile({
       ownerId: request.auth.userId,
       name: requireText(body.name, "Agency name"),
@@ -229,23 +215,24 @@ export const getAgencyJobFeed: RequestHandler = asyncHandler(
         : undefined;
     };
 
+    const { query } = getValidated(request, agencyJobFeedRequest);
     const filters = {
-      sort: request.query.filter === "recent" ? "recent" : "best-match",
-      levels: list(request.query.levels),
-      durations: list(request.query.durations),
-      minBudgetCents: number(request.query.minBudgetCents),
-      maxBudgetCents: number(request.query.maxBudgetCents),
-      minProposals: number(request.query.minProposals),
-      maxProposals: number(request.query.maxProposals),
-      paymentVerified: request.query.paymentVerified === "true",
+      sort: query.filter === "recent" ? "recent" : "best-match",
+      levels: list(query.levels),
+      durations: list(query.durations),
+      minBudgetCents: number(query.minBudgetCents),
+      maxBudgetCents: number(query.maxBudgetCents),
+      minProposals: number(query.minProposals),
+      maxProposals: number(query.maxProposals),
+      paymentVerified: query.paymentVerified === "true",
     } as const;
 
     const jobs = await getMatchedJobPostsBySkills(
       tags,
       filters,
       {
-        limit: Number(request.query.limit),
-        offset: Number(request.query.offset),
+        limit: query.limit,
+        offset: query.offset,
       },
       "agency_get_jobs",
     );
@@ -263,8 +250,9 @@ export const getAgencyJobFeed: RequestHandler = asyncHandler(
 
 export const getPublicAgencyHandler: RequestHandler = asyncHandler(
   async (request, response) => {
+    const { params } = getValidated(request, publicAgencyRequest);
     const profile = await getPublicAgencyProfile(
-      requireText(request.params.id, "Agency"),
+      requireText(params.id, "Agency"),
     );
     if (!profile) throw new ApiError(404, "Agency profile not found.");
 
@@ -280,27 +268,21 @@ export const getPublicAgencyHandler: RequestHandler = asyncHandler(
 
 export const searchPublicAgenciesHandler: RequestHandler = asyncHandler(
   async (request, response) => {
-    const query =
-      typeof request.query.query === "string" ? request.query.query : "";
-    const sort = (request.query.sort ??
-      "recommended") as PublicAgencyFilters["sort"];
-    const limit = Number(request.query.limit);
-    const offset = Number(request.query.offset);
-    const sizes =
-      typeof request.query.sizes === "string" && request.query.sizes
-        ? request.query.sizes.split(",").filter(Boolean)
-        : undefined;
-    const maxRateCents = Number(request.query.maxRateCents);
+    const { query: input } = getValidated(request, agencySearchRequest);
+    const query = input.query ?? "";
+    const sort = input.sort ?? "recommended";
+    const { limit, offset } = input;
+    const sizes = input.sizes
+      ? input.sizes.split(",").filter(Boolean)
+      : undefined;
+    const maxRateCents = Number(input.maxRateCents);
 
     const filters: PublicAgencyFilters = {
       query,
       sort,
       sizes,
-      specialty:
-        typeof request.query.specialty === "string" && request.query.specialty
-          ? request.query.specialty
-          : undefined,
-      verifiedOnly: request.query.verifiedOnly === "true",
+      specialty: input.specialty ? input.specialty : undefined,
+      verifiedOnly: input.verifiedOnly === "true",
       maxRateCents:
         Number.isSafeInteger(maxRateCents) && maxRateCents > 0
           ? maxRateCents

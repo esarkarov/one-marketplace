@@ -1,6 +1,8 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import type { Request, RequestHandler } from "express";
 import { asyncHandler } from "../../../middleware/utils/async-handler.utils.js";
+import { getValidated } from "../../../middleware/utils/validated-request.utils.js";
+import { createMeetingRequest } from "../schemas/meetings.schema.js";
 import { ApiError } from "../../../shared/errors/api-error.js";
 import { ApiResponse } from "../../../types/common.types.js";
 import { env } from "../../../config/env.js";
@@ -15,7 +17,8 @@ export const createMeetingHandler: RequestHandler = asyncHandler(
   async (request, response) => {
     if (!request.auth) throw new ApiError(401, "Authentication is required.");
 
-    const conversationId = request.params.conversationId;
+    const { params } = getValidated(request, createMeetingRequest);
+    const conversationId = params.conversationId;
     if (typeof conversationId !== "string" || !conversationId) {
       throw new ApiError(400, "Conversation id is required.");
     }

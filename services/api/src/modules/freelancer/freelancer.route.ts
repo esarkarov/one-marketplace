@@ -35,10 +35,11 @@ import {
   freelancerSearchResponses,
 } from "./responses/freelancer.responses.js";
 import {
-  idParamsSchema,
-  jobFeedQuerySchema,
-  talentSearchQuerySchema,
-  upsertProfileBodySchema,
+  freelancerJobDetailsRequest,
+  jobFeedRequest,
+  publicFreelancerRequest,
+  talentSearchRequest,
+  upsertProfileRequest,
 } from "./schemas/freelancer.schema.js";
 
 export const freelancerRouter = Router();
@@ -54,17 +55,13 @@ freelancerRouter.get(
 freelancerRouter.get(
   "/search",
   publicSearchLimiter,
-  validate({
-    query: talentSearchQuerySchema,
-    responses: freelancerSearchResponses,
-  }),
+  validate({ ...talentSearchRequest, responses: freelancerSearchResponses }),
   searchPublicFreelancersHandler,
 );
 freelancerRouter.get(
   "/profile/:id",
   validate({
-    params: idParamsSchema,
-    query: {},
+    ...publicFreelancerRequest,
     responses: freelancerPublicProfileResponses,
   }),
   getPublicFreelancer,
@@ -76,8 +73,7 @@ freelancerRouter.put(
   largeJsonBody,
   resolveAccountRole,
   validate({
-    body: upsertProfileBodySchema,
-    query: authRoleShape,
+    ...upsertProfileRequest,
     responses: freelancerProfilePutResponses,
   }),
   upsertFreelanceProfile,
@@ -121,18 +117,14 @@ freelancerRouter.get(
 freelancerRouter.get(
   "/jobs",
   isAuthenticated,
-  validate({
-    query: jobFeedQuerySchema,
-    responses: freelancerJobFeedResponses,
-  }),
+  validate({ ...jobFeedRequest, responses: freelancerJobFeedResponses }),
   getFreelancerJobFeed,
 );
 freelancerRouter.get(
   "/jobs/:id",
   isAuthenticated,
   validate({
-    params: idParamsSchema,
-    query: authRoleShape,
+    ...freelancerJobDetailsRequest,
     responses: freelancerJobDetailResponses,
   }),
   getFreelancerJobDetails,

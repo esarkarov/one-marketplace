@@ -3,6 +3,8 @@ import { env } from "../../../config/env.js";
 import { verifyStripeWebhook } from "../../../infrastructure/payments/stripe.webhook.js";
 import { ApiError } from "../../../shared/errors/api-error.js";
 import { asyncHandler } from "../../../middleware/utils/async-handler.utils.js";
+import { getValidated } from "../../../middleware/utils/validated-request.utils.js";
+import { identitySessionRequest } from "../schemas/identity.schema.js";
 import {
   completeIdentityVerification,
   createIdentitySession,
@@ -12,10 +14,11 @@ export const startIdentityVerification: RequestHandler = asyncHandler(
   async (request, response) => {
     if (!request.auth) throw new ApiError(401, "Authentication is required.");
 
+    const { query } = getValidated(request, identitySessionRequest);
     const url = await createIdentitySession(
       request.auth.userId,
       request.auth.role,
-      request.query.context === "agency" ? "agency" : undefined,
+      query.context === "agency" ? "agency" : undefined,
     );
     response.status(200).json({
       success: true,

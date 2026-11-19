@@ -6,10 +6,7 @@ import {
   dailyWebhookHandler,
 } from "./controllers/meetings.controller.js";
 import { meetingsResponses } from "./responses/meetings.responses.js";
-import {
-  createMeetingParamsSchema,
-  createMeetingQuerySchema,
-} from "./schemas/meetings.schema.js";
+import { createMeetingRequest } from "./schemas/meetings.schema.js";
 
 export const meetingsRouter = Router();
 
@@ -20,10 +17,6 @@ export const conversationMeetingsRouter = Router();
 conversationMeetingsRouter.post(
   "/:conversationId/meetings",
   isAuthenticated,
-  validate({
-    params: createMeetingParamsSchema,
-    query: createMeetingQuerySchema,
-    responses: meetingsResponses.create,
-  }),
+  validate({ ...createMeetingRequest, responses: meetingsResponses.create }),
   createMeetingHandler,
 );

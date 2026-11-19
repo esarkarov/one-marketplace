@@ -1,5 +1,10 @@
 import { RequestHandler } from "express";
 import { asyncHandler } from "../../../middleware/utils/async-handler.utils.js";
+import { getValidated } from "../../../middleware/utils/validated-request.utils.js";
+import {
+  agencyConnectsHistoryRequest,
+  buyAgencyConnectsRequest,
+} from "../schemas/agency.schema.js";
 import { ApiError } from "../../../shared/errors/api-error.js";
 import { ApiResponse } from "../../../types/common.types.js";
 import {
@@ -54,10 +59,11 @@ export const getAgencyConnectsHistoryHandler: RequestHandler = asyncHandler(
     }
 
     const agencyId = await getAgencyIdForMember(request.auth.userId);
+    const { query } = getValidated(request, agencyConnectsHistoryRequest);
     const history = agencyId
       ? await getAgencyConnectsHistory(agencyId, {
-          limit: Number(request.query.limit),
-          offset: Number(request.query.offset),
+          limit: query.limit,
+          offset: query.offset,
         })
       : { results: [], hasMore: false };
 
@@ -92,7 +98,11 @@ export const buyAgencyConnects: RequestHandler = asyncHandler(
       );
     }
 
-    const purchasedConnects = request.body?.connects;
+    const { body: requestBody } = getValidated(
+      request,
+      buyAgencyConnectsRequest,
+    );
+    const purchasedConnects = requestBody.connects;
     if (!isConnectsPlan(purchasedConnects)) {
       throw new ApiError(400, "Select a valid Connects package.");
     }

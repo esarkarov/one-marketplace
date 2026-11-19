@@ -2,10 +2,10 @@ import { Router } from "express";
 import { isAuthenticated } from "../auth/index.js";
 import { validate } from "../../middleware/validate/validate.middleware.js";
 import { authRoleShape } from "../../shared/validation/schemas/common.schema.js";
-import { roleListQuerySchema } from "../../shared/validation/schemas/pagination.schema.js";
 import {
-  clientProfileBodySchema,
-  marketplaceSearchQuerySchema,
+  clientCompletedContractsRequest,
+  clientProfileRequest,
+  marketplaceSearchRequest,
 } from "./schemas/client.schema.js";
 import {
   clientCompletedContractsResponses,
@@ -37,11 +37,7 @@ clientRouter.get(
 clientRouter.put(
   "/profile",
   isAuthenticated,
-  validate({
-    query: authRoleShape,
-    body: clientProfileBodySchema,
-    responses: clientProfilePutResponses,
-  }),
+  validate({ ...clientProfileRequest, responses: clientProfilePutResponses }),
   upsertClientProfile,
 );
 clientRouter.get(
@@ -54,7 +50,7 @@ clientRouter.get(
   "/completed-contracts",
   isAuthenticated,
   validate({
-    query: roleListQuerySchema,
+    ...clientCompletedContractsRequest,
     responses: clientCompletedContractsResponses,
   }),
   getClientCompletedContractsHandler,
@@ -78,7 +74,7 @@ clientRouter.get(
   "/marketplace/search",
   isAuthenticated,
   validate({
-    query: marketplaceSearchQuerySchema,
+    ...marketplaceSearchRequest,
     responses: clientMarketplaceSearchResponses,
   }),
   searchMarketplaceHandler,
