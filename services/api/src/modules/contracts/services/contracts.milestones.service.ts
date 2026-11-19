@@ -9,7 +9,7 @@ import {
   appendConversationMessages,
   emitConversationUpdate,
 } from "../../messaging/index.js";
-import { getAgencyOwnerId } from "../../agency/index.js";
+import { getAgencyIdForMember, getAgencyOwnerId } from "../../agency/index.js";
 import {
   findContractForNewMilestone,
   findMilestoneForReview,
@@ -363,4 +363,128 @@ export const addContractMilestone = async (
     dueDate: input.dueDate,
     status: "PENDING" as const,
   };
+};
+
+export const submitMilestone = async (
+  userId: string,
+  contractId: string,
+  milestoneId: string,
+  requestedScope: "agency" | "default" | undefined,
+  submissionMessage: string,
+  submissionDeliveryLink: string | undefined,
+) => {
+  const scope = requestedScope === "agency" ? "agency" : "default";
+  const agencyId =
+    scope === "agency" ? await getAgencyIdForMember(userId) : null;
+  if (scope === "agency" && !agencyId) {
+    throw new ApiError(403, "No agency account found.");
+  }
+  const rawLink = submissionDeliveryLink ?? "";
+  if (rawLink) {
+    try {
+      const url = new URL(rawLink);
+      if (!["http:", "https:"].includes(url.protocol)) throw new Error();
+    } catch {
+      throw new ApiError(400, "Submission delivery link is invalid.");
+    }
+  }
+
+  const milestone = await submitContractMilestone(
+    contractId,
+    milestoneId,
+    userId,
+    submissionMessage,
+    rawLink || undefined,
+    agencyId,
+  );
+
+  await emitConversationUpdate(milestone.conversationId, userId);
+  await sendNotification({
+    recipientId: milestone.clientId,
+    type: "MILESTONE_SUBMITTED",
+    title: "Milestone submitted for review",
+    message: `Work was submitted for “${milestone.milestoneTitle}”.`,
+    link: `/messages?conversationId=${milestone.conversationId}`,
+    metadata: {
+      contractId: milestone.contractId,
+      milestoneId: milestone.milestoneId,
+    },
+  });
+
+  return milestone;
+};
+
+export const reviewMilestone = async (
+  userId: string,
+  contractId: string,
+  milestoneId: string,
+  action: "APPROVE" | "REQUEST_CHANGES",
+  requestedFeedback: string | undefined,
+) => {
+  const feedback = requestedFeedback ?? "";
+  if (action === "REQUEST_CHANGES" && !feedback) {
+    throw new ApiError(400, "Modification message is required.");
+  }
+  const milestone = await reviewContractMilestone(
+    contractId,
+    milestoneId,
+    userId,
+    action,
+    feedback || undefined,
+  );
+
+  await emitConversationUpdate(milestone.conversationId, userId);
+  await sendNotification(
+    milestone.agencyId
+      ? {
+          agencyId: milestone.agencyId,
+          type: milestone.approved
+            ? "MILESTONE_APPROVED"
+            : "MILESTONE_CHANGES_REQUESTED",
+          title: milestone.approved
+            ? "Milestone accepted"
+            : "Modifications requested",
+          message: milestone.approved
+            ? `Your work for “${milestone.milestoneTitle}” was accepted.`
+            : `The client requested modifications for “${milestone.milestoneTitle}”.`,
+          link: `/messages?conversationId=${milestone.conversationId}`,
+          metadata: {
+            contractId: milestone.contractId,
+            milestoneId: milestone.milestoneId,
+          },
+        }
+      : {
+          recipientId: milestone.freelancerId,
+          type: milestone.approved
+            ? "MILESTONE_APPROVED"
+            : "MILESTONE_CHANGES_REQUESTED",
+          title: milestone.approved
+            ? "Milestone accepted"
+            : "Modifications requested",
+          message: milestone.approved
+            ? `Your work for “${milestone.milestoneTitle}” was accepted.`
+            : `The client requested modifications for “${milestone.milestoneTitle}”.`,
+          link: `/messages?conversationId=${milestone.conversationId}`,
+          metadata: {
+            contractId: milestone.contractId,
+            milestoneId: milestone.milestoneId,
+          },
+        },
+  );
+
+  return milestone;
+};
+
+export const addMilestone = async (
+  userId: string,
+  contractId: string,
+  input: { title: string; amountCents: number; dueDate: string },
+) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  if (new Date(`${input.dueDate}T00:00:00`) < today) {
+    throw new ApiError(400, "Milestone due date cannot be earlier than today.");
+  }
+
+  return addContractMilestone(contractId, userId, input);
 };

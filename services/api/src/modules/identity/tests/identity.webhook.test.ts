@@ -136,4 +136,31 @@ describe("identity webhook signature verification", () => {
     );
     expect(mocks.completeIdentityVerification).toHaveBeenCalledWith(session);
   });
+
+  it("acknowledges other event types without handling them", async () => {
+    mocks.constructEvent.mockReturnValue({
+      type: "identity.verification_session.requires_input",
+      data: { object: { id: "vs_2" } },
+    });
+
+    const response = await post("good");
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ received: true });
+    expect(mocks.completeIdentityVerification).not.toHaveBeenCalled();
+  });
+
+  it("answers 500 when the handler fails so Stripe retries", async () => {
+    mocks.constructEvent.mockReturnValue({
+      type: "identity.verification_session.verified",
+      data: { object: { id: "vs_3" } },
+    });
+    mocks.completeIdentityVerification.mockRejectedValueOnce(
+      new Error("db down"),
+    );
+
+    const response = await post("good");
+
+    expect(response.status).toBe(500);
+  });
 });

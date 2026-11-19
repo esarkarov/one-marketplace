@@ -1010,3 +1010,141 @@ describe("markContractCancelledIfPending", () => {
     expect(row?.status).toBe("CANCELLED");
   });
 });
+
+describe("decline and withdraw effects", () => {
+  const detailsOf = async (fixture: Fixture) => {
+    const [conversation] = await rows(
+      "select c.id from conversations c join contracts k on k.proposal_id = c.proposal_id where k.id = $1",
+      [fixture.contractId],
+    );
+    const [contract] = await rows("select title from contracts where id = $1", [
+      fixture.contractId,
+    ]);
+    return {
+      conversationId: conversation.id as string,
+      title: contract.title as string,
+    };
+  };
+
+  const watchCommit = (fixture: Fixture) => {
+    const seen: string[] = [];
+    mocks.emitConversationUpdate.mockImplementation(async () => {
+      seen.push(`emit:${(await state(fixture)).contract}`);
+    });
+    mocks.sendNotification.mockImplementation(async () => {
+      seen.push(`notify:${(await state(fixture)).contract}`);
+    });
+    return seen;
+  };
+
+  it("decline: refunds, then emits, then notifies the client, all after the commit", async () => {
+    const fixture = await seed();
+    const { conversationId, title } = await detailsOf(fixture);
+    const seen = watchCommit(fixture);
+
+    const response = await decline(fixture.contractId, fixture.ownerId);
+
+    expect(response.status).toBe(200);
+    expect(response.body.message).toBe("Contract offer declined.");
+    expect(mocks.emitConversationUpdate).toHaveBeenCalledTimes(1);
+    expect(mocks.emitConversationUpdate).toHaveBeenCalledWith(
+      conversationId,
+      fixture.ownerId,
+    );
+    expect(mocks.sendNotification).toHaveBeenCalledTimes(1);
+    expect(mocks.sendNotification).toHaveBeenCalledWith({
+      recipientId: fixture.clientId,
+      type: "CONTRACT_DECLINED",
+      title: "Contract offer declined",
+      message: `Your offer for “${title}” was declined and your payment is being refunded.`,
+      link: `/contracts?contractId=${fixture.contractId}`,
+      metadata: { contractId: fixture.contractId },
+    });
+    expect(mocks.refundCreate.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.emitConversationUpdate.mock.invocationCallOrder[0]!,
+    );
+    expect(
+      mocks.emitConversationUpdate.mock.invocationCallOrder[0],
+    ).toBeLessThan(mocks.sendNotification.mock.invocationCallOrder[0]!);
+    expect(seen).toEqual(["emit:CANCELLED", "notify:CANCELLED"]);
+  });
+
+  it("decline: propagates a rejected notification as a 500 and keeps the cancellation and refund", async () => {
+    const fixture = await seed();
+    mocks.sendNotification.mockRejectedValue(new Error("broker down"));
+
+    const response = await decline(fixture.contractId, fixture.ownerId);
+
+    expect(response.status).toBe(500);
+    expect((await state(fixture)).contract).toBe("CANCELLED");
+    expect(mocks.refundCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it("decline: propagates a rejected emit as a 500 before any notification", async () => {
+    const fixture = await seed();
+    mocks.emitConversationUpdate.mockRejectedValue(new Error("socket down"));
+
+    const response = await decline(fixture.contractId, fixture.ownerId);
+
+    expect(response.status).toBe(500);
+    expect(mocks.sendNotification).not.toHaveBeenCalled();
+    expect((await state(fixture)).contract).toBe("CANCELLED");
+  });
+
+  it("withdraw: refunds, emits, then notifies the freelancer, all after the commit", async () => {
+    const fixture = await seed();
+    const { conversationId, title } = await detailsOf(fixture);
+    const seen = watchCommit(fixture);
+
+    const response = await withdraw(fixture.contractId, fixture.clientId);
+
+    expect(response.status).toBe(200);
+    expect(response.body.message).toBe("Contract offer withdrawn.");
+    expect(mocks.emitConversationUpdate).toHaveBeenCalledTimes(1);
+    expect(mocks.emitConversationUpdate).toHaveBeenCalledWith(
+      conversationId,
+      fixture.clientId,
+    );
+    expect(mocks.sendNotification).toHaveBeenCalledTimes(1);
+    expect(mocks.sendNotification).toHaveBeenCalledWith({
+      recipientId: fixture.ownerId,
+      type: "CONTRACT_WITHDRAWN",
+      title: "Contract offer withdrawn",
+      message: `The client withdrew the offer for “${title}”.`,
+      link: `/messages?conversationId=${conversationId}`,
+      metadata: { contractId: fixture.contractId },
+    });
+    expect(
+      mocks.emitConversationUpdate.mock.invocationCallOrder[0],
+    ).toBeLessThan(mocks.sendNotification.mock.invocationCallOrder[0]!);
+    expect(seen).toEqual(["emit:CANCELLED", "notify:CANCELLED"]);
+  });
+
+  it("withdraw: notifies the agency with the same content", async () => {
+    const fixture = await seed({ agency: true });
+    const { conversationId, title } = await detailsOf(fixture);
+
+    const response = await withdraw(fixture.contractId, fixture.clientId);
+
+    expect(response.status).toBe(200);
+    expect(mocks.sendNotification).toHaveBeenCalledTimes(1);
+    expect(mocks.sendNotification).toHaveBeenCalledWith({
+      agencyId: fixture.agencyId,
+      type: "CONTRACT_WITHDRAWN",
+      title: "Contract offer withdrawn",
+      message: `The client withdrew the offer for “${title}”.`,
+      link: `/messages?conversationId=${conversationId}`,
+      metadata: { contractId: fixture.contractId },
+    });
+  });
+
+  it("withdraw: propagates a rejected notification as a 500 and keeps the cancellation", async () => {
+    const fixture = await seed();
+    mocks.sendNotification.mockRejectedValue(new Error("broker down"));
+
+    const response = await withdraw(fixture.contractId, fixture.clientId);
+
+    expect(response.status).toBe(500);
+    expect((await state(fixture)).contract).toBe("CANCELLED");
+  });
+});

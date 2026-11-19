@@ -1,4 +1,5 @@
 import { findAccountDisplays, findAccountPublicIds } from "../../auth/index.js";
+import { getAgencyIdForMember } from "../../agency/index.js";
 import {
   listAccountContractIds,
   listAgencySummariesByIds,
@@ -161,4 +162,19 @@ export const getAccountContracts = async (
   }
 
   return { results: [...result.values()], hasMore };
+};
+
+export const getFreelancerAccountContracts = async (
+  userId: string,
+  requestedScope: "agency" | "default" | undefined,
+  page: { limit: number; offset: number },
+) => {
+  const scope = requestedScope === "agency" ? "agency" : "default";
+  const agencyId =
+    scope === "agency" ? await getAgencyIdForMember(userId) : null;
+  return scope === "agency"
+    ? agencyId
+      ? await getAccountContracts(userId, "agency", agencyId, page)
+      : { results: [], hasMore: false }
+    : await getAccountContracts(userId, "freelancer", null, page);
 };

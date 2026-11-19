@@ -50,6 +50,38 @@ export default defineConfig([
     },
   },
   {
+    files: ["src/modules/**/controllers/*.controller.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              regex: "(^|/)database(/|$)",
+              message:
+                "Controllers and routes go through the service layer, not the database.",
+            },
+            {
+              regex: "(^|/)models/|\\.model(\\.js)?$",
+              message:
+                "Controllers and routes go through the service layer, not table files.",
+            },
+            {
+              regex: "(^|/)infrastructure(/|$)",
+              message:
+                "Controllers go through the service layer, not infrastructure (Stripe, Redis, events, storage, video).",
+            },
+            {
+              regex: "(^|/)config/env(\\.js)?$",
+              message:
+                "Controllers read no environment values; the service that needs one imports it.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     files: ["src/**/*.ts"],
     ignores: ["src/infrastructure/**", "src/**/*.test.ts", "src/test/**"],
     rules: {

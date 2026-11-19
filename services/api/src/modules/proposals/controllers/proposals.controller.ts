@@ -26,9 +26,9 @@ import {
   getClientJobProposals,
 } from "../services/proposals.queries.service.js";
 import {
-  updateProposal,
+  markProposalViewed,
   shortlistProposal,
-  startProposalInterview,
+  startInterview,
 } from "../services/proposals.review.service.js";
 import {
   submitAgencyProposal,
@@ -39,7 +39,6 @@ import {
   requireAgencyPermission,
 } from "../../agency/index.js";
 import type { ApiResponse } from "../../../types/common.types.js";
-import { sendNotification } from "../../../infrastructure/events/notification.publisher.js";
 
 export const createProposal: RequestHandler = asyncHandler(
   async (request, response) => {
@@ -120,32 +119,10 @@ export const updateProposalStatus: RequestHandler = asyncHandler(
       return;
     }
 
-    const { recipient, response: proposal } = await updateProposal(
+    const proposal = await markProposalViewed(
       requireText(params.proposalId, "Proposal"),
       auth.userId,
     );
-
-    if (proposal.changed) {
-      await sendNotification(
-        recipient.senderType === "AGENCY"
-          ? {
-              agencyId: recipient.senderId,
-              type: "PROPOSAL_VIEWED",
-              title: "Your proposal was viewed",
-              message: `A client viewed your proposal for “${proposal.jobTitle}”.`,
-              link: "/proposals",
-              metadata: { proposalId: proposal.id },
-            }
-          : {
-              recipientId: recipient.senderId,
-              type: "PROPOSAL_VIEWED",
-              title: "Your proposal was viewed",
-              message: `A client viewed your proposal for “${proposal.jobTitle}”.`,
-              link: "/my-proposals",
-              metadata: { proposalId: proposal.id },
-            },
-      );
-    }
 
     response.status(200).json({
       success: true,
@@ -164,36 +141,10 @@ export const interviewProposal: RequestHandler = asyncHandler(
     const { params, body } = getValidated(request, interviewProposalRequest);
     const message = body.message;
 
-    const result = await startProposalInterview(
+    const result = await startInterview(
       requireText(params.proposalId, "Proposal"),
       request.auth.userId,
       message,
-    );
-
-    await sendNotification(
-      result.senderType === "AGENCY" && result.agencyId
-        ? {
-            agencyId: result.agencyId,
-            type: "PROPOSAL_INTERVIEWED",
-            title: "You received an interview",
-            message: `A client started an interview for “${result.jobTitle}”.`,
-            link: `/messages?conversationId=${result.conversationId}`,
-            metadata: {
-              proposalId: result.proposalId,
-              conversationId: result.conversationId,
-            },
-          }
-        : {
-            recipientId: result.freelancerId,
-            type: "PROPOSAL_INTERVIEWED",
-            title: "You received an interview",
-            message: `A client started an interview for “${result.jobTitle}”.`,
-            link: `/messages?conversationId=${result.conversationId}`,
-            metadata: {
-              proposalId: result.proposalId,
-              conversationId: result.conversationId,
-            },
-          },
     );
 
     response.status(201).json({

@@ -9,7 +9,10 @@ import {
   emitConversationUpdate,
 } from "../../messaging/index.js";
 import { getJSSContribution } from "../../freelancer/index.js";
-import { getAgencyOwnerId } from "../../agency/index.js";
+import {
+  getAgencyOwnerId,
+  requireAgencyPermission,
+} from "../../agency/index.js";
 import { markJobHired, releaseJobHire } from "../../jobs/index.js";
 import { markProposalHired } from "../../proposals/index.js";
 import {
@@ -523,4 +526,183 @@ export const createContractFromPayment = async (
   );
 
   await emitConversationUpdate(offer.conversationId, clientId);
+};
+
+export const acceptOffer = async (
+  userId: string,
+  contractId: string,
+  requestedScope: "agency" | "default" | undefined,
+) => {
+  const scope = requestedScope === "agency" ? "agency" : "default";
+  const agencyId =
+    scope === "agency"
+      ? (await requireAgencyPermission(userId, "contract.accept")).agencyId
+      : null;
+  if (scope === "agency" && !agencyId) {
+    throw new ApiError(403, "No agency account found.");
+  }
+  const contract = await acceptContract(contractId, userId, agencyId);
+
+  await emitConversationUpdate(contract.conversationId, userId);
+
+  await Promise.all([
+    sendNotification({
+      recipientId: contract.clientId,
+      type: "CONTRACT_ACCEPTED",
+      title: "Contract offer accepted",
+      message: contract.agencyId
+        ? `The agency accepted your offer for “${contract.title}”.`
+        : `The freelancer accepted your offer for “${contract.title}”.`,
+      link: `/messages?conversationId=${contract.conversationId}`,
+      metadata: { contractId: contract.id },
+    }),
+    sendNotification(
+      contract.agencyId
+        ? {
+            agencyId: contract.agencyId,
+            type: "CONTRACT_ACCEPTED",
+            title: "Contract started",
+            message: `Your contract for “${contract.title}” is now active.`,
+            link: `/messages?conversationId=${contract.conversationId}`,
+            metadata: { contractId: contract.id },
+          }
+        : {
+            recipientId: contract.freelancerId,
+            type: "CONTRACT_ACCEPTED",
+            title: "Contract started",
+            message: `Your contract for “${contract.title}” is now active.`,
+            link: `/messages?conversationId=${contract.conversationId}`,
+            metadata: { contractId: contract.id },
+          },
+    ),
+  ]);
+
+  return contract;
+};
+
+export const declineOffer = async (
+  userId: string,
+  contractId: string,
+  requestedScope: "agency" | "default" | undefined,
+) => {
+  const scope = requestedScope === "agency" ? "agency" : "default";
+  const agencyId =
+    scope === "agency"
+      ? (await requireAgencyPermission(userId, "contract.accept")).agencyId
+      : null;
+  if (scope === "agency" && !agencyId) {
+    throw new ApiError(403, "No agency account found.");
+  }
+  const contract = await cancelPendingContract(contractId, {
+    kind: "talent",
+    freelancerId: userId,
+    agencyId,
+  });
+
+  if (!contract.alreadyCancelled) {
+    await emitConversationUpdate(contract.conversationId, userId);
+    await sendNotification({
+      recipientId: contract.clientId,
+      type: "CONTRACT_DECLINED",
+      title: "Contract offer declined",
+      message: `Your offer for “${contract.title}” was declined and your payment is being refunded.`,
+      link: `/contracts?contractId=${contract.id}`,
+      metadata: { contractId: contract.id },
+    });
+  }
+
+  return contract;
+};
+
+export const withdrawOffer = async (userId: string, contractId: string) => {
+  const contract = await cancelPendingContract(contractId, {
+    kind: "client",
+    clientId: userId,
+  });
+
+  if (!contract.alreadyCancelled) {
+    await emitConversationUpdate(contract.conversationId, userId);
+    const content = {
+      type: "CONTRACT_WITHDRAWN",
+      title: "Contract offer withdrawn",
+      message: `The client withdrew the offer for “${contract.title}”.`,
+      link: `/messages?conversationId=${contract.conversationId}`,
+      metadata: { contractId: contract.id },
+    };
+    if (contract.agencyId) {
+      await sendNotification({ agencyId: contract.agencyId, ...content });
+    } else if (contract.freelancerId) {
+      await sendNotification({
+        recipientId: contract.freelancerId,
+        ...content,
+      });
+    }
+  }
+
+  return contract;
+};
+
+export const finishContractAsParty = async (
+  userId: string,
+  role: "client" | "freelancer",
+  contractId: string,
+  requestedScope: "agency" | "default" | undefined,
+  rating: number,
+  comment: string,
+) => {
+  const scope =
+    role === "freelancer" && requestedScope === "agency" ? "agency" : "default";
+  const agencyId =
+    scope === "agency"
+      ? (await requireAgencyPermission(userId, "contract.finish")).agencyId
+      : null;
+  if (scope === "agency" && !agencyId) {
+    throw new ApiError(403, "No agency account found.");
+  }
+
+  const contract = await finishContractWithReview(
+    contractId,
+    userId,
+    role,
+    rating,
+    comment,
+    agencyId,
+  );
+
+  if (contract.conversationId && contract.newlyCompleted) {
+    await emitConversationUpdate(contract.conversationId, userId);
+  }
+  await sendNotification(
+    contract.agencyId
+      ? {
+          agencyId: contract.agencyId,
+          type: contract.newlyCompleted
+            ? "CONTRACT_COMPLETED"
+            : "REVIEW_RECEIVED",
+          title: contract.newlyCompleted
+            ? "Contract completed"
+            : "New review received",
+          message: contract.newlyCompleted
+            ? `The contract “${contract.title}” was completed.`
+            : `You received a review for “${contract.title}”.`,
+          link: `/contracts?contractId=${contract.id}`,
+          metadata: { contractId: contract.id },
+        }
+      : {
+          recipientId: contract.revieweeId,
+          type: contract.newlyCompleted
+            ? "CONTRACT_COMPLETED"
+            : "REVIEW_RECEIVED",
+          title: contract.newlyCompleted
+            ? "Contract completed"
+            : "New review received",
+          message: contract.newlyCompleted
+            ? `The contract “${contract.title}” was completed.`
+            : `You received a review for “${contract.title}”.`,
+          link: `/contracts?contractId=${contract.id}`,
+          metadata: { contractId: contract.id },
+        },
+  );
+
+  return contract;
 };

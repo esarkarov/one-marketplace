@@ -193,4 +193,45 @@ describe("contract webhook signature verification", () => {
     );
     expect(mocks.createContractFromPayment).not.toHaveBeenCalled();
   });
+
+  it("routes async payment sessions without a payment type to the contract handler", async () => {
+    const session = { id: "cs_3", metadata: { paymentType: "OTHER" } };
+    mocks.constructEvent.mockReturnValue({
+      type: "checkout.session.async_payment_succeeded",
+      data: { object: session },
+    });
+
+    const response = await post("good");
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ received: true });
+    expect(mocks.createContractFromPayment).toHaveBeenCalledWith(session);
+    expect(mocks.fundContractMilestoneFromPayment).not.toHaveBeenCalled();
+  });
+
+  it("acknowledges other event types without handling them", async () => {
+    mocks.constructEvent.mockReturnValue({
+      type: "charge.refunded",
+      data: { object: { id: "ch_1" } },
+    });
+
+    const response = await post("good");
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ received: true });
+    expect(mocks.createContractFromPayment).not.toHaveBeenCalled();
+    expect(mocks.fundContractMilestoneFromPayment).not.toHaveBeenCalled();
+  });
+
+  it("answers 500 when the handler fails so Stripe retries", async () => {
+    mocks.constructEvent.mockReturnValue({
+      type: "checkout.session.completed",
+      data: { object: { id: "cs_4", metadata: {} } },
+    });
+    mocks.createContractFromPayment.mockRejectedValueOnce(new Error("db down"));
+
+    const response = await post("good");
+
+    expect(response.status).toBe(500);
+  });
 });

@@ -3,6 +3,8 @@ import type Stripe from "stripe";
 import { ApiError } from "../../shared/errors/api-error.js";
 import { stripe } from "./stripe.client.js";
 
+export type StripeWebhookRequest = Pick<Request, "headers" | "body" | "logger">;
+
 export interface StripeWebhookOptions {
   secret: string | undefined;
   source: string;
@@ -19,7 +21,7 @@ const rejection = (source: string, reason: string) => ({
 });
 
 export const verifyStripeWebhook = async (
-  request: Request,
+  request: StripeWebhookRequest,
   { secret, source, missingMessage }: StripeWebhookOptions,
 ): Promise<Stripe.Event> => {
   const signature = request.headers["stripe-signature"];

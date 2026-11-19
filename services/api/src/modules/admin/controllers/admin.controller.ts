@@ -1,10 +1,8 @@
-import { createHash, timingSafeEqual } from "node:crypto";
 import { RequestHandler } from "express";
 import { asyncHandler } from "../../../middleware/utils/async-handler.utils.js";
 import { getValidated } from "../../../middleware/utils/validated-request.utils.js";
 import { ApiError } from "../../../shared/errors/api-error.js";
-import { env } from "../../../config/env.js";
-import { signToken } from "../../../middleware/utils/admin-session.utils.js";
+import { loginAdmin } from "../services/admin.auth.service.js";
 import {
   getAdminAccounts,
   getAdminContracts,
@@ -34,43 +32,14 @@ const parsePagination = (query: Pagination): Pagination => ({
   offset: query.offset,
 });
 
-const digest = (value: string) => createHash("sha256").update(value).digest();
-
-const passwordsMatch = (provided: string, expected: string) =>
-  timingSafeEqual(digest(provided), digest(expected));
-
 export const loginAdminHandler: RequestHandler = asyncHandler(
   async (request, response) => {
-    if (!env.adminDashboardPassword || !env.adminSessionSecret) {
-      throw new ApiError(503, "Admin authentication is not configured.");
-    }
-
     const { body } = getValidated(request, adminLoginRequest);
-    const { password } = body;
-
-    if (!passwordsMatch(password, env.adminDashboardPassword)) {
-      await request.logger.warn({
-        message: "Admin sign-in failed",
-        eventName: "auth.login.failed",
-        attributes: {
-          "auth.method": "password",
-          "auth.failure_kind": "invalid_credentials",
-          "client.address": request.ip ?? "unknown",
-        },
-      });
-      throw new ApiError(401, "Incorrect password.");
-    }
-
-    await request.logger.info({
-      message: "Admin signed in",
-      eventName: "auth.login.succeeded",
-      attributes: {
-        "auth.method": "password",
-        "client.address": request.ip ?? "unknown",
-      },
-    });
-
-    const { token, expiresAt } = signToken(env.adminSessionSecret);
+    const { token, expiresAt } = await loginAdmin(
+      body.password,
+      request.ip,
+      request.logger,
+    );
 
     response.status(200).json({
       success: true,
