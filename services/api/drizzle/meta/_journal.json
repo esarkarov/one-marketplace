@@ -57,6 +57,13 @@
       "when": 1795090063310,
       "tag": "0007_organic_thunderbird",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1795091741513,
+      "tag": "0008_job_posts_content_norm",
+      "breakpoints": true
     }
   ]
 }

@@ -11,6 +11,7 @@ import {
   proposals,
 } from "@/test/support/tables.js";
 import { assertTestDatabase } from "@/test/setup/assert-test-database.js";
+import { expectNoStoredNormalization } from "@/test/support/forbidden-keys-scan.js";
 import {
   listBestMatchJobIds,
   listRecentJobIds,
@@ -958,5 +959,104 @@ describe("best-match feed query count", () => {
     );
     expect(recent.results.length).toBeGreaterThan(0);
     for (const row of recent.results) expect("matchScore" in row).toBe(false);
+  });
+});
+
+describe("job_posts.content_norm", () => {
+  const jsNorm = (text: string) => text.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const CASES: Array<[string, string]> = [
+    ["Senior React Developer", "Build dashboards with Next.js 16 & TypeScript"],
+    ["C++ / C# engineer", "Punctuation: (a) [b] {c} -- d_e, f.g!"],
+    ["MiXeD CaSe 123", "ALL CAPS and lower and 007"],
+    ["Café Münster Ångström", "naïve façade crème brûlée"],
+    ["İstanbul office", "İSTANBUL ıı İİ"],
+    ["Kelvin K sign", "temperature 300 K"],
+    ["日本語のタイトル", "中文描述 한국어 설명"],
+    ["Emoji 🚀 launch", "ship it 🎉🔥 now"],
+    ["   ", "\t\n"],
+    ["+++", "---"],
+    ["x", ""],
+  ];
+  const ids: string[] = [];
+  let clientId = "";
+
+  beforeAll(async () => {
+    clientId = await insertAccount("CLIENT", true);
+    for (const [index, [title, description]] of CASES.entries()) {
+      const id = jobId(400 + index);
+      ids.push(id);
+      await pool.query(
+        `insert into job_posts (id, client_id, title, description, expertise_level,
+           expected_duration, skills, total_budget_cents, milestones, status)
+         values ($1, $2, $3, $4, 'EXPERT', '1 month', '{}', $5, '[]'::jsonb, 'DRAFT')`,
+        [id, clientId, title, description, 8_103_000 + index],
+      );
+    }
+  }, 60_000);
+
+  const stored = async (id: string) => {
+    const { rows } = await pool.query<{ content_norm: string }>(
+      "select content_norm from job_posts where id = $1",
+      [id],
+    );
+    return rows[0]?.content_norm;
+  };
+
+  it("equals the JS normalization of title + ' ' + description", async () => {
+    for (const [index, [title, description]] of CASES.entries()) {
+      expect(await stored(ids[index]!), JSON.stringify(title)).toBe(
+        jsNorm(`${title} ${description}`),
+      );
+    }
+  });
+
+  it("is recomputed when the title or the description changes", async () => {
+    const id = ids[0]!;
+    await pool.query("update job_posts set title = $2 where id = $1", [
+      id,
+      "Brand New Title!",
+    ]);
+    expect(await stored(id)).toBe(
+      jsNorm("Brand New Title! Build dashboards with Next.js 16 & TypeScript"),
+    );
+    await pool.query("update job_posts set description = $2 where id = $1", [
+      id,
+      "Other, text.",
+    ]);
+    expect(await stored(id)).toBe("brandnewtitleothertext");
+  });
+
+  it("cannot be written directly", async () => {
+    await expect(
+      pool.query("update job_posts set content_norm = 'x' where id = $1", [
+        ids[1],
+      ]),
+    ).rejects.toThrow(/content_norm/);
+    await expect(
+      pool.query(
+        `insert into job_posts (client_id, title, description, expertise_level,
+           expected_duration, total_budget_cents, milestones, content_norm)
+         values ($1, 't', 'd', 'EXPERT', '1 month', 1, '[]'::jsonb, 'x')`,
+        [clientId],
+      ),
+    ).rejects.toThrow(/content_norm/);
+  });
+
+  it("never appears in a feed response", async () => {
+    const response = await getMatchedJobPostsBySkills(
+      ["React"],
+      { sort: "best-match", ...BM_BAND },
+      { limit: 3, offset: 0 },
+      "feed_repo",
+    );
+    expect(response.results.length).toBeGreaterThan(0);
+    expectNoStoredNormalization(response);
+    const recent = await getMatchedJobPostsBySkills(
+      ["React"],
+      { sort: "recent", ...BM_BAND },
+      { limit: 3, offset: 0 },
+      "feed_repo",
+    );
+    expectNoStoredNormalization(recent);
   });
 });

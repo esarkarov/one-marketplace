@@ -10,6 +10,7 @@ interface JobPostRowFields {
   hired_at: Date | null;
   created_at: Date | null;
   updated_at: Date | null;
+  content_norm?: string;
 }
 
 type JobPostResponse<T extends JobPostRowFields & { id: string }> = Omit<
@@ -34,6 +35,7 @@ export const toJobPostResponse = <T extends JobPostRowFields & { id: string }>(
 ): JobPostResponse<T> => {
   const {
     client_id: _clientAuthId,
+    content_norm: _contentNorm,
     expertise_level,
     expected_duration,
     total_budget_cents,

@@ -18,6 +18,7 @@ import {
   contracts,
 } from "@/modules/contracts/models/contracts.model.js";
 import { job_posts } from "@/modules/jobs/models/jobs.model.js";
+import { jobPostColumns } from "@/modules/jobs/index.js";
 import { proposals } from "@/modules/proposals/models/proposals.model.js";
 
 export interface JobFeedSqlFilters {
@@ -128,7 +129,7 @@ export const listBestMatchJobIds = async (
           )
           + (
             select count(*) from unnest(${callerSkills}) as caller(skill)
-            where strpos(job_text.content_norm, caller.skill) > 0
+            where strpos(${job_posts.content_norm}, caller.skill) > 0
           )
         )::int as score
       from ${job_posts}
@@ -137,7 +138,6 @@ export const listBestMatchJobIds = async (
         on ${job_posts.client_id} = ${client_metadata.auth_id}
       cross join lateral (
         select
-          ${normalizeSql(sql`${job_posts.title} || ' ' || ${job_posts.description}`)} as content_norm,
           coalesce((
             select array_agg(${normalizeSql(sql`raw_skill.name`)})
             from unnest(${job_posts.skills}) as raw_skill(name)
@@ -165,7 +165,7 @@ export const listFeedJobsByIds = async (
   if (jobIds.length === 0) return [];
   return executor
     .select({
-      job: job_posts,
+      job: jobPostColumns,
       clientAccountId: accounts.id,
       companyName: client_metadata.company_name,
       clientCountry: client_metadata.country,
@@ -193,7 +193,7 @@ export const findPublishedJobDetail = async (
 ) => {
   const [result] = await executor
     .select({
-      job: job_posts,
+      job: jobPostColumns,
       clientAccountId: accounts.id,
       companyName: client_metadata.company_name,
       companyDescription: client_metadata.company_description,

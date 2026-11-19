@@ -27,6 +27,11 @@ export const job_posts = pgTable(
     expertise_level: text("expertise_level").notNull(),
     expected_duration: text("expected_duration").notNull(),
     skills: text("skills").array().notNull().default([]),
+    content_norm: text("content_norm")
+      .notNull()
+      .generatedAlwaysAs(
+        sql`regexp_replace(lower(title || ' ' || description), '[^a-z0-9]', '', 'g')`,
+      ),
 
     total_budget_cents: bigint("total_budget_cents", {
       mode: "number",

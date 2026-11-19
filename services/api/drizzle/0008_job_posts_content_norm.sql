@@ -1,0 +1,1 @@
+ALTER TABLE "job_posts" ADD COLUMN "content_norm" text GENERATED ALWAYS AS (regexp_replace(lower(title || ' ' || description), '[^a-z0-9]', '', 'g')) STORED NOT NULL;

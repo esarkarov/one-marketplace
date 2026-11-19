@@ -72,6 +72,7 @@ import {
   proposals,
 } from "@/test/support/tables.js";
 import { expectNoClerkIds } from "@/test/support/clerk-id-scan.js";
+import { expectNoStoredNormalization } from "@/test/support/forbidden-keys-scan.js";
 import { assertTestDatabase } from "@/test/setup/assert-test-database.js";
 import {
   jobsCreateResponses,
@@ -802,6 +803,7 @@ describe("jobs queries against real Postgres", () => {
       expect(created.status).toBe(201);
       expect(created.body.data.clientId).toBe(clientUuid);
       expectNoClerkIds(created.body, clerkIds);
+      expectNoStoredNormalization(created.body);
       const jobId = created.body.data.id as string;
 
       const list = await request(app)
@@ -810,6 +812,7 @@ describe("jobs queries against real Postgres", () => {
         .set(as(clientId));
       expect(list.body.data.results[0].clientId).toBe(clientUuid);
       expectNoClerkIds(list.body, clerkIds);
+      expectNoStoredNormalization(list.body);
 
       const one = await request(app)
         .get(`${API}/${jobId}`)
@@ -817,6 +820,7 @@ describe("jobs queries against real Postgres", () => {
         .set(as(clientId));
       expect(one.body.data.clientId).toBe(clientUuid);
       expectNoClerkIds(one.body, clerkIds);
+      expectNoStoredNormalization(one.body);
 
       const updated = await request(app)
         .put(`${API}/${jobId}`)
@@ -825,6 +829,7 @@ describe("jobs queries against real Postgres", () => {
       expect(updated.status).toBe(200);
       expect(updated.body.data.clientId).toBe(clientUuid);
       expectNoClerkIds(updated.body, clerkIds);
+      expectNoStoredNormalization(updated.body);
 
       const saved = await request(app)
         .post(`${API}/saved/${jobId}`)
@@ -835,6 +840,7 @@ describe("jobs queries against real Postgres", () => {
         await accountUuid(freelancerId),
       );
       expectNoClerkIds(saved.body, clerkIds);
+      expectNoStoredNormalization(saved.body);
 
       const savedList = await request(app)
         .get(`${API}/saved`)
@@ -842,6 +848,7 @@ describe("jobs queries against real Postgres", () => {
         .set(as(freelancerId));
       expect(savedList.body.data.results[0].clientId).toBe(clientUuid);
       expectNoClerkIds(savedList.body, clerkIds);
+      expectNoStoredNormalization(savedList.body);
     });
   });
 

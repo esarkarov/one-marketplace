@@ -25,6 +25,10 @@ import {
 import { proposals } from "@/modules/proposals/models/proposals.model.js";
 import { matchAllTerms } from "@/shared/search/search-conditions.repository.js";
 
+const { content_norm: _contentNorm, ...selectableJobPostColumns } =
+  getTableColumns(job_posts);
+export const jobPostColumns = selectableJobPostColumns;
+
 type NewJobPost = typeof job_posts.$inferInsert;
 export type JobData = Omit<NewJobPost, "client_id">;
 export type JobUpdate = Partial<NewJobPost>;
@@ -45,7 +49,10 @@ export const insertJobPost = async (
   executor: DbExecutor,
   values: NewJobPost,
 ) => {
-  const [job] = await executor.insert(job_posts).values(values).returning();
+  const [job] = await executor
+    .insert(job_posts)
+    .values(values)
+    .returning(jobPostColumns);
   return job;
 };
 
@@ -57,7 +64,7 @@ export const findJobPostsWithCounts = (
 ) => {
   const query = executor
     .select({
-      ...getTableColumns(job_posts),
+      ...jobPostColumns,
       milestones: job_posts.milestones,
       clientAccountId: accounts.id,
       proposalCount: count(proposals.id).mapWith(Number),
@@ -92,7 +99,7 @@ export const findEditableJobPost = async (
   jobId: string,
 ) => {
   const [existingJob] = await executor
-    .select()
+    .select(jobPostColumns)
     .from(job_posts)
     .where(
       and(
@@ -122,7 +129,7 @@ export const updateJobPostIfEditable = async (
         ne(job_posts.status, "HIRED"),
       ),
     )
-    .returning();
+    .returning(jobPostColumns);
   return job;
 };
 
@@ -140,7 +147,7 @@ export const deleteJobPostIfEditable = async (
         ne(job_posts.status, "HIRED"),
       ),
     )
-    .returning();
+    .returning(jobPostColumns);
   return job;
 };
 
@@ -228,7 +235,7 @@ export const findSavedJobRows = (
 ) =>
   executor
     .select({
-      job: job_posts,
+      job: jobPostColumns,
       clientAccountId: accounts.id,
       savedAt: freelancer_saved_job_posts.created_at,
       companyName: client_metadata.company_name,
@@ -320,7 +327,7 @@ export const findPublishedJobFeedRows = (
 
   return executor
     .select({
-      job: job_posts,
+      job: jobPostColumns,
       companyName: client_metadata.company_name,
       clientCountry: client_metadata.country,
       paymentVerified: accounts.paymentMethodVerified,
