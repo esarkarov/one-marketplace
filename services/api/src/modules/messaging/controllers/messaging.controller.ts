@@ -42,6 +42,7 @@ export const listConversations: RequestHandler = asyncHandler(
         limit: query.limit,
         offset: query.offset,
       },
+      request.logger,
     );
     response.json({
       success: true,
@@ -56,11 +57,15 @@ export const openConversation: RequestHandler = asyncHandler(
     const auth = requireClient(request);
     const { body } = getValidated(request, openConversationRequest);
     const { recipientId, jobId, proposalId } = body;
-    const data = await createConversation(auth.userId, {
-      recipientId,
-      jobId: jobId || undefined,
-      proposalId: proposalId || undefined,
-    });
+    const data = await createConversation(
+      auth.userId,
+      {
+        recipientId,
+        jobId: jobId || undefined,
+        proposalId: proposalId || undefined,
+      },
+      request.logger,
+    );
 
     response.status(201).json({
       success: true,

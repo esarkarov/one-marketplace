@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => ({
   getUser: vi.fn(),
   emitConversationUpdate: vi.fn(),
   upload: vi.fn(),
+  joinUrl: vi.fn(),
 }));
 
 vi.mock("@/config/env.js", async (importOriginal) => {
@@ -33,8 +34,7 @@ vi.mock("@/config/env.js", async (importOriginal) => {
 });
 
 vi.mock("@/infrastructure/video/daily.client.js", () => ({
-  createDailyJoinUrl: async (input: { roomUrl: string }) =>
-    `${input.roomUrl}?t=token`,
+  createDailyJoinUrl: mocks.joinUrl,
 }));
 
 vi.mock("@/infrastructure/auth/clerk.client.js", () => ({
@@ -87,6 +87,7 @@ import {
 } from "@/test/support/tables.js";
 import { assertTestDatabase } from "@/test/setup/assert-test-database.js";
 import { messagingResponses } from "@/modules/messaging/responses/messaging.responses.js";
+import { getConversations } from "@/modules/messaging/services/messaging.conversations.service.js";
 import { expectNoClerkIds } from "@/test/support/clerk-id-scan.js";
 
 const { app } = await import("@/app.js");
@@ -291,6 +292,10 @@ beforeEach(() => {
   mocks.emitConversationUpdate.mockReset();
   mocks.emitConversationUpdate.mockResolvedValue(undefined);
   mocks.upload.mockReset();
+  mocks.joinUrl.mockReset();
+  mocks.joinUrl.mockImplementation(
+    async (input: { roomUrl: string }) => `${input.roomUrl}?t=token`,
+  );
   mocks.upload.mockImplementation(
     async ({ folder, fileName }: { folder: string; fileName: string }) => ({
       fileId: `file_${randomUUID()}`,
@@ -365,6 +370,153 @@ describe("GET /conversations", () => {
       .set(as(fixture.freelancerId));
     expect(response.status).toBe(200);
     messagingResponses.list[200].parse(response.body);
+  });
+});
+
+const addMeetingConversation = async (clientId: string, roomName: string) => {
+  const freelancerId = await insertAccount("FREELANCER");
+  const [conversation] = await db
+    .insert(conversations)
+    .values({ context_key: `${PREFIX}${randomUUID()}` })
+    .returning({ id: conversations.id });
+  await db.insert(conversation_participants).values([
+    {
+      conversation_id: conversation!.id,
+      account_id: clientId,
+      participant_type: "CLIENT",
+    },
+    {
+      conversation_id: conversation!.id,
+      account_id: freelancerId,
+      participant_type: "FREELANCER",
+    },
+  ]);
+  await db.insert(meetings).values({
+    conversation_id: conversation!.id,
+    provider_room_name: roomName,
+    join_url: `https://daily.test/${roomName}`,
+    started_by_account_id: clientId,
+  });
+  return conversation!.id;
+};
+
+describe("GET /conversations when Daily cannot mint a token", () => {
+  const failFor = (roomName: string) =>
+    mocks.joinUrl.mockImplementation(
+      async (input: { roomName: string; roomUrl: string }) => {
+        if (input.roomName === roomName) {
+          throw new Error("daily is down");
+        }
+        return `${input.roomUrl}?t=token`;
+      },
+    );
+
+  const urlsByRoom = (body: {
+    data: { results: { activeMeeting: { joinUrl: string } | null }[] };
+  }) => body.data.results.map((result) => result.activeMeeting?.joinUrl).sort();
+
+  it("answers 200 with a token on one meeting and the stored url on the other", async () => {
+    const fixture = await seed();
+    const okRoom = `ok-${randomUUID()}`;
+    const badRoom = `bad-${randomUUID()}`;
+    await addMeetingConversation(fixture.clientId, okRoom);
+    await addMeetingConversation(fixture.clientId, badRoom);
+    failFor(badRoom);
+
+    const response = await request(app)
+      .get(API)
+      .query({ role: "client" })
+      .set(as(fixture.clientId));
+
+    expect(response.status).toBe(200);
+    messagingResponses.list[200].parse(response.body);
+    expect(urlsByRoom(response.body)).toEqual(
+      [
+        `https://daily.test/${okRoom}?t=token`,
+        `https://daily.test/${badRoom}`,
+        undefined,
+      ].sort(),
+    );
+  });
+
+  it("logs one warn per failed meeting with the meeting id and message only", async () => {
+    const fixture = await seed();
+    const okRoom = `ok-${randomUUID()}`;
+    const badRoom = `bad-${randomUUID()}`;
+    await addMeetingConversation(fixture.clientId, okRoom);
+    await addMeetingConversation(fixture.clientId, badRoom);
+    failFor(badRoom);
+    const warn = vi.fn().mockResolvedValue(undefined);
+    const logger = { warn } as unknown as Parameters<
+      typeof getConversations
+    >[3];
+
+    const data = await getConversations(
+      fixture.clientId,
+      "default",
+      { limit: 20, offset: 0 },
+      logger,
+    );
+
+    expect(data.results).toHaveLength(3);
+    expect(warn).toHaveBeenCalledTimes(1);
+    const payload = warn.mock.calls[0]![0];
+    expect(payload.eventName).toBe("meeting.join_token.failed");
+    expect(Object.keys(payload.attributes).sort()).toEqual([
+      "error.message",
+      "task.meeting.id",
+    ]);
+    expect(payload.attributes["error.message"]).toBe("daily is down");
+    const serialized = JSON.stringify(payload);
+    expect(serialized).not.toContain("daily.test");
+    expect(serialized).not.toContain("?t=");
+    expect(serialized).not.toContain(fixture.clientId);
+  });
+
+  it("answers 200 with stored urls when Daily fails for every meeting", async () => {
+    const fixture = await seed();
+    const room = `bad-${randomUUID()}`;
+    await addMeetingConversation(fixture.clientId, room);
+    mocks.joinUrl.mockRejectedValue(new Error("daily is down"));
+
+    const response = await request(app)
+      .get(API)
+      .query({ role: "client" })
+      .set(as(fixture.clientId));
+
+    expect(response.status).toBe(200);
+    const urls = urlsByRoom(response.body).filter(Boolean);
+    expect(urls).toEqual([`https://daily.test/${room}`]);
+    expect(JSON.stringify(response.body)).not.toContain("?t=");
+  });
+
+  it("answers 201 from POST /conversations with the stored url when Daily fails", async () => {
+    const clientId = await insertAccount("CLIENT");
+    const freelancerId = await insertAccount("FREELANCER");
+    const first = await request(app)
+      .post(API)
+      .query({ role: "client" })
+      .set(as(clientId))
+      .send({ recipientId: await publicIdOf(freelancerId) });
+    expect(first.status).toBe(201);
+    await db.insert(meetings).values({
+      conversation_id: first.body.data.id,
+      provider_room_name: `bad-${randomUUID()}`,
+      join_url: "https://daily.test/post-room",
+      started_by_account_id: clientId,
+    });
+    mocks.joinUrl.mockRejectedValue(new Error("daily is down"));
+
+    const again = await request(app)
+      .post(API)
+      .query({ role: "client" })
+      .set(as(clientId))
+      .send({ recipientId: await publicIdOf(freelancerId) });
+
+    expect(again.status).toBe(201);
+    expect(again.body.data.activeMeeting.joinUrl).toBe(
+      "https://daily.test/post-room",
+    );
   });
 });
 

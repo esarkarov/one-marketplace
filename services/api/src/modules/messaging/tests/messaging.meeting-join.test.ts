@@ -98,4 +98,28 @@ describe("createMeetingJoinUrls", () => {
       createMeetingJoinUrls(CLERK_ID, [source("m1")], "test"),
     ).rejects.toThrow("daily is down");
   });
+
+  it("keeps the other meetings' tokens and reports each failure when a handler is given", async () => {
+    mocks.fetch.mockImplementation(async (_url: string, init: RequestInit) =>
+      JSON.parse(init.body as string).properties.room_name === "room-b"
+        ? new Response(JSON.stringify({ info: "daily is down" }), {
+            status: 500,
+          })
+        : new Response(JSON.stringify({ token: "tok" }), { status: 200 }),
+    );
+    const failures: string[] = [];
+
+    const urls = await createMeetingJoinUrls(
+      CLERK_ID,
+      [source("m1", "room-a"), source("m2", "room-b")],
+      "test",
+      async (failed) => {
+        failures.push(failed.id);
+      },
+    );
+
+    expect(failures).toEqual(["m2"]);
+    expect(urls.get("m1")).toBe("https://x.daily.co/room-a?t=tok");
+    expect(urls.get("m2")).toBe("https://x.daily.co/room-b");
+  });
 });

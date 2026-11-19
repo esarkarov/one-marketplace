@@ -19,6 +19,7 @@ export const createMeetingJoinUrls = async (
   viewerAuthId: string,
   sources: MeetingJoinSource[],
   operation: string,
+  onTokenFailure?: (source: MeetingJoinSource, error: unknown) => Promise<void>,
 ): Promise<Map<string, string>> => {
   if (sources.length === 0) return new Map();
 
@@ -35,15 +36,21 @@ export const createMeetingJoinUrls = async (
     displays.get(viewerAuthId)?.displayName ?? DEFAULT_PARTICIPANT_NAME;
 
   const urls = await Promise.all(
-    sources.map((source) =>
-      createDailyJoinUrl({
-        roomName: source.roomName,
-        roomUrl: source.roomUrl,
-        startedAt: source.startedAt,
-        userId,
-        userName,
-      }),
-    ),
+    sources.map(async (source) => {
+      try {
+        return await createDailyJoinUrl({
+          roomName: source.roomName,
+          roomUrl: source.roomUrl,
+          startedAt: source.startedAt,
+          userId,
+          userName,
+        });
+      } catch (error) {
+        if (!onTokenFailure) throw error;
+        await onTokenFailure(source, error);
+        return source.roomUrl;
+      }
+    }),
   );
   return new Map(sources.map((source, index) => [source.id, urls[index]!]));
 };

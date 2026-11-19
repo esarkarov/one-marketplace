@@ -26,6 +26,8 @@ import {
   getAgencyTeamMemberIds,
 } from "@/modules/agency/index.js";
 import { ConversationScope } from "@/modules/messaging/types/messaging.types.js";
+import { errorMessageForLog } from "@/shared/logging/sanitize-log.js";
+import { logger as rootLogger, type AppLogger } from "@/config/logger.js";
 import { createMeetingJoinUrls } from "@/modules/messaging/services/messaging.meeting-join.service.js";
 import { toConversationResponse } from "@/modules/messaging/utils/messaging.mappers.js";
 
@@ -96,6 +98,7 @@ export const getConversations = async (
   userId: string,
   scope: ConversationScope,
   { limit, offset }: { limit: number; offset: number },
+  logger: AppLogger = rootLogger,
 ) => {
   let agencyId: string | null = null;
   if (scope === "agency") {
@@ -113,7 +116,7 @@ export const getConversations = async (
   const { rows, hasMore } = toOffsetPage(page, limit);
 
   return {
-    results: await hydrateConversations(rows, "messaging_get", userId),
+    results: await hydrateConversations(rows, "messaging_get", userId, logger),
     hasMore,
     totalUnread,
   };
@@ -123,6 +126,7 @@ const hydrateConversations = async (
   rows: ConversationRow[],
   operation: string,
   viewerAuthId: string,
+  logger: AppLogger,
 ) => {
   const profiles = await getParticipantProfiles(rows.map(({ id }) => id));
   const activeMeetings = rows.length
@@ -140,6 +144,18 @@ const hydrateConversations = async (
       startedAt: meeting.startedAt,
     })),
     operation,
+    async (source, error) => {
+      try {
+        await logger.warn({
+          message: "Meeting join token could not be minted",
+          eventName: "meeting.join_token.failed",
+          attributes: {
+            "task.meeting.id": source.id,
+            "error.message": errorMessageForLog(error),
+          },
+        });
+      } catch {}
+    },
   );
   const activeMeetingByConversation = new Map(
     activeMeetings.map((meeting) => [
@@ -161,6 +177,7 @@ const hydrateConversations = async (
 export const createConversation = async (
   clientId: string,
   input: { recipientId?: string; jobId?: string; proposalId?: string },
+  logger: AppLogger = rootLogger,
 ) => {
   let recipientId: string | undefined;
   let jobId = input.jobId;
@@ -244,6 +261,7 @@ export const createConversation = async (
     rows,
     "messaging_post",
     clientId,
+    logger,
   );
   return conversation!;
 };

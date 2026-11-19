@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
   failAfterWrite: false,
   loggerWarn: vi.fn(),
   createDailyRoom: vi.fn(),
+  createDailyJoinUrl: vi.fn(),
 }));
 
 vi.mock("@/config/logger.js", async (importOriginal) => {
@@ -28,7 +29,7 @@ vi.mock("@/config/logger.js", async (importOriginal) => {
 
 vi.mock("@/infrastructure/video/daily.client.js", () => ({
   createDailyRoom: mocks.createDailyRoom,
-  createDailyJoinUrl: async (input: { roomUrl: string }) => input.roomUrl,
+  createDailyJoinUrl: mocks.createDailyJoinUrl,
 }));
 
 vi.mock("@/modules/messaging/messaging.socket.js", async (importOriginal) => ({
@@ -205,6 +206,10 @@ beforeEach(async () => {
   mocks.loggerWarn.mockReset();
   mocks.loggerWarn.mockResolvedValue(undefined);
   createdRooms.length = 0;
+  mocks.createDailyJoinUrl.mockReset();
+  mocks.createDailyJoinUrl.mockImplementation(
+    async (input: { roomUrl: string }) => input.roomUrl,
+  );
   mocks.createDailyRoom.mockReset();
   mocks.createDailyRoom.mockImplementation(async (name: string) => {
     createdRooms.push(name);
@@ -468,6 +473,19 @@ describe("startMeeting against real Postgres", () => {
       client.release();
     }
   }, 30000);
+
+  it("still fails with the Daily error when the join token cannot be minted for an existing meeting", async () => {
+    await db.insert(meetings).values({
+      conversation_id: fixture.conversationId,
+      provider_room_name: `${PREFIX}existing-${randomUUID()}`,
+      join_url: "https://example.test/existing",
+      started_by_account_id: fixture.actorId,
+      status: "ACTIVE",
+    });
+    mocks.createDailyJoinUrl.mockRejectedValue(new Error("daily is down"));
+
+    await expect(start()).rejects.toThrow("daily is down");
+  });
 
   it("returns the existing active meeting without creating a Daily room", async () => {
     const [existing] = await db
