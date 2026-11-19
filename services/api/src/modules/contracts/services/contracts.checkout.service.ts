@@ -20,6 +20,11 @@ import {
   findProposalOfferForCheckout,
 } from "@/modules/contracts/repositories/contracts.repository.js";
 import { markMilestoneFundedIfPending } from "@/modules/contracts/repositories/contracts.state.repository.js";
+import {
+  isPermanentRefundCode,
+  stripeErrorFields,
+} from "@/modules/contracts/utils/contracts.stripe-errors.js";
+import { currentWebhookEventId } from "@/modules/contracts/utils/contracts.webhook-context.js";
 
 const CHECKOUT_SESSION_TTL_SECONDS = 35 * 60;
 
@@ -50,7 +55,7 @@ const isChargeAlreadyRefunded = (error: unknown) =>
 
 interface RefundTarget {
   checkoutSessionId: string | null;
-  paymentIntentId: string | undefined;
+  paymentIntentId: string;
   amountCents: number | null;
 }
 
@@ -58,25 +63,70 @@ class RefundNotCompletedError extends Error {
   override name = "RefundNotCompletedError";
 }
 
+class PaymentIntentUnavailableError extends Error {
+  override name = "PaymentIntentUnavailableError";
+}
+
 const UNSETTLED_REFUND_STATUSES = new Set<string | null>([
   "failed",
   "canceled",
 ]);
+
+const resolveWebhookPaymentIntentId = async (
+  session: Stripe.Checkout.Session,
+  eventId: string | undefined,
+): Promise<string> => {
+  const fromEvent = paymentIntentIdOf(session);
+  if (fromEvent) return fromEvent;
+
+  const retrieved = await resolveContractPaymentIntentId(session.id, null, {
+    expandPaymentIntent: true,
+  });
+  if (retrieved) return retrieved;
+
+  await logger.error({
+    message: "Payment could not be refunded: payment intent is missing.",
+    eventName: "payment.refund.no_payment_intent",
+    attributes: {
+      "stripe.checkout_session_id": session.id,
+      "stripe.event_id": eventId ?? null,
+    },
+  });
+  throw new PaymentIntentUnavailableError(
+    "Payment intent could not be resolved.",
+  );
+};
 
 const issueRefund = async (
   session: Stripe.Checkout.Session,
   reason: RefundReason,
   cause: string,
 ): Promise<void> => {
-  await refundTarget(
-    {
-      checkoutSessionId: session.id,
-      paymentIntentId: paymentIntentIdOf(session),
-      amountCents: session.amount_total,
-    },
-    reason,
-    cause,
-  );
+  const eventId = currentWebhookEventId();
+  const paymentIntentId = await resolveWebhookPaymentIntentId(session, eventId);
+  try {
+    await refundTarget(
+      {
+        checkoutSessionId: session.id,
+        paymentIntentId,
+        amountCents: session.amount_total,
+      },
+      reason,
+      cause,
+    );
+  } catch (error) {
+    const { code } = stripeErrorFields(error);
+    if (!isPermanentRefundCode(code)) throw error;
+    await logger.error({
+      message: "Payment refund is permanently unrecoverable.",
+      eventName: "payment.refund.unrecoverable",
+      attributes: {
+        "stripe.event_id": eventId ?? null,
+        "stripe.payment_intent_id": paymentIntentId,
+        "error.code": code,
+      },
+    });
+  }
 };
 
 const refundTarget = async (
@@ -88,19 +138,10 @@ const refundTarget = async (
   const { paymentIntentId } = target;
   const attributes = {
     "stripe.checkout_session_id": target.checkoutSessionId,
-    "stripe.payment_intent_id": paymentIntentId ?? null,
+    "stripe.payment_intent_id": paymentIntentId,
     "payment.refund_cause": cause,
     "payment.amount_cents": target.amountCents,
   };
-
-  if (!paymentIntentId) {
-    await logger.error({
-      message: "Payment could not be refunded: payment intent is missing.",
-      eventName: "payment.refund.unavailable",
-      attributes,
-    });
-    return null;
-  }
 
   let refund: Stripe.Response<Stripe.Refund>;
   try {
@@ -182,10 +223,15 @@ export const refundUnfulfillablePayment = async (
 export const resolveContractPaymentIntentId = async (
   checkoutSessionId: string | null,
   storedPaymentIntentId: string | null,
+  options: { expandPaymentIntent?: boolean } = {},
 ): Promise<string | undefined> => {
   if (storedPaymentIntentId) return storedPaymentIntentId;
   if (!checkoutSessionId) return undefined;
-  const session = await stripe.checkout.sessions.retrieve(checkoutSessionId);
+  const session = options.expandPaymentIntent
+    ? await stripe.checkout.sessions.retrieve(checkoutSessionId, {
+        expand: ["payment_intent"],
+      })
+    : await stripe.checkout.sessions.retrieve(checkoutSessionId);
   return paymentIntentIdOf(session);
 };
 

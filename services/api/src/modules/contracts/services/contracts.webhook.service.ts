@@ -4,6 +4,7 @@ import {
   type StripeWebhookRequest,
 } from "@/infrastructure/payments/stripe.webhook.js";
 import { fundContractMilestoneFromPayment } from "./contracts.checkout.service.js";
+import { runWithWebhookEvent } from "@/modules/contracts/utils/contracts.webhook-context.js";
 import { createContractFromPayment } from "./contracts.lifecycle.service.js";
 
 export const handleContractWebhook = async (
@@ -19,12 +20,11 @@ export const handleContractWebhook = async (
     event.type === "checkout.session.completed" ||
     event.type === "checkout.session.async_payment_succeeded"
   ) {
-    if (
-      event.data.object.metadata?.paymentType === "CONTRACT_MILESTONE_FUNDING"
-    ) {
-      await fundContractMilestoneFromPayment(event.data.object);
-    } else {
-      await createContractFromPayment(event.data.object);
-    }
+    const session = event.data.object;
+    await runWithWebhookEvent(event.id, () =>
+      session.metadata?.paymentType === "CONTRACT_MILESTONE_FUNDING"
+        ? fundContractMilestoneFromPayment(session)
+        : createContractFromPayment(session),
+    );
   }
 };

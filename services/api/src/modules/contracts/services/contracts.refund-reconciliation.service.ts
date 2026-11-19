@@ -12,6 +12,11 @@ import {
 } from "@/modules/contracts/repositories/contracts.refund-reconciliation.repository.js";
 import { markContractRefundedIfUnrecorded } from "@/modules/contracts/repositories/contracts.state.repository.js";
 import {
+  isPermanentRefundCode,
+  isStripeUnavailable,
+  stripeErrorFields,
+} from "@/modules/contracts/utils/contracts.stripe-errors.js";
+import {
   refundContractFirstPayment,
   resolveContractPaymentIntentId,
 } from "./contracts.checkout.service.js";
@@ -56,33 +61,6 @@ class ContractDetailsMissingError extends Error {
   override name = "ContractDetailsMissingError";
 }
 
-const stripeErrorFields = (error: unknown) => {
-  if (typeof error !== "object" || error === null) return {};
-  const fields = error as {
-    code?: unknown;
-    type?: unknown;
-    name?: unknown;
-    statusCode?: unknown;
-  };
-  return {
-    code: typeof fields.code === "string" ? fields.code : undefined,
-    type: typeof fields.type === "string" ? fields.type : undefined,
-    name: typeof fields.name === "string" ? fields.name : undefined,
-    statusCode:
-      typeof fields.statusCode === "number" ? fields.statusCode : undefined,
-  };
-};
-
-const isStripeUnavailable = (error: unknown) => {
-  const { type, statusCode } = stripeErrorFields(error);
-  return (
-    type === "StripeConnectionError" ||
-    type === "StripeRateLimitError" ||
-    statusCode === 429 ||
-    (statusCode !== undefined && statusCode >= 500)
-  );
-};
-
 const errorTag = (error: unknown) => {
   const { code, type, name } = stripeErrorFields(error);
   const raw = code ?? type ?? name ?? "UnknownError";
@@ -90,11 +68,6 @@ const errorTag = (error: unknown) => {
     .replace(/[^A-Za-z0-9_.:-]/g, "_")
     .slice(0, REFUND_RECONCILIATION.lastErrorMaxLength);
 };
-
-const isPermanentCode = (tag: string) =>
-  (REFUND_RECONCILIATION.permanentErrorCodes as readonly string[]).includes(
-    tag,
-  );
 
 const backoffMs = (attemptsBefore: number) =>
   Math.min(
@@ -260,7 +233,7 @@ const processCandidate = async (
       return "failedInDetect";
     }
     const tag = errorTag(error);
-    return recordFailure(candidate, tag, now, isPermanentCode(tag));
+    return recordFailure(candidate, tag, now, isPermanentRefundCode(tag));
   }
 
   await settleRefund(candidate, target, refundId, now);

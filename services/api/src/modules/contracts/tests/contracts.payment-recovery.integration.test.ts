@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
   refundCreate: vi.fn(),
   customersCreate: vi.fn(),
   sessionsCreate: vi.fn(),
+  sessionsRetrieve: vi.fn(),
   loggerWarn: vi.fn(),
   loggerError: vi.fn(),
 }));
@@ -49,7 +50,12 @@ vi.mock("@/infrastructure/payments/stripe.client.js", () => ({
   stripe: {
     refunds: { create: mocks.refundCreate },
     customers: { create: mocks.customersCreate },
-    checkout: { sessions: { create: mocks.sessionsCreate } },
+    checkout: {
+      sessions: {
+        create: mocks.sessionsCreate,
+        retrieve: mocks.sessionsRetrieve,
+      },
+    },
   },
 }));
 
@@ -91,6 +97,7 @@ import {
   acceptContract,
   createContractFromPayment,
 } from "@/modules/contracts/services/contracts.lifecycle.service.js";
+import { runWithWebhookEvent } from "@/modules/contracts/utils/contracts.webhook-context.js";
 
 const PREFIX = "payment-recovery-";
 const like = `${PREFIX}%`;
@@ -120,6 +127,8 @@ beforeEach(async () => {
   mocks.loggerError.mockResolvedValue(undefined);
   mocks.customersCreate.mockResolvedValue({ id: "cus_new" });
   mocks.sessionsCreate.mockResolvedValue({ url: "https://stripe.test/pay" });
+  mocks.sessionsRetrieve.mockReset();
+  mocks.sessionsRetrieve.mockResolvedValue({ payment_intent: null });
 });
 
 afterAll(async () => {
@@ -788,38 +797,53 @@ describe("unfulfillable payments", () => {
     expect(mocks.refundCreate).not.toHaveBeenCalled();
   });
 
-  const expectUnavailable = (session: Stripe.Checkout.Session) => {
+  const expectNoPaymentIntent = (
+    session: Stripe.Checkout.Session,
+    eventId: string,
+  ) => {
+    expect(mocks.sessionsRetrieve).toHaveBeenCalledTimes(1);
+    expect(mocks.sessionsRetrieve).toHaveBeenCalledWith(session.id, {
+      expand: ["payment_intent"],
+    });
     expect(mocks.refundCreate).not.toHaveBeenCalled();
-    expect(mocks.loggerError).toHaveBeenCalledWith(
-      expect.objectContaining({
-        eventName: "payment.refund.unavailable",
-        attributes: expect.objectContaining({
-          "stripe.checkout_session_id": session.id,
-        }),
-      }),
-    );
+    expect(mocks.loggerError).toHaveBeenCalledWith({
+      message: "Payment could not be refunded: payment intent is missing.",
+      eventName: "payment.refund.no_payment_intent",
+      attributes: {
+        "stripe.checkout_session_id": session.id,
+        "stripe.event_id": eventId,
+      },
+    });
   };
 
-  it("logs and answers success without refunding when the intent is missing on the duplicate path", async () => {
+  it("logs and throws without refunding when the intent is still missing after the session retrieve on the duplicate path", async () => {
     const offer = await seedOffer();
     await createContractFromPayment(paymentSession(offer));
     const duplicate = withoutIntent(paymentSession(offer));
 
-    await expect(createContractFromPayment(duplicate)).resolves.toBeUndefined();
+    await expect(
+      runWithWebhookEvent("evt_dup", () =>
+        createContractFromPayment(duplicate),
+      ),
+    ).rejects.toThrow();
 
-    expectUnavailable(duplicate);
+    expectNoPaymentIntent(duplicate, "evt_dup");
   });
 
-  it("logs and answers success without refunding when the intent is missing on the mismatch path", async () => {
+  it("logs and throws without refunding when the intent is still missing after the session retrieve on the mismatch path", async () => {
     const offer = await seedOffer();
     const session = withoutIntent(paymentSession(offer, { amount: FIRST + 1 }));
 
-    await expect(createContractFromPayment(session)).resolves.toBeUndefined();
+    await expect(
+      runWithWebhookEvent("evt_mismatch", () =>
+        createContractFromPayment(session),
+      ),
+    ).rejects.toThrow();
 
-    expectUnavailable(session);
+    expectNoPaymentIntent(session, "evt_mismatch");
   });
 
-  it("logs and answers success without refunding when the intent is missing on the unfulfillable path", async () => {
+  it("logs and throws without refunding when the intent is still missing after the session retrieve on the unfulfillable path", async () => {
     const offer = await seedOffer();
     await db
       .update(proposals)
@@ -827,22 +851,298 @@ describe("unfulfillable payments", () => {
       .where(eq(proposals.id, offer.proposalId));
     const session = withoutIntent(paymentSession(offer));
 
-    await expect(createContractFromPayment(session)).resolves.toBeUndefined();
+    await expect(
+      runWithWebhookEvent("evt_unfulfillable", () =>
+        createContractFromPayment(session),
+      ),
+    ).rejects.toThrow();
 
-    expectUnavailable(session);
+    expectNoPaymentIntent(session, "evt_unfulfillable");
   });
 
-  it("logs and answers success without refunding when the intent is missing for a funding payment", async () => {
+  it("logs and throws without refunding when the intent is still missing after the session retrieve for a funding payment", async () => {
     const { offer, contract } = await fundingTarget();
     const session = withoutIntent(
       fundingSession(offer, contract.id, randomUUID()),
     );
 
     await expect(
-      fundContractMilestoneFromPayment(session),
-    ).resolves.toBeUndefined();
+      runWithWebhookEvent("evt_funding", () =>
+        fundContractMilestoneFromPayment(session),
+      ),
+    ).rejects.toThrow();
 
-    expectUnavailable(session);
+    expectNoPaymentIntent(session, "evt_funding");
+  });
+
+  describe("webhook refund resolution and failures", () => {
+    const PERMANENT_CODES = [
+      "charge_not_refundable",
+      "refund_disputed_payment",
+      "resource_missing",
+    ] as const;
+
+    const SECRET = "card 4242424242424242 customer jane@example.test";
+
+    const stripeError = (
+      fields: { code?: string; type?: string; statusCode?: number } = {},
+    ) => Object.assign(new Error(SECRET), fields);
+
+    const duplicateContractPath = async () => {
+      const offer = await seedOffer();
+      await createContractFromPayment(paymentSession(offer));
+      const session = paymentSession(offer);
+      return {
+        session,
+        reason: "duplicate" as const,
+        run: () => createContractFromPayment(session),
+      };
+    };
+
+    const duplicateFundingPath = async () => {
+      const { offer, contract, second } = await fundingTarget();
+      await fundContractMilestoneFromPayment(
+        fundingSession(offer, contract.id, second.id),
+      );
+      const session = fundingSession(offer, contract.id, second.id);
+      return {
+        session,
+        reason: "duplicate" as const,
+        run: () => fundContractMilestoneFromPayment(session),
+      };
+    };
+
+    const mismatchPath = async () => {
+      const offer = await seedOffer();
+      const session = paymentSession(offer, { amount: FIRST + 1 });
+      return {
+        session,
+        reason: "requested_by_customer" as const,
+        run: () => createContractFromPayment(session),
+      };
+    };
+
+    const missingMilestonePath = async () => {
+      const { offer, contract } = await fundingTarget();
+      const session = fundingSession(offer, contract.id, randomUUID());
+      return {
+        session,
+        reason: "requested_by_customer" as const,
+        run: () => fundContractMilestoneFromPayment(session),
+      };
+    };
+
+    const paths = [
+      ["the duplicate contract path", duplicateContractPath],
+      ["the duplicate funding path", duplicateFundingPath],
+      ["the amount mismatch (unfulfillable) path", mismatchPath],
+      ["the missing milestone (unfulfillable) path", missingMilestonePath],
+    ] as const;
+
+    const cases = paths.flatMap(([name, setup]) =>
+      PERMANENT_CODES.map((code) => [name, code, setup] as const),
+    );
+
+    it.each(cases)(
+      "acknowledges a permanent refund error on %s (%s) with one error log and no further Stripe calls",
+      async (_name, code, setup) => {
+        const { session, reason, run } = await setup();
+        mocks.refundCreate.mockClear();
+        mocks.loggerError.mockClear();
+        mocks.refundCreate.mockRejectedValueOnce(stripeError({ code }));
+
+        await expect(
+          runWithWebhookEvent("evt_permanent", run),
+        ).resolves.toBeUndefined();
+
+        expect(mocks.refundCreate).toHaveBeenCalledTimes(1);
+        expect(mocks.refundCreate).toHaveBeenCalledWith(
+          ...refundedWith(session, reason),
+        );
+        expect(mocks.sessionsRetrieve).not.toHaveBeenCalled();
+        const unrecoverable = mocks.loggerError.mock.calls
+          .map((call) => call[0])
+          .filter(
+            (entry) => entry.eventName === "payment.refund.unrecoverable",
+          );
+        expect(unrecoverable).toEqual([
+          {
+            message: "Payment refund is permanently unrecoverable.",
+            eventName: "payment.refund.unrecoverable",
+            attributes: {
+              "stripe.event_id": "evt_permanent",
+              "stripe.payment_intent_id": session.payment_intent,
+              "error.code": code,
+            },
+          },
+        ]);
+        expect(JSON.stringify(mocks.loggerError.mock.calls)).not.toContain(
+          SECRET,
+        );
+      },
+    );
+
+    const retriedErrors = [
+      ["an unknown error", () => new Error("boom")],
+      ["a stripe error with an unknown code", () => stripeError({ code: "x" })],
+      ["a stripe error without a code", () => stripeError()],
+      [
+        "a connection error",
+        () => stripeError({ type: "StripeConnectionError" }),
+      ],
+      [
+        "a rate limit",
+        () => stripeError({ type: "StripeRateLimitError", statusCode: 429 }),
+      ],
+      ["a 503", () => stripeError({ type: "StripeAPIError", statusCode: 503 })],
+    ] as const;
+
+    const retriedCases = paths.flatMap(([name, setup]) =>
+      retriedErrors.map(([error, make]) => [name, error, make, setup] as const),
+    );
+
+    it.each(retriedCases)(
+      "rethrows on %s for %s so the webhook answers 500 and no unrecoverable log is written",
+      async (_name, _error, make, setup) => {
+        const { run } = await setup();
+        mocks.refundCreate.mockClear();
+        mocks.loggerError.mockClear();
+        const failure = make();
+        mocks.refundCreate.mockRejectedValueOnce(failure);
+
+        await expect(runWithWebhookEvent("evt_retry", run)).rejects.toBe(
+          failure,
+        );
+
+        expect(mocks.refundCreate).toHaveBeenCalledTimes(1);
+        expect(mocks.loggerError).not.toHaveBeenCalledWith(
+          expect.objectContaining({
+            eventName: "payment.refund.unrecoverable",
+          }),
+        );
+      },
+    );
+
+    it.each(paths)(
+      "still treats charge_already_refunded as done on %s",
+      async (_name, setup) => {
+        const { run } = await setup();
+        mocks.loggerError.mockClear();
+        mocks.refundCreate.mockRejectedValueOnce(
+          stripeError({ code: "charge_already_refunded" }),
+        );
+
+        await expect(run()).resolves.toBeUndefined();
+
+        expect(mocks.loggerError).not.toHaveBeenCalledWith(
+          expect.objectContaining({
+            eventName: "payment.refund.unrecoverable",
+          }),
+        );
+      },
+    );
+
+    it.each([
+      ["a string payment intent", "pi_from_session"],
+      ["an expanded payment intent", { id: "pi_from_session" }],
+    ] as const)(
+      "resolves a missing intent from the retrieved session with %s and refunds with the usual key",
+      async (_name, retrievedIntent) => {
+        const offer = await seedOffer();
+        await createContractFromPayment(paymentSession(offer));
+        const duplicate = withoutIntent(paymentSession(offer));
+        mocks.sessionsRetrieve.mockResolvedValue({
+          id: duplicate.id,
+          payment_intent: retrievedIntent,
+        });
+
+        await expect(
+          createContractFromPayment(duplicate),
+        ).resolves.toBeUndefined();
+
+        expect(mocks.sessionsRetrieve).toHaveBeenCalledTimes(1);
+        expect(mocks.sessionsRetrieve).toHaveBeenCalledWith(duplicate.id, {
+          expand: ["payment_intent"],
+        });
+        expect(mocks.refundCreate).toHaveBeenCalledTimes(1);
+        expect(mocks.refundCreate).toHaveBeenCalledWith(
+          { payment_intent: "pi_from_session", reason: "duplicate" },
+          { idempotencyKey: "refund:pi_from_session:duplicate" },
+        );
+        expect(mocks.loggerError).not.toHaveBeenCalledWith(
+          expect.objectContaining({
+            eventName: "payment.refund.no_payment_intent",
+          }),
+        );
+      },
+    );
+
+    it("resolves a missing intent on the unfulfillable path and refunds with the requested_by_customer key", async () => {
+      const offer = await seedOffer();
+      const session = withoutIntent(
+        paymentSession(offer, { amount: FIRST + 1 }),
+      );
+      mocks.sessionsRetrieve.mockResolvedValue({
+        id: session.id,
+        payment_intent: "pi_resolved",
+      });
+
+      await expect(createContractFromPayment(session)).resolves.toBeUndefined();
+
+      expect(mocks.refundCreate).toHaveBeenCalledTimes(1);
+      expect(mocks.refundCreate).toHaveBeenCalledWith(
+        { payment_intent: "pi_resolved", reason: "requested_by_customer" },
+        { idempotencyKey: "refund:pi_resolved:requested_by_customer" },
+      );
+    });
+
+    it("does not retrieve the session when the event already carries the intent", async () => {
+      const { run } = await duplicateContractPath();
+
+      await run();
+
+      expect(mocks.sessionsRetrieve).not.toHaveBeenCalled();
+      expect(mocks.refundCreate).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([
+      ["a connection error", { type: "StripeConnectionError" }],
+      ["a rate limit", { type: "StripeRateLimitError", statusCode: 429 }],
+      ["a 503", { type: "StripeAPIError", statusCode: 503 }],
+    ] as const)(
+      "throws and refunds nothing when the session retrieve fails with %s",
+      async (_name, fields) => {
+        const offer = await seedOffer();
+        await createContractFromPayment(paymentSession(offer));
+        const duplicate = withoutIntent(paymentSession(offer));
+        const failure = stripeError(fields);
+        mocks.sessionsRetrieve.mockRejectedValue(failure);
+
+        await expect(createContractFromPayment(duplicate)).rejects.toBe(
+          failure,
+        );
+
+        expect(mocks.sessionsRetrieve).toHaveBeenCalledTimes(1);
+        expect(mocks.refundCreate).not.toHaveBeenCalled();
+        expect(mocks.loggerError).not.toHaveBeenCalledWith(
+          expect.objectContaining({
+            eventName: "payment.refund.no_payment_intent",
+          }),
+        );
+      },
+    );
+
+    it("does not retrieve the session or refund for a replay of the winning webhook", async () => {
+      const offer = await seedOffer();
+      const winner = withoutIntent(paymentSession(offer));
+      await createContractFromPayment(winner);
+      mocks.sessionsRetrieve.mockClear();
+
+      await expect(createContractFromPayment(winner)).resolves.toBeUndefined();
+
+      expect(mocks.sessionsRetrieve).not.toHaveBeenCalled();
+      expect(mocks.refundCreate).not.toHaveBeenCalled();
+    });
   });
 });
 

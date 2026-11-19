@@ -60,6 +60,8 @@ vi.mock("@/modules/messaging/index.js", () => ({
 const { contractWebhook } =
   await import("@/modules/contracts/controllers/contracts.controller.js");
 const { errorHandler } = await import("@/middleware/error/error.middleware.js");
+const { currentWebhookEventId } =
+  await import("@/modules/contracts/utils/contracts.webhook-context.js");
 
 const app = express();
 app.use((req, _res, next) => {
@@ -232,5 +234,45 @@ describe("contract webhook signature verification", () => {
     const response = await post("good");
 
     expect(response.status).toBe(500);
+  });
+
+  it("runs the contract handler with the Stripe event id available to the refund logs", async () => {
+    let seen: string | undefined;
+    mocks.createContractFromPayment.mockImplementationOnce(async () => {
+      seen = currentWebhookEventId();
+    });
+    mocks.constructEvent.mockReturnValue({
+      id: "evt_contract",
+      type: "checkout.session.completed",
+      data: { object: { id: "cs_5", metadata: {} } },
+    });
+
+    const response = await post("good");
+
+    expect(response.status).toBe(200);
+    expect(seen).toBe("evt_contract");
+    expect(currentWebhookEventId()).toBeUndefined();
+  });
+
+  it("runs the funding handler with the Stripe event id available to the refund logs", async () => {
+    let seen: string | undefined;
+    mocks.fundContractMilestoneFromPayment.mockImplementationOnce(async () => {
+      seen = currentWebhookEventId();
+    });
+    mocks.constructEvent.mockReturnValue({
+      id: "evt_funding",
+      type: "checkout.session.completed",
+      data: {
+        object: {
+          id: "cs_6",
+          metadata: { paymentType: "CONTRACT_MILESTONE_FUNDING" },
+        },
+      },
+    });
+
+    const response = await post("good");
+
+    expect(response.status).toBe(200);
+    expect(seen).toBe("evt_funding");
   });
 });
