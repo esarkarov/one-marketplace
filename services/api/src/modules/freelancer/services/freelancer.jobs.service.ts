@@ -6,6 +6,8 @@ import {
   countProposalsPerJob,
   findPublishedJobDetail,
   listPublishedJobsWithClient,
+  listRecentJobIds,
+  listRecentJobsByIds,
 } from "@/modules/freelancer/repositories/freelancer.jobs.repository.js";
 import { findFreelancerSkills } from "@/modules/freelancer/repositories/freelancer.repository.js";
 import { JobFeedFilters } from "@/modules/freelancer/types/freelancer.types.js";
@@ -126,12 +128,60 @@ const matchJobPostsBySkills = async (
 const compareIdsDescending = (first: string, second: string) =>
   first < second ? 1 : first > second ? -1 : 0;
 
+const getRecentJobPosts = async (
+  filters: JobFeedFilters,
+  { limit, offset }: { limit: number; offset: number },
+  operation: string,
+) => {
+  const fetchedIds = await listRecentJobIds(db, filters, { limit, offset });
+  const { rows: pageIds, hasMore } = toOffsetPage(fetchedIds, limit);
+  const jobs = await listRecentJobsByIds(db, pageIds);
+
+  return {
+    results: jobs.map(
+      ({
+        job,
+        clientAccountId,
+        companyName,
+        clientCountry,
+        paymentVerified,
+        totalSpentCents,
+        clientRating,
+        clientReviewCount,
+        proposalCount,
+        hireCount,
+      }) => ({
+        ...toJobPostResponse(
+          {
+            ...job,
+            companyName,
+            paymentVerified: paymentVerified === true,
+            proposalCount,
+            hireCount,
+            clientTotalSpentCents: totalSpentCents ?? 0,
+            clientRating: Number(clientRating ?? 0),
+            clientReviewCount: Number(clientReviewCount ?? 0),
+          },
+          clientAccountId,
+          operation,
+        ),
+        clientCountry: clientCountry ?? null,
+      }),
+    ),
+    hasMore,
+  };
+};
+
 export const getMatchedJobPostsBySkills = async (
   skillList: string[],
   filters: JobFeedFilters,
   { limit, offset }: { limit: number; offset: number },
   operation: string,
 ) => {
+  if (filters.sort === "recent") {
+    return getRecentJobPosts(filters, { limit, offset }, operation);
+  }
+
   const matched = await matchJobPostsBySkills(skillList, filters);
   const { rows, hasMore } = toOffsetPage(
     matched.slice(offset, offset + fetchSize(limit)),

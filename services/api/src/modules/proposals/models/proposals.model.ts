@@ -3,6 +3,7 @@ import {
   bigint,
   boolean,
   check,
+  index,
   jsonb,
   pgTable,
   text,
@@ -35,6 +36,7 @@ export const proposals = pgTable(
   },
   (table) => [
     uniqueIndex("proposal_sender_job_unique").on(table.sender_id, table.job_id),
+    index("proposals_job_id_idx").on(table.job_id),
     check(
       "proposals_bid_amount_cents_max_check",
       sql`${table.bid_amount_cents} <= 9007199254740991`,

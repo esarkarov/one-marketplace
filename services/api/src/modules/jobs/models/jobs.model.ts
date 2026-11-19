@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import {
   bigint,
   check,
+  index,
   jsonb,
   pgTable,
   text,
@@ -75,6 +76,9 @@ export const job_posts = pgTable(
     }).defaultNow(),
   },
   (table) => [
+    index("job_posts_published_feed_idx")
+      .on(table.published_at.desc().nullsFirst(), table.id.desc().nullsFirst())
+      .where(sql`${table.status} = 'PUBLISHED'`),
     check(
       "job_posts_total_budget_cents_max_check",
       sql`${table.total_budget_cents} <= 9007199254740991`,

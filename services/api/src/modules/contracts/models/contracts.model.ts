@@ -67,6 +67,7 @@ export const contracts = pgTable(
   (table) => [
     uniqueIndex("contracts_proposal_id_unique").on(table.proposal_id),
     index("contracts_client_status_idx").on(table.client_id, table.status),
+    index("contracts_job_status_idx").on(table.job_id, table.status),
     index("contracts_freelancer_status_idx").on(
       table.freelancer_id,
       table.status,
