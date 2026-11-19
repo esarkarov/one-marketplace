@@ -155,6 +155,7 @@ Optional. The API starts without them, and the matching feature fails only when 
 | `PORT`                                                                                      | API port, default 4000                                                |
 | `NODE_ENV`                                                                                  | Defaults to `development`                                             |
 | `TRUST_PROXY`                                                                               | Proxy hop count or subnet list; `true` is rejected                    |
+| `REFUND_RECONCILIATION_MODE`                                                                | `off`, `detect` (default) or `on` (ADR 0023)                          |
 | `RABBITMQ_URL`                                                                              | Enables notification events; without it they are not stored or pushed |
 | `CLERK_SECRET_KEY`                                                                          | Clerk authentication                                                  |
 | `STRIPE_SECRET_KEY`                                                                         | Stripe API                                                            |
@@ -165,6 +166,8 @@ Optional. The API starts without them, and the matching feature fails only when 
 | `CLIENT_DASHBOARD`, `FREELANCER_DASHBOARD`, `AGENCY_DASHBOARD`, `ADMIN_DASHBOARD`           | Allowed browser origins; default to the local dev ports               |
 | `TEST_DATABASE_URL`, `CREATE_TEST_DB_ADMIN_URL`                                             | Test database settings (see Testing)                                  |
 | `SWAGGER_PORT`                                                                              | Swagger UI port, default 8081                                         |
+
+`REFUND_RECONCILIATION_MODE` controls the job that retries refunds left over after a decline or withdraw: `off` schedules nothing, `detect` (default, every environment) only logs the stuck refunds, `on` also refunds them and notifies ([ADR 0023](docs/decisions/0023-refund-reconciliation.md)).
 
 Additionally required when `NODE_ENV=production`: `CLERK_SECRET_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_CONNECTS_WEBHOOK_SECRET`, `STRIPE_IDENTITY_WEBHOOK_SECRET`, `DAILY_API_KEY`, `DAILY_WEBHOOK_SECRET`, `IMAGEKIT_PRIVATE_KEY`, `ADMIN_DASHBOARD_PASSWORD` and `ADMIN_SESSION_SECRET` (at least 32 characters). None may contain `change-me`. At least one dashboard origin variable must also be set, and each one set must be an http(s) URL. Create the production database with a UTF-8 locale such as `en_US.utf8` (the job feed lowercases text in SQL; see ADR 0022).
 

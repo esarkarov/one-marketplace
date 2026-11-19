@@ -15,6 +15,7 @@ import {
 import { pingDatabase } from "@/modules/health/index.js";
 import { startNotificationConsumer } from "@/modules/notifications/notifications.consumer.js";
 import { initializeMessagingSocket } from "@/modules/messaging/messaging.socket.js";
+import { startRefundReconciliationCron } from "@/modules/contracts/index.js";
 import { startPayoutCron } from "@/modules/payouts/payouts.cron.js";
 import { handleFatalError } from "./crash-handlers.js";
 import { setHttpServer } from "./http-server.js";
@@ -50,6 +51,7 @@ export const start = async (): Promise<void> => {
   }
   initializeMessagingSocket(server);
   startPayoutCron();
+  startRefundReconciliationCron();
   void logger.info({
     message: `${SERVICE_NAME} listening`,
     eventName: "system.startup",

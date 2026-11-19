@@ -90,6 +90,14 @@ const optionalFeatures = z.object({
       .regex(/^amqps?:\/\//, "must be an amqp:// or amqps:// URL")
       .optional(),
   ),
+  REFUND_RECONCILIATION_MODE: z.preprocess(
+    emptyToUndefined,
+    z
+      .enum(["off", "detect", "on"], {
+        error: "must be one of off, detect, on",
+      })
+      .default("detect"),
+  ),
   CLERK_SECRET_KEY: optionalString,
   IMAGEKIT_PRIVATE_KEY: optionalString,
   STRIPE_SECRET_KEY: optionalString,
@@ -221,6 +229,7 @@ export const parseEnv = (source: Source) => {
     databaseUrl: r.DATABASE_URL,
     redisUrl: r.REDIS_URL,
     rabbitmqUrl: o.RABBITMQ_URL,
+    refundReconciliationMode: o.REFUND_RECONCILIATION_MODE,
     clerkSecretKey: o.CLERK_SECRET_KEY,
     imageKitPrivateKey: o.IMAGEKIT_PRIVATE_KEY,
     stripeSecretKey: o.STRIPE_SECRET_KEY,

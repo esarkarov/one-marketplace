@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const hoisted = vi.hoisted(() => ({
   order: [] as string[],
   waitForPayoutRun: vi.fn(),
+  waitForRefundRun: vi.fn(),
   poolEnd: vi.fn(),
   warn: vi.fn(),
   server: {
@@ -53,6 +54,13 @@ vi.mock("@/modules/payouts/payouts.cron.js", () => ({
   waitForPayoutRun: hoisted.waitForPayoutRun,
 }));
 
+vi.mock("@/modules/contracts/index.js", () => ({
+  stopRefundReconciliationCron: async () => {
+    hoisted.order.push("stop-refund-cron");
+  },
+  waitForRefundReconciliationRun: hoisted.waitForRefundRun,
+}));
+
 const flush = async () => {
   for (let i = 0; i < 20; i += 1) {
     await Promise.resolve();
@@ -66,6 +74,8 @@ describe("shutdown payout drain", () => {
     vi.resetModules();
     hoisted.order.length = 0;
     hoisted.warn.mockReset().mockResolvedValue(undefined);
+    hoisted.waitForRefundRun.mockReset().mockResolvedValue(undefined);
+    hoisted.waitForPayoutRun.mockReset().mockResolvedValue(undefined);
     hoisted.poolEnd.mockReset().mockImplementation(async () => {
       hoisted.order.push("pool-end");
     });
@@ -98,7 +108,12 @@ describe("shutdown payout drain", () => {
     finish();
     await done;
 
-    expect(hoisted.order).toEqual(["stop-cron", "run-finished", "pool-end"]);
+    expect(hoisted.order).toEqual([
+      "stop-cron",
+      "stop-refund-cron",
+      "run-finished",
+      "pool-end",
+    ]);
     expect(hoisted.warn).not.toHaveBeenCalled();
     expect(exit).toHaveBeenCalledWith(0);
   });
@@ -119,7 +134,82 @@ describe("shutdown payout drain", () => {
     await done;
 
     expect(hoisted.warn).toHaveBeenCalledTimes(1);
-    expect(hoisted.order).toEqual(["stop-cron", "pool-end"]);
+    expect(hoisted.order).toEqual([
+      "stop-cron",
+      "stop-refund-cron",
+      "pool-end",
+    ]);
+    expect(exit).toHaveBeenCalledWith(0);
+  });
+
+  it("stops the refund reconciliation cron, then awaits its in-flight run before closing the pool", async () => {
+    let finish!: () => void;
+    hoisted.waitForRefundRun.mockReturnValue(
+      new Promise<void>((resolve) => {
+        finish = () => {
+          hoisted.order.push("refund-run-finished");
+          resolve();
+        };
+      }),
+    );
+    const { shutdown } = await import("@/bootstrap/shutdown.js");
+
+    const done = shutdown("SIGINT");
+    await new Promise((resolve) => setTimeout(resolve, 25));
+    expect(hoisted.order).toEqual(["stop-cron", "stop-refund-cron"]);
+    expect(hoisted.poolEnd).not.toHaveBeenCalled();
+
+    finish();
+    await done;
+
+    expect(hoisted.order).toEqual([
+      "stop-cron",
+      "stop-refund-cron",
+      "refund-run-finished",
+      "pool-end",
+    ]);
+    expect(hoisted.warn).not.toHaveBeenCalled();
+    expect(exit).toHaveBeenCalledWith(0);
+  });
+
+  it("returns at once when no refund reconciliation run is in flight", async () => {
+    const { shutdown } = await import("@/bootstrap/shutdown.js");
+
+    await shutdown("SIGINT");
+
+    expect(hoisted.order).toEqual([
+      "stop-cron",
+      "stop-refund-cron",
+      "pool-end",
+    ]);
+    expect(hoisted.warn).not.toHaveBeenCalled();
+    expect(exit).toHaveBeenCalledWith(0);
+  });
+
+  it("warns and continues when the refund reconciliation run outlasts the drain timeout", async () => {
+    vi.useFakeTimers();
+    hoisted.waitForRefundRun.mockReturnValue(
+      new Promise<void>(() => undefined),
+    );
+    const { shutdown, PAYOUT_DRAIN_TIMEOUT_MS } =
+      await import("@/bootstrap/shutdown.js");
+
+    const done = shutdown("SIGTERM");
+    await vi.advanceTimersByTimeAsync(PAYOUT_DRAIN_TIMEOUT_MS - 1);
+    expect(hoisted.poolEnd).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(1);
+    await done;
+
+    expect(hoisted.warn).toHaveBeenCalledTimes(1);
+    expect(hoisted.warn.mock.calls[0]![0]).toMatchObject({
+      eventName: "system.shutdown.refund_reconciliation_run_timeout",
+    });
+    expect(hoisted.order).toEqual([
+      "stop-cron",
+      "stop-refund-cron",
+      "pool-end",
+    ]);
     expect(exit).toHaveBeenCalledWith(0);
   });
 
@@ -138,6 +228,8 @@ describe("shutdown SSE streams", () => {
     vi.resetModules();
     hoisted.order.length = 0;
     hoisted.warn.mockReset().mockResolvedValue(undefined);
+    hoisted.waitForRefundRun.mockReset().mockResolvedValue(undefined);
+    hoisted.waitForPayoutRun.mockReset().mockResolvedValue(undefined);
     hoisted.poolEnd.mockReset().mockResolvedValue(undefined);
     hoisted.waitForPayoutRun.mockReset().mockImplementation(async () => {
       hoisted.order.push("drain-start");

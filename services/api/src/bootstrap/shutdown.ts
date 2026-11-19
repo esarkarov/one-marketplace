@@ -2,6 +2,10 @@ import { logger, rootLogger } from "@/config/logger.js";
 import { pool } from "@/database/client.js";
 import { disconnectRedis } from "@/infrastructure/cache/redis.client.js";
 import { closeRabbit } from "@/infrastructure/events/rabbitmq.client.js";
+import {
+  stopRefundReconciliationCron,
+  waitForRefundReconciliationRun,
+} from "@/modules/contracts/index.js";
 import { stopNotificationConsumer } from "@/modules/notifications/notifications.consumer.js";
 import { closeMessagingSocket } from "@/modules/messaging/messaging.socket.js";
 import {
@@ -29,17 +33,21 @@ export const markShutdownFailed = (): void => {
   crashed = true;
 };
 
-const drainPayoutRun = async (): Promise<void> => {
+const drainRun = async (
+  wait: () => Promise<void>,
+  message: string,
+  eventName: string,
+): Promise<void> => {
   let timer: NodeJS.Timeout | undefined;
   const timedOut = new Promise<boolean>((resolve) => {
     timer = setTimeout(() => resolve(true), PAYOUT_DRAIN_TIMEOUT_MS);
   });
   try {
-    const finished = waitForPayoutRun().then(() => false);
+    const finished = wait().then(() => false);
     if (await Promise.race([finished, timedOut])) {
       await logger.warn({
-        message: "Payout run still in flight at shutdown. Continuing.",
-        eventName: "system.shutdown.payout_run_timeout",
+        message,
+        eventName,
         attributes: { "shutdown.timeout_ms": PAYOUT_DRAIN_TIMEOUT_MS },
       });
     }
@@ -47,6 +55,20 @@ const drainPayoutRun = async (): Promise<void> => {
     clearTimeout(timer);
   }
 };
+
+const drainPayoutRun = (): Promise<void> =>
+  drainRun(
+    waitForPayoutRun,
+    "Payout run still in flight at shutdown. Continuing.",
+    "system.shutdown.payout_run_timeout",
+  );
+
+const drainRefundReconciliationRun = (): Promise<void> =>
+  drainRun(
+    waitForRefundReconciliationRun,
+    "Refund reconciliation run still in flight at shutdown. Continuing.",
+    "system.shutdown.refund_reconciliation_run_timeout",
+  );
 
 let httpClosed: Promise<Error | undefined> | undefined;
 
@@ -156,7 +178,12 @@ export const shutdown = async (reason: ShutdownReason): Promise<void> => {
   await runStep("stop accepting connections", stopAcceptingConnections);
   await runStep("sse streams", closeSseStreams);
   await runStep("payout cron", stopPayoutCron);
-  await runStep("payout run", drainPayoutRun);
+  await runStep("refund reconciliation cron", stopRefundReconciliationCron);
+  await runStep("background runs", () =>
+    Promise.all([drainPayoutRun(), drainRefundReconciliationRun()]).then(
+      () => undefined,
+    ),
+  );
   await runStep("http server", closeHttpServer);
   await runStep("notification consumer", () =>
     stopNotificationConsumer(CONNECTION_GRACE_MS),

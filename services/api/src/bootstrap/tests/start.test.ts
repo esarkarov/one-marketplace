@@ -9,6 +9,7 @@ const hoisted = vi.hoisted(() => ({
   startNotificationConsumer: vi.fn(),
   initializeMessagingSocket: vi.fn(),
   startPayoutCron: vi.fn(),
+  startRefundReconciliationCron: vi.fn(),
   handleFatalError: vi.fn(),
   exitWithFlush: vi.fn(),
   createServer: vi.fn(),
@@ -41,6 +42,9 @@ vi.mock("@/modules/messaging/messaging.socket.js", () => ({
 }));
 vi.mock("@/modules/payouts/payouts.cron.js", () => ({
   startPayoutCron: hoisted.startPayoutCron,
+}));
+vi.mock("@/modules/contracts/index.js", () => ({
+  startRefundReconciliationCron: hoisted.startRefundReconciliationCron,
 }));
 vi.mock("@/bootstrap/crash-handlers.js", () => ({
   handleFatalError: hoisted.handleFatalError,
@@ -84,6 +88,9 @@ describe("startup order and failures", () => {
     hoisted.startPayoutCron.mockReset().mockImplementation(() => {
       hoisted.order.push("cron");
     });
+    hoisted.startRefundReconciliationCron.mockReset().mockImplementation(() => {
+      hoisted.order.push("refund-cron");
+    });
     hoisted.handleFatalError.mockReset().mockResolvedValue(undefined);
     hoisted.exitWithFlush.mockReset().mockResolvedValue(undefined);
   });
@@ -93,7 +100,13 @@ describe("startup order and failures", () => {
     await start();
 
     expect(hoisted.pingDatabase).toHaveBeenCalledTimes(1);
-    expect(hoisted.order).toEqual(["listen", "consumer", "socket", "cron"]);
+    expect(hoisted.order).toEqual([
+      "listen",
+      "consumer",
+      "socket",
+      "cron",
+      "refund-cron",
+    ]);
     expect(hoisted.pingDatabase.mock.invocationCallOrder[0]!).toBeLessThan(
       hoisted.connectRedis.mock.invocationCallOrder[0]!,
     );
@@ -111,6 +124,7 @@ describe("startup order and failures", () => {
     expect(hoisted.startNotificationConsumer).not.toHaveBeenCalled();
     expect(hoisted.initializeMessagingSocket).not.toHaveBeenCalled();
     expect(hoisted.startPayoutCron).not.toHaveBeenCalled();
+    expect(hoisted.startRefundReconciliationCron).not.toHaveBeenCalled();
     expect(hoisted.exitWithFlush).toHaveBeenCalledTimes(1);
     expect(hoisted.exitWithFlush).toHaveBeenCalledWith(1);
   });

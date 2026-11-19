@@ -141,6 +141,32 @@ describe("parseEnv", () => {
     });
   });
 
+  describe("REFUND_RECONCILIATION_MODE", () => {
+    it.each(["off", "detect", "on"] as const)("accepts %s", (value) => {
+      expect(
+        parseEnv({ ...base, REFUND_RECONCILIATION_MODE: value })
+          .refundReconciliationMode,
+      ).toBe(value);
+    });
+
+    it.each([undefined, ""])("defaults %s to detect", (value) => {
+      expect(
+        parseEnv({ ...base, REFUND_RECONCILIATION_MODE: value })
+          .refundReconciliationMode,
+      ).toBe("detect");
+    });
+
+    it.each(["ON", "true", "enabled"])("rejects %s", (value) => {
+      const message = errorOf({ ...base, REFUND_RECONCILIATION_MODE: value });
+
+      expect(message).toContain("Invalid optional variables:");
+      expect(message).toContain(
+        "- REFUND_RECONCILIATION_MODE: must be one of off, detect, on",
+      );
+      expect(message).not.toContain("Missing or invalid required");
+    });
+  });
+
   describe("TRUST_PROXY", () => {
     it.each([undefined, "", "false", "0"])("maps %s to false", (value) => {
       expect(parseEnv({ ...base, TRUST_PROXY: value }).trustProxy).toBe(false);
@@ -217,6 +243,10 @@ describe("parseEnv", () => {
 
     it("accepts a complete production env", () => {
       expect(parseEnv(production).nodeEnv).toBe("production");
+    });
+
+    it("defaults the refund reconciliation mode to detect", () => {
+      expect(parseEnv(production).refundReconciliationMode).toBe("detect");
     });
 
     it("requires at least one dashboard origin", () => {
