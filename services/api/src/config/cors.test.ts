@@ -22,6 +22,10 @@ const allows = (
   return result;
 };
 
+const dailyWebhookSecret = Buffer.from("daily-test-webhook-secret").toString(
+  "base64",
+);
+
 describe("cors", () => {
   afterEach(() => {
     vi.doUnmock("./env.js");
@@ -72,6 +76,9 @@ describe("cors", () => {
       STRIPE_WEBHOOK_SECRET: "whsec_a",
       STRIPE_CONNECTS_WEBHOOK_SECRET: "whsec_b",
       STRIPE_IDENTITY_WEBHOOK_SECRET: "whsec_c",
+      DAILY_API_KEY: "daily_live_key",
+      DAILY_WEBHOOK_SECRET: dailyWebhookSecret,
+      IMAGEKIT_PRIVATE_KEY: "private_live_key",
       ADMIN_DASHBOARD_PASSWORD: "a-strong-admin-password",
       ADMIN_SESSION_SECRET: "s".repeat(32),
     };

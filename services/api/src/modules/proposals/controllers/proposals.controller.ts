@@ -36,7 +36,7 @@ import {
 } from "@/modules/proposals/services/proposals.submission.service.js";
 import {
   getAgencyIdForMember,
-  requireAgencyPermission,
+  requireAgencyIdWithPermission,
 } from "@/modules/agency/index.js";
 import type { ApiResponse } from "@/types/common.types.js";
 
@@ -165,16 +165,10 @@ export const submitAgencyProposalHandler: RequestHandler = asyncHandler(
       throw new ApiError(403, "A freelancer account is required.");
     }
 
-    const { agencyId } = await requireAgencyPermission(
+    const agencyId = await requireAgencyIdWithPermission(
       request.auth.userId,
       "proposal.send",
     );
-    if (!agencyId) {
-      throw new ApiError(
-        404,
-        "No agency workspace was found for this account.",
-      );
-    }
 
     const { body: input } = getValidated(request, submitAgencyProposalRequest);
     const coverLetter = requireText(input.coverLetter, "Cover letter");

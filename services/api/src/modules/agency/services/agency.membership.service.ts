@@ -25,6 +25,18 @@ export const getAgencyIdForMember = async (
   return membership?.agencyId ?? null;
 };
 
+export const agencyNotFoundError = (): ApiError =>
+  new ApiError(404, "No agency workspace was found for this account.");
+
+export const requireAgencyId = async (
+  userId: string,
+  executor: DbExecutor = db,
+): Promise<string> => {
+  const agencyId = await getAgencyIdForMember(userId, executor);
+  if (!agencyId) throw agencyNotFoundError();
+  return agencyId;
+};
+
 export const requireAgencyPermission = async (
   userId: string,
   permission: AgencyPermission,
@@ -46,6 +58,20 @@ export const requireAgencyPermission = async (
     );
   }
   return { agencyId, role };
+};
+
+export const requireAgencyIdWithPermission = async (
+  userId: string,
+  permission: AgencyPermission,
+  executor: DbExecutor = db,
+): Promise<string> => {
+  const { agencyId } = await requireAgencyPermission(
+    userId,
+    permission,
+    executor,
+  );
+  if (!agencyId) throw agencyNotFoundError();
+  return agencyId;
 };
 
 export const getAgencyOwnerId = async (

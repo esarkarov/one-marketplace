@@ -160,3 +160,21 @@ describe("body limits", () => {
     }
   });
 });
+
+describe("request body parsing", () => {
+  it("answers a form-encoded POST to a JSON endpoint like a request without a body", async () => {
+    const empty = await request(app).post("/api/v1/admin/auth/login");
+    const form = await request(app)
+      .post("/api/v1/admin/auth/login")
+      .type("form")
+      .send({ password: "secret" });
+
+    expect(empty.status).toBe(400);
+    expect(form.status).toBe(empty.status);
+    expect(form.body.code).toBe("VALIDATION_ERROR");
+    expect({ ...form.body, requestId: undefined }).toEqual({
+      ...empty.body,
+      requestId: undefined,
+    });
+  });
+});

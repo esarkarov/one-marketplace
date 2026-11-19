@@ -28,7 +28,6 @@ app.use(createHttpLogger());
 app.use(cors(corsOptions));
 app.use(API_PREFIX, globalLimiter);
 app.use(jsonBody);
-app.use(express.urlencoded({ extended: true }));
 
 app.get("/", (_request, response) => {
   const body: ApiResponse<never> = {

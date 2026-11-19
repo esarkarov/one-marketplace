@@ -32,6 +32,11 @@ vi.mock("@/config/env.js", async (importOriginal) => {
   };
 });
 
+vi.mock("@/infrastructure/video/daily.client.js", () => ({
+  createDailyJoinUrl: async (input: { roomUrl: string }) =>
+    `${input.roomUrl}?t=token`,
+}));
+
 vi.mock("@/infrastructure/auth/clerk.client.js", () => ({
   clerk: { users: { getUser: mocks.getUser } },
   verifyToken: mocks.verifyToken,
@@ -319,6 +324,9 @@ describe("GET /conversations", () => {
     const body = messagingResponses.list[200].parse(response.body);
     expect(body.data.results).toHaveLength(1);
     expect(body.data.results[0]?.activeMeeting).not.toBeNull();
+    expect(body.data.results[0]?.activeMeeting?.joinUrl).toBe(
+      "https://daily.test/room?t=token",
+    );
     expect(body.data.results[0]?.lastMessage).not.toBeNull();
     expect(
       body.data.results[0]?.participants.map((participant) => [

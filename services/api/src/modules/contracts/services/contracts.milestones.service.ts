@@ -9,10 +9,7 @@ import {
   appendConversationMessages,
   emitConversationUpdate,
 } from "@/modules/messaging/index.js";
-import {
-  getAgencyIdForMember,
-  getAgencyOwnerId,
-} from "@/modules/agency/index.js";
+import { requireAgencyId, getAgencyOwnerId } from "@/modules/agency/index.js";
 import {
   findContractForNewMilestone,
   findMilestoneForReview,
@@ -377,11 +374,7 @@ export const submitMilestone = async (
   submissionDeliveryLink: string | undefined,
 ) => {
   const scope = requestedScope === "agency" ? "agency" : "default";
-  const agencyId =
-    scope === "agency" ? await getAgencyIdForMember(userId) : null;
-  if (scope === "agency" && !agencyId) {
-    throw new ApiError(403, "No agency account found.");
-  }
+  const agencyId = scope === "agency" ? await requireAgencyId(userId) : null;
   const rawLink = submissionDeliveryLink ?? "";
   if (rawLink) {
     try {

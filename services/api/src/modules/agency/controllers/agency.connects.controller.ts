@@ -9,7 +9,8 @@ import { ApiError } from "@/shared/errors/api-error.js";
 import { ApiResponse } from "@/types/common.types.js";
 import {
   getAgencyIdForMember,
-  requireAgencyPermission,
+  requireAgencyId,
+  requireAgencyIdWithPermission,
 } from "@/modules/agency/services/agency.membership.service.js";
 import {
   createAgencyConnectsCheckout,
@@ -28,13 +29,7 @@ export const getAgencyConnects: RequestHandler = asyncHandler(
       throw new ApiError(403, "A freelancer account is required.");
     }
 
-    const agencyId = await getAgencyIdForMember(request.auth.userId);
-    if (!agencyId) {
-      throw new ApiError(
-        404,
-        "No agency workspace was found for this account.",
-      );
-    }
+    const agencyId = await requireAgencyId(request.auth.userId);
 
     const connects = await getAgencyConnectsBalance(agencyId);
 
@@ -87,16 +82,10 @@ export const buyAgencyConnects: RequestHandler = asyncHandler(
       throw new ApiError(403, "A freelancer account is required.");
     }
 
-    const { agencyId } = await requireAgencyPermission(
+    const agencyId = await requireAgencyIdWithPermission(
       request.auth.userId,
       "connects.checkout",
     );
-    if (!agencyId) {
-      throw new ApiError(
-        404,
-        "No agency workspace was found for this account.",
-      );
-    }
 
     const { body: requestBody } = getValidated(
       request,

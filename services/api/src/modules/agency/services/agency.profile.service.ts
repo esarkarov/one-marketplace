@@ -39,7 +39,10 @@ import {
   alreadyInAgencyError,
   ALREADY_IN_AGENCY_MESSAGE,
 } from "@/modules/agency/utils/agency.errors.js";
-import { getAgencyIdForMember } from "./agency.membership.service.js";
+import {
+  agencyNotFoundError,
+  getAgencyIdForMember,
+} from "./agency.membership.service.js";
 import { agencyPortfolioFolder } from "@/shared/uploads/storage-paths.js";
 import {
   deletePortfolioOfAgency,
@@ -402,7 +405,7 @@ export const updateAgencyProfile = async (
 ): Promise<AgencyData> => {
   const existing = await getAgencyByOwner(input.ownerId);
   if (!existing) {
-    throw new ApiError(404, "No agency workspace was found for this account.");
+    throw agencyNotFoundError();
   }
 
   const { avatarImage, portfolio, uploadedFileIds } = await resolveAgencyImages(

@@ -3,3 +3,4 @@ export { postSystemEventMessage } from "./services/messaging.system-events.servi
 export { requireMember } from "./services/messaging.conversations.service.js";
 export { appendConversationMessages } from "./repositories/messaging.conversations.repository.js";
 export { openInterviewConversation } from "./services/messaging.interview.service.js";
+export { createMeetingJoinUrls } from "./services/messaging.meeting-join.service.js";

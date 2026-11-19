@@ -792,7 +792,7 @@ describe("non-members and individual freelancers", () => {
     expect(response.status).toBe(404);
   });
 
-  it("keeps 403 No agency account found on scope=agency accept and finish for a non-member", async () => {
+  it("answers 404 No agency workspace on scope=agency accept and finish for a non-member", async () => {
     const { agencyId } = await setupAgency(OWNER_CASE);
     const pending = await insertContract(agencyId, "pending");
     const finishable = await insertContract(agencyId, "finishable");
@@ -811,10 +811,14 @@ describe("non-members and individual freelancers", () => {
         comment: "Great client to work with.",
       });
 
-    expect(accept.status).toBe(403);
-    expect(accept.body.message).toBe("No agency account found.");
-    expect(finish.status).toBe(403);
-    expect(finish.body.message).toBe("No agency account found.");
+    expect(accept.status).toBe(404);
+    expect(accept.body.message).toBe(
+      "No agency workspace was found for this account.",
+    );
+    expect(finish.status).toBe(404);
+    expect(finish.body.message).toBe(
+      "No agency workspace was found for this account.",
+    );
   });
 
   it("resolves a user who owns agency A and is a plain member of agency B to agency B", async () => {

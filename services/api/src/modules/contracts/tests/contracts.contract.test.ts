@@ -1301,7 +1301,7 @@ describe("POST /contracts/:contractId/finish", () => {
     contractsResponses.finish[409].parse(response.body);
   });
 
-  it("matches the 403 schema for a freelancer outside the agency", async () => {
+  it("matches the 404 schema for a freelancer outside the agency", async () => {
     const fixture = await seed({
       agency: true,
       milestones: [{ status: "COMPLETED", funded: true }],
@@ -1312,8 +1312,8 @@ describe("POST /contracts/:contractId/finish", () => {
       .query({ role: "freelancer", scope: "agency" })
       .set(as(member))
       .send({ rating: 5, comment: "Great collaboration, would hire again." });
-    expect(response.status).toBe(403);
-    contractsResponses.finish[403].parse(response.body);
+    expect(response.status).toBe(404);
+    contractsResponses.finish[404].parse(response.body);
   });
 
   it("matches the 404 schema", async () => {

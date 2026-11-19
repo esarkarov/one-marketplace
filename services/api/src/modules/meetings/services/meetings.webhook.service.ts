@@ -4,13 +4,11 @@ import { env } from "@/config/env.js";
 import { redis } from "@/infrastructure/cache/redis.client.js";
 import { ApiError } from "@/shared/errors/api-error.js";
 import { errorLogAttributes } from "@/shared/logging/sanitize-log.js";
+import {
+  dailyWebhookEventSchema,
+  type DailyWebhookEvent,
+} from "@/modules/meetings/schemas/meetings.schema.js";
 import { endMeetingByRoomName } from "./meetings.service.js";
-
-interface DailyMeetingEndedEvent {
-  id?: unknown;
-  type: string;
-  payload?: { room?: string };
-}
 
 const TIMESTAMP_TOLERANCE_MS = 5 * 60 * 1000;
 const SECONDS_THRESHOLD = 1e12;
@@ -128,6 +126,20 @@ const releaseClaim = async (logger: AppLogger, key: string) => {
   }
 };
 
+const parseDailyEvent = (rawBody: Buffer): DailyWebhookEvent => {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(rawBody.toString("utf8"));
+  } catch {
+    parsed = undefined;
+  }
+
+  const result = dailyWebhookEventSchema.safeParse(parsed);
+  if (result.success) return result.data;
+
+  throw new ApiError(400, "Invalid Daily webhook payload.");
+};
+
 export interface DailyWebhookInput {
   timestamp: unknown;
   signature: unknown;
@@ -158,7 +170,7 @@ export const handleDailyWebhook = async ({
     throw new ApiError(400, "Invalid Daily webhook signature.");
   }
 
-  const event = JSON.parse(rawBody.toString("utf8")) as DailyMeetingEndedEvent;
+  const event = parseDailyEvent(rawBody);
 
   const eventKey =
     typeof event.id === "string" && event.id

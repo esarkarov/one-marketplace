@@ -20,6 +20,7 @@ import {
   updateAgencyProfile,
 } from "@/modules/agency/services/agency.profile.service.js";
 import { searchPublicAgencies } from "@/modules/agency/services/agency.search.service.js";
+import { agencyNotFoundError } from "@/modules/agency/services/agency.membership.service.js";
 import {
   AgencyData,
   PublicAgencyData,
@@ -200,10 +201,7 @@ export const getAgencyJobFeed: RequestHandler = asyncHandler(
 
     const tags = await getAgencyTags(request.auth.userId);
     if (tags === null) {
-      throw new ApiError(
-        404,
-        "No agency workspace was found for this account.",
-      );
+      throw agencyNotFoundError();
     }
 
     const list = (value: unknown) =>

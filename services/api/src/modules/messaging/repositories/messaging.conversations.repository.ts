@@ -113,6 +113,7 @@ export const listActiveMeetingsForConversations = (
     .select({
       conversationId: meetings.conversation_id,
       id: meetings.id,
+      roomName: meetings.provider_room_name,
       joinUrl: meetings.join_url,
       startedAt: meetings.started_at,
       startedByAccountId: meetings.started_by_account_id,

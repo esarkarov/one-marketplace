@@ -487,14 +487,16 @@ describe("accept offer effects", () => {
     });
   });
 
-  it("answers 403 No agency account found. for the agency scope of a non-member before touching the contract", async () => {
+  it("answers 404 No agency workspace was found for the agency scope of a non-member before touching the contract", async () => {
     const fixture = await pending();
     const stranger = await insertAccount("FREELANCER");
 
     const response = await accept(fixture.contractId, stranger, "agency");
 
-    expect(response.status).toBe(403);
-    expect(response.body.message).toBe("No agency account found.");
+    expect(response.status).toBe(404);
+    expect(response.body.message).toBe(
+      "No agency workspace was found for this account.",
+    );
     expect(mocks.emitConversationUpdate).not.toHaveBeenCalled();
     expect(mocks.sendNotification).not.toHaveBeenCalled();
     expect(JSON.parse(await rowState(fixture)).contract).toBe("PENDING");
@@ -625,7 +627,7 @@ describe("submit milestone effects", () => {
     }
   });
 
-  it("checks the agency scope before the link: 403 for a non-member with a bad link", async () => {
+  it("checks the agency scope before the link: 404 for a non-member with a bad link", async () => {
     const fixture = await active(true);
     const stranger = await insertAccount("FREELANCER");
 
@@ -636,8 +638,10 @@ describe("submit milestone effects", () => {
       "agency",
     );
 
-    expect(response.status).toBe(403);
-    expect(response.body.message).toBe("No agency account found.");
+    expect(response.status).toBe(404);
+    expect(response.body.message).toBe(
+      "No agency workspace was found for this account.",
+    );
     expect(mocks.sendNotification).not.toHaveBeenCalled();
   });
 
@@ -933,7 +937,7 @@ describe("finish contract effects", () => {
     });
   });
 
-  it("answers 403 for the agency scope of a non-member without effects", async () => {
+  it("answers 404 for the agency scope of a non-member without effects", async () => {
     const fixture = await completed(true);
     const stranger = await insertAccount("FREELANCER");
 
@@ -943,8 +947,10 @@ describe("finish contract effects", () => {
       .set(as(stranger))
       .send({ rating: 5, comment: "Great collaboration, would hire again." });
 
-    expect(response.status).toBe(403);
-    expect(response.body.message).toBe("No agency account found.");
+    expect(response.status).toBe(404);
+    expect(response.body.message).toBe(
+      "No agency workspace was found for this account.",
+    );
     expect(mocks.emitConversationUpdate).not.toHaveBeenCalled();
     expect(mocks.sendNotification).not.toHaveBeenCalled();
   });

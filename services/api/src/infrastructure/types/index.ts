@@ -8,6 +8,10 @@ export interface DailyRoom {
   created_at: string;
 }
 
+export interface DailyMeetingToken {
+  token: string;
+}
+
 export interface DailyErrorBody {
   error?: string;
   info?: string;

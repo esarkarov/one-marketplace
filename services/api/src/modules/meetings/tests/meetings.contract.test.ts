@@ -26,6 +26,7 @@ vi.mock("@/config/env.js", async (importOriginal) => {
 
 vi.mock("@/infrastructure/video/daily.client.js", () => ({
   createDailyRoom: mocks.createDailyRoom,
+  createDailyJoinUrl: async (input: { roomUrl: string }) => input.roomUrl,
 }));
 
 vi.mock("@/infrastructure/cache/redis.client.js", () => ({

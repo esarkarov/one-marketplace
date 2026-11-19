@@ -91,10 +91,11 @@ beforeEach(() => {
 });
 
 describe("Daily webhook edges", () => {
-  it("answers 500 on a signed body that is not JSON, without processing", async () => {
+  it("answers 400 on a signed body that is not JSON, without processing", async () => {
     const response = await sendSigned("this is not json");
 
-    expect(response.status).toBe(500);
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe("Invalid Daily webhook payload.");
     expect(mocks.endMeeting).not.toHaveBeenCalled();
     expect(mocks.setCalls).toBe(0);
     expect(mocks.warn).not.toHaveBeenCalled();
@@ -208,5 +209,74 @@ describe("Daily webhook edges", () => {
 
     expect(response.status).toBe(200);
     expect(mocks.info).not.toHaveBeenCalled();
+  });
+});
+
+describe("Daily webhook payload validation", () => {
+  it.each([
+    ["null", "null"],
+    ["an array", "[]"],
+    ["a string", JSON.stringify("meeting.ended")],
+    ["a missing type", JSON.stringify({ id: "evt_v1", payload: {} })],
+    ["a non-string type", JSON.stringify({ id: "evt_v2", type: 7 })],
+    [
+      "a non-string room",
+      JSON.stringify({
+        id: "evt_v3",
+        type: "meeting.ended",
+        payload: { room: 42 },
+      }),
+    ],
+    [
+      "a non-object payload",
+      JSON.stringify({ id: "evt_v4", type: "meeting.ended", payload: "room" }),
+    ],
+  ])(
+    "answers 400 on a signed body with %s, without claiming or processing",
+    async (_name, body) => {
+      const response = await sendSigned(body);
+
+      expect(response.status).toBe(400);
+      expect(response.body.message).toBe("Invalid Daily webhook payload.");
+      expect(mocks.endMeeting).not.toHaveBeenCalled();
+      expect(mocks.setCalls).toBe(0);
+    },
+  );
+
+  it("accepts unknown extra fields on a valid event", async () => {
+    const response = await sendSigned(
+      JSON.stringify({
+        id: "evt_x1",
+        type: "meeting.ended",
+        version: "1.0.0",
+        event_ts: 1700000000,
+        payload: { room: "room_1", duration: 12, extra: { nested: true } },
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.endMeeting).toHaveBeenCalledWith("room_1");
+  });
+
+  it("still acknowledges an unknown event type", async () => {
+    const response = await sendSigned(
+      JSON.stringify({ id: "evt_x2", type: "recording.ready-to-download" }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.body.message).toBe("Webhook processed.");
+    expect(mocks.endMeeting).not.toHaveBeenCalled();
+  });
+
+  it("rejects an invalid signature with the signature message before parsing", async () => {
+    const response = await request(app)
+      .post("/webhook")
+      .set("Content-Type", "application/json")
+      .set("X-Webhook-Timestamp", nowSeconds())
+      .set("X-Webhook-Signature", "bad")
+      .send("not json");
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe("Invalid Daily webhook signature.");
   });
 });

@@ -12,6 +12,7 @@ import { errorLogAttributes } from "@/shared/logging/sanitize-log.js";
 import { logger } from "@/config/logger.js";
 import { createDailyRoom } from "@/infrastructure/video/daily.client.js";
 import {
+  createMeetingJoinUrls,
   postSystemEventMessage,
   requireMember,
 } from "@/modules/messaging/index.js";
@@ -36,17 +37,38 @@ const logOrphanedRoom = async (
   } catch {}
 };
 
+interface MeetingRow {
+  id: string;
+  provider_room_name: string;
+  join_url: string;
+  started_at: Date;
+}
+
+const toJoinSummary = async (meeting: MeetingRow, actorId: string) => {
+  const urls = await createMeetingJoinUrls(
+    actorId,
+    [
+      {
+        id: meeting.id,
+        roomName: meeting.provider_room_name,
+        roomUrl: meeting.join_url,
+        startedAt: meeting.started_at,
+      },
+    ],
+    "meetings_start",
+  );
+  return {
+    id: meeting.id,
+    joinUrl: urls.get(meeting.id) ?? meeting.join_url,
+    startedAt: meeting.started_at,
+  };
+};
+
 export const startMeeting = async (conversationId: string, actorId: string) => {
   await requireMember(conversationId, actorId);
 
   const existing = await findActiveMeetingByConversation(db, conversationId);
-  if (existing) {
-    return {
-      id: existing.id,
-      joinUrl: existing.join_url,
-      startedAt: existing.started_at,
-    };
-  }
+  if (existing) return toJoinSummary(existing, actorId);
 
   const roomName = `conv-${conversationId}-${randomUUID().slice(0, 8)}`;
   const room = await createDailyRoom(roomName);
@@ -77,11 +99,7 @@ export const startMeeting = async (conversationId: string, actorId: string) => {
       await setMeetingMessageId(transaction, created.id, message.id);
 
       return {
-        summary: {
-          id: created.id,
-          joinUrl: created.join_url,
-          startedAt: created.started_at,
-        },
+        created,
         emit,
       };
     });
@@ -91,11 +109,7 @@ export const startMeeting = async (conversationId: string, actorId: string) => {
 
     const active = await findActiveMeetingByConversation(db, conversationId);
     if (!active) throw error;
-    return {
-      id: active.id,
-      joinUrl: active.join_url,
-      startedAt: active.started_at,
-    };
+    return toJoinSummary(active, actorId);
   }
 
   try {
@@ -106,14 +120,14 @@ export const startMeeting = async (conversationId: string, actorId: string) => {
         message: "Meeting start notification could not be emitted",
         eventName: "task.meeting.emit_failed",
         attributes: {
-          "task.meeting.id": result.summary.id,
+          "task.meeting.id": result.created.id,
           ...errorLogAttributes(error),
         },
       });
     } catch {}
   }
 
-  return result.summary;
+  return toJoinSummary(result.created, actorId);
 };
 
 export const endMeetingByRoomName = async (roomName: string) => {

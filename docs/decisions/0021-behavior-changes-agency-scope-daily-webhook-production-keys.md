@@ -1,0 +1,29 @@
+# 0021: Behavior changes: agency scope status, private Daily rooms, webhook validation, parser removal, production keys
+
+Status: accepted. Applies to `services/api`. This is the only batch of the architecture delta series that changes API or ops behavior; everything not listed here behaves as before. No schema or migration change.
+
+## Context
+
+Five behaviors were inconsistent or weaker than the rest of the API:
+
+1. A caller with no agency got 403 "No agency account found." from the contracts handlers and 404 "No agency workspace was found for this account." from the agency, connects and proposals handlers.
+2. Daily rooms were created `public`: anyone holding the `joinUrl` could join, and the URL is stored and shown to every conversation member.
+3. The Daily webhook did `JSON.parse(rawBody) as DailyMeetingEndedEvent` after the signature check, so a correctly signed but malformed body answered 500.
+4. `app.ts` registered `express.urlencoded`, but no route reads a form-encoded body.
+5. Production start did not require the Daily and ImageKit keys, so a missing key only failed on first use.
+
+## Decision
+
+1. **Agency scope: one resolver, one status.** `requireAgencyId(userId)` and `requireAgencyIdWithPermission(userId, permission)` in `modules/agency/services/agency.membership.service.ts` (exported through `agency/index.ts`) return the agency id or throw `agencyNotFoundError()`: 404, code `NOT_FOUND`, "No agency workspace was found for this account." They are used by the contracts accept, decline, finish and submit services, the agency connects balance and checkout handlers and the agency proposal submit handler; the two owner or tag lookups (`updateAgencyProfile`, `getAgencyJobFeed`) keep their own query and throw the same `agencyNotFoundError()`. A permission failure stays 403 `AGENCY_PERMISSION_DENIED`. The position of each check is unchanged (permission lookup, then the 404; role guards first; the contracts scope check still runs before the link and contract checks). Handlers that answer an empty list for a caller with no agency are not an error case and are unchanged.
+2. **Private Daily rooms with per-user tokens.** `createDailyRoom` creates the room with `privacy: "private"`. `createDailyJoinUrl` (`infrastructure/video/daily.client.ts`) mints a Daily meeting token (`POST /meeting-tokens`) with `is_owner: false`, a `user_name`, a `user_id` and an `exp`, and returns the stored room URL with `?t=<token>`. The `user_id` is the participant's public `accounts.id`, never a Clerk id; `user_name` is `accounts.display_name`, or "Participant" when empty. `exp` is the meeting's `started_at` plus the room TTL minus a 300 s margin, so it never outlasts the room (the room is created before `started_at` is written); when that moment has already passed the stored URL is returned without calling Daily. `createMeetingJoinUrls` (`messaging/services/messaging.meeting-join.service.ts`, exported by `messaging/index.ts` because `meetings` sits above `messaging`) resolves the viewer and mints one token per meeting. Tokens are minted per request, outside any transaction, and are never stored or cached; `meetings.join_url` keeps the room URL without a token. A Daily failure surfaces as the same plain error as before (500). No response field is added: only the value of `joinUrl` changes, in `POST /conversations/:conversationId/meetings` and in `activeMeeting.joinUrl` of `GET /conversations` and `POST /conversations`, both for the requesting member only.
+3. **Daily webhook body is validated.** After the signature check the raw body is parsed and checked with `dailyWebhookEventSchema` (`meetings/schemas/meetings.schema.ts`: `type` string, optional `id`, optional nullable `payload` with an optional string `room`; unknown fields allowed). A body that is not JSON or fails the schema answers 400 "Invalid Daily webhook payload." before dedupe. Invalid signatures, dedupe, unknown event types (acknowledged) and valid events are unchanged.
+4. **`express.urlencoded` is removed.** A search of `src` found no form-encoded consumer (Stripe, Clerk and Daily webhooks send JSON; Stripe and Daily use the raw parser). A form-encoded POST to a JSON endpoint is now handled like a request with no body.
+5. **Production-required keys.** `DAILY_API_KEY`, `DAILY_WEBHOOK_SECRET` and `IMAGEKIT_PRIVATE_KEY` join `productionRequired` in `config/env.ts`. The ImageKit client reads only `IMAGEKIT_PRIVATE_KEY`, so no other ImageKit setting is added. Non-production is unchanged.
+
+## Consequences
+
+- A caller with `scope=agency` and no agency now gets 404 instead of 403 on `PATCH /contracts/:contractId/accept`, `PATCH /contracts/:contractId/decline`, `POST /contracts/:contractId/finish` and `POST /contracts/:contractId/milestones/:milestoneId/submit`. The 404 was already documented on those operations, so `docs/api/openapi.json` does not change.
+- A client must use `joinUrl` from the start-meeting response or from `activeMeeting` and must not rely on the URL in the `MEETING_STARTED` message payload: that payload is shared by every member, holds the room URL without a token and cannot join a private room. `GET /conversations` and `POST /conversations` now call Daily once per active meeting of the requester, so a Daily outage fails those requests while a meeting is active; the request is not retried.
+- An old meeting started before this change keeps a public room until it expires (at most six hours); its `joinUrl` now gets a token that the public room ignores.
+- A signed webhook with a malformed body is a 400 instead of a 500.
+- Production start fails unless the three keys are set and none contains `change-me`; `.env.example` must list them.

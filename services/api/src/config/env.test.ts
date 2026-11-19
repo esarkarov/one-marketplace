@@ -2,6 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import { parseEnv } from "./env.js";
 
+const dailyWebhookSecret = Buffer.from("daily-test-webhook-secret").toString(
+  "base64",
+);
+
 const base = {
   DATABASE_URL: "postgres://user:dbpass@localhost:5432/app",
   REDIS_URL: "redis://localhost:6379",
@@ -203,6 +207,9 @@ describe("parseEnv", () => {
       STRIPE_WEBHOOK_SECRET: "whsec_a",
       STRIPE_CONNECTS_WEBHOOK_SECRET: "whsec_b",
       STRIPE_IDENTITY_WEBHOOK_SECRET: "whsec_c",
+      DAILY_API_KEY: "daily_live_key",
+      DAILY_WEBHOOK_SECRET: dailyWebhookSecret,
+      IMAGEKIT_PRIVATE_KEY: "private_live_key",
       ADMIN_DASHBOARD_PASSWORD: "a-strong-admin-password",
       ADMIN_SESSION_SECRET: "s".repeat(32),
       CLIENT_DASHBOARD: "https://client.example.com",
@@ -253,10 +260,44 @@ describe("parseEnv", () => {
         "STRIPE_WEBHOOK_SECRET",
         "STRIPE_CONNECTS_WEBHOOK_SECRET",
         "STRIPE_IDENTITY_WEBHOOK_SECRET",
+        "DAILY_API_KEY",
+        "DAILY_WEBHOOK_SECRET",
+        "IMAGEKIT_PRIVATE_KEY",
         "ADMIN_DASHBOARD_PASSWORD",
         "ADMIN_SESSION_SECRET",
       ]) {
         expect(message).toContain(`- ${name}: is required in production`);
+      }
+    });
+
+    it.each(["DAILY_API_KEY", "DAILY_WEBHOOK_SECRET", "IMAGEKIT_PRIVATE_KEY"])(
+      "fails clearly in production when %s is missing",
+      (name) => {
+        expect(errorOf({ ...production, [name]: undefined })).toContain(
+          `- ${name}: is required in production`,
+        );
+        expect(errorOf({ ...production, [name]: "" })).toContain(
+          `- ${name}: is required in production`,
+        );
+      },
+    );
+
+    it("rejects change-me for the Daily and ImageKit keys in production", () => {
+      const message = errorOf({
+        ...production,
+        DAILY_API_KEY: "change-me-daily",
+      });
+
+      expect(message).toContain("- DAILY_API_KEY: must not be a placeholder");
+    });
+
+    it("does not require the Daily and ImageKit keys outside production", () => {
+      for (const nodeEnv of ["development", "test", undefined]) {
+        const env = parseEnv({ ...base, NODE_ENV: nodeEnv });
+
+        expect(env.dailyApiKey).toBeUndefined();
+        expect(env.dailyWebhookSecret).toBeUndefined();
+        expect(env.imageKitPrivateKey).toBeUndefined();
       }
     });
 

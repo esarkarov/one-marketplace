@@ -11,7 +11,7 @@ import {
 import { getJSSContribution } from "@/modules/freelancer/index.js";
 import {
   getAgencyOwnerId,
-  requireAgencyPermission,
+  requireAgencyIdWithPermission,
 } from "@/modules/agency/index.js";
 import { markJobHired, releaseJobHire } from "@/modules/jobs/index.js";
 import { markProposalHired } from "@/modules/proposals/index.js";
@@ -536,11 +536,8 @@ export const acceptOffer = async (
   const scope = requestedScope === "agency" ? "agency" : "default";
   const agencyId =
     scope === "agency"
-      ? (await requireAgencyPermission(userId, "contract.accept")).agencyId
+      ? await requireAgencyIdWithPermission(userId, "contract.accept")
       : null;
-  if (scope === "agency" && !agencyId) {
-    throw new ApiError(403, "No agency account found.");
-  }
   const contract = await acceptContract(contractId, userId, agencyId);
 
   await emitConversationUpdate(contract.conversationId, userId);
@@ -588,11 +585,8 @@ export const declineOffer = async (
   const scope = requestedScope === "agency" ? "agency" : "default";
   const agencyId =
     scope === "agency"
-      ? (await requireAgencyPermission(userId, "contract.accept")).agencyId
+      ? await requireAgencyIdWithPermission(userId, "contract.accept")
       : null;
-  if (scope === "agency" && !agencyId) {
-    throw new ApiError(403, "No agency account found.");
-  }
   const contract = await cancelPendingContract(contractId, {
     kind: "talent",
     freelancerId: userId,
@@ -654,11 +648,8 @@ export const finishContractAsParty = async (
     role === "freelancer" && requestedScope === "agency" ? "agency" : "default";
   const agencyId =
     scope === "agency"
-      ? (await requireAgencyPermission(userId, "contract.finish")).agencyId
+      ? await requireAgencyIdWithPermission(userId, "contract.finish")
       : null;
-  if (scope === "agency" && !agencyId) {
-    throw new ApiError(403, "No agency account found.");
-  }
 
   const contract = await finishContractWithReview(
     contractId,

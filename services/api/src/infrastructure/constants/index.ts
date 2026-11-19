@@ -1,5 +1,6 @@
 export const DAILY_API_BASE = "https://api.daily.co/v1";
 export const ROOM_TTL_SECONDS = 60 * 60 * 6;
+export const ROOM_TOKEN_EXPIRY_MARGIN_SECONDS = 300;
 export const STRIPE_TIMEOUT_MS = 30_000;
 export const PUBLISH_TIMEOUT_MS = 2_000;
 export const NOTIFICATIONS_CREATED_ROUTING_KEY = "notifications.created";

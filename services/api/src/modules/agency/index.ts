@@ -2,6 +2,8 @@ export {
   getAgencyIdForMember,
   getAgencyOwnerId,
   getAgencyTeamMemberIds,
+  requireAgencyId,
+  requireAgencyIdWithPermission,
   requireAgencyPermission,
 } from "./services/agency.membership.service.js";
 export {

@@ -26,6 +26,7 @@ import {
   getAgencyTeamMemberIds,
 } from "@/modules/agency/index.js";
 import { ConversationScope } from "@/modules/messaging/types/messaging.types.js";
+import { createMeetingJoinUrls } from "@/modules/messaging/services/messaging.meeting-join.service.js";
 import { toConversationResponse } from "@/modules/messaging/utils/messaging.mappers.js";
 
 export const requireMember = async (
@@ -112,7 +113,7 @@ export const getConversations = async (
   const { rows, hasMore } = toOffsetPage(page, limit);
 
   return {
-    results: await hydrateConversations(rows, "messaging_get"),
+    results: await hydrateConversations(rows, "messaging_get", userId),
     hasMore,
     totalUnread,
   };
@@ -121,6 +122,7 @@ export const getConversations = async (
 const hydrateConversations = async (
   rows: ConversationRow[],
   operation: string,
+  viewerAuthId: string,
 ) => {
   const profiles = await getParticipantProfiles(rows.map(({ id }) => id));
   const activeMeetings = rows.length
@@ -129,8 +131,21 @@ const hydrateConversations = async (
         rows.map(({ id }) => id),
       )
     : [];
+  const joinUrls = await createMeetingJoinUrls(
+    viewerAuthId,
+    activeMeetings.map((meeting) => ({
+      id: meeting.id,
+      roomName: meeting.roomName,
+      roomUrl: meeting.joinUrl,
+      startedAt: meeting.startedAt,
+    })),
+    operation,
+  );
   const activeMeetingByConversation = new Map(
-    activeMeetings.map((meeting) => [meeting.conversationId, meeting]),
+    activeMeetings.map((meeting) => [
+      meeting.conversationId,
+      { ...meeting, joinUrl: joinUrls.get(meeting.id) ?? meeting.joinUrl },
+    ]),
   );
 
   return rows.map((row) =>
@@ -225,6 +240,10 @@ export const createConversation = async (
     { agencyId: null, userId: clientId },
     { conversationId },
   );
-  const [conversation] = await hydrateConversations(rows, "messaging_post");
+  const [conversation] = await hydrateConversations(
+    rows,
+    "messaging_post",
+    clientId,
+  );
   return conversation!;
 };

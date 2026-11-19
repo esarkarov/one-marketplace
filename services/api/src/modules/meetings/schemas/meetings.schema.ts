@@ -15,3 +15,11 @@ export const createMeetingRequest = {
   params: createMeetingParamsSchema,
   query: createMeetingQuerySchema,
 } satisfies RequestSchemas;
+
+export const dailyWebhookEventSchema = z.looseObject({
+  id: z.unknown().optional(),
+  type: z.string(),
+  payload: z.looseObject({ room: z.string().optional() }).nullish(),
+});
+
+export type DailyWebhookEvent = z.infer<typeof dailyWebhookEventSchema>;
