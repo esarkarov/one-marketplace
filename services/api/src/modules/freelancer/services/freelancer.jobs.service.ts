@@ -1,22 +1,17 @@
 import { db } from "@/database/client.js";
 import {
   countHiresForJob,
-  countHiresPerJob,
   countProposalsForJob,
-  countProposalsPerJob,
   findPublishedJobDetail,
-  listPublishedJobsWithClient,
+  listBestMatchJobIds,
+  listFeedJobsByIds,
   listRecentJobIds,
-  listRecentJobsByIds,
 } from "@/modules/freelancer/repositories/freelancer.jobs.repository.js";
 import { findFreelancerSkills } from "@/modules/freelancer/repositories/freelancer.repository.js";
 import { JobFeedFilters } from "@/modules/freelancer/types/freelancer.types.js";
 import { ApiError } from "@/shared/errors/api-error.js";
 import { toJobPostResponse } from "@/modules/jobs/index.js";
-import {
-  fetchSize,
-  toOffsetPage,
-} from "@/shared/validation/utils/pagination.utils.js";
+import { toOffsetPage } from "@/shared/validation/utils/pagination.utils.js";
 
 export const getJSSContribution = (rating: number): number => {
   const r = Math.round(rating);
@@ -30,148 +25,55 @@ export const getJSSContribution = (rating: number): number => {
 
 // Strips spacing/punctuation so equivalent skill names entered through
 // different UI conventions still match, e.g. "Next Js" (freelancer skill
-// picker) vs "Next.js" (job post skill tag) — both normalize to "nextjs".
+// picker) vs "Next.js" (job post skill tag) both normalize to "nextjs". The SQL
+// applies the same rule to the job side (ADR 0022).
 const normalizeSkill = (skill: string) =>
   skill.toLowerCase().replace(/[^a-z0-9]/g, "");
 
-// Shared by both the freelancer and agency job feeds — "skills" is either a
-// freelancer's own skills or an agency's tags, matched against each job's
-// required skills and title/description text the same way either side.
-const matchJobPostsBySkills = async (
-  skillList: string[],
-  filters: JobFeedFilters = {},
-) => {
-  const skills = skillList.map(normalizeSkill);
-
-  const jobs = await listPublishedJobsWithClient(db);
-
-  const proposalCounts = await countProposalsPerJob(db);
-  const hireCounts = await countHiresPerJob(db);
-
-  const counts = new Map(
-    proposalCounts?.map((item) => [item.jobId, Number(item.count)]),
-  );
-  const hires = new Map(
-    hireCounts.map((item) => [item.jobId, Number(item.count)]),
-  );
-
-  const filteredJobs = jobs
-    .map(
-      ({
-        job,
-        clientAccountId,
-        companyName,
-        clientCountry,
-        paymentVerified,
-        totalSpentCents,
-        clientRating,
-        clientReviewCount,
-      }) => ({
-        ...job,
-        clientAccountId,
-        companyName,
-        clientCountry,
-        paymentVerified: paymentVerified === true,
-        proposalCount: counts?.get(job.id) ?? 0,
-        hireCount: hires.get(job.id) ?? 0,
-        clientTotalSpentCents: totalSpentCents ?? 0,
-        clientRating: Number(clientRating ?? 0),
-        clientReviewCount: Number(clientReviewCount ?? 0),
-      }),
-    )
-    .filter((job) => {
-      const budgetCents = job.total_budget_cents;
-      return (
-        (!filters.levels?.length ||
-          filters.levels.includes(job.expertise_level)) &&
-        (!filters.durations?.length ||
-          filters.durations.includes(job.expected_duration)) &&
-        (filters.minBudgetCents === undefined ||
-          budgetCents >= filters.minBudgetCents) &&
-        (filters.maxBudgetCents === undefined ||
-          budgetCents <= filters.maxBudgetCents) &&
-        (filters.minProposals === undefined ||
-          job.proposalCount >= filters.minProposals) &&
-        (filters.maxProposals === undefined ||
-          job.proposalCount <= filters.maxProposals) &&
-        (!filters.paymentVerified || job.paymentVerified)
-      );
-    });
-
-  if (filters.sort === "recent") return filteredJobs;
-
-  return filteredJobs
-    .map((job) => {
-      const jobSkills = job.skills.map(normalizeSkill);
-      const content = normalizeSkill(`${job.title} ${job.description}`);
-      const skillMatches = skills.filter((skill) =>
-        jobSkills.some(
-          (jobSkill) => jobSkill === skill || jobSkill.includes(skill),
-        ),
-      ).length;
-      const contentMatches = skills.filter((skill) =>
-        content.includes(skill),
-      ).length;
-
-      return { ...job, matchScore: skillMatches * 2 + contentMatches };
-    })
-    .filter((job) => job.matchScore > 0)
-    .sort(
-      (first, second) =>
-        second.matchScore - first.matchScore ||
-        new Date(second.published_at ?? second.created_at ?? 0).getTime() -
-          new Date(first.published_at ?? first?.created_at ?? 0).getTime() ||
-        compareIdsDescending(first.id, second.id),
-    );
-};
-
-const compareIdsDescending = (first: string, second: string) =>
-  first < second ? 1 : first > second ? -1 : 0;
-
-const getRecentJobPosts = async (
-  filters: JobFeedFilters,
-  { limit, offset }: { limit: number; offset: number },
+const toFeedPage = async (
+  fetched: Array<{ id: string; score?: number }>,
+  limit: number,
   operation: string,
 ) => {
-  const fetchedIds = await listRecentJobIds(db, filters, { limit, offset });
-  const { rows: pageIds, hasMore } = toOffsetPage(fetchedIds, limit);
-  const jobs = await listRecentJobsByIds(db, pageIds);
+  const { rows: pageRows, hasMore } = toOffsetPage(fetched, limit);
+  const jobs = await listFeedJobsByIds(
+    db,
+    pageRows.map((row) => row.id),
+  );
+  const byId = new Map(jobs.map((row) => [row.job.id, row]));
 
   return {
-    results: jobs.map(
-      ({
-        job,
-        clientAccountId,
-        companyName,
-        clientCountry,
-        paymentVerified,
-        totalSpentCents,
-        clientRating,
-        clientReviewCount,
-        proposalCount,
-        hireCount,
-      }) => ({
-        ...toJobPostResponse(
-          {
-            ...job,
-            companyName,
-            paymentVerified: paymentVerified === true,
-            proposalCount,
-            hireCount,
-            clientTotalSpentCents: totalSpentCents ?? 0,
-            clientRating: Number(clientRating ?? 0),
-            clientReviewCount: Number(clientReviewCount ?? 0),
-          },
-          clientAccountId,
-          operation,
-        ),
-        clientCountry: clientCountry ?? null,
-      }),
-    ),
+    results: pageRows.flatMap(({ id, score }) => {
+      const row = byId.get(id);
+      if (!row) return [];
+      return [
+        {
+          ...toJobPostResponse(
+            {
+              ...row.job,
+              companyName: row.companyName,
+              paymentVerified: row.paymentVerified === true,
+              proposalCount: row.proposalCount,
+              hireCount: row.hireCount,
+              clientTotalSpentCents: row.totalSpentCents ?? 0,
+              clientRating: Number(row.clientRating ?? 0),
+              clientReviewCount: Number(row.clientReviewCount ?? 0),
+              ...(score === undefined ? {} : { matchScore: score }),
+            },
+            row.clientAccountId,
+            operation,
+          ),
+          clientCountry: row.clientCountry ?? null,
+        },
+      ];
+    }),
     hasMore,
   };
 };
 
+// Shared by both the freelancer and agency job feeds: "skillList" is either a
+// freelancer's own skills or an agency's tags, matched in SQL against each
+// job's required skills and title/description text.
 export const getMatchedJobPostsBySkills = async (
   skillList: string[],
   filters: JobFeedFilters,
@@ -179,22 +81,25 @@ export const getMatchedJobPostsBySkills = async (
   operation: string,
 ) => {
   if (filters.sort === "recent") {
-    return getRecentJobPosts(filters, { limit, offset }, operation);
+    const ids = await listRecentJobIds(db, filters, { limit, offset });
+    return toFeedPage(
+      ids.map((id) => ({ id })),
+      limit,
+      operation,
+    );
   }
 
-  const matched = await matchJobPostsBySkills(skillList, filters);
-  const { rows, hasMore } = toOffsetPage(
-    matched.slice(offset, offset + fetchSize(limit)),
-    limit,
+  const matched = await listBestMatchJobIds(
+    db,
+    filters,
+    skillList.map(normalizeSkill),
+    { limit, offset },
   );
-
-  return {
-    results: rows.map(({ clientAccountId, clientCountry, ...job }) => ({
-      ...toJobPostResponse(job, clientAccountId, operation),
-      clientCountry: clientCountry ?? null,
-    })),
-    hasMore,
-  };
+  return toFeedPage(
+    matched.map(({ id, score }) => ({ id, score })),
+    limit,
+    operation,
+  );
 };
 
 export const getMatchedJobPosts = async (
