@@ -14,7 +14,9 @@ import {
   requireAgencyIdWithPermission,
 } from "@/modules/agency/index.js";
 import { markJobHired, releaseJobHire } from "@/modules/jobs/index.js";
+import { uuidV5 } from "@/shared/ids/uuid-v5.js";
 import { markProposalHired } from "@/modules/proposals/index.js";
+import type { ContractCancelledBy } from "@/modules/contracts/repositories/contracts.state.repository.js";
 import {
   findContractForCancellation,
   findContractForReview,
@@ -30,6 +32,7 @@ import {
   markContractActiveIfPending,
   markContractCancelledIfPending,
   markContractCompletedIfActive,
+  markContractRefundedIfUnrecorded,
   markMilestoneActiveIfFundedAndPending,
   recordAgencyJobCompleted,
   recordAgencyJobStarted,
@@ -314,6 +317,9 @@ export const cancelPendingContract = async (
   });
   if (!contract) throw new ApiError(404, "Funded contract offer not found.");
 
+  const cancelledBy: ContractCancelledBy =
+    actor.kind === "client" ? "CLIENT" : "TALENT";
+
   const transitioned = await db.transaction(async (transaction) => {
     const [locked] = await lockContractStatusForUpdate(
       transaction,
@@ -327,6 +333,7 @@ export const cancelPendingContract = async (
       transaction,
       contract.id,
       new Date(),
+      cancelledBy,
     );
     if (!cancelled) throw contractNotPending();
 
@@ -334,18 +341,27 @@ export const cancelPendingContract = async (
     return true;
   });
 
-  await refundContractFirstPayment(
+  const { refundId } = await refundContractFirstPayment(
     contract.checkoutSessionId,
     contract.paymentIntentId,
     actor.kind === "client" ? "contract_withdrawn" : "contract_declined",
   );
 
+  const [recorded] = await markContractRefundedIfUnrecorded(db, contract.id, {
+    refundId,
+    now: new Date(),
+  });
+
   return {
     ...contract,
     status: "CANCELLED" as const,
     alreadyCancelled: !transitioned,
+    notifyFor: recorded?.cancelledBy ?? null,
   };
 };
+
+const contractCancelledEventId = (contractId: string) =>
+  uuidV5(`contract-cancelled:${contractId}`);
 
 export const createContractFromPayment = async (
   session: Stripe.Checkout.Session,
@@ -577,6 +593,44 @@ export const acceptOffer = async (
   return contract;
 };
 
+type CancelledContract = Awaited<ReturnType<typeof cancelPendingContract>>;
+
+const notifyCancellation = async (
+  contract: CancelledContract,
+  actorId: string,
+) => {
+  if (!contract.notifyFor) return;
+  await emitConversationUpdate(contract.conversationId, actorId);
+  const eventId = contractCancelledEventId(contract.id);
+
+  if (contract.notifyFor === "TALENT") {
+    await sendNotification({
+      recipientId: contract.clientId,
+      type: "CONTRACT_DECLINED",
+      title: "Contract offer declined",
+      message: `Your offer for “${contract.title}” was declined and your payment is being refunded.`,
+      link: `/contracts?contractId=${contract.id}`,
+      metadata: { contractId: contract.id },
+      eventId,
+    });
+    return;
+  }
+
+  const content = {
+    type: "CONTRACT_WITHDRAWN",
+    title: "Contract offer withdrawn",
+    message: `The client withdrew the offer for “${contract.title}”.`,
+    link: `/messages?conversationId=${contract.conversationId}`,
+    metadata: { contractId: contract.id },
+    eventId,
+  };
+  if (contract.agencyId) {
+    await sendNotification({ agencyId: contract.agencyId, ...content });
+  } else if (contract.freelancerId) {
+    await sendNotification({ recipientId: contract.freelancerId, ...content });
+  }
+};
+
 export const declineOffer = async (
   userId: string,
   contractId: string,
@@ -593,17 +647,7 @@ export const declineOffer = async (
     agencyId,
   });
 
-  if (!contract.alreadyCancelled) {
-    await emitConversationUpdate(contract.conversationId, userId);
-    await sendNotification({
-      recipientId: contract.clientId,
-      type: "CONTRACT_DECLINED",
-      title: "Contract offer declined",
-      message: `Your offer for “${contract.title}” was declined and your payment is being refunded.`,
-      link: `/contracts?contractId=${contract.id}`,
-      metadata: { contractId: contract.id },
-    });
-  }
+  await notifyCancellation(contract, userId);
 
   return contract;
 };
@@ -614,24 +658,7 @@ export const withdrawOffer = async (userId: string, contractId: string) => {
     clientId: userId,
   });
 
-  if (!contract.alreadyCancelled) {
-    await emitConversationUpdate(contract.conversationId, userId);
-    const content = {
-      type: "CONTRACT_WITHDRAWN",
-      title: "Contract offer withdrawn",
-      message: `The client withdrew the offer for “${contract.title}”.`,
-      link: `/messages?conversationId=${contract.conversationId}`,
-      metadata: { contractId: contract.id },
-    };
-    if (contract.agencyId) {
-      await sendNotification({ agencyId: contract.agencyId, ...content });
-    } else if (contract.freelancerId) {
-      await sendNotification({
-        recipientId: contract.freelancerId,
-        ...content,
-      });
-    }
-  }
+  await notifyCancellation(contract, userId);
 
   return contract;
 };

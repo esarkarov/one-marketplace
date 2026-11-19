@@ -79,6 +79,17 @@ Accepted decision: other proposals on a hired job keep their status. There is no
 
 Fee, escrow release and dispute rules stay "to confirm" in `docs/product.md`; no rule was changed here.
 
+## Update 2026-11-19: persisted cancel and refund facts (item c)
+
+Migration `0009_contracts_cancel_refund_facts` adds four nullable columns to `contracts`: `cancelled_at`, `cancelled_by` (`CLIENT` for withdraw, `TALENT` for decline, agency decline included), `refund_id` and `refunded_at`. Checks: `cancelled_by IN ('CLIENT', 'TALENT')`, `(cancelled_at IS NULL) = (cancelled_by IS NULL)` and `refunded_at IS NULL OR status = 'CANCELLED'`. Rows cancelled before this change keep NULLs (legacy rows).
+
+- `cancelPendingContract` sets `cancelled_at` and `cancelled_by` in the same guarded `UPDATE ... WHERE status = 'PENDING'` that cancels; the transaction and the lock are unchanged.
+- After the refund call succeeds (still after the commit, no lock held), one guarded statement records it: `UPDATE contracts SET refunded_at = now, refund_id = <id or NULL> WHERE id AND status = 'CANCELLED' AND refunded_at IS NULL RETURNING`. `refund_id` is NULL when `charge_already_refunded` was treated as done. Only the call whose statement returns a row (the winner) runs `emitConversationUpdate` and `sendNotification`, in that order. The recipient follows the stored `cancelled_by`: `TALENT` notifies the client (`CONTRACT_DECLINED`), `CLIENT` notifies the freelancer or agency (`CONTRACT_WITHDRAWN`). A legacy row (`cancelled_by` NULL) gets `refunded_at` but no emit and no notification. The notification carries `eventId = uuidV5("contract-cancelled:" + contractId)`; no other dedupe was added.
+- In the cancel path only, a Stripe refund with status `failed` or `canceled` is a refund failure (`payment.refund.failed`, rethrown like a transient failure); `succeeded` and `pending` count as done. Webhook, duplicate, unfulfillable and milestone-funding refunds are unchanged and persist nothing.
+- Behavior change: a repeat decline or withdraw after a failed first refund now refunds (idempotent), wins the guarded statement and sends the notification once, which closes the lost-notification gap in "Accepted residual risk" above. A repeat after a fully successful call sends nothing. The transitioning call whose refund fails still answers 500, leaves the contract `CANCELLED` and notifies nobody. Responses are unchanged.
+- Crash window: if the refund succeeded but the process died before the guarded statement, the next repeat gets `charge_already_refunded` (done, `refund_id` NULL), wins the statement and notifies. A crash after the statement but before the notification still loses the notification, as before.
+- The reconciliation job named in item c is not part of this change; the stored `refunded_at IS NULL AND status = 'CANCELLED'` rows are what it will read.
+
 ## Consequences
 
 - Races on these transitions end in a coded 409 instead of a 500 or silent corruption. Losers must not notify or emit.

@@ -123,6 +123,7 @@ import {
 import { assertTestDatabase } from "@/test/setup/assert-test-database.js";
 import { expectNoClerkIds } from "@/test/support/clerk-id-scan.js";
 import { ApiError } from "@/shared/errors/api-error.js";
+import { uuidV5 } from "@/shared/ids/uuid-v5.js";
 import { contractsResponses } from "@/modules/contracts/responses/contracts.responses.js";
 import { createContractCheckout } from "@/modules/contracts/services/contracts.checkout.service.js";
 import {
@@ -395,7 +396,7 @@ beforeEach(() => {
     sub: token,
     sid: `sess_${token}`,
   }));
-  mocks.refundCreate.mockResolvedValue({ id: "re_test" });
+  mocks.refundCreate.mockResolvedValue({ id: "re_test", status: "succeeded" });
   mocks.loggerWarn.mockResolvedValue(undefined);
   mocks.loggerError.mockResolvedValue(undefined);
   mocks.customersCreate.mockResolvedValue({ id: "cus_new" });
@@ -691,7 +692,7 @@ describe("refund handling", () => {
         await client.query("rollback");
         client.release();
       }
-      return { id: "re_test" };
+      return { id: "re_test", status: "succeeded" };
     });
 
     const response = await withdraw(fixture.contractId, fixture.clientId);
@@ -719,7 +720,7 @@ describe("refund handling", () => {
     expect(mocks.emitConversationUpdate).not.toHaveBeenCalled();
   });
 
-  it("completes the refund on retry with the same key and without a notification", async () => {
+  it("completes the refund on retry with the same key and sends the notification once", async () => {
     const fixture = await seed();
     mocks.refundCreate.mockRejectedValueOnce(new Error("stripe down"));
     await decline(fixture.contractId, fixture.ownerId);
@@ -735,7 +736,13 @@ describe("refund handling", () => {
     expect(mocks.refundCreate.mock.calls[1]![1]).toEqual({
       idempotencyKey: `refund:${fixture.paymentIntent}:requested_by_customer`,
     });
-    expect(mocks.sendNotification).not.toHaveBeenCalled();
+    expect(mocks.sendNotification).toHaveBeenCalledTimes(1);
+    expect(mocks.sendNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        recipientId: fixture.clientId,
+        type: "CONTRACT_DECLINED",
+      }),
+    );
     expect(await state(fixture)).toEqual(cancelledState);
   });
 
@@ -759,7 +766,7 @@ describe("refund handling", () => {
     mocks.refundCreate.mockRejectedValueOnce(alreadyRefunded());
     const retry = await withdraw(second.contractId, second.clientId);
     expect(retry.status).toBe(200);
-    expect(mocks.sendNotification).not.toHaveBeenCalled();
+    expect(mocks.sendNotification).toHaveBeenCalledTimes(1);
   });
 
   it("derives the payment intent from the stored session", async () => {
@@ -991,15 +998,30 @@ describe("markContractCancelledIfPending", () => {
     const active = await seed({ contractStatus: "ACTIVE" });
 
     expect(
-      await markContractCancelledIfPending(db, active.contractId, new Date()),
+      await markContractCancelledIfPending(
+        db,
+        active.contractId,
+        new Date(),
+        "TALENT",
+      ),
     ).toHaveLength(0);
     expect((await state(active)).contract).toBe("ACTIVE");
 
     expect(
-      await markContractCancelledIfPending(db, pending.contractId, new Date()),
+      await markContractCancelledIfPending(
+        db,
+        pending.contractId,
+        new Date(),
+        "TALENT",
+      ),
     ).toHaveLength(1);
     expect(
-      await markContractCancelledIfPending(db, pending.contractId, new Date()),
+      await markContractCancelledIfPending(
+        db,
+        pending.contractId,
+        new Date(),
+        "TALENT",
+      ),
     ).toHaveLength(0);
     const [row] = await db
       .select({ status: contracts.status })
@@ -1057,6 +1079,7 @@ describe("decline and withdraw effects", () => {
       message: `Your offer for “${title}” was declined and your payment is being refunded.`,
       link: `/contracts?contractId=${fixture.contractId}`,
       metadata: { contractId: fixture.contractId },
+      eventId: uuidV5(`contract-cancelled:${fixture.contractId}`),
     });
     expect(mocks.refundCreate.mock.invocationCallOrder[0]).toBeLessThan(
       mocks.emitConversationUpdate.mock.invocationCallOrder[0]!,
@@ -1111,6 +1134,7 @@ describe("decline and withdraw effects", () => {
       message: `The client withdrew the offer for “${title}”.`,
       link: `/messages?conversationId=${conversationId}`,
       metadata: { contractId: fixture.contractId },
+      eventId: uuidV5(`contract-cancelled:${fixture.contractId}`),
     });
     expect(
       mocks.emitConversationUpdate.mock.invocationCallOrder[0],
@@ -1133,6 +1157,7 @@ describe("decline and withdraw effects", () => {
       message: `The client withdrew the offer for “${title}”.`,
       link: `/messages?conversationId=${conversationId}`,
       metadata: { contractId: fixture.contractId },
+      eventId: uuidV5(`contract-cancelled:${fixture.contractId}`),
     });
   });
 
@@ -1144,5 +1169,326 @@ describe("decline and withdraw effects", () => {
 
     expect(response.status).toBe(500);
     expect((await state(fixture)).contract).toBe("CANCELLED");
+  });
+});
+
+describe("persisted cancel and refund facts", () => {
+  const facts = async (fixture: Fixture) => {
+    const [row] = await rows(
+      "select cancelled_at, cancelled_by, refund_id, refunded_at from contracts where id = $1",
+      [fixture.contractId],
+    );
+    return {
+      cancelledAt: row.cancelled_at as Date | null,
+      cancelledBy: row.cancelled_by as string | null,
+      refundId: row.refund_id as string | null,
+      refundedAt: row.refunded_at as Date | null,
+    };
+  };
+
+  const alreadyRefunded = () =>
+    Object.assign(new Error("already refunded"), {
+      code: "charge_already_refunded",
+    });
+
+  const seedLegacyCancelled = async () => {
+    const fixture = await seed({ contractStatus: "CANCELLED" });
+    expect(await facts(fixture)).toEqual({
+      cancelledAt: null,
+      cancelledBy: null,
+      refundId: null,
+      refundedAt: null,
+    });
+    return fixture;
+  };
+
+  it("decline records cancelled_at and TALENT, then refunded_at and the refund id", async () => {
+    const fixture = await seed();
+    const before = Date.now();
+    mocks.refundCreate.mockResolvedValueOnce({
+      id: "re_decline",
+      status: "succeeded",
+    });
+
+    const response = await decline(fixture.contractId, fixture.ownerId);
+
+    expect(response.status).toBe(200);
+    const recorded = await facts(fixture);
+    expect(recorded.cancelledBy).toBe("TALENT");
+    expect(recorded.cancelledAt!.getTime()).toBeGreaterThanOrEqual(
+      before - 1000,
+    );
+    expect(recorded.refundId).toBe("re_decline");
+    expect(recorded.refundedAt!.getTime()).toBeGreaterThanOrEqual(
+      recorded.cancelledAt!.getTime(),
+    );
+  });
+
+  it("agency decline records TALENT", async () => {
+    const fixture = await seed({ agency: true });
+
+    const response = await decline(
+      fixture.contractId,
+      fixture.ownerId,
+      "agency",
+    );
+
+    expect(response.status).toBe(200);
+    expect((await facts(fixture)).cancelledBy).toBe("TALENT");
+    expect(mocks.sendNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        recipientId: fixture.clientId,
+        type: "CONTRACT_DECLINED",
+      }),
+    );
+  });
+
+  it("withdraw records CLIENT and the refund facts", async () => {
+    const fixture = await seed();
+    mocks.refundCreate.mockResolvedValueOnce({
+      id: "re_withdraw",
+      status: "succeeded",
+    });
+
+    const response = await withdraw(fixture.contractId, fixture.clientId);
+
+    expect(response.status).toBe(200);
+    const recorded = await facts(fixture);
+    expect(recorded.cancelledBy).toBe("CLIENT");
+    expect(recorded.cancelledAt).not.toBeNull();
+    expect(recorded.refundId).toBe("re_withdraw");
+    expect(recorded.refundedAt).not.toBeNull();
+  });
+
+  it("keeps the first cancel facts when the other party repeats the call", async () => {
+    const fixture = await seed();
+    await decline(fixture.contractId, fixture.ownerId);
+    const first = await facts(fixture);
+
+    await withdraw(fixture.contractId, fixture.clientId);
+
+    expect(await facts(fixture)).toEqual(first);
+    expect(mocks.sendNotification).toHaveBeenCalledTimes(1);
+  });
+
+  it("counts charge_already_refunded as done and stores no refund id", async () => {
+    const fixture = await seed();
+    mocks.refundCreate.mockRejectedValueOnce(alreadyRefunded());
+
+    const response = await decline(fixture.contractId, fixture.ownerId);
+
+    expect(response.status).toBe(200);
+    const recorded = await facts(fixture);
+    expect(recorded.refundedAt).not.toBeNull();
+    expect(recorded.refundId).toBeNull();
+    expect(mocks.sendNotification).toHaveBeenCalledTimes(1);
+  });
+
+  it("counts a pending refund as done", async () => {
+    const fixture = await seed();
+    mocks.refundCreate.mockResolvedValueOnce({
+      id: "re_pending",
+      status: "pending",
+    });
+
+    const response = await withdraw(fixture.contractId, fixture.clientId);
+
+    expect(response.status).toBe(200);
+    const recorded = await facts(fixture);
+    expect(recorded.refundId).toBe("re_pending");
+    expect(recorded.refundedAt).not.toBeNull();
+    expect(mocks.sendNotification).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(["failed", "canceled"])(
+    "treats a %s refund as a failure: no refunded_at, no notification, repaired on retry",
+    async (status) => {
+      const fixture = await seed();
+      mocks.refundCreate.mockResolvedValueOnce({ id: "re_bad", status });
+
+      const failed = await decline(fixture.contractId, fixture.ownerId);
+
+      expect(failed.status).toBe(500);
+      expect(mocks.loggerError).toHaveBeenCalledWith(
+        expect.objectContaining({ eventName: "payment.refund.failed" }),
+      );
+      expect(mocks.loggerWarn).not.toHaveBeenCalledWith(
+        expect.objectContaining({ eventName: "payment.refunded" }),
+      );
+      const afterFailure = await facts(fixture);
+      expect(afterFailure.cancelledBy).toBe("TALENT");
+      expect(afterFailure.refundedAt).toBeNull();
+      expect(afterFailure.refundId).toBeNull();
+      expect(mocks.sendNotification).not.toHaveBeenCalled();
+      expect(mocks.emitConversationUpdate).not.toHaveBeenCalled();
+
+      const retry = await decline(fixture.contractId, fixture.ownerId);
+
+      expect(retry.status).toBe(200);
+      expect((await facts(fixture)).refundedAt).not.toBeNull();
+      expect(mocks.sendNotification).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it("marks the refund of a legacy cancelled row without a notification or emit", async () => {
+    const fixture = await seedLegacyCancelled();
+
+    const response = await decline(fixture.contractId, fixture.ownerId);
+
+    expect(response.status).toBe(200);
+    expect(response.body.message).toBe("Contract cancelled.");
+    const recorded = await facts(fixture);
+    expect(recorded.refundedAt).not.toBeNull();
+    expect(recorded.refundId).toBe("re_test");
+    expect(recorded.cancelledBy).toBeNull();
+    expect(recorded.cancelledAt).toBeNull();
+    expect(mocks.sendNotification).not.toHaveBeenCalled();
+    expect(mocks.emitConversationUpdate).not.toHaveBeenCalled();
+
+    const again = await withdraw(fixture.contractId, fixture.clientId);
+    expect(again.status).toBe(200);
+    expect(mocks.sendNotification).not.toHaveBeenCalled();
+  });
+
+  it("sends nothing on a repeat after a fully successful first call", async () => {
+    const fixture = await seed();
+    await withdraw(fixture.contractId, fixture.clientId);
+    const first = await facts(fixture);
+    mocks.sendNotification.mockClear();
+    mocks.emitConversationUpdate.mockClear();
+
+    const repeat = await withdraw(fixture.contractId, fixture.clientId);
+
+    expect(repeat.status).toBe(200);
+    expect(await facts(fixture)).toEqual(first);
+    expect(mocks.sendNotification).not.toHaveBeenCalled();
+    expect(mocks.emitConversationUpdate).not.toHaveBeenCalled();
+  });
+
+  it("sends exactly one notification when two repeat calls race after a failed refund", async () => {
+    const fixture = await seed();
+    mocks.refundCreate.mockRejectedValueOnce(new Error("stripe down"));
+    const failed = await decline(fixture.contractId, fixture.ownerId);
+    expect(failed.status).toBeGreaterThanOrEqual(500);
+    expect((await facts(fixture)).refundedAt).toBeNull();
+    mocks.refundCreate.mockClear();
+
+    let arrivals = 0;
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    mocks.refundCreate.mockImplementation(async () => {
+      arrivals += 1;
+      if (arrivals === 2) release();
+      await gate;
+      return { id: "re_race", status: "succeeded" };
+    });
+
+    const results = await Promise.all([
+      decline(fixture.contractId, fixture.ownerId),
+      decline(fixture.contractId, fixture.ownerId),
+    ]);
+
+    expect(results.map((result) => result.status)).toEqual([200, 200]);
+    expect(mocks.refundCreate).toHaveBeenCalledTimes(2);
+    expect(mocks.sendNotification).toHaveBeenCalledTimes(1);
+    expect(mocks.emitConversationUpdate).toHaveBeenCalledTimes(1);
+    expect((await facts(fixture)).refundId).toBe("re_race");
+  });
+
+  it("recovers from a crash between the refund and the guarded update", async () => {
+    const fixture = await seed();
+    await pool.query(
+      "update contracts set status = 'CANCELLED', cancelled_at = now(), cancelled_by = 'TALENT' where id = $1",
+      [fixture.contractId],
+    );
+    await pool.query(
+      "update job_posts set status = 'PUBLISHED' where id = $1",
+      [fixture.jobId],
+    );
+    expect((await facts(fixture)).refundedAt).toBeNull();
+    mocks.refundCreate.mockRejectedValueOnce(alreadyRefunded());
+
+    const repeat = await decline(fixture.contractId, fixture.ownerId);
+
+    expect(repeat.status).toBe(200);
+    const recorded = await facts(fixture);
+    expect(recorded.refundedAt).not.toBeNull();
+    expect(recorded.refundId).toBeNull();
+    expect(mocks.sendNotification).toHaveBeenCalledTimes(1);
+    expect(mocks.sendNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        recipientId: fixture.clientId,
+        type: "CONTRACT_DECLINED",
+      }),
+    );
+  });
+});
+
+describe("contracts cancel and refund checks", () => {
+  const violation = async (text: string, params: unknown[]) => {
+    try {
+      await pool.query(text, params);
+    } catch (error) {
+      return (error as { constraint?: string }).constraint;
+    }
+    return undefined;
+  };
+
+  it("rejects refunded_at on a row that is not CANCELLED", async () => {
+    for (const contractStatus of ["PENDING", "ACTIVE", "COMPLETED"] as const) {
+      const fixture = await seed({ contractStatus });
+      expect(
+        await violation(
+          "update contracts set refunded_at = now() where id = $1",
+          [fixture.contractId],
+        ),
+      ).toBe("contracts_refunded_status_check");
+    }
+  });
+
+  it("accepts refunded_at on a CANCELLED row", async () => {
+    const fixture = await seed({ contractStatus: "CANCELLED" });
+    expect(
+      await violation(
+        "update contracts set refunded_at = now() where id = $1",
+        [fixture.contractId],
+      ),
+    ).toBeUndefined();
+  });
+
+  it("rejects half-set cancel facts in either direction", async () => {
+    const fixture = await seed();
+    expect(
+      await violation(
+        "update contracts set cancelled_at = now() where id = $1",
+        [fixture.contractId],
+      ),
+    ).toBe("contracts_cancel_facts_check");
+    expect(
+      await violation(
+        "update contracts set cancelled_by = 'CLIENT' where id = $1",
+        [fixture.contractId],
+      ),
+    ).toBe("contracts_cancel_facts_check");
+  });
+
+  it("rejects an unknown cancelled_by and accepts both known values", async () => {
+    const fixture = await seed();
+    expect(
+      await violation(
+        "update contracts set cancelled_at = now(), cancelled_by = 'ADMIN' where id = $1",
+        [fixture.contractId],
+      ),
+    ).toBe("contracts_cancelled_by_check");
+    for (const by of ["CLIENT", "TALENT"]) {
+      expect(
+        await violation(
+          "update contracts set cancelled_at = now(), cancelled_by = $2 where id = $1",
+          [fixture.contractId, by],
+        ),
+      ).toBeUndefined();
+    }
   });
 });

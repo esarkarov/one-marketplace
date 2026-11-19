@@ -54,12 +54,21 @@ interface RefundTarget {
   amountCents: number | null;
 }
 
-const issueRefund = (
+class RefundNotCompletedError extends Error {
+  override name = "RefundNotCompletedError";
+}
+
+const UNSETTLED_REFUND_STATUSES = new Set<string | null>([
+  "failed",
+  "canceled",
+]);
+
+const issueRefund = async (
   session: Stripe.Checkout.Session,
   reason: RefundReason,
   cause: string,
-): Promise<void> =>
-  refundTarget(
+): Promise<void> => {
+  await refundTarget(
     {
       checkoutSessionId: session.id,
       paymentIntentId: paymentIntentIdOf(session),
@@ -68,12 +77,14 @@ const issueRefund = (
     reason,
     cause,
   );
+};
 
 const refundTarget = async (
   target: RefundTarget,
   reason: RefundReason,
   cause: string,
-): Promise<void> => {
+  options: { rejectUnsettled?: boolean } = {},
+): Promise<Stripe.Response<Stripe.Refund> | null> => {
   const { paymentIntentId } = target;
   const attributes = {
     "stripe.checkout_session_id": target.checkoutSessionId,
@@ -88,16 +99,23 @@ const refundTarget = async (
       eventName: "payment.refund.unavailable",
       attributes,
     });
-    return;
+    return null;
   }
 
+  let refund: Stripe.Response<Stripe.Refund>;
   try {
-    await stripe.refunds.create(
+    refund = await stripe.refunds.create(
       { payment_intent: paymentIntentId, reason },
       { idempotencyKey: `refund:${paymentIntentId}:${reason}` },
     );
+    if (
+      options.rejectUnsettled &&
+      UNSETTLED_REFUND_STATUSES.has(refund.status)
+    ) {
+      throw new RefundNotCompletedError(`Refund ${refund.status}.`);
+    }
   } catch (error) {
-    if (isChargeAlreadyRefunded(error)) return;
+    if (isChargeAlreadyRefunded(error)) return null;
     await logger.error({
       message: "Payment refund failed.",
       eventName: "payment.refund.failed",
@@ -114,6 +132,7 @@ const refundTarget = async (
     eventName: "payment.refunded",
     attributes,
   });
+  return refund;
 };
 
 export const refundDuplicatePayment = (
@@ -162,7 +181,7 @@ export const refundContractFirstPayment = async (
   checkoutSessionId: string | null,
   storedPaymentIntentId: string | null,
   cause: "contract_declined" | "contract_withdrawn",
-): Promise<void> => {
+): Promise<{ refundId: string | null; status: string | null }> => {
   let paymentIntentId = storedPaymentIntentId ?? undefined;
   if (!paymentIntentId && checkoutSessionId) {
     const session = await stripe.checkout.sessions.retrieve(checkoutSessionId);
@@ -179,11 +198,13 @@ export const refundContractFirstPayment = async (
     });
     throw new ApiError(502, "The payment could not be refunded.");
   }
-  await refundTarget(
+  const refund = await refundTarget(
     { checkoutSessionId, paymentIntentId, amountCents: null },
     "requested_by_customer",
     cause,
+    { rejectUnsettled: true },
   );
+  return { refundId: refund?.id ?? null, status: refund?.status ?? null };
 };
 
 export const logPaymentMismatch = (

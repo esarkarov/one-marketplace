@@ -57,6 +57,10 @@ export const contracts = pgTable(
     status: contractStatus().notNull().default("PENDING"),
     started_at: timestamp("started_at", { withTimezone: true }),
     completed_at: timestamp("completed_at", { withTimezone: true }),
+    cancelled_at: timestamp("cancelled_at", { withTimezone: true }),
+    cancelled_by: text("cancelled_by").$type<"CLIENT" | "TALENT">(),
+    refund_id: text("refund_id"),
+    refunded_at: timestamp("refunded_at", { withTimezone: true }),
     created_at: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
@@ -83,6 +87,18 @@ export const contracts = pgTable(
     check(
       "contracts_owner_check",
       sql`(${table.freelancer_id} IS NOT NULL) <> (${table.agency_id} IS NOT NULL)`,
+    ),
+    check(
+      "contracts_cancelled_by_check",
+      sql`${table.cancelled_by} IN ('CLIENT', 'TALENT')`,
+    ),
+    check(
+      "contracts_cancel_facts_check",
+      sql`(${table.cancelled_at} IS NULL) = (${table.cancelled_by} IS NULL)`,
+    ),
+    check(
+      "contracts_refunded_status_check",
+      sql`${table.refunded_at} IS NULL OR ${table.status} = 'CANCELLED'`,
     ),
   ],
 );

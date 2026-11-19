@@ -1,4 +1,4 @@
-import { and, eq, isNotNull, ne, sql } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, ne, sql } from "drizzle-orm";
 import type { DbExecutor } from "@/database/database.types.js";
 import {
   agency_earning,
@@ -9,6 +9,10 @@ import {
   freelancer_earning,
   reviews,
 } from "@/modules/contracts/models/contracts.model.js";
+
+export type ContractCancelledBy = NonNullable<
+  (typeof contracts.$inferSelect)["cancelled_by"]
+>;
 
 export const lockContractStatusForUpdate = (
   executor: DbExecutor,
@@ -154,12 +158,35 @@ export const markContractCancelledIfPending = (
   executor: DbExecutor,
   contractId: string,
   now: Date,
+  cancelledBy: ContractCancelledBy,
 ) =>
   executor
     .update(contracts)
-    .set({ status: "CANCELLED", updated_at: now })
+    .set({
+      status: "CANCELLED",
+      cancelled_at: now,
+      cancelled_by: cancelledBy,
+      updated_at: now,
+    })
     .where(and(eq(contracts.id, contractId), eq(contracts.status, "PENDING")))
     .returning({ id: contracts.id });
+
+export const markContractRefundedIfUnrecorded = (
+  executor: DbExecutor,
+  contractId: string,
+  refund: { refundId: string | null; now: Date },
+) =>
+  executor
+    .update(contracts)
+    .set({ refunded_at: refund.now, refund_id: refund.refundId })
+    .where(
+      and(
+        eq(contracts.id, contractId),
+        eq(contracts.status, "CANCELLED"),
+        isNull(contracts.refunded_at),
+      ),
+    )
+    .returning({ id: contracts.id, cancelledBy: contracts.cancelled_by });
 
 export const markContractCompletedIfActive = (
   executor: DbExecutor,
