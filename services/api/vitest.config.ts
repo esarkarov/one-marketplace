@@ -11,6 +11,7 @@ const payoutTotalsFiles = [
   "src/modules/freelancer/tests/freelancer.contract.test.ts",
   "src/modules/freelancer/tests/freelancer.repository.integration.test.ts",
   "src/modules/freelancer/tests/freelancer.job-feed.parity.test.ts",
+  "src/modules/contracts/tests/contracts.refund-reconciliation.integration.test.ts",
 ];
 
 export default defineConfig({

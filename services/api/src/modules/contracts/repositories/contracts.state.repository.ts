@@ -178,7 +178,12 @@ export const markContractRefundedIfUnrecorded = (
 ) =>
   executor
     .update(contracts)
-    .set({ refunded_at: refund.now, refund_id: refund.refundId })
+    .set({
+      refunded_at: refund.now,
+      refund_id: refund.refundId,
+      refund_next_attempt_at: null,
+      refund_last_error: null,
+    })
     .where(
       and(
         eq(contracts.id, contractId),

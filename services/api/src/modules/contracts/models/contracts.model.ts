@@ -61,6 +61,11 @@ export const contracts = pgTable(
     cancelled_by: text("cancelled_by").$type<"CLIENT" | "TALENT">(),
     refund_id: text("refund_id"),
     refunded_at: timestamp("refunded_at", { withTimezone: true }),
+    refund_attempts: integer("refund_attempts").notNull().default(0),
+    refund_next_attempt_at: timestamp("refund_next_attempt_at", {
+      withTimezone: true,
+    }),
+    refund_last_error: text("refund_last_error"),
     created_at: timestamp("created_at", { withTimezone: true })
       .defaultNow()
       .notNull(),
@@ -72,6 +77,11 @@ export const contracts = pgTable(
     uniqueIndex("contracts_proposal_id_unique").on(table.proposal_id),
     index("contracts_client_status_idx").on(table.client_id, table.status),
     index("contracts_job_status_idx").on(table.job_id, table.status),
+    index("contracts_refund_retry_idx")
+      .on(table.refund_next_attempt_at)
+      .where(
+        sql`${table.status} = 'CANCELLED' AND ${table.refunded_at} IS NULL`,
+      ),
     index("contracts_freelancer_status_idx").on(
       table.freelancer_id,
       table.status,
@@ -99,6 +109,10 @@ export const contracts = pgTable(
     check(
       "contracts_refunded_status_check",
       sql`${table.refunded_at} IS NULL OR ${table.status} = 'CANCELLED'`,
+    ),
+    check(
+      "contracts_refund_attempts_check",
+      sql`${table.refund_attempts} >= 0`,
     ),
   ],
 );

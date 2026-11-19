@@ -83,7 +83,7 @@ const refundTarget = async (
   target: RefundTarget,
   reason: RefundReason,
   cause: string,
-  options: { rejectUnsettled?: boolean } = {},
+  options: { rejectUnsettled?: boolean; keySuffix?: string } = {},
 ): Promise<Stripe.Response<Stripe.Refund> | null> => {
   const { paymentIntentId } = target;
   const attributes = {
@@ -106,7 +106,9 @@ const refundTarget = async (
   try {
     refund = await stripe.refunds.create(
       { payment_intent: paymentIntentId, reason },
-      { idempotencyKey: `refund:${paymentIntentId}:${reason}` },
+      {
+        idempotencyKey: `refund:${paymentIntentId}:${reason}${options.keySuffix ?? ""}`,
+      },
     );
     if (
       options.rejectUnsettled &&
@@ -177,16 +179,26 @@ export const refundUnfulfillablePayment = async (
   await issueRefund(session, "requested_by_customer", reason);
 };
 
+export const resolveContractPaymentIntentId = async (
+  checkoutSessionId: string | null,
+  storedPaymentIntentId: string | null,
+): Promise<string | undefined> => {
+  if (storedPaymentIntentId) return storedPaymentIntentId;
+  if (!checkoutSessionId) return undefined;
+  const session = await stripe.checkout.sessions.retrieve(checkoutSessionId);
+  return paymentIntentIdOf(session);
+};
+
 export const refundContractFirstPayment = async (
   checkoutSessionId: string | null,
   storedPaymentIntentId: string | null,
-  cause: "contract_declined" | "contract_withdrawn",
+  cause: "contract_declined" | "contract_withdrawn" | "refund_reconciliation",
+  options: { keySuffix?: string } = {},
 ): Promise<{ refundId: string | null; status: string | null }> => {
-  let paymentIntentId = storedPaymentIntentId ?? undefined;
-  if (!paymentIntentId && checkoutSessionId) {
-    const session = await stripe.checkout.sessions.retrieve(checkoutSessionId);
-    paymentIntentId = paymentIntentIdOf(session);
-  }
+  const paymentIntentId = await resolveContractPaymentIntentId(
+    checkoutSessionId,
+    storedPaymentIntentId,
+  );
   if (!paymentIntentId) {
     await logger.error({
       message: "Payment could not be refunded: payment intent is missing.",
@@ -202,7 +214,7 @@ export const refundContractFirstPayment = async (
     { checkoutSessionId, paymentIntentId, amountCents: null },
     "requested_by_customer",
     cause,
-    { rejectUnsettled: true },
+    { rejectUnsettled: true, keySuffix: options.keySuffix },
   );
   return { refundId: refund?.id ?? null, status: refund?.status ?? null };
 };

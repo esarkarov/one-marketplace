@@ -593,11 +593,19 @@ export const acceptOffer = async (
   return contract;
 };
 
-type CancelledContract = Awaited<ReturnType<typeof cancelPendingContract>>;
+export interface CancellationNotice {
+  id: string;
+  title: string;
+  conversationId: string;
+  clientId: string;
+  freelancerId: string | null;
+  agencyId: string | null;
+  notifyFor: ContractCancelledBy | null;
+}
 
-const notifyCancellation = async (
-  contract: CancelledContract,
-  actorId: string,
+export const notifyCancellation = async (
+  contract: CancellationNotice,
+  actorId: string | undefined,
 ) => {
   if (!contract.notifyFor) return;
   await emitConversationUpdate(contract.conversationId, actorId);
