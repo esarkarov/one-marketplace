@@ -2,7 +2,7 @@
 
 OneMarketplace is a freelancing marketplace built as a pnpm monorepo. Clients post jobs, freelancers and agencies apply, and the API handles proposals, contracts, milestones and payments.
 
-The five Next.js apps currently use mock data and do not call the API yet. The API in `services/api` is built and tested on its own.
+The five Next.js apps currently use mock data and do not call the API yet; they use none of Clerk, Stripe, Daily or ImageKit. The API in `services/api` is built and tested on its own. What the apps must change before they can call it is in [`docs/frontend-integration-notes.md`](docs/frontend-integration-notes.md).
 
 ## Modules
 
@@ -92,6 +92,13 @@ pnpm --filter @onemarketplace/api dev
 
 The API listens on port 4000 unless `PORT` is set. All routes are under `/api/v1`. `GET /api/v1/health` is liveness. `GET /api/v1/ready` checks Postgres and Redis and returns 503 if either is down.
 
+To run the compiled API (this is what production does, with `NODE_ENV=production`):
+
+```bash
+pnpm --filter @onemarketplace/api build
+pnpm --filter @onemarketplace/api start
+```
+
 Run an app (each has a fixed port):
 
 ```bash
@@ -127,7 +134,7 @@ Docker ports are bound to `127.0.0.1` and default to Postgres 5432, Redis 6379, 
 
 ## Environment variables
 
-`.env.example` lists every variable. Do not commit `.env`.
+`.env.example` lists the variables below except `SWAGGER_PORT`. Do not commit `.env`. The production list, with which variables are required, is in [`docs/architecture.md`](docs/architecture.md#production-environment).
 
 Required to start the API and Docker:
 
@@ -159,7 +166,7 @@ Optional. The API starts without them, and the matching feature fails only when 
 | `TEST_DATABASE_URL`, `CREATE_TEST_DB_ADMIN_URL`                                             | Test database settings (see Testing)                                  |
 | `SWAGGER_PORT`                                                                              | Swagger UI port, default 8081                                         |
 
-Additionally required when `NODE_ENV=production`: `CLERK_SECRET_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_CONNECTS_WEBHOOK_SECRET`, `STRIPE_IDENTITY_WEBHOOK_SECRET`, `ADMIN_DASHBOARD_PASSWORD` and `ADMIN_SESSION_SECRET` (at least 32 characters). None may contain `change-me`. At least one dashboard origin variable must also be set, and each one set must be an http(s) URL.
+Additionally required when `NODE_ENV=production`: `CLERK_SECRET_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_CONNECTS_WEBHOOK_SECRET`, `STRIPE_IDENTITY_WEBHOOK_SECRET`, `DAILY_API_KEY`, `DAILY_WEBHOOK_SECRET`, `IMAGEKIT_PRIVATE_KEY`, `ADMIN_DASHBOARD_PASSWORD` and `ADMIN_SESSION_SECRET` (at least 32 characters). None may contain `change-me`. At least one dashboard origin variable must also be set, and each one set must be an http(s) URL. Create the production database with a UTF-8 locale such as `en_US.utf8` (the job feed lowercases text in SQL; see ADR 0022).
 
 ## Local webhooks
 
@@ -224,6 +231,7 @@ Git hooks: `pre-commit` runs gitleaks on staged changes and then lint-staged (ES
 ## Architecture and conventions
 
 - [`docs/architecture.md`](docs/architecture.md): how the apps, API modules, database and local infrastructure fit together.
+- [`docs/frontend-integration-notes.md`](docs/frontend-integration-notes.md): checklist for the frontend apps before they call the API.
 - [`docs/adding-an-api-module.md`](docs/adding-an-api-module.md): checklist for a new API module or route.
 - [`docs/decisions/`](docs/decisions/): architecture decision records.
 - [`docs/ci.md`](docs/ci.md): CI jobs and how to run each check locally.

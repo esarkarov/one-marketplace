@@ -5,7 +5,7 @@ pnpm monorepo for a freelancing marketplace.
 ## Layout
 
 - apps/\*: Next.js dashboards (landing-page, client-dashboard, freelancer-dashboard, agency-dashboard, admin-dashboard)
-- services/api: Express 5 modular monolith with one module per domain, including the Drizzle schema and migrations. Tutorial code under `services/` is being migrated into it (`docs/decisions/0003-api-migration.md`).
+- services/api: Express 5 modular monolith with one module per domain, including the Drizzle schema and migrations. The tutorial code was migrated into it (`docs/decisions/0003-api-migration.md`); `services/` holds nothing else.
 - packages/\*: shared code, scoped as `@onemarketplace/<folder-name>`
 - infra/docker: local Postgres and Redis
 
@@ -13,7 +13,8 @@ pnpm monorepo for a freelancing marketplace.
 
 - `docs/product.md`: roles and flows as the apps show them. Read it for product work.
 - `docs/design-system.md`: tokens and component conventions. Read it for UI work.
-- `docs/decisions/`: architecture decision records.
+- `docs/frontend-integration-notes.md`: what the apps must change before they call the API. Read it for frontend work.
+- `docs/decisions/`: architecture decision records. They record the state at their date; paths in older ones predate ADR 0016, 0017 and 0020.
 - Nested `AGENTS.md` files in `services/api` and `infra` add folder-specific rules.
 
 @docs/architecture.md

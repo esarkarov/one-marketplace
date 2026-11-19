@@ -23,13 +23,10 @@ Every module follows the folder layout of ADR 0016 (`docs/decisions/0016-module-
 
 ## Rules that apply to both
 
-- Money is integer cents: `*_cents` columns, `*Cents` fields, helpers from `shared/money/money.ts`.
-- SQL: put queries in `repositories/<name>.repository.ts` (plain functions, executor first); a service opens `db.transaction` and passes the handle down but never queries, and `index.ts` only re-exports (ADR 0015). There is no exemption list: a file that holds SQL outside a repository fails `repository-sql.test.ts`, and a repository that throws or imports `ApiError` fails `repository-purity.test.ts`; return the result and let the service throw.
-- Tables: touch another module's tables only to read, through an edge in `services/api/src/test/architecture/table-access-allowlist.ts`. A write to another module's table is an owner function in the owner's `index.ts` (executor first, SQL only, ADR 0014 section 11); the allowlist holds no writes and a test fails if one is added. New edges need review. Register new tables in `table-ownership.ts`. `models/<name>.model.ts` (drizzle tables) is different from `schemas/<name>.schema.ts` (zod).
+Money in cents, SQL in repositories, table ownership, third-party clients only in `infrastructure/`, schema changes through `/db-change` and the error shape are in `services/api/AGENTS.md` (rules) and `docs/architecture.md` (structure); they are not repeated here. Module-specific points:
+
 - Events: publish through `infrastructure/events`. Consumers live in the module that owns the data they write. RabbitMQ stays optional.
-- Third-party clients (Stripe, Clerk, Daily, ImageKit, Redis, RabbitMQ) exist only in `infrastructure/`; modules import them from there. Config comes from `config/`.
-- Schema changes go only through `/db-change`; never edit `database/` or `drizzle/` by hand.
-- Errors are `{ success: false, message, code, requestId, errors? }`; log with pino, never `console.*`.
+- Register new tables in `table-ownership.ts`; an edge to another module's table is a read in `table-access-allowlist.ts` or an owner function in that module's `index.ts` (ADR 0014 section 11).
 
 ## Tests
 

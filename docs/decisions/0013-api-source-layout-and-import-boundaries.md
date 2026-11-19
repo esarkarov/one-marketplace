@@ -1,6 +1,6 @@
 # 0013: API source layout and import boundaries
 
-Status: accepted. Section 1 is partly superseded by ADR 0014 (`schema.ts` as one file, the `shared/` areas, the `test/` layout, `app-middleware/`); the rest stands.
+Status: accepted. Section 1 is partly superseded by ADR 0014 (`schema.ts` as one file, the `shared/` areas, the `test/` layout, `app-middleware/`); the rest stands. Update 2026-11-19: `<name>.public.ts` is now `index.ts` (ADR 0017), and `health` is also in layer 0 (`src/test/architecture/import-boundaries.test.ts` holds the current table).
 
 Superseded in part by ADR 0017: a module's public API is `modules/<name>/index.ts`, not `<name>.public.ts`.
 

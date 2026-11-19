@@ -1,6 +1,6 @@
 # 0003: Migrating the tutorial API into services/api
 
-Status: accepted
+Status: accepted. Update 2026-11-19: the migration is complete; `services/` holds only `api`. Paths in the sections below (`src/events`, `src/database/`) predate ADR 0013 and ADR 0014.
 
 ## Context
 

@@ -1,6 +1,6 @@
 # Product
 
-Describes what the five apps show today. Every screen is a static mock: data is hardcoded, state is React `useState`, and nothing persists or calls a backend. Anything that is a business rule rather than visible UI is marked **to confirm**. Authentication (Clerk), payments (Stripe) and file storage (ImageKit) are named as planned in the README and do not exist yet.
+Describes what the five apps show today. Every screen is a static mock: data is hardcoded, state is React `useState`, and nothing persists or calls a backend. Anything that is a business rule rather than visible UI is marked **to confirm**. The API in `services/api` already integrates authentication (Clerk), payments (Stripe), meetings (Daily) and file storage (ImageKit), but the apps use none of them yet (`docs/frontend-integration-notes.md`).
 
 ## Roles and apps
 
