@@ -45,6 +45,7 @@ vi.mock("@/modules/payouts/payouts.cron.js", () => ({
 }));
 vi.mock("@/modules/contracts/index.js", () => ({
   startRefundReconciliationCron: hoisted.startRefundReconciliationCron,
+  startOrphanPaymentDetectionCron: () => undefined,
 }));
 vi.mock("@/bootstrap/crash-handlers.js", () => ({
   handleFatalError: hoisted.handleFatalError,

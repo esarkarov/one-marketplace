@@ -6,6 +6,7 @@ import {
 import { fundContractMilestoneFromPayment } from "./contracts.checkout.service.js";
 import { runWithWebhookEvent } from "@/modules/contracts/utils/contracts.webhook-context.js";
 import { createContractFromPayment } from "./contracts.lifecycle.service.js";
+import { CONTRACT_PAYMENT_TYPES } from "@/modules/contracts/utils/contracts.payment-session.js";
 
 export const handleContractWebhook = async (
   request: StripeWebhookRequest,
@@ -22,7 +23,7 @@ export const handleContractWebhook = async (
   ) {
     const session = event.data.object;
     await runWithWebhookEvent(event.id, () =>
-      session.metadata?.paymentType === "CONTRACT_MILESTONE_FUNDING"
+      session.metadata?.paymentType === CONTRACT_PAYMENT_TYPES.funding
         ? fundContractMilestoneFromPayment(session)
         : createContractFromPayment(session),
     );

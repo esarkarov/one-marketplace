@@ -35,3 +35,11 @@ export const REFUND_RECONCILIATION = {
     "resource_missing",
   ],
 } as const;
+
+export const ORPHAN_PAYMENT_DETECTION = {
+  lookbackMs: 4 * 24 * HOUR_MS,
+  minAgeMs: 2 * HOUR_MS,
+  retriesExhaustedAgeMs: 3 * 24 * HOUR_MS,
+  pageSize: 100,
+  defaultMaxPages: 20,
+} as const;

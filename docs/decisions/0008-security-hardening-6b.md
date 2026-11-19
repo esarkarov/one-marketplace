@@ -107,7 +107,7 @@ Answer rules of the webhook when a refund is needed:
 
 ## Orphan paid sessions, follow-up
 
-Status: design only. Not implemented: no code, cron, env variable or log name below exists today. Written from the code and the `stripe` 23.1.0 types (`Checkout.SessionListParams`, `Checkout.Session`).
+Status: implemented 2026-11-19 as detect only (see "Implementation" below for the differences from the design). It moves no money, writes nothing to the database and needs no migration. Written from the code and the `stripe` 23.1.0 types (`Checkout.SessionListParams`, `Checkout.Session`); the list call was not run against Stripe.
 
 ### How an orphan can arise today
 
@@ -147,6 +147,25 @@ Assumptions, stated so they can be replaced: 300 completed sessions per day in t
 - Logs: `payment.orphan.detected` (warn) per orphan with `stripe.checkout_session_id`, `stripe.payment_intent_id`, the payment type, `session.age_seconds` and `retries_exhausted`, at most 50 per run; `payment.orphan.run` (info) once per run with the scanned and orphan counts; `payment.orphan.failed` (error, error code only) when a run throws; `payment.orphan.disabled` (info) at startup in mode `off`. No customer or card data. As with `detect` in ADR 0023, the same orphan is logged on every tick; count distinct session ids.
 - Without a Stripe key a run logs a skip and touches nothing, as the reconciler does.
 - Open questions: whether the Stripe account enables delayed payment methods; whether the production webhook endpoint subscribes to both handled event types; the real daily session volume. These change the cost and the false-positive handling above.
+
+### Implementation
+
+- Service `detectOrphanPaidSessions({ now?, maxPages? })` in `modules/contracts/services/contracts.orphan-payment-detection.service.ts`; the batched lookup is `findRecordedCheckoutSessionIds` in `repositories/contracts.orphan-payment.repository.ts`. The contract-payment check is `isContractPaymentSession` in `utils/contracts.payment-session.ts`; the webhook dispatch uses the same `CONTRACT_PAYMENT_TYPES` constants.
+- List call: `checkout.sessions.list({ created: { gte: now - 4 days, lte: now - 2 hours }, status: "complete", limit: 100, expand: ["data.payment_intent.latest_charge"], starting_after })`, paged by hand up to `maxPages` (default 20). Hitting the cap sets `aborted` and logs one warn `payment.orphan.truncated`. In code: `payment_status === "paid"` and `metadata.paymentType` of `CONTRACT_MILESTONE` or `CONTRACT_MILESTONE_FUNDING`; other sessions are ignored and not counted.
+- A session id found in `contract_milestones.stripe_checkout_session_id` is accounted for (one query per page). A session whose intent and latest charge are expanded and fully refunded is counted as `alreadyRefunded` and not reported. An intent or charge that arrives as a string id is treated as refund state unknown and the session is reported.
+- Summary: `{ scanned, orphans, exhausted, alreadyRefunded, skipped?, aborted }`; `scanned` counts paid contract sessions examined.
+- Logs: `payment.orphan.detected` per orphan, warn under 3 days, error with `retries_exhausted: true` from 3 days (fields: session id, payment intent id or null, age in hours, amount in cents, currency, metadata contract id or null; nothing else). `payment.orphan.run` (info) when something was scanned or the run was truncated. `payment.orphan.failed` (error, error code or name only) from the cron. Without a Stripe key the run logs one info `payment.orphan.skipped` and returns `skipped: "no-stripe-key"`.
+- Differences from the design above: the schedule is `17 * * * *` (not `7`); there is no limit of 50 detected logs per run and no payment-type or `session.age_seconds` field; `ORPHAN_PAYMENT_DETECTION_MODE` (`off` or `detect`, default `detect`) is read as `env.orphanPaymentDetectionMode`; the cron lives in `contracts.cron.ts` and is exported through `contracts/index.ts`; shutdown stops it inside the existing refund cron step (it is not awaited, to keep the crash-handler test timing) and drains its run together with the payout and refund runs under the same bound (`system.shutdown.orphan_payment_detection_run_timeout`). The process-local second-sighting set for delayed payment methods is not implemented.
+- As with `detect` in ADR 0023, the same orphan is logged on every hourly tick while it is inside the lookback window; count distinct session ids.
+
+### Operator guidance
+
+Alert on the error-level `payment.orphan.detected` (`retries_exhausted: true`) and on `payment.orphan.truncated` and `payment.orphan.failed`. The warn level is information: the webhook may still be retrying. When it fires:
+
+1. Find the payment in the Stripe dashboard with the logged session or payment intent id.
+2. Check whether the webhook delivery failed (endpoint log, event deliveries, signing secret, subscribed event types) and what the handler answered.
+3. If the payment should have produced a contract or funded a milestone, resend the event from Stripe once the cause is fixed, or use the normal recovery path; the webhook records the session id.
+4. Otherwise refund it manually in Stripe. A refunded payment is no longer reported on the next run.
 
 ## Consequences
 

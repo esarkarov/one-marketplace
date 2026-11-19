@@ -59,6 +59,8 @@ vi.mock("@/modules/contracts/index.js", () => ({
     hoisted.order.push("stop-refund-cron");
   },
   waitForRefundReconciliationRun: hoisted.waitForRefundRun,
+  stopOrphanPaymentDetectionCron: async () => undefined,
+  waitForOrphanPaymentDetectionRun: async () => undefined,
 }));
 
 const flush = async () => {

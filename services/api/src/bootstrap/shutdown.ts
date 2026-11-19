@@ -3,7 +3,9 @@ import { pool } from "@/database/client.js";
 import { disconnectRedis } from "@/infrastructure/cache/redis.client.js";
 import { closeRabbit } from "@/infrastructure/events/rabbitmq.client.js";
 import {
+  stopOrphanPaymentDetectionCron,
   stopRefundReconciliationCron,
+  waitForOrphanPaymentDetectionRun,
   waitForRefundReconciliationRun,
 } from "@/modules/contracts/index.js";
 import { stopNotificationConsumer } from "@/modules/notifications/notifications.consumer.js";
@@ -68,6 +70,13 @@ const drainRefundReconciliationRun = (): Promise<void> =>
     waitForRefundReconciliationRun,
     "Refund reconciliation run still in flight at shutdown. Continuing.",
     "system.shutdown.refund_reconciliation_run_timeout",
+  );
+
+const drainOrphanPaymentDetectionRun = (): Promise<void> =>
+  drainRun(
+    waitForOrphanPaymentDetectionRun,
+    "Orphan payment detection run still in flight at shutdown. Continuing.",
+    "system.shutdown.orphan_payment_detection_run_timeout",
   );
 
 let httpClosed: Promise<Error | undefined> | undefined;
@@ -178,11 +187,16 @@ export const shutdown = async (reason: ShutdownReason): Promise<void> => {
   await runStep("stop accepting connections", stopAcceptingConnections);
   await runStep("sse streams", closeSseStreams);
   await runStep("payout cron", stopPayoutCron);
-  await runStep("refund reconciliation cron", stopRefundReconciliationCron);
+  await runStep("refund reconciliation cron", () => {
+    void stopOrphanPaymentDetectionCron();
+    return stopRefundReconciliationCron();
+  });
   await runStep("background runs", () =>
-    Promise.all([drainPayoutRun(), drainRefundReconciliationRun()]).then(
-      () => undefined,
-    ),
+    Promise.all([
+      drainPayoutRun(),
+      drainRefundReconciliationRun(),
+      drainOrphanPaymentDetectionRun(),
+    ]).then(() => undefined),
   );
   await runStep("http server", closeHttpServer);
   await runStep("notification consumer", () =>

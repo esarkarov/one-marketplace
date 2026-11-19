@@ -98,6 +98,12 @@ const optionalFeatures = z.object({
       })
       .default("detect"),
   ),
+  ORPHAN_PAYMENT_DETECTION_MODE: z.preprocess(
+    emptyToUndefined,
+    z
+      .enum(["off", "detect"], { error: "must be one of off, detect" })
+      .default("detect"),
+  ),
   CLERK_SECRET_KEY: optionalString,
   IMAGEKIT_PRIVATE_KEY: optionalString,
   STRIPE_SECRET_KEY: optionalString,
@@ -230,6 +236,7 @@ export const parseEnv = (source: Source) => {
     redisUrl: r.REDIS_URL,
     rabbitmqUrl: o.RABBITMQ_URL,
     refundReconciliationMode: o.REFUND_RECONCILIATION_MODE,
+    orphanPaymentDetectionMode: o.ORPHAN_PAYMENT_DETECTION_MODE,
     clerkSecretKey: o.CLERK_SECRET_KEY,
     imageKitPrivateKey: o.IMAGEKIT_PRIVATE_KEY,
     stripeSecretKey: o.STRIPE_SECRET_KEY,

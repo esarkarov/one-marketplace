@@ -167,6 +167,35 @@ describe("parseEnv", () => {
     });
   });
 
+  describe("ORPHAN_PAYMENT_DETECTION_MODE", () => {
+    it.each(["off", "detect"] as const)("accepts %s", (value) => {
+      expect(
+        parseEnv({ ...base, ORPHAN_PAYMENT_DETECTION_MODE: value })
+          .orphanPaymentDetectionMode,
+      ).toBe(value);
+    });
+
+    it.each([undefined, ""])("defaults %s to detect", (value) => {
+      expect(
+        parseEnv({ ...base, ORPHAN_PAYMENT_DETECTION_MODE: value })
+          .orphanPaymentDetectionMode,
+      ).toBe("detect");
+    });
+
+    it.each(["on", "ON", "true", "enabled"])("rejects %s", (value) => {
+      const message = errorOf({
+        ...base,
+        ORPHAN_PAYMENT_DETECTION_MODE: value,
+      });
+
+      expect(message).toContain("Invalid optional variables:");
+      expect(message).toContain(
+        "- ORPHAN_PAYMENT_DETECTION_MODE: must be one of off, detect",
+      );
+      expect(message).not.toContain("Missing or invalid required");
+    });
+  });
+
   describe("TRUST_PROXY", () => {
     it.each([undefined, "", "false", "0"])("maps %s to false", (value) => {
       expect(parseEnv({ ...base, TRUST_PROXY: value }).trustProxy).toBe(false);
@@ -247,6 +276,10 @@ describe("parseEnv", () => {
 
     it("defaults the refund reconciliation mode to detect", () => {
       expect(parseEnv(production).refundReconciliationMode).toBe("detect");
+    });
+
+    it("defaults the orphan payment detection mode to detect", () => {
+      expect(parseEnv(production).orphanPaymentDetectionMode).toBe("detect");
     });
 
     it("requires at least one dashboard origin", () => {

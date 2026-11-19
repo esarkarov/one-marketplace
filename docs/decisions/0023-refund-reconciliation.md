@@ -48,7 +48,7 @@ Only `refund_attempts = 0` is required; clearing the other two makes the row due
 - Legacy rows (`cancelled_by` NULL) are recorded as refunded but get no emit and no notification.
 - For an agency contract declined by a member, the declining member is not stored, so the `TALENT` conversation update has no excluded user and also reaches the declining member.
 - A crash after the guarded update that records the refund but before the notification is sent loses that one notification; no later run notifies because the row is no longer a candidate.
-- Orphan paid sessions are not handled: a paid checkout session that never produced a contract, or whose contract could not be created, is outside this job. It is parked as follow-up work; a detect-only design (not implemented) is in ADR 0008, "Orphan paid sessions, follow-up".
+- Orphan paid sessions are not handled: a paid checkout session that never produced a contract, or whose contract could not be created, is outside this job. It is parked as follow-up work; a detect-only job (implemented, no refunds) is described in ADR 0008, "Orphan paid sessions, follow-up".
 - In `detect` the same rows are logged on every tick.
 - The job refunds only the first milestone payment, as the cancel path does.
 

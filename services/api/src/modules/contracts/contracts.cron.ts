@@ -2,6 +2,7 @@ import cron from "node-cron";
 import { env } from "@/config/env.js";
 import { logger } from "@/config/logger.js";
 import { errorCodeForLog } from "@/shared/logging/sanitize-log.js";
+import { detectOrphanPaidSessions } from "./services/contracts.orphan-payment-detection.service.js";
 import { reconcileCancelledContractRefunds } from "./services/contracts.refund-reconciliation.service.js";
 
 const REFUND_RECONCILIATION_CRON_EXPRESSION = "*/15 * * * *";
@@ -100,3 +101,88 @@ export const stopRefundReconciliationCron = async (): Promise<void> => {
 export const waitForRefundReconciliationRun = async (): Promise<void> => {
   await inFlightRun;
 };
+
+const ORPHAN_PAYMENT_DETECTION_CRON_EXPRESSION = "17 * * * *";
+
+let orphanTask: ReturnType<typeof cron.schedule> | undefined;
+let inFlightOrphanRun: Promise<void> | undefined;
+
+const runOrphanDetection = async (): Promise<void> => {
+  try {
+    await detectOrphanPaidSessions();
+  } catch (error) {
+    await logSafely(() =>
+      logger.error({
+        message: "Orphan payment detection run failed",
+        eventName: "payment.orphan.failed",
+        attributes: { "error.code": errorTagForLog(error) },
+      }),
+    );
+  }
+};
+
+const trackOrphanRun = async (): Promise<void> => {
+  if (inFlightOrphanRun) {
+    await logSafely(() =>
+      logger.debug({
+        message:
+          "Orphan payment detection tick skipped: previous run in flight",
+        eventName: "payment.orphan.skipped_overlap",
+      }),
+    );
+    return;
+  }
+
+  const run: Promise<void> = runOrphanDetection().finally(() => {
+    if (inFlightOrphanRun === run) {
+      inFlightOrphanRun = undefined;
+    }
+  });
+  inFlightOrphanRun = run;
+  await run;
+};
+
+export const startOrphanPaymentDetectionCron = () => {
+  const mode = env.orphanPaymentDetectionMode;
+
+  if (mode === "off") {
+    void logger.info({
+      message: "Orphan payment detection is disabled.",
+      eventName: "payment.orphan.disabled",
+      attributes: { "orphan.mode": mode },
+    });
+    return;
+  }
+
+  if (orphanTask) {
+    return;
+  }
+
+  orphanTask = cron.schedule(
+    ORPHAN_PAYMENT_DETECTION_CRON_EXPRESSION,
+    () => trackOrphanRun(),
+    { name: "orphan-payment-detection" },
+  );
+
+  void logger.info({
+    message: "Orphan payment detection cron scheduled",
+    eventName: "payment.orphan.scheduled",
+    attributes: {
+      "cron.expression": ORPHAN_PAYMENT_DETECTION_CRON_EXPRESSION,
+      "orphan.mode": mode,
+    },
+  });
+};
+
+export const stopOrphanPaymentDetectionCron = async (): Promise<void> => {
+  const task = orphanTask;
+  orphanTask = undefined;
+  try {
+    await task?.destroy();
+  } catch {
+    return;
+  }
+};
+
+export const waitForOrphanPaymentDetectionRun = (): Promise<void> =>
+  inFlightOrphanRun ?? Promise.resolve();
