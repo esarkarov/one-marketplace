@@ -1,26 +1,26 @@
 import type Stripe from "stripe";
-import { db } from "../../../database/client.js";
-import { isUniqueViolation } from "../../../database/pg-errors.js";
-import { markPaymentMethodVerified } from "../../auth/index.js";
-import { ApiError } from "../../../shared/errors/api-error.js";
-import { sendNotification } from "../../../infrastructure/events/notification.publisher.js";
+import { db } from "@/database/client.js";
+import { isUniqueViolation } from "@/database/pg-errors.js";
+import { markPaymentMethodVerified } from "@/modules/auth/index.js";
+import { ApiError } from "@/shared/errors/api-error.js";
+import { sendNotification } from "@/infrastructure/events/notification.publisher.js";
 import {
   appendConversationMessages,
   emitConversationUpdate,
-} from "../../messaging/index.js";
-import { getJSSContribution } from "../../freelancer/index.js";
+} from "@/modules/messaging/index.js";
+import { getJSSContribution } from "@/modules/freelancer/index.js";
 import {
   getAgencyOwnerId,
   requireAgencyPermission,
-} from "../../agency/index.js";
-import { markJobHired, releaseJobHire } from "../../jobs/index.js";
-import { markProposalHired } from "../../proposals/index.js";
+} from "@/modules/agency/index.js";
+import { markJobHired, releaseJobHire } from "@/modules/jobs/index.js";
+import { markProposalHired } from "@/modules/proposals/index.js";
 import {
   findContractForCancellation,
   findContractForReview,
   findFundedContractOffer,
   findProposalOfferForContractCreation,
-} from "../repositories/contracts.repository.js";
+} from "@/modules/contracts/repositories/contracts.repository.js";
 import {
   countIncompleteMilestones,
   insertContractIfProposalUnused,
@@ -40,7 +40,7 @@ import {
   recordFreelancerJobCompleted,
   recordFreelancerJobStarted,
   recordFreelancerReviewStats,
-} from "../repositories/contracts.state.repository.js";
+} from "@/modules/contracts/repositories/contracts.state.repository.js";
 import {
   logPaymentMismatch,
   refundContractFirstPayment,

@@ -1,8 +1,8 @@
 import { createHash, timingSafeEqual } from "node:crypto";
-import type { AppLogger } from "../../../config/logger.js";
-import { env } from "../../../config/env.js";
-import { ApiError } from "../../../shared/errors/api-error.js";
-import { signToken } from "../../../middleware/utils/admin-session.utils.js";
+import type { AppLogger } from "@/config/logger.js";
+import { env } from "@/config/env.js";
+import { ApiError } from "@/shared/errors/api-error.js";
+import { signToken } from "@/middleware/utils/admin-session.utils.js";
 
 const digest = (value: string) => createHash("sha256").update(value).digest();
 

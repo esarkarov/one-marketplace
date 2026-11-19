@@ -1,4 +1,4 @@
-import type { MarketplaceAccountType } from "../constants/client.constants.js";
+import type { MarketplaceAccountType } from "@/modules/client/constants/client.constants.js";
 export interface SaveClientProfileInput {
   userId: string;
   professionalRole: string;

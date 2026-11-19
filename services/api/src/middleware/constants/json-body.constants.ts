@@ -1,5 +1,5 @@
-import { API_PREFIX } from "../../config/constants.js";
-import type { LargeBodyRoute } from "../types/json-body.types.js";
+import { API_PREFIX } from "@/config/constants.js";
+import type { LargeBodyRoute } from "@/middleware/types/json-body.types.js";
 
 export const DEFAULT_JSON_LIMIT = "100kb";
 export const LARGE_JSON_LIMIT = "20mb";

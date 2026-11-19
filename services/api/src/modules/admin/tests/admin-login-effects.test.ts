@@ -4,36 +4,34 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({ warn: vi.fn(), info: vi.fn() }));
 
-vi.mock("../../../config/env.js", async (importOriginal) => {
-  const original =
-    await importOriginal<typeof import("../../../config/env.js")>();
+vi.mock("@/config/env.js", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@/config/env.js")>();
   return { ...original, env: { ...original.env } };
 });
 
-vi.mock("../../../infrastructure/cache/redis.client.js", () => ({
+vi.mock("@/infrastructure/cache/redis.client.js", () => ({
   redis: { scan: vi.fn(), type: vi.fn(), ttl: vi.fn(), get: vi.fn() },
 }));
 
-vi.mock("../../../infrastructure/events/rabbitmq.client.js", () => ({
+vi.mock("@/infrastructure/events/rabbitmq.client.js", () => ({
   getRabbitStatus: () => ({ ok: false }),
 }));
 
-vi.mock("../../../database/client.js", () => ({
+vi.mock("@/database/client.js", () => ({
   db: {},
   pool: { end: async () => undefined },
 }));
 
-vi.mock("../../../middleware/rate-limit/rate-limit.middleware.js", () => ({
+vi.mock("@/middleware/rate-limit/rate-limit.middleware.js", () => ({
   adminLimiter: (_req: unknown, _res: unknown, next: () => void) => next(),
   adminLoginLimiter: (_req: unknown, _res: unknown, next: () => void) => next(),
 }));
 
-const { env } = await import("../../../config/env.js");
-const { adminRouter } = await import("../admin.route.js");
-const { errorHandler } =
-  await import("../../../middleware/error/error.middleware.js");
+const { env } = await import("@/config/env.js");
+const { adminRouter } = await import("@/modules/admin/admin.route.js");
+const { errorHandler } = await import("@/middleware/error/error.middleware.js");
 const { verifyToken } =
-  await import("../../../middleware/utils/admin-session.utils.js");
+  await import("@/middleware/utils/admin-session.utils.js");
 
 const PASSWORD = "login-effects-test-password";
 const SECRET = "y".repeat(32);

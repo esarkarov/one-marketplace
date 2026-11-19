@@ -20,9 +20,8 @@ const mocks = vi.hoisted(() => ({
   remove: vi.fn(),
 }));
 
-vi.mock("../../../config/env.js", async (importOriginal) => {
-  const original =
-    await importOriginal<typeof import("../../../config/env.js")>();
+vi.mock("@/config/env.js", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@/config/env.js")>();
   return {
     ...original,
     env: {
@@ -33,16 +32,16 @@ vi.mock("../../../config/env.js", async (importOriginal) => {
   };
 });
 
-vi.mock("../../../infrastructure/auth/clerk.client.js", () => ({
+vi.mock("@/infrastructure/auth/clerk.client.js", () => ({
   clerk: { users: { getUser: mocks.getUser } },
   verifyToken: mocks.verifyToken,
 }));
 
-vi.mock("../../../infrastructure/storage/image-kit.client.js", () => ({
+vi.mock("@/infrastructure/storage/image-kit.client.js", () => ({
   imageKit: { files: { upload: mocks.upload, delete: mocks.remove } },
 }));
 
-vi.mock("../../../infrastructure/cache/redis.client.js", () => ({
+vi.mock("@/infrastructure/cache/redis.client.js", () => ({
   redis: {
     get: async (key: string) => mocks.store.get(key) ?? null,
     expire: async () => true,
@@ -61,7 +60,7 @@ vi.mock("../../../infrastructure/cache/redis.client.js", () => ({
   disconnectRedis: async () => undefined,
 }));
 
-import { db, pool } from "../../../database/client.js";
+import { db, pool } from "@/database/client.js";
 import {
   accounts,
   client_metadata,
@@ -71,9 +70,9 @@ import {
   freelancer_saved_job_posts,
   job_posts,
   proposals,
-} from "../../../test/support/tables.js";
-import { expectNoClerkIds } from "../../../test/support/clerk-id-scan.js";
-import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
+} from "@/test/support/tables.js";
+import { expectNoClerkIds } from "@/test/support/clerk-id-scan.js";
+import { assertTestDatabase } from "@/test/setup/assert-test-database.js";
 import {
   jobsCreateResponses,
   jobsDeleteResponses,
@@ -84,9 +83,9 @@ import {
   jobsSavedListResponses,
   jobsUnsaveResponses,
   jobsUpdateResponses,
-} from "../responses/jobs.responses.js";
+} from "@/modules/jobs/responses/jobs.responses.js";
 
-const { app } = await import("../../../app.js");
+const { app } = await import("@/app.js");
 
 const PREFIX = "jobs-contract-";
 const API = "/api/v1/jobs";
@@ -912,7 +911,8 @@ describe("jobs queries against real Postgres", () => {
     const TIED_AT = new Date("2024-01-01T00:00:00.000Z");
 
     it("reports hasMore only when a row exists beyond the limit and orders ties by id descending", async () => {
-      const { getJobPostsPage } = await import("../services/jobs.service.js");
+      const { getJobPostsPage } =
+        await import("@/modules/jobs/services/jobs.service.js");
       const clientId = await seedClientWith();
       const created = [];
       for (let index = 0; index < 7; index += 1) {
@@ -942,7 +942,8 @@ describe("jobs queries against real Postgres", () => {
     });
 
     it("pages saved jobs with hasMore at the limit and orders ties by id descending", async () => {
-      const { getSavedJobPosts } = await import("../services/jobs.service.js");
+      const { getSavedJobPosts } =
+        await import("@/modules/jobs/services/jobs.service.js");
       const clientId = await seedClientWith();
       const freelancerId = await seedFreelancer();
       const savedIds: string[] = [];

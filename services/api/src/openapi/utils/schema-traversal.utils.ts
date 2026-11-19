@@ -1,5 +1,5 @@
 import { isObject } from "./json.utils.js";
-import type { Json, JsonObject } from "../types/openapi.types.js";
+import type { Json, JsonObject } from "@/openapi/types/openapi.types.js";
 
 const SCHEMA_KEYS = [
   "items",

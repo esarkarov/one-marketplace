@@ -14,7 +14,7 @@ vi.mock("./rabbitmq.client.js", () => ({
   getRabbitPublishChannel: () => ({ publish: mocks.publish }),
 }));
 
-vi.mock("../../config/logger.js", () => ({
+vi.mock("@/config/logger.js", () => ({
   logger: { warn: mocks.warn, error: mocks.error },
 }));
 

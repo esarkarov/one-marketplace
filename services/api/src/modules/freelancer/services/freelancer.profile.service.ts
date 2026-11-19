@@ -1,10 +1,10 @@
-import { db } from "../../../database/client.js";
+import { db } from "@/database/client.js";
 import {
   findAccountDisplays,
   findAccountIdByAuthId,
   markFreelancerOnboardingComplete,
   syncAccountDisplay,
-} from "../../auth/index.js";
+} from "@/modules/auth/index.js";
 import {
   deletePortfoliosOfFreelancer,
   findEarningStats,
@@ -17,33 +17,33 @@ import {
   listReviewsOfContract,
   listStoredPortfolioCoverImages,
   upsertFreelancerMetadata,
-} from "../repositories/freelancer.repository.js";
+} from "@/modules/freelancer/repositories/freelancer.repository.js";
 import {
   FreelancerProfileData,
   PortfolioData,
   SaveFreelancerProfileInput,
-} from "../types/freelancer.types.js";
+} from "@/modules/freelancer/types/freelancer.types.js";
 import { getAgencyIdentityForMember } from "./freelancer.agency-identity.service.js";
-import { env } from "../../../config/env.js";
-import { logger } from "../../../config/logger.js";
-import { errorLogAttributes } from "../../../shared/logging/sanitize-log.js";
-import { ApiError } from "../../../shared/errors/api-error.js";
-import { imageKit } from "../../../infrastructure/storage/image-kit.client.js";
+import { env } from "@/config/env.js";
+import { logger } from "@/config/logger.js";
+import { errorLogAttributes } from "@/shared/logging/sanitize-log.js";
+import { ApiError } from "@/shared/errors/api-error.js";
+import { imageKit } from "@/infrastructure/storage/image-kit.client.js";
 import { randomUUID } from "crypto";
-import { requirePublicId } from "../../../shared/ids/public-ids.js";
-import { freelancerPortfolioFolder } from "../../../shared/uploads/storage-paths.js";
-import { invalidateAccountAuthCache } from "../../../infrastructure/cache/account-auth.cache.js";
-import { addConnects } from "../../connects/index.js";
+import { requirePublicId } from "@/shared/ids/public-ids.js";
+import { freelancerPortfolioFolder } from "@/shared/uploads/storage-paths.js";
+import { invalidateAccountAuthCache } from "@/infrastructure/cache/account-auth.cache.js";
+import { addConnects } from "@/modules/connects/index.js";
 import {
   isImageDataUrl,
   reuseStoredImage,
-} from "../../../shared/uploads/portfolio-images.js";
+} from "@/shared/uploads/portfolio-images.js";
 import {
   toFreelancerProfileResponse,
   toFreelancerProfileSavedResponse,
-} from "../utils/freelancer.mappers.js";
+} from "@/modules/freelancer/utils/freelancer.mappers.js";
 import { getJSSContribution } from "./freelancer.jobs.service.js";
-import { buildFreelancerSearchFields } from "../utils/freelancer.search-text.js";
+import { buildFreelancerSearchFields } from "@/modules/freelancer/utils/freelancer.search-text.js";
 
 export const getFreelancerProfile = async (
   userId: string,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { buildTransitionGuard } from "../repositories/payouts.repository.js";
-import { PayoutTransitionError } from "../utils/payouts.state.js";
+import { buildTransitionGuard } from "@/modules/payouts/repositories/payouts.repository.js";
+import { PayoutTransitionError } from "@/modules/payouts/utils/payouts.state.js";
 
 describe("buildTransitionGuard preconditions", () => {
   it("throws a plain Error when no transition leads to the target status", () => {

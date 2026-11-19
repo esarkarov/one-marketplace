@@ -1,10 +1,10 @@
 import { toNotificationResponse } from "./utils/notifications.mappers.js";
 import type { ChannelWrapper } from "amqp-connection-manager";
 import type { ConsumeMessage } from "amqplib";
-import { getRabbitConsumerChannel } from "../../infrastructure/events/rabbitmq.client.js";
-import { logger } from "../../config/logger.js";
-import { db } from "../../database/client.js";
-import { pingDatabase } from "../health/index.js";
+import { getRabbitConsumerChannel } from "@/infrastructure/events/rabbitmq.client.js";
+import { logger } from "@/config/logger.js";
+import { db } from "@/database/client.js";
+import { pingDatabase } from "@/modules/health/index.js";
 import { insertNotificationIfNew } from "./repositories/notifications.repository.js";
 import {
   emitAgencyNotification,
@@ -13,10 +13,10 @@ import {
 import {
   errorCodeForLog,
   errorLogAttributes,
-} from "../../shared/logging/sanitize-log.js";
-import { notificationEnvelopeSchema } from "../../infrastructure/events/notification.envelope.js";
-import { topologyNames } from "../../infrastructure/events/notification.topology.js";
-import { DEFAULT_DELIVERY_LIMIT } from "../../infrastructure/constants/index.js";
+} from "@/shared/logging/sanitize-log.js";
+import { notificationEnvelopeSchema } from "@/infrastructure/events/notification.envelope.js";
+import { topologyNames } from "@/infrastructure/events/notification.topology.js";
+import { DEFAULT_DELIVERY_LIMIT } from "@/infrastructure/constants/index.js";
 
 const PREFETCH = 10;
 const MIN_BACKOFF_MS = 1_000;

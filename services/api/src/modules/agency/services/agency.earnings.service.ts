@@ -1,18 +1,18 @@
-import { db } from "../../../database/client.js";
-import { toSafeCents } from "../../../shared/money/money.js";
-import { ApiError } from "../../../shared/errors/api-error.js";
-import { env } from "../../../config/env.js";
-import { stripe } from "../../../infrastructure/payments/stripe.client.js";
-import type { StripeRequirementsLike } from "../../../types/common.types.js";
-import { EARNINGS_HOLD_PERIOD_MS } from "../../payouts/index.js";
-import { STRIPE_PAYOUT_ELIGIBLE_COUNTRIES } from "../../../infrastructure/constants/index.js";
+import { db } from "@/database/client.js";
+import { toSafeCents } from "@/shared/money/money.js";
+import { ApiError } from "@/shared/errors/api-error.js";
+import { env } from "@/config/env.js";
+import { stripe } from "@/infrastructure/payments/stripe.client.js";
+import type { StripeRequirementsLike } from "@/types/common.types.js";
+import { EARNINGS_HOLD_PERIOD_MS } from "@/modules/payouts/index.js";
+import { STRIPE_PAYOUT_ELIGIBLE_COUNTRIES } from "@/infrastructure/constants/index.js";
 import {
   findAgencyPayoutAccount,
   findHasAgencyEarnings,
   listAgencyEarningsWithPayoutState,
   listMonthlyAgencyEarningTotals,
   setAgencyStripeConnectAccountId,
-} from "../repositories/agency.earnings.repository.js";
+} from "@/modules/agency/repositories/agency.earnings.repository.js";
 
 const MONTHLY_EARNINGS_SPAN = 7;
 

@@ -1,5 +1,5 @@
-import type { AppLogger } from "../config/logger.js";
-import type { ValidatedInput } from "../middleware/types/validate.types.js";
+import type { AppLogger } from "@/config/logger.js";
+import type { ValidatedInput } from "@/middleware/types/validate.types.js";
 
 declare global {
   namespace Express {

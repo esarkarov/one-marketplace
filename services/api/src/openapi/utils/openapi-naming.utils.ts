@@ -1,8 +1,8 @@
-import { API_PREFIX } from "../../config/constants.js";
+import { API_PREFIX } from "@/config/constants.js";
 import {
   MODULE_BY_SEGMENT,
   UNMOUNTED_SEGMENTS,
-} from "../constants/openapi.constants.js";
+} from "@/openapi/constants/openapi.constants.js";
 
 const snake = (value: string) =>
   value

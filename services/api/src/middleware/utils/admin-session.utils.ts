@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from "crypto";
-import { ADMIN_SESSION_TTL_MS } from "../constants/admin-session.constants.js";
+import { ADMIN_SESSION_TTL_MS } from "@/middleware/constants/admin-session.constants.js";
 
 const sign = (expiresAtRaw: string, secret: string) =>
   createHmac("sha256", secret).update(expiresAtRaw).digest("hex");

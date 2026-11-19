@@ -1,16 +1,16 @@
 import { randomUUID } from "node:crypto";
 import request from "supertest";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { db, pool } from "../../../database/client.js";
+import { db, pool } from "@/database/client.js";
 import {
   accounts,
   agency_earning,
   agency_metadata,
-} from "../../../test/support/tables.js";
-import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
-import { searchPublicAgencies } from "../services/agency.search.service.js";
+} from "@/test/support/tables.js";
+import { assertTestDatabase } from "@/test/setup/assert-test-database.js";
+import { searchPublicAgencies } from "@/modules/agency/services/agency.search.service.js";
 
-const { app } = await import("../../../app.js");
+const { app } = await import("@/app.js");
 
 const PREFIX = "agency-page-it-";
 const like = `${PREFIX}%`;

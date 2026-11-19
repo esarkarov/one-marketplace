@@ -1,6 +1,12 @@
-import { env } from "../../config/env.js";
-import { DAILY_API_BASE, ROOM_TTL_SECONDS } from "../constants/index.js";
-import type { DailyErrorBody, DailyRoom } from "../types/index.js";
+import { env } from "@/config/env.js";
+import {
+  DAILY_API_BASE,
+  ROOM_TTL_SECONDS,
+} from "@/infrastructure/constants/index.js";
+import type {
+  DailyErrorBody,
+  DailyRoom,
+} from "@/infrastructure/types/index.js";
 
 const dailyRequest = async <T>(
   path: string,

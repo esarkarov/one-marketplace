@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { createAppLogger, createRootLogger } from "./logger.js";
-import { captureLogs } from "../test/support/capture-logs.js";
+import { captureLogs } from "@/test/support/capture-logs.js";
 import {
   fakeStripeKey,
   fakeWebhookSecret,
-} from "../test/support/fake-secrets.js";
-import { sanitizeForLog } from "../shared/logging/sanitize-log.js";
+} from "@/test/support/fake-secrets.js";
+import { sanitizeForLog } from "@/shared/logging/sanitize-log.js";
 
 describe("sanitizeForLog", () => {
   it("masks stripe keys, webhook secrets, bearer tokens and url credentials", () => {

@@ -6,15 +6,15 @@ import {
   INVITE_WRITE_LIMIT,
   INVITE_WRITE_WINDOW_MS,
   MESSAGE_WRITE_LIMIT,
-} from "../constants/rate-limit.constants.js";
+} from "@/middleware/constants/rate-limit.constants.js";
 
 const mocks = vi.hoisted(() => ({ nodeEnv: "production" }));
 
-vi.mock("../../infrastructure/cache/redis.client.js", () => ({
+vi.mock("@/infrastructure/cache/redis.client.js", () => ({
   redis: { isReady: false },
 }));
 
-vi.mock("../../config/env.js", () => ({
+vi.mock("@/config/env.js", () => ({
   env: {
     get nodeEnv() {
       return mocks.nodeEnv;

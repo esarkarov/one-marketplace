@@ -1,15 +1,15 @@
 import { RequestHandler } from "express";
-import { asyncHandler } from "../../../middleware/utils/async-handler.utils.js";
-import { ApiError } from "../../../shared/errors/api-error.js";
-import { ApiResponse } from "../../../types/common.types.js";
+import { asyncHandler } from "@/middleware/utils/async-handler.utils.js";
+import { ApiError } from "@/shared/errors/api-error.js";
+import { ApiResponse } from "@/types/common.types.js";
 import {
   getAgencyEarningsOverview,
   getAgencyMonthlyEarnings,
   getAgencyPayoutManagementUrl,
-} from "../services/agency.earnings.service.js";
-import { requireAgencyPermission } from "../services/agency.membership.service.js";
-import { getAgencyIdentityForOwner } from "../services/agency.profile.service.js";
-import { requireAgencyAuth } from "../utils/agency.auth.js";
+} from "@/modules/agency/services/agency.earnings.service.js";
+import { requireAgencyPermission } from "@/modules/agency/services/agency.membership.service.js";
+import { getAgencyIdentityForOwner } from "@/modules/agency/services/agency.profile.service.js";
+import { requireAgencyAuth } from "@/modules/agency/utils/agency.auth.js";
 
 export const getAgencyEarningsSummaryHandler: RequestHandler = asyncHandler(
   async (request, response) => {

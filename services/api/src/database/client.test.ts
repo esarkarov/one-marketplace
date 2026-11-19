@@ -4,7 +4,7 @@ const hoisted = vi.hoisted(() => ({
   error: vi.fn(),
 }));
 
-vi.mock("../config/logger.js", () => ({
+vi.mock("@/config/logger.js", () => ({
   logger: {
     info: vi.fn().mockResolvedValue(undefined),
     warn: vi.fn().mockResolvedValue(undefined),

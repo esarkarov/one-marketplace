@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { validate } from "../../middleware/validate/validate.middleware.js";
+import { validate } from "@/middleware/validate/validate.middleware.js";
 import {
   healthHandler,
   readinessHandler,

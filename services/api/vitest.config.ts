@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 
 const payoutTotalsFiles = [
@@ -12,6 +13,14 @@ const payoutTotalsFiles = [
 ];
 
 export default defineConfig({
+  resolve: {
+    alias: [
+      {
+        find: /^@\//,
+        replacement: `${fileURLToPath(new URL("./src", import.meta.url))}/`,
+      },
+    ],
+  },
   test: {
     environment: "node",
     setupFiles: ["./src/test/setup/setup.ts"],

@@ -19,9 +19,8 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@clerk/backend", () => ({ verifyToken: mocks.verifyToken }));
 
-vi.mock("../../../config/env.js", async (importOriginal) => {
-  const original =
-    await importOriginal<typeof import("../../../config/env.js")>();
+vi.mock("@/config/env.js", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@/config/env.js")>();
   return {
     ...original,
     env: {
@@ -33,14 +32,14 @@ vi.mock("../../../config/env.js", async (importOriginal) => {
   };
 });
 
-vi.mock("../../../infrastructure/payments/stripe.client.js", () => ({
+vi.mock("@/infrastructure/payments/stripe.client.js", () => ({
   stripe: {
     customers: { create: mocks.customersCreate },
     checkout: { sessions: { create: mocks.sessionsCreate } },
   },
 }));
 
-vi.mock("../../../infrastructure/cache/redis.client.js", () => ({
+vi.mock("@/infrastructure/cache/redis.client.js", () => ({
   redis: {
     get: async (key: string) => mocks.store.get(key) ?? null,
     expire: async () => true,
@@ -59,18 +58,18 @@ vi.mock("../../../infrastructure/cache/redis.client.js", () => ({
   disconnectRedis: async () => undefined,
 }));
 
-import { db, pool } from "../../../database/client.js";
+import { db, pool } from "@/database/client.js";
 import {
   accounts,
   agency_metadata,
   connects,
   connects_history,
   freelancer_metadata,
-} from "../../../test/support/tables.js";
-import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
-import { connectsResponses } from "../responses/connects.responses.js";
+} from "@/test/support/tables.js";
+import { assertTestDatabase } from "@/test/setup/assert-test-database.js";
+import { connectsResponses } from "@/modules/connects/responses/connects.responses.js";
 
-const { app } = await import("../../../app.js");
+const { app } = await import("@/app.js");
 
 const PREFIX = "connects-contract-it-";
 const API = "/api/v1/connects";
@@ -318,11 +317,11 @@ describe("connects checkout account write", () => {
   });
 });
 
-const service = await import("../services/connects.service.js");
+const service = await import("@/modules/connects/services/connects.service.js");
 const { INITIAL_CONNECTS, CONNECTS_PLANS } =
-  await import("../constants/connects.constants.js");
+  await import("@/modules/connects/constants/connects.constants.js");
 const { getAgencyConnectsCacheKey, getConnectsCacheKey } =
-  await import("../utils/connects.cache-keys.js");
+  await import("@/modules/connects/utils/connects.cache-keys.js");
 
 describe("connects service writes against real Postgres", () => {
   const seedBareFreelancer = async () => {
@@ -452,7 +451,7 @@ describe("connects service writes against real Postgres", () => {
 
   it("credits only the given owner's balance", async () => {
     const { creditConnects } =
-      await import("../repositories/connects.repository.js");
+      await import("@/modules/connects/repositories/connects.repository.js");
     const credited = await seedBareFreelancer();
     const bystander = await seedBareFreelancer();
     const creditedAgency = await seedAgency();

@@ -22,9 +22,8 @@ const mocks = vi.hoisted(() => ({
   sessionsCreate: vi.fn(),
 }));
 
-vi.mock("../../../config/env.js", async (importOriginal) => {
-  const original =
-    await importOriginal<typeof import("../../../config/env.js")>();
+vi.mock("@/config/env.js", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@/config/env.js")>();
   return {
     ...original,
     env: {
@@ -36,23 +35,23 @@ vi.mock("../../../config/env.js", async (importOriginal) => {
   };
 });
 
-vi.mock("../../../infrastructure/auth/clerk.client.js", () => ({
+vi.mock("@/infrastructure/auth/clerk.client.js", () => ({
   clerk: { users: { getUser: mocks.getUser } },
   verifyToken: mocks.verifyToken,
 }));
 
-vi.mock("../../../infrastructure/payments/stripe.client.js", () => ({
+vi.mock("@/infrastructure/payments/stripe.client.js", () => ({
   stripe: {
     customers: { create: mocks.customersCreate },
     checkout: { sessions: { create: mocks.sessionsCreate } },
   },
 }));
 
-vi.mock("../../../infrastructure/storage/image-kit.client.js", () => ({
+vi.mock("@/infrastructure/storage/image-kit.client.js", () => ({
   imageKit: { files: { upload: vi.fn(), delete: vi.fn() } },
 }));
 
-vi.mock("../../../infrastructure/cache/redis.client.js", () => ({
+vi.mock("@/infrastructure/cache/redis.client.js", () => ({
   redis: {
     get: async (key: string) => mocks.store.get(key) ?? null,
     expire: async () => true,
@@ -72,23 +71,23 @@ vi.mock("../../../infrastructure/cache/redis.client.js", () => ({
 }));
 
 vi.mock(
-  "../../../infrastructure/events/notification.publisher.js",
+  "@/infrastructure/events/notification.publisher.js",
   async (importOriginal) => ({
     ...(await importOriginal<
-      typeof import("../../../infrastructure/events/notification.publisher.js")
+      typeof import("@/infrastructure/events/notification.publisher.js")
     >()),
     sendNotification: mocks.sendNotification,
   }),
 );
 
-vi.mock("../../messaging/messaging.socket.js", async (importOriginal) => ({
+vi.mock("@/modules/messaging/messaging.socket.js", async (importOriginal) => ({
   ...(await importOriginal<
-    typeof import("../../messaging/messaging.socket.js")
+    typeof import("@/modules/messaging/messaging.socket.js")
   >()),
   emitConversationUpdate: mocks.emitConversationUpdate,
 }));
 
-import { db, pool } from "../../../database/client.js";
+import { db, pool } from "@/database/client.js";
 import {
   accounts,
   agency_members,
@@ -101,12 +100,12 @@ import {
   job_posts,
   proposals,
   reviews,
-} from "../../../test/support/tables.js";
-import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
-import { contractsResponses } from "../responses/contracts.responses.js";
-import { expectNoClerkIds } from "../../../test/support/clerk-id-scan.js";
+} from "@/test/support/tables.js";
+import { assertTestDatabase } from "@/test/setup/assert-test-database.js";
+import { contractsResponses } from "@/modules/contracts/responses/contracts.responses.js";
+import { expectNoClerkIds } from "@/test/support/clerk-id-scan.js";
 
-const { app } = await import("../../../app.js");
+const { app } = await import("@/app.js");
 
 const PREFIX = "contracts-contract-it-";
 const API = "/api/v1/contracts";
@@ -1397,7 +1396,7 @@ describe("POST /contracts/checkout account write", () => {
 describe("contract listing paging", () => {
   it("pages by contract, reports hasMore at the limit and orders ties by id descending", async () => {
     const { getAccountContracts } =
-      await import("../services/contracts.listing.service.js");
+      await import("@/modules/contracts/services/contracts.listing.service.js");
     const fixtures = [];
     for (let index = 0; index < 5; index += 1) {
       fixtures.push(

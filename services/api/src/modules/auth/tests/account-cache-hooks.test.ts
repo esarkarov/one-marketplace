@@ -12,38 +12,38 @@ vi.mock("@clerk/backend", () => ({
   createClerkClient: () => ({ users: { getUser: mocks.getUser } }),
 }));
 
-vi.mock("../../../config/env.js", () => ({
+vi.mock("@/config/env.js", () => ({
   env: { clerkSecretKey: "sk_test", imageKitPrivateKey: "ik_test" },
 }));
 
-vi.mock("../../../config/logger.js", () => ({
+vi.mock("@/config/logger.js", () => ({
   logger: { error: async () => undefined, warn: async () => undefined },
 }));
 
-vi.mock("../../../infrastructure/payments/stripe.client.js", () => ({
+vi.mock("@/infrastructure/payments/stripe.client.js", () => ({
   stripe: {},
 }));
-vi.mock("../../../infrastructure/storage/image-kit.client.js", () => ({
+vi.mock("@/infrastructure/storage/image-kit.client.js", () => ({
   imageKit: {},
 }));
 vi.mock(
-  "../../freelancer/services/freelancer.agency-identity.service.js",
+  "@/modules/freelancer/services/freelancer.agency-identity.service.js",
   () => ({
     getAgencyIdentityForMember: vi.fn(),
   }),
 );
-vi.mock("../../connects/services/connects.service.js", () => ({
+vi.mock("@/modules/connects/services/connects.service.js", () => ({
   addConnects: vi.fn(),
 }));
 
-vi.mock("../../../infrastructure/cache/account-auth.cache.js", () => ({
+vi.mock("@/infrastructure/cache/account-auth.cache.js", () => ({
   invalidateAccountAuthCache: async (userId: string) => {
     mocks.events.push("invalidate");
     mocks.invalidate(userId);
   },
 }));
 
-vi.mock("../../../database/client.js", () => {
+vi.mock("@/database/client.js", () => {
   const chain: Record<string, unknown> = {};
   for (const method of [
     "select",
@@ -79,11 +79,12 @@ vi.mock("../../../database/client.js", () => {
   };
 });
 
-const { receiveSignup } = await import("../services/auth.service.js");
+const { receiveSignup } =
+  await import("@/modules/auth/services/auth.service.js");
 const { saveClientProfile } =
-  await import("../../client/services/client.service.js");
+  await import("@/modules/client/services/client.service.js");
 const { saveFreelancerProfile } =
-  await import("../../freelancer/services/freelancer.profile.service.js");
+  await import("@/modules/freelancer/services/freelancer.profile.service.js");
 
 beforeEach(() => {
   mocks.events.length = 0;

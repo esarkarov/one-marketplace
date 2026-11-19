@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { SEARCH_QUERY_MAX_LENGTH } from "../constants/search.constants.js";
+import { SEARCH_QUERY_MAX_LENGTH } from "@/shared/validation/constants/search.constants.js";
 import { limitParam, offsetParam } from "./pagination.schema.js";
 
 export const SEARCH_QUERY_DESCRIPTION =

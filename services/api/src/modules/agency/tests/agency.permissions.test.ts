@@ -3,7 +3,7 @@ import {
   AGENCY_PERMISSIONS,
   isAgencyRoleAllowed,
   type AgencyPermission,
-} from "../utils/agency.permissions.js";
+} from "@/modules/agency/utils/agency.permissions.js";
 
 const permissions = Object.keys(AGENCY_PERMISSIONS) as AgencyPermission[];
 

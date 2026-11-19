@@ -1,15 +1,12 @@
-import { MARKETPLACE_ACCOUNT_TYPE } from "../constants/client.constants.js";
+import { MARKETPLACE_ACCOUNT_TYPE } from "@/modules/client/constants/client.constants.js";
 import { z } from "zod";
 import {
   ErrorBody,
   offsetPage,
   ok,
   BadRequestBody,
-} from "../../../shared/responses/api-envelope.responses.js";
-import {
-  cents,
-  isoDateTime,
-} from "../../../shared/responses/scalar.responses.js";
+} from "@/shared/responses/api-envelope.responses.js";
+import { cents, isoDateTime } from "@/shared/responses/scalar.responses.js";
 
 const ClientProfile = z
   .strictObject({

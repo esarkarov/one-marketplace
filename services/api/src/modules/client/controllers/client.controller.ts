@@ -1,12 +1,12 @@
 import { RequestHandler } from "express";
-import { asyncHandler } from "../../../middleware/utils/async-handler.utils.js";
-import { getValidated } from "../../../middleware/utils/validated-request.utils.js";
+import { asyncHandler } from "@/middleware/utils/async-handler.utils.js";
+import { getValidated } from "@/middleware/utils/validated-request.utils.js";
 import {
   clientCompletedContractsRequest,
   clientProfileRequest,
   marketplaceSearchRequest,
-} from "../schemas/client.schema.js";
-import { ApiError } from "../../../shared/errors/api-error.js";
+} from "@/modules/client/schemas/client.schema.js";
+import { ApiError } from "@/shared/errors/api-error.js";
 import {
   getClientCompletedContracts,
   getClientDashboardOverview,
@@ -15,7 +15,7 @@ import {
   getClientProfile,
   saveClientProfile,
   searchMarketplace,
-} from "../services/client.service.js";
+} from "@/modules/client/services/client.service.js";
 import {
   ClientDashboardOverview,
   ClientHiringOverview,
@@ -23,12 +23,12 @@ import {
   ClientProfileData,
   MarketplaceSearchPage,
   SaveClientProfileInput,
-} from "../types/client.types.js";
-import { ApiResponse } from "../../../types/common.types.js";
+} from "@/modules/client/types/client.types.js";
+import { ApiResponse } from "@/types/common.types.js";
 import {
   requireText,
   requireWebsite,
-} from "../../../shared/validation/utils/require-text.utils.js";
+} from "@/shared/validation/utils/require-text.utils.js";
 
 export const getLoggedInClientProfile: RequestHandler = asyncHandler(
   async (request, response) => {

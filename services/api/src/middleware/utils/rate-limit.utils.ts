@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { defaultErrorCode } from "../../shared/errors/api-error.js";
-import { WEBHOOK_PATHS } from "../../config/constants.js";
+import { defaultErrorCode } from "@/shared/errors/api-error.js";
+import { WEBHOOK_PATHS } from "@/config/constants.js";
 import type { Options } from "express-rate-limit";
-import type { ApiResponse } from "../../types/common.types.js";
+import type { ApiResponse } from "@/types/common.types.js";
 
 const handler: Options["handler"] = (request, response) => {
   response.status(429).json({

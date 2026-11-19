@@ -1,4 +1,4 @@
-import type { ALLOWED_ATTACHMENT_TYPES } from "../constants/attachments.constants.js";
+import type { ALLOWED_ATTACHMENT_TYPES } from "@/shared/uploads/constants/attachments.constants.js";
 
 export type AllowedAttachmentType = (typeof ALLOWED_ATTACHMENT_TYPES)[number];
 

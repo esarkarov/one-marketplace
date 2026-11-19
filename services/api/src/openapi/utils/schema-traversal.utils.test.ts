@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { JsonObject } from "../types/openapi.types.js";
+import type { JsonObject } from "@/openapi/types/openapi.types.js";
 import {
   findEmptySchemas,
   walkDocumentSchemas,

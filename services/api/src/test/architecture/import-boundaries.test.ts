@@ -1,8 +1,9 @@
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { boundaryExceptions } from "./boundary-exceptions.js";
+import { resolveImport } from "./table-access.js";
 import { isTableFile } from "./table-files.js";
 
 const srcDir = path.resolve(
@@ -61,22 +62,6 @@ function listSourceFiles(dir: string): string[] {
 
 function toKey(file: string): string {
   return path.relative(srcDir, file).split(path.sep).join("/");
-}
-
-function resolveImport(from: string, specifier: string): string | null {
-  if (!specifier.startsWith(".")) return null;
-  const base = path.resolve(path.dirname(from), specifier);
-  const candidates = [
-    base.replace(/\.js$/, ".ts"),
-    `${base}.ts`,
-    path.join(base, "index.ts"),
-  ];
-  for (const candidate of candidates) {
-    if (existsSync(candidate) && statSync(candidate).isFile()) {
-      return candidate;
-    }
-  }
-  return null;
 }
 
 function collectEdges(): Edge[] {

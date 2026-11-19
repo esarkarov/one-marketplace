@@ -1,15 +1,12 @@
-import { PROPOSAL_STATUSES } from "../../../shared/validation/constants/status.constants.js";
+import { PROPOSAL_STATUSES } from "@/shared/validation/constants/status.constants.js";
 import { z } from "zod";
 import {
   ErrorBody,
   ok,
   offsetPage,
   BadRequestBody,
-} from "../../../shared/responses/api-envelope.responses.js";
-import {
-  cents,
-  isoDateTime,
-} from "../../../shared/responses/scalar.responses.js";
+} from "@/shared/responses/api-envelope.responses.js";
+import { cents, isoDateTime } from "@/shared/responses/scalar.responses.js";
 
 const ProposalsRow = z
   .strictObject({

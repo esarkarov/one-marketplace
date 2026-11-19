@@ -1,4 +1,4 @@
-import { db } from "../../../database/client.js";
+import { db } from "@/database/client.js";
 import {
   deleteJobPostIfEditable,
   deleteSavedJob,
@@ -15,29 +15,29 @@ import {
   type JobData,
   type JobUpdate,
   type PublicJobFilters,
-} from "../repositories/jobs.repository.js";
-import { ApiError } from "../../../shared/errors/api-error.js";
-import { findAccountIdByAuthId } from "../../auth/index.js";
-import { imageKit } from "../../../infrastructure/storage/image-kit.client.js";
+} from "@/modules/jobs/repositories/jobs.repository.js";
+import { ApiError } from "@/shared/errors/api-error.js";
+import { findAccountIdByAuthId } from "@/modules/auth/index.js";
+import { imageKit } from "@/infrastructure/storage/image-kit.client.js";
 import {
   deleteDocuments,
   uploadDocuments,
-} from "../../../shared/uploads/upload-documents.js";
-import { reuseStoredAttachments } from "../../../shared/uploads/attachments.js";
-import { requirePublicId } from "../../../shared/ids/public-ids.js";
-import { jobAttachmentFolder } from "../../../shared/uploads/storage-paths.js";
-import { PAGINATION } from "../../../shared/validation/constants/pagination.constants.js";
+} from "@/shared/uploads/upload-documents.js";
+import { reuseStoredAttachments } from "@/shared/uploads/attachments.js";
+import { requirePublicId } from "@/shared/ids/public-ids.js";
+import { jobAttachmentFolder } from "@/shared/uploads/storage-paths.js";
+import { PAGINATION } from "@/shared/validation/constants/pagination.constants.js";
 import {
   fetchSize,
   toOffsetPage,
-} from "../../../shared/validation/utils/pagination.utils.js";
-import { countryDisplayName } from "../../../shared/search/search-text.js";
+} from "@/shared/validation/utils/pagination.utils.js";
+import { countryDisplayName } from "@/shared/search/search-text.js";
 import {
   toJobPostResponse,
   toSavedJobLinkResponse,
-} from "../utils/jobs.mappers.js";
+} from "@/modules/jobs/utils/jobs.mappers.js";
 
-export type { PublicJobFilters } from "../repositories/jobs.repository.js";
+export type { PublicJobFilters } from "@/modules/jobs/repositories/jobs.repository.js";
 
 export const createJobPost = async (userId: string, data: JobData) => {
   const clientAccountId = await findAccountIdByAuthId(db, userId);

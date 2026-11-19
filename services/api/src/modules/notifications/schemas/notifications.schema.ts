@@ -1,11 +1,11 @@
 import { z } from "zod";
-import type { RequestSchemas } from "../../../middleware/types/validate.types.js";
-import { paginationShape } from "../../../shared/validation/schemas/pagination.schema.js";
+import type { RequestSchemas } from "@/middleware/types/validate.types.js";
+import { paginationShape } from "@/shared/validation/schemas/pagination.schema.js";
 import {
   authRoleShape,
   scopeField,
   uuidParam,
-} from "../../../shared/validation/schemas/common.schema.js";
+} from "@/shared/validation/schemas/common.schema.js";
 
 export const notificationIdParamsSchema = z.strictObject({
   notificationId: uuidParam("Notification"),

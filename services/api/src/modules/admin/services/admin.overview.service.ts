@@ -1,5 +1,5 @@
-import { db } from "../../../database/client.js";
-import { toSafeCents } from "../../../shared/money/money.js";
+import { db } from "@/database/client.js";
+import { toSafeCents } from "@/shared/money/money.js";
 import {
   countAccountsByRole,
   countActiveContracts,
@@ -14,10 +14,10 @@ import {
   sumCompletedConnectsPurchaseCents,
   sumContractTotalCents,
   sumPaidPayoutCents,
-} from "../repositories/admin.repository.js";
-import { Pagination } from "../types/admin.types.js";
-import { fetchSize } from "../../../shared/validation/utils/pagination.utils.js";
-import { mergePages } from "../utils/admin.pagination.js";
+} from "@/modules/admin/repositories/admin.repository.js";
+import { Pagination } from "@/modules/admin/types/admin.types.js";
+import { fetchSize } from "@/shared/validation/utils/pagination.utils.js";
+import { mergePages } from "@/modules/admin/utils/admin.pagination.js";
 
 export const getAdminOverviewTotals = async () => {
   const [

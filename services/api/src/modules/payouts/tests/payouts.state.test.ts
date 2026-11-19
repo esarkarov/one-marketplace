@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 const dbMocks = vi.hoisted(() => ({ update: vi.fn() }));
 
-vi.mock("../../../database/client.js", () => ({
+vi.mock("@/database/client.js", () => ({
   db: { update: dbMocks.update },
 }));
 
@@ -13,10 +13,10 @@ const {
   PayoutTransitionError,
   assertTransition,
   allowedFrom,
-} = await import("../utils/payouts.state.js");
+} = await import("@/modules/payouts/utils/payouts.state.js");
 const { buildTransitionGuard, claimableCondition, transitionPayoutIfAllowed } =
-  await import("../repositories/payouts.repository.js");
-const { db } = await import("../../../database/client.js");
+  await import("@/modules/payouts/repositories/payouts.repository.js");
+const { db } = await import("@/database/client.js");
 
 const dialect = new PgDialect();
 const id = "7f2b8c1e-9a4d-4e7f-8b21-5c6d7e8f9a0b";

@@ -17,23 +17,23 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock(
-  "../../../infrastructure/events/notification.publisher.js",
+  "@/infrastructure/events/notification.publisher.js",
   async (importOriginal) => ({
     ...(await importOriginal<
-      typeof import("../../../infrastructure/events/notification.publisher.js")
+      typeof import("@/infrastructure/events/notification.publisher.js")
     >()),
     sendNotification: mocks.sendNotification,
   }),
 );
 
-vi.mock("../../messaging/messaging.socket.js", async (importOriginal) => ({
+vi.mock("@/modules/messaging/messaging.socket.js", async (importOriginal) => ({
   ...(await importOriginal<
-    typeof import("../../messaging/messaging.socket.js")
+    typeof import("@/modules/messaging/messaging.socket.js")
   >()),
   emitConversationUpdate: mocks.emitConversationUpdate,
 }));
 
-import { db, pool } from "../../../database/client.js";
+import { db, pool } from "@/database/client.js";
 import {
   accounts,
   client_spents,
@@ -46,25 +46,25 @@ import {
   messages,
   job_posts,
   proposals,
-} from "../../../test/support/tables.js";
-import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
+} from "@/test/support/tables.js";
+import { assertTestDatabase } from "@/test/setup/assert-test-database.js";
 import {
   countBlocked,
   holdRowLock,
   openLockHolder,
   raceBlocked,
   waitForBlocked,
-} from "../../../test/support/lock-holder.js";
-import { ApiError } from "../../../shared/errors/api-error.js";
+} from "@/test/support/lock-holder.js";
+import { ApiError } from "@/shared/errors/api-error.js";
 import {
   acceptContract,
   finishContractWithReview,
-} from "../services/contracts.lifecycle.service.js";
+} from "@/modules/contracts/services/contracts.lifecycle.service.js";
 import {
   addContractMilestone,
   reviewContractMilestone,
   submitContractMilestone,
-} from "../services/contracts.milestones.service.js";
+} from "@/modules/contracts/services/contracts.milestones.service.js";
 
 const PREFIX = "transition-it-";
 const AMOUNT = 20000;

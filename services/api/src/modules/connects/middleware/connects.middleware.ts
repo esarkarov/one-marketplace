@@ -1,11 +1,11 @@
 import { RequestHandler } from "express";
-import { asyncHandler } from "../../../middleware/utils/async-handler.utils.js";
-import { ApiError } from "../../../shared/errors/api-error.js";
-import { CONNECTS_CACHE_TTL_SECONDS } from "../constants/connects.constants.js";
-import { getConnectsCacheKey } from "../utils/connects.cache-keys.js";
-import { redis } from "../../../infrastructure/cache/redis.client.js";
-import { db } from "../../../database/client.js";
-import { findFreelancerConnectsBalance } from "../repositories/connects.repository.js";
+import { asyncHandler } from "@/middleware/utils/async-handler.utils.js";
+import { ApiError } from "@/shared/errors/api-error.js";
+import { CONNECTS_CACHE_TTL_SECONDS } from "@/modules/connects/constants/connects.constants.js";
+import { getConnectsCacheKey } from "@/modules/connects/utils/connects.cache-keys.js";
+import { redis } from "@/infrastructure/cache/redis.client.js";
+import { db } from "@/database/client.js";
+import { findFreelancerConnectsBalance } from "@/modules/connects/repositories/connects.repository.js";
 
 export const availableConnects: RequestHandler = asyncHandler(
   async (request, _response, next) => {

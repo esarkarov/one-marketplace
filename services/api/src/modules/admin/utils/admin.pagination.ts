@@ -1,4 +1,7 @@
-import { Pagination, PaginatedResult } from "../types/admin.types.js";
+import {
+  Pagination,
+  PaginatedResult,
+} from "@/modules/admin/types/admin.types.js";
 
 const compareIdsDescending = (a: string, b: string) =>
   a < b ? 1 : a > b ? -1 : 0;

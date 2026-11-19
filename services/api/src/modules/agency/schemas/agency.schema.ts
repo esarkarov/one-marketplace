@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { RequestSchemas } from "../../../middleware/types/validate.types.js";
+import type { RequestSchemas } from "@/middleware/types/validate.types.js";
 
 import {
   authRoleShape,
@@ -8,17 +8,20 @@ import {
   pagingDigits,
   uuidParams,
   withIgnoredKeys,
-} from "../../../shared/validation/schemas/common.schema.js";
-import { centsQueryParam } from "../../../shared/validation/schemas/money.schema.js";
+} from "@/shared/validation/schemas/common.schema.js";
+import { centsQueryParam } from "@/shared/validation/schemas/money.schema.js";
 import {
   paginationShape,
   roleListQuerySchema,
-} from "../../../shared/validation/schemas/pagination.schema.js";
-import { searchPagingShape } from "../../../shared/validation/schemas/search.schema.js";
-import { AGENCY_LIMITS, MEMBER_ROLE } from "../constants/agency.constants.js";
-import { COMMON_LIMITS } from "../../../shared/validation/constants/validation.constants.js";
-import { JOB_LIMITS } from "../../../shared/validation/constants/job.constants.js";
-import { MAX_LIVE_URL_LENGTH } from "../../../shared/uploads/constants/portfolio-images.constants.js";
+} from "@/shared/validation/schemas/pagination.schema.js";
+import { searchPagingShape } from "@/shared/validation/schemas/search.schema.js";
+import {
+  AGENCY_LIMITS,
+  MEMBER_ROLE,
+} from "@/modules/agency/constants/agency.constants.js";
+import { COMMON_LIMITS } from "@/shared/validation/constants/validation.constants.js";
+import { JOB_LIMITS } from "@/shared/validation/constants/job.constants.js";
+import { MAX_LIVE_URL_LENGTH } from "@/shared/uploads/constants/portfolio-images.constants.js";
 
 const optionalBody = <T extends z.ZodType>(schema: T) =>
   z.preprocess((value) => value ?? {}, schema);

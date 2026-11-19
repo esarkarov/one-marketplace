@@ -2,7 +2,7 @@ import { z } from "zod";
 import {
   COUNTRY_CODE_PATTERN,
   UNKNOWN_REGION_CODE,
-} from "../constants/country.constants.js";
+} from "@/shared/validation/constants/country.constants.js";
 
 const knownRegions = new Intl.DisplayNames(["en"], {
   type: "region",

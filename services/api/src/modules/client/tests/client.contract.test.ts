@@ -21,9 +21,8 @@ const mocks = vi.hoisted(() => ({
   portalCreate: vi.fn(),
 }));
 
-vi.mock("../../../config/env.js", async (importOriginal) => {
-  const original =
-    await importOriginal<typeof import("../../../config/env.js")>();
+vi.mock("@/config/env.js", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@/config/env.js")>();
   return {
     ...original,
     env: {
@@ -35,19 +34,19 @@ vi.mock("../../../config/env.js", async (importOriginal) => {
   };
 });
 
-vi.mock("../../../infrastructure/auth/clerk.client.js", () => ({
+vi.mock("@/infrastructure/auth/clerk.client.js", () => ({
   clerk: { users: { getUser: mocks.getUser } },
   verifyToken: mocks.verifyToken,
 }));
 
-vi.mock("../../../infrastructure/payments/stripe.client.js", () => ({
+vi.mock("@/infrastructure/payments/stripe.client.js", () => ({
   stripe: {
     customers: { create: mocks.customersCreate },
     billingPortal: { sessions: { create: mocks.portalCreate } },
   },
 }));
 
-vi.mock("../../../infrastructure/cache/redis.client.js", () => ({
+vi.mock("@/infrastructure/cache/redis.client.js", () => ({
   redis: {
     get: async (key: string) => mocks.store.get(key) ?? null,
     expire: async () => true,
@@ -67,7 +66,7 @@ vi.mock("../../../infrastructure/cache/redis.client.js", () => ({
   disconnectRedis: async () => undefined,
 }));
 
-import { db, pool } from "../../../database/client.js";
+import { db, pool } from "@/database/client.js";
 import {
   accounts,
   agency_earning,
@@ -84,22 +83,22 @@ import {
   freelancer_metadata,
   job_posts,
   proposals,
-} from "../../../test/support/tables.js";
+} from "@/test/support/tables.js";
 import {
   buildSearchText,
   countryDisplayName,
-} from "../../../shared/search/search-text.js";
-import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
-import { getAccountAuthCacheKey } from "../../../infrastructure/utils/account-auth-cache-key.utils.js";
+} from "@/shared/search/search-text.js";
+import { assertTestDatabase } from "@/test/setup/assert-test-database.js";
+import { getAccountAuthCacheKey } from "@/infrastructure/utils/account-auth-cache-key.utils.js";
 import {
   getClientFinanceManagementUrl,
   getClientProfile,
   saveClientProfile,
-} from "../services/client.service.js";
+} from "@/modules/client/services/client.service.js";
 import {
   findAgencyNamesByIds,
   findReviewsForContracts,
-} from "../repositories/client.repository.js";
+} from "@/modules/client/repositories/client.repository.js";
 import {
   clientCompletedContractsResponses,
   clientDashboardOverviewResponses,
@@ -108,9 +107,9 @@ import {
   clientMarketplaceSearchResponses,
   clientProfileGetResponses,
   clientProfilePutResponses,
-} from "../responses/client.responses.js";
+} from "@/modules/client/responses/client.responses.js";
 
-const { app } = await import("../../../app.js");
+const { app } = await import("@/app.js");
 
 const PREFIX = "client-contract-";
 const API = "/api/v1/client";

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { MAX_MONEY_CENTS } from "../money/money.js";
+import { MAX_MONEY_CENTS } from "@/shared/money/money.js";
 
 export const isoDateTime = z.iso
   .datetime({ error: "Expected an ISO 8601 date-time." })

@@ -1,9 +1,9 @@
 import { Router } from "express";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { validate } from "../../../middleware/validate/validate.middleware.js";
-import type { ContractAllowlist } from "../../../openapi/introspection/contract-allowlist.js";
-import { collectRoutes } from "../../../openapi/introspection/route-introspection.js";
+import { validate } from "@/middleware/validate/validate.middleware.js";
+import type { ContractAllowlist } from "@/openapi/introspection/contract-allowlist.js";
+import { collectRoutes } from "@/openapi/introspection/route-introspection.js";
 import {
   findContractAllowlistProblems,
   findContractViolations,

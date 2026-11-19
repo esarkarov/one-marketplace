@@ -1,8 +1,8 @@
-import { db } from "../../../database/client.js";
+import { db } from "@/database/client.js";
 import {
   fetchSize,
   toOffsetPage,
-} from "../../../shared/validation/utils/pagination.utils.js";
+} from "@/shared/validation/utils/pagination.utils.js";
 import {
   findAccountByPublicId,
   findJobOwnedByClient,
@@ -11,22 +11,22 @@ import {
   listActiveMeetingsForConversations,
   listConversationRowsOfParticipant,
   sumUnreadOfParticipant,
-} from "../repositories/messaging.conversations.repository.js";
+} from "@/modules/messaging/repositories/messaging.conversations.repository.js";
 import {
   findParticipantByAccount,
   findParticipantByAgency,
   insertConversationParticipantsIfAbsent,
   listParticipantProfileRows,
-} from "../repositories/messaging.participants.repository.js";
-import { ApiError } from "../../../shared/errors/api-error.js";
-import type { DbExecutor } from "../../../database/database.types.js";
-import { findAccountDisplays } from "../../auth/index.js";
+} from "@/modules/messaging/repositories/messaging.participants.repository.js";
+import { ApiError } from "@/shared/errors/api-error.js";
+import type { DbExecutor } from "@/database/database.types.js";
+import { findAccountDisplays } from "@/modules/auth/index.js";
 import {
   getAgencyIdForMember,
   getAgencyTeamMemberIds,
-} from "../../agency/index.js";
-import { ConversationScope } from "../types/messaging.types.js";
-import { toConversationResponse } from "../utils/messaging.mappers.js";
+} from "@/modules/agency/index.js";
+import { ConversationScope } from "@/modules/messaging/types/messaging.types.js";
+import { toConversationResponse } from "@/modules/messaging/utils/messaging.mappers.js";
 
 export const requireMember = async (
   conversationId: string,

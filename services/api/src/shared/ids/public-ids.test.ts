@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({ error: vi.fn() }));
 
-vi.mock("../../config/logger.js", () => ({
+vi.mock("@/config/logger.js", () => ({
   logger: { error: mocks.error },
 }));
 

@@ -1,6 +1,6 @@
 import request from "supertest";
 import { describe, expect, it } from "vitest";
-import { app } from "../../../app.js";
+import { app } from "@/app.js";
 
 describe("health routes validation", () => {
   it.each(["/api/v1/health", "/api/v1/ready"])(

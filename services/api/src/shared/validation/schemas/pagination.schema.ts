@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { PAGINATION } from "../constants/pagination.constants.js";
+import { PAGINATION } from "@/shared/validation/constants/pagination.constants.js";
 import { authRoleShape } from "./common.schema.js";
 
 const digitsInt = (label: string, { min, max }: { min: number; max: number }) =>

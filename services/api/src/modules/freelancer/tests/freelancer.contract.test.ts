@@ -23,9 +23,8 @@ const mocks = vi.hoisted(() => ({
   accountLinksCreate: vi.fn(),
 }));
 
-vi.mock("../../../config/env.js", async (importOriginal) => {
-  const original =
-    await importOriginal<typeof import("../../../config/env.js")>();
+vi.mock("@/config/env.js", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@/config/env.js")>();
   return {
     ...original,
     env: {
@@ -38,12 +37,12 @@ vi.mock("../../../config/env.js", async (importOriginal) => {
   };
 });
 
-vi.mock("../../../infrastructure/auth/clerk.client.js", () => ({
+vi.mock("@/infrastructure/auth/clerk.client.js", () => ({
   clerk: { users: { getUser: mocks.getUser } },
   verifyToken: mocks.verifyToken,
 }));
 
-vi.mock("../../../infrastructure/payments/stripe.client.js", () => ({
+vi.mock("@/infrastructure/payments/stripe.client.js", () => ({
   stripe: {
     v2: {
       core: {
@@ -58,11 +57,11 @@ vi.mock("../../../infrastructure/payments/stripe.client.js", () => ({
   },
 }));
 
-vi.mock("../../../infrastructure/storage/image-kit.client.js", () => ({
+vi.mock("@/infrastructure/storage/image-kit.client.js", () => ({
   imageKit: { files: { upload: mocks.upload, delete: vi.fn() } },
 }));
 
-vi.mock("../../../infrastructure/cache/redis.client.js", () => ({
+vi.mock("@/infrastructure/cache/redis.client.js", () => ({
   redis: {
     get: async (key: string) => mocks.store.get(key) ?? null,
     expire: async () => true,
@@ -82,7 +81,7 @@ vi.mock("../../../infrastructure/cache/redis.client.js", () => ({
   disconnectRedis: async () => undefined,
 }));
 
-import { db, pool } from "../../../database/client.js";
+import { db, pool } from "@/database/client.js";
 import {
   accounts,
   agency_members,
@@ -97,11 +96,11 @@ import {
   job_posts,
   payout_history,
   proposals,
-} from "../../../test/support/tables.js";
-import { expectNoClerkIds } from "../../../test/support/clerk-id-scan.js";
-import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
-import { getAccountAuthCacheKey } from "../../../infrastructure/utils/account-auth-cache-key.utils.js";
-import { saveFreelancerProfile } from "../services/freelancer.profile.service.js";
+} from "@/test/support/tables.js";
+import { expectNoClerkIds } from "@/test/support/clerk-id-scan.js";
+import { assertTestDatabase } from "@/test/setup/assert-test-database.js";
+import { getAccountAuthCacheKey } from "@/infrastructure/utils/account-auth-cache-key.utils.js";
+import { saveFreelancerProfile } from "@/modules/freelancer/services/freelancer.profile.service.js";
 import {
   freelancerEarningsCertificateResponses,
   freelancerEarningsOverviewResponses,
@@ -113,9 +112,9 @@ import {
   freelancerProfilePutResponses,
   freelancerPublicProfileResponses,
   freelancerSearchResponses,
-} from "../responses/freelancer.responses.js";
+} from "@/modules/freelancer/responses/freelancer.responses.js";
 
-const { app } = await import("../../../app.js");
+const { app } = await import("@/app.js");
 
 const PREFIX = "freelancer-contract-";
 const API = "/api/v1/freelancer";
@@ -835,7 +834,7 @@ describe("freelancer account writes", () => {
 describe("freelancer job feed paging", () => {
   it("reports hasMore only beyond the limit and orders ties by id descending", async () => {
     const { getMatchedJobPostsBySkills } =
-      await import("../services/freelancer.jobs.service.js");
+      await import("@/modules/freelancer/services/freelancer.jobs.service.js");
     const skill = `pagingskill${randomUUID().replaceAll("-", "")}`;
     const clientId = await insertAccount(newAuthId(), "CLIENT", {
       paymentMethodVerified: true,

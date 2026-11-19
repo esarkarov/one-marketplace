@@ -13,7 +13,7 @@ import {
   scanRedisKeysHandler,
   streamLogsHandler,
 } from "./controllers/admin.controller.js";
-import { validate } from "../../middleware/validate/validate.middleware.js";
+import { validate } from "@/middleware/validate/validate.middleware.js";
 import {
   adminListRequest,
   adminLoginRequest,
@@ -25,11 +25,11 @@ import { adminResponses } from "./responses/admin.responses.js";
 import {
   requireAdminSession,
   requireAdminSessionAllowingQueryToken,
-} from "../../middleware/auth/admin-session.middleware.js";
+} from "@/middleware/auth/admin-session.middleware.js";
 import {
   adminLimiter,
   adminLoginLimiter,
-} from "../../middleware/rate-limit/rate-limit.middleware.js";
+} from "@/middleware/rate-limit/rate-limit.middleware.js";
 
 export const adminRouter = Router();
 

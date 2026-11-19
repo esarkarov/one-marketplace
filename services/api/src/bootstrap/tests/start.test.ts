@@ -15,37 +15,37 @@ const hoisted = vi.hoisted(() => ({
 }));
 
 vi.mock("node:http", () => ({ createServer: hoisted.createServer }));
-vi.mock("../../app.js", () => ({ app: {} }));
-vi.mock("../../config/logger.js", () => ({
+vi.mock("@/app.js", () => ({ app: {} }));
+vi.mock("@/config/logger.js", () => ({
   logger: {
     info: vi.fn().mockResolvedValue(undefined),
     fatal: vi.fn().mockResolvedValue(undefined),
   },
 }));
-vi.mock("../../modules/health/index.js", () => ({
+vi.mock("@/modules/health/index.js", () => ({
   pingDatabase: hoisted.pingDatabase,
 }));
-vi.mock("../../infrastructure/cache/redis.client.js", () => ({
+vi.mock("@/infrastructure/cache/redis.client.js", () => ({
   connectRedis: hoisted.connectRedis,
   disconnectRedis: vi.fn().mockResolvedValue(undefined),
 }));
-vi.mock("../../infrastructure/events/rabbitmq.client.js", () => ({
+vi.mock("@/infrastructure/events/rabbitmq.client.js", () => ({
   isRabbitEnabled: hoisted.isRabbitEnabled,
   closeRabbit: vi.fn().mockResolvedValue(undefined),
 }));
-vi.mock("../../modules/notifications/notifications.consumer.js", () => ({
+vi.mock("@/modules/notifications/notifications.consumer.js", () => ({
   startNotificationConsumer: hoisted.startNotificationConsumer,
 }));
-vi.mock("../../modules/messaging/messaging.socket.js", () => ({
+vi.mock("@/modules/messaging/messaging.socket.js", () => ({
   initializeMessagingSocket: hoisted.initializeMessagingSocket,
 }));
-vi.mock("../../modules/payouts/payouts.cron.js", () => ({
+vi.mock("@/modules/payouts/payouts.cron.js", () => ({
   startPayoutCron: hoisted.startPayoutCron,
 }));
-vi.mock("../crash-handlers.js", () => ({
+vi.mock("@/bootstrap/crash-handlers.js", () => ({
   handleFatalError: hoisted.handleFatalError,
 }));
-vi.mock("../shutdown.js", () => ({
+vi.mock("@/bootstrap/shutdown.js", () => ({
   exitWithFlush: hoisted.exitWithFlush,
   SHUTDOWN_TIMEOUT_MS: 10_000,
 }));
@@ -60,7 +60,7 @@ class FakeServer extends EventEmitter {
 
 const load = async () => {
   vi.resetModules();
-  return import("../start.js");
+  return import("@/bootstrap/start.js");
 };
 
 describe("startup order and failures", () => {

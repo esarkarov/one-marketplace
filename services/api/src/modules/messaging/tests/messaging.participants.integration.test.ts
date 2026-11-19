@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
-import { expectNoClerkIds } from "../../../test/support/clerk-id-scan.js";
+import { expectNoClerkIds } from "@/test/support/clerk-id-scan.js";
 import {
   afterAll,
   afterEach,
@@ -17,15 +17,15 @@ const mocks = vi.hoisted(() => ({
   }),
 }));
 
-vi.mock("../../../infrastructure/auth/clerk.client.js", () => ({
+vi.mock("@/infrastructure/auth/clerk.client.js", () => ({
   clerk: { users: { getUser: mocks.getUser } },
 }));
 
-vi.mock("../messaging.socket.js", () => ({
+vi.mock("@/modules/messaging/messaging.socket.js", () => ({
   emitConversationUpdate: vi.fn(),
 }));
 
-import { db, pool } from "../../../database/client.js";
+import { db, pool } from "@/database/client.js";
 import {
   accounts,
   agency_metadata,
@@ -33,12 +33,12 @@ import {
   conversation_participants,
   conversations,
   freelancer_metadata,
-} from "../../../test/support/tables.js";
-import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
+} from "@/test/support/tables.js";
+import { assertTestDatabase } from "@/test/setup/assert-test-database.js";
 import {
   createConversation,
   getConversations,
-} from "../services/messaging.conversations.service.js";
+} from "@/modules/messaging/services/messaging.conversations.service.js";
 
 const PREFIX = "msg-part-it-";
 

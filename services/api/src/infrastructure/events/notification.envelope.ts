@@ -1,11 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import { isMoneyCents } from "../../shared/money/money.js";
-import { NOTIFICATION_CREATED_TYPE } from "../constants/index.js";
+import { isMoneyCents } from "@/shared/money/money.js";
+import { NOTIFICATION_CREATED_TYPE } from "@/infrastructure/constants/index.js";
 import type {
   NotificationEnvelope,
   NotificationInput,
-} from "../types/index.js";
+} from "@/infrastructure/types/index.js";
 
 const notificationMetadataSchema = z
   .record(z.string(), z.unknown())

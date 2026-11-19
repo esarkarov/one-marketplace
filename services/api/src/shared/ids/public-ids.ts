@@ -1,5 +1,5 @@
-import { logger } from "../../config/logger.js";
-import { ApiError } from "../errors/api-error.js";
+import { logger } from "@/config/logger.js";
+import { ApiError } from "@/shared/errors/api-error.js";
 
 export const requirePublicId = (
   id: string | null | undefined,

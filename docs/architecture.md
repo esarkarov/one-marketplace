@@ -40,7 +40,7 @@ Workspace packages are scoped `@onemarketplace/<folder-name>`.
 
 ## API conventions
 
-- ESM with `.js` import suffixes, `@onemarketplace/tsconfig/node.json`, `@onemarketplace/eslint-config/node`.
+- ESM with `.js` import suffixes, `@/` for cross-directory imports (ADR 0020), `@onemarketplace/tsconfig/node.json`, `@onemarketplace/eslint-config/node`.
 - Every route is validated at the route layer by `validate` (`src/middleware/validate/validate.middleware.ts`). Schemas live in `src/modules/<module>/schemas/<x>.schema.ts`, limits in each module's `constants/<module>.constants.ts` (shared ones in `src/shared/validation/constants/`). A registry test and `src/test/architecture/routing/validation-allowlist.ts` enforce it (ADR 0011).
 - Controllers read validated input through `getValidated(request, <schemas>)` (`src/middleware/utils/validated-request.utils.ts`) with the same `<route>Request` schemas constant the route passes to `validate`; direct `request.body|params|query` reads in a `*.controller.ts` fail `src/test/architecture/controller-input.test.ts`, which lists the raw-body webhook as its only exception.
 - Every route also declares response schemas through `validate({ ..., responses })` with a 2xx entry (`responses/<module>.responses.ts`, shared pieces in `src/shared/responses/`) and has a contract test; only raw-body webhooks and event streams are exempt (`src/openapi/introspection/contract-allowlist.ts`). `pnpm --filter @onemarketplace/api openapi:generate` writes `docs/api/openapi.json`, which is committed (ADR 0012).

@@ -1,10 +1,10 @@
 import { RequestHandler } from "express";
-import { ApiError } from "../../../shared/errors/api-error.js";
-import { asyncHandler } from "../../../middleware/utils/async-handler.utils.js";
-import { getValidated } from "../../../middleware/utils/validated-request.utils.js";
-import { identitySessionRequest } from "../schemas/identity.schema.js";
-import { createIdentitySession } from "../services/identity.service.js";
-import { handleIdentityWebhook } from "../services/identity.webhook.service.js";
+import { ApiError } from "@/shared/errors/api-error.js";
+import { asyncHandler } from "@/middleware/utils/async-handler.utils.js";
+import { getValidated } from "@/middleware/utils/validated-request.utils.js";
+import { identitySessionRequest } from "@/modules/identity/schemas/identity.schema.js";
+import { createIdentitySession } from "@/modules/identity/services/identity.service.js";
+import { handleIdentityWebhook } from "@/modules/identity/services/identity.webhook.service.js";
 
 export const startIdentityVerification: RequestHandler = asyncHandler(
   async (request, response) => {

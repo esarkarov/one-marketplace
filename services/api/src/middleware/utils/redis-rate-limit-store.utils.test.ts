@@ -7,7 +7,7 @@ import {
   RATE_LIMIT_INCREMENT_SCRIPT,
   RATE_LIMIT_STORE_TIMEOUT_MS,
   RATE_LIMIT_STORE_WARN_INTERVAL_MS,
-} from "../constants/rate-limit.constants.js";
+} from "@/middleware/constants/rate-limit.constants.js";
 
 interface FakeEntry {
   count: number;
@@ -54,7 +54,7 @@ const evalFake = vi.fn(
   },
 );
 
-vi.mock("../../infrastructure/cache/redis.client.js", () => ({
+vi.mock("@/infrastructure/cache/redis.client.js", () => ({
   redis: {
     get isReady() {
       return mocks.isReady;
@@ -64,7 +64,7 @@ vi.mock("../../infrastructure/cache/redis.client.js", () => ({
   },
 }));
 
-vi.mock("../../config/logger.js", () => ({
+vi.mock("@/config/logger.js", () => ({
   logger: { warn: mocks.loggerWarn },
 }));
 

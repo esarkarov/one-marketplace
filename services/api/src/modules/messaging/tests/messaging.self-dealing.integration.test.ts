@@ -15,23 +15,23 @@ const mocks = vi.hoisted(() => ({
   }),
 }));
 
-vi.mock("../../../infrastructure/auth/clerk.client.js", () => ({
+vi.mock("@/infrastructure/auth/clerk.client.js", () => ({
   clerk: { users: { getUser: mocks.getUser } },
 }));
 
-vi.mock("../messaging.socket.js", () => ({
+vi.mock("@/modules/messaging/messaging.socket.js", () => ({
   emitConversationUpdate: vi.fn(),
 }));
 
-import { db, pool } from "../../../database/client.js";
+import { db, pool } from "@/database/client.js";
 import {
   accounts,
   agency_metadata,
   job_posts,
   proposals,
-} from "../../../test/support/tables.js";
-import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
-import { createConversation } from "../services/messaging.conversations.service.js";
+} from "@/test/support/tables.js";
+import { assertTestDatabase } from "@/test/setup/assert-test-database.js";
+import { createConversation } from "@/modules/messaging/services/messaging.conversations.service.js";
 
 const PREFIX = "msg-self-it-";
 

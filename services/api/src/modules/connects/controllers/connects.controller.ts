@@ -1,17 +1,17 @@
 import { RequestHandler } from "express";
-import { requireFreelancer } from "../../../middleware/auth/role-guards.middleware.js";
-import { ApiResponse } from "../../../types/common.types.js";
-import { asyncHandler } from "../../../middleware/utils/async-handler.utils.js";
-import { getValidated } from "../../../middleware/utils/validated-request.utils.js";
+import { requireFreelancer } from "@/middleware/auth/role-guards.middleware.js";
+import { ApiResponse } from "@/types/common.types.js";
+import { asyncHandler } from "@/middleware/utils/async-handler.utils.js";
+import { getValidated } from "@/middleware/utils/validated-request.utils.js";
 import {
   buyConnectsRequest,
   connectsHistoryRequest,
-} from "../schemas/connects.schema.js";
+} from "@/modules/connects/schemas/connects.schema.js";
 import {
   createConnectsCheckout,
   getConnectsHistory,
-} from "../services/connects.service.js";
-import { handleConnectsWebhook } from "../services/connects.webhook.service.js";
+} from "@/modules/connects/services/connects.service.js";
+import { handleConnectsWebhook } from "@/modules/connects/services/connects.webhook.service.js";
 
 export const getAvailableConnects: RequestHandler = async (
   request,

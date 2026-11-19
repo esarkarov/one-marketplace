@@ -1,8 +1,8 @@
 import { RequestHandler } from "express";
-import { ApiError } from "../../../shared/errors/api-error.js";
+import { ApiError } from "@/shared/errors/api-error.js";
 import { randomUUID } from "crypto";
-import { asyncHandler } from "../../../middleware/utils/async-handler.utils.js";
-import { getValidated } from "../../../middleware/utils/validated-request.utils.js";
+import { asyncHandler } from "@/middleware/utils/async-handler.utils.js";
+import { getValidated } from "@/middleware/utils/validated-request.utils.js";
 import {
   createJobPost,
   deleteJobPost,
@@ -15,11 +15,11 @@ import {
   removeSavedJobPost,
   saveJobPost,
   updateJobPost,
-} from "../services/jobs.service.js";
+} from "@/modules/jobs/services/jobs.service.js";
 import {
   requireClient,
   requireFreelancer,
-} from "../../../middleware/auth/role-guards.middleware.js";
+} from "@/middleware/auth/role-guards.middleware.js";
 import {
   MAX_JOB_BUDGET_CENTS,
   clientJobRequest,
@@ -32,11 +32,11 @@ import {
   savedJobsRequest,
   type JobBody,
   unsaveJobRequest,
-} from "../schemas/jobs.schema.js";
+} from "@/modules/jobs/schemas/jobs.schema.js";
 import {
   assertAttachmentFileName,
   validateAttachmentBatch,
-} from "../../../shared/uploads/attachments.js";
+} from "@/shared/uploads/attachments.js";
 
 const requireText = (value: string | string[] | undefined, name: string) => {
   if (typeof value !== "string" || !value.trim()) {

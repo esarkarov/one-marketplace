@@ -1,8 +1,11 @@
 import type { RequestHandler } from "express";
-import { asyncHandler } from "../utils/async-handler.utils.js";
-import { ApiError } from "../../shared/errors/api-error.js";
-import { env } from "../../config/env.js";
-import { getBearerToken, verifyToken } from "../utils/admin-session.utils.js";
+import { asyncHandler } from "@/middleware/utils/async-handler.utils.js";
+import { ApiError } from "@/shared/errors/api-error.js";
+import { env } from "@/config/env.js";
+import {
+  getBearerToken,
+  verifyToken,
+} from "@/middleware/utils/admin-session.utils.js";
 
 const createAdminSessionGuard = (allowQueryToken: boolean): RequestHandler =>
   asyncHandler(async (request, _response, next) => {

@@ -1,6 +1,12 @@
 import base from "@onemarketplace/eslint-config/node";
 import { defineConfig } from "eslint/config";
 
+const noParentRelative = {
+  group: ["..", "../**"],
+  message:
+    "Import across directories with the @/ alias (the src root); ../ is not allowed (ADR 0020).",
+};
+
 export default defineConfig([
   ...base,
   {
@@ -28,12 +34,19 @@ export default defineConfig([
     },
   },
   {
+    files: ["src/**/*.{ts,tsx}", "scripts/**/*.{ts,mjs}"],
+    rules: {
+      "no-restricted-imports": ["error", { patterns: [noParentRelative] }],
+    },
+  },
+  {
     files: ["src/modules/**/*.controller.ts", "src/modules/**/*.route.ts"],
     rules: {
       "no-restricted-imports": [
         "error",
         {
           patterns: [
+            noParentRelative,
             {
               regex: "(^|/)database(/|$)",
               message:
@@ -56,6 +69,7 @@ export default defineConfig([
         "error",
         {
           patterns: [
+            noParentRelative,
             {
               regex: "(^|/)database(/|$)",
               message:

@@ -1,15 +1,15 @@
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { db, pool } from "../../../database/client.js";
+import { db, pool } from "@/database/client.js";
 import {
   accounts,
   agency_metadata,
   conversation_participants,
   conversations,
-} from "../../../test/support/tables.js";
-import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
-import { incrementUnreadCounts } from "../repositories/messaging.participants.repository.js";
+} from "@/test/support/tables.js";
+import { assertTestDatabase } from "@/test/setup/assert-test-database.js";
+import { incrementUnreadCounts } from "@/modules/messaging/repositories/messaging.participants.repository.js";
 
 const PREFIX = "messaging-unread-";
 const like = `${PREFIX}%`;

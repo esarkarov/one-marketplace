@@ -1,5 +1,5 @@
-import { DOCX_TYPE } from "../constants/attachments.constants.js";
-import type { DetectedFileType } from "../types/attachments.types.js";
+import { DOCX_TYPE } from "@/shared/uploads/constants/attachments.constants.js";
+import type { DetectedFileType } from "@/shared/uploads/types/attachments.types.js";
 import { ZIP_LOCAL_SIGNATURE, isPlainDocx } from "./attachment-docx.utils.js";
 
 const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];

@@ -1,7 +1,7 @@
-import { getAccountAuthCacheKeys } from "../utils/account-auth-cache-key.utils.js";
-import { logger } from "../../config/logger.js";
+import { getAccountAuthCacheKeys } from "@/infrastructure/utils/account-auth-cache-key.utils.js";
+import { logger } from "@/config/logger.js";
 import { redis } from "./redis.client.js";
-import { errorLogAttributes } from "../../shared/logging/sanitize-log.js";
+import { errorLogAttributes } from "@/shared/logging/sanitize-log.js";
 
 export const invalidateAccountAuthCache = async (
   userId: string,

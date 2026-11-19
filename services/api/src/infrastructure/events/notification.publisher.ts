@@ -4,19 +4,19 @@ import {
   isRabbitConnected,
   isRabbitEnabled,
 } from "./rabbitmq.client.js";
-import { logger } from "../../config/logger.js";
-import { errorLogAttributes } from "../../shared/logging/sanitize-log.js";
+import { logger } from "@/config/logger.js";
+import { errorLogAttributes } from "@/shared/logging/sanitize-log.js";
 import { createNotificationEnvelope } from "./notification.envelope.js";
 import { topologyNames } from "./notification.topology.js";
 import {
   NOTIFICATION_CREATED_TYPE,
   NOTIFICATIONS_CREATED_ROUTING_KEY,
   PUBLISH_TIMEOUT_MS,
-} from "../constants/index.js";
+} from "@/infrastructure/constants/index.js";
 import type {
   NotificationEnvelope,
   NotificationInput,
-} from "../types/index.js";
+} from "@/infrastructure/types/index.js";
 
 export const publishNotificationEnvelope = async (
   channel: ChannelWrapper,

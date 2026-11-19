@@ -15,10 +15,10 @@ vi.mock("node-cron", () => ({
     },
   },
 }));
-vi.mock("../services/payouts.service.js", () => ({
+vi.mock("@/modules/payouts/services/payouts.service.js", () => ({
   processDuePayouts: hoisted.processDuePayouts,
 }));
-vi.mock("../../../config/logger.js", () => ({
+vi.mock("@/config/logger.js", () => ({
   logger: {
     info: vi.fn().mockResolvedValue(undefined),
     error: hoisted.loggerError,
@@ -41,7 +41,7 @@ const flush = async () => {
 
 const load = async () => {
   vi.resetModules();
-  return import("../payouts.cron.js");
+  return import("@/modules/payouts/payouts.cron.js");
 };
 
 describe("payout cron in-flight tracking", () => {

@@ -2,11 +2,11 @@ import amqp, {
   type ChannelWrapper,
   type AmqpConnectionManager,
 } from "amqp-connection-manager";
-import { env } from "../../config/env.js";
-import { logger } from "../../config/logger.js";
+import { env } from "@/config/env.js";
+import { logger } from "@/config/logger.js";
 import { assertTopology } from "./notification.topology.js";
-import { errorLogAttributes } from "../../shared/logging/sanitize-log.js";
-import type { TopologyOptions } from "../types/index.js";
+import { errorLogAttributes } from "@/shared/logging/sanitize-log.js";
+import type { TopologyOptions } from "@/infrastructure/types/index.js";
 
 let connection: AmqpConnectionManager | undefined;
 let publishChannel: ChannelWrapper | undefined;

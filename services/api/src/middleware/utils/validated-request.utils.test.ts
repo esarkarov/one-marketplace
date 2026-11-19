@@ -3,9 +3,9 @@ import type { Request } from "express";
 import request from "supertest";
 import { describe, expect, expectTypeOf, it } from "vitest";
 import { z } from "zod";
-import { errorHandler } from "../error/error.middleware.js";
-import type { RequestSchemas } from "../types/validate.types.js";
-import { validate } from "../validate/validate.middleware.js";
+import { errorHandler } from "@/middleware/error/error.middleware.js";
+import type { RequestSchemas } from "@/middleware/types/validate.types.js";
+import { validate } from "@/middleware/validate/validate.middleware.js";
 import { getValidated } from "./validated-request.utils.js";
 
 const params = z.strictObject({ id: z.guid() });

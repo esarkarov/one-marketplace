@@ -15,15 +15,15 @@ const mocks = vi.hoisted(() => ({
   }),
 }));
 
-vi.mock("../../../infrastructure/auth/clerk.client.js", () => ({
+vi.mock("@/infrastructure/auth/clerk.client.js", () => ({
   clerk: { users: { getUser: mocks.getUser } },
   verifyToken: vi.fn(),
 }));
 
-import { db, pool } from "../../../database/client.js";
-import { accounts } from "../../../test/support/tables.js";
-import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
-import { findAccountDisplays } from "../services/auth.display.service.js";
+import { db, pool } from "@/database/client.js";
+import { accounts } from "@/test/support/tables.js";
+import { assertTestDatabase } from "@/test/setup/assert-test-database.js";
+import { findAccountDisplays } from "@/modules/auth/services/auth.display.service.js";
 
 const PREFIX = "disp-batch3-it-";
 

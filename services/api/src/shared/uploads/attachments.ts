@@ -1,4 +1,4 @@
-import { ApiError } from "../errors/api-error.js";
+import { ApiError } from "@/shared/errors/api-error.js";
 import {
   ALLOWED_ATTACHMENT_TYPES,
   CONTROL_OR_SEPARATOR_PATTERN,

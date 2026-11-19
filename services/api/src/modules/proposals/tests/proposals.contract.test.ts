@@ -20,37 +20,36 @@ const mocks = vi.hoisted(() => ({
   emitConversationUpdate: vi.fn(),
 }));
 
-vi.mock("../../../config/env.js", async (importOriginal) => {
-  const original =
-    await importOriginal<typeof import("../../../config/env.js")>();
+vi.mock("@/config/env.js", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@/config/env.js")>();
   return { ...original, env: { ...original.env, clerkSecretKey: "sk_test" } };
 });
 
-vi.mock("../../../infrastructure/auth/clerk.client.js", () => ({
+vi.mock("@/infrastructure/auth/clerk.client.js", () => ({
   clerk: { users: { getUser: mocks.getUser } },
   verifyToken: mocks.verifyToken,
 }));
 
 vi.mock(
-  "../../../infrastructure/events/notification.publisher.js",
+  "@/infrastructure/events/notification.publisher.js",
   async (importOriginal) => {
     const original =
       await importOriginal<
-        typeof import("../../../infrastructure/events/notification.publisher.js")
+        typeof import("@/infrastructure/events/notification.publisher.js")
       >();
     return { ...original, sendNotification: mocks.sendNotification };
   },
 );
 
-vi.mock("../../messaging/messaging.socket.js", async (importOriginal) => {
+vi.mock("@/modules/messaging/messaging.socket.js", async (importOriginal) => {
   const original =
     await importOriginal<
-      typeof import("../../messaging/messaging.socket.js")
+      typeof import("@/modules/messaging/messaging.socket.js")
     >();
   return { ...original, emitConversationUpdate: mocks.emitConversationUpdate };
 });
 
-vi.mock("../../../infrastructure/cache/redis.client.js", () => ({
+vi.mock("@/infrastructure/cache/redis.client.js", () => ({
   redis: {
     get: async (key: string) => mocks.store.get(key) ?? null,
     expire: async () => true,
@@ -69,7 +68,7 @@ vi.mock("../../../infrastructure/cache/redis.client.js", () => ({
   disconnectRedis: async () => undefined,
 }));
 
-import { db, pool } from "../../../database/client.js";
+import { db, pool } from "@/database/client.js";
 import {
   accounts,
   agency_earning,
@@ -86,20 +85,20 @@ import {
   job_posts,
   messages,
   proposals,
-} from "../../../test/support/tables.js";
-import { PROPOSAL_CONNECTS } from "../../connects/constants/connects.constants.js";
-import { expectNoClerkIds } from "../../../test/support/clerk-id-scan.js";
-import { logger } from "../../../config/logger.js";
-import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
+} from "@/test/support/tables.js";
+import { PROPOSAL_CONNECTS } from "@/modules/connects/constants/connects.constants.js";
+import { expectNoClerkIds } from "@/test/support/clerk-id-scan.js";
+import { logger } from "@/config/logger.js";
+import { assertTestDatabase } from "@/test/setup/assert-test-database.js";
 import {
   proposalsCreateResponses,
   proposalsInterviewResponses,
   proposalsListResponses,
   proposalsMetadataResponses,
   proposalsStatusResponses,
-} from "../responses/proposals.responses.js";
+} from "@/modules/proposals/responses/proposals.responses.js";
 
-const { app } = await import("../../../app.js");
+const { app } = await import("@/app.js");
 
 const PREFIX = "proposals-contract-";
 const API = "/api/v1/proposals";

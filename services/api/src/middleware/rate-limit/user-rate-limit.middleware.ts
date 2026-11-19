@@ -1,14 +1,14 @@
 import { ipKeyGenerator, rateLimit } from "express-rate-limit";
-import { env } from "../../config/env.js";
+import { env } from "@/config/env.js";
 import {
   CONTENT_WRITE_LIMIT,
   FIFTEEN_MINUTES,
   INVITE_WRITE_LIMIT,
   INVITE_WRITE_WINDOW_MS,
   MESSAGE_WRITE_LIMIT,
-} from "../constants/rate-limit.constants.js";
-import { rateLimitBaseOptions } from "../utils/rate-limit.utils.js";
-import { createRedisRateLimitStore } from "../utils/redis-rate-limit-store.utils.js";
+} from "@/middleware/constants/rate-limit.constants.js";
+import { rateLimitBaseOptions } from "@/middleware/utils/rate-limit.utils.js";
+import { createRedisRateLimitStore } from "@/middleware/utils/redis-rate-limit-store.utils.js";
 
 interface UserRateLimitOptions {
   name: string;

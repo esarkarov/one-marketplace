@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { submitProposalBodySchema } from "../schemas/proposals.schema.js";
+import { submitProposalBodySchema } from "@/modules/proposals/schemas/proposals.schema.js";
 
 const validProposal = {
   jobId: "123e4567-e89b-42d3-a456-426614174000",

@@ -1,16 +1,16 @@
 import { z } from "zod";
-import type { RequestSchemas } from "../../../middleware/types/validate.types.js";
-import { moneyCents } from "../../../shared/money/money.js";
+import type { RequestSchemas } from "@/middleware/types/validate.types.js";
+import { moneyCents } from "@/shared/money/money.js";
 import {
   authRoleShape,
   boundedText,
   uuidParam,
-} from "../../../shared/validation/schemas/common.schema.js";
+} from "@/shared/validation/schemas/common.schema.js";
 import {
   paginationShape,
   roleListQuerySchema,
-} from "../../../shared/validation/schemas/pagination.schema.js";
-import { PROPOSAL_LIMITS } from "../constants/proposals.constants.js";
+} from "@/shared/validation/schemas/pagination.schema.js";
+import { PROPOSAL_LIMITS } from "@/modules/proposals/constants/proposals.constants.js";
 
 const MAX_BID_CENTS = 100_000_000;
 

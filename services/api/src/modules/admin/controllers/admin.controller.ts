@@ -1,31 +1,31 @@
 import { RequestHandler } from "express";
-import { asyncHandler } from "../../../middleware/utils/async-handler.utils.js";
-import { getValidated } from "../../../middleware/utils/validated-request.utils.js";
-import { ApiError } from "../../../shared/errors/api-error.js";
-import { loginAdmin } from "../services/admin.auth.service.js";
+import { asyncHandler } from "@/middleware/utils/async-handler.utils.js";
+import { getValidated } from "@/middleware/utils/validated-request.utils.js";
+import { ApiError } from "@/shared/errors/api-error.js";
+import { loginAdmin } from "@/modules/admin/services/admin.auth.service.js";
 import {
   getAdminAccounts,
   getAdminContracts,
   getAdminJobPosts,
   getAdminProposals,
   getAdminTransactions,
-} from "../services/admin.listings.service.js";
+} from "@/modules/admin/services/admin.listings.service.js";
 import {
   getAdminOverviewActivity,
   getAdminOverviewTotals,
-} from "../services/admin.overview.service.js";
+} from "@/modules/admin/services/admin.overview.service.js";
 import {
   getRedisKeyValue,
   getSystemHealth,
   scanRedisKeys,
-} from "../services/admin.system.service.js";
+} from "@/modules/admin/services/admin.system.service.js";
 import {
   adminListRequest,
   adminLoginRequest,
   adminRedisKeyRequest,
   adminRedisScanRequest,
-} from "../schemas/admin.schema.js";
-import { Pagination } from "../types/admin.types.js";
+} from "@/modules/admin/schemas/admin.schema.js";
+import { Pagination } from "@/modules/admin/types/admin.types.js";
 
 const parsePagination = (query: Pagination): Pagination => ({
   limit: query.limit,

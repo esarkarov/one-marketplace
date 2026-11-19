@@ -1,8 +1,8 @@
-import { db } from "../../../database/client.js";
+import { db } from "@/database/client.js";
 import {
   findActiveMeetingForConversation,
   setConversationLastMessage,
-} from "../repositories/messaging.conversations.repository.js";
+} from "@/modules/messaging/repositories/messaging.conversations.repository.js";
 import {
   countMessagesFromOthersAfter,
   findMessageInConversation,
@@ -11,28 +11,28 @@ import {
   listAttachmentsForMessages,
   listMessagesPage,
   listReplyPreviews,
-} from "../repositories/messaging.messages.repository.js";
+} from "@/modules/messaging/repositories/messaging.messages.repository.js";
 import {
   findParticipantReadState,
   incrementUnreadCounts,
   markParticipantReadIfNotAhead,
-} from "../repositories/messaging.participants.repository.js";
-import { ApiError } from "../../../shared/errors/api-error.js";
+} from "@/modules/messaging/repositories/messaging.participants.repository.js";
+import { ApiError } from "@/shared/errors/api-error.js";
 import {
   deleteDocuments,
   uploadDocuments,
-} from "../../../shared/uploads/upload-documents.js";
-import { emitConversationUpdate } from "../messaging.socket.js";
-import { getAgencyTeamMemberIds } from "../../agency/index.js";
-import { AttachmentInput } from "../types/messaging.types.js";
+} from "@/shared/uploads/upload-documents.js";
+import { emitConversationUpdate } from "@/modules/messaging/messaging.socket.js";
+import { getAgencyTeamMemberIds } from "@/modules/agency/index.js";
+import { AttachmentInput } from "@/modules/messaging/types/messaging.types.js";
 import { requireMember } from "./messaging.conversations.service.js";
 import {
   toMessageAttachmentResponse,
   toMessageResponse,
-} from "../utils/messaging.mappers.js";
-import { findAccountIdByAuthId } from "../../auth/index.js";
-import { requirePublicId } from "../../../shared/ids/public-ids.js";
-import { messageAttachmentFolder } from "../../../shared/uploads/storage-paths.js";
+} from "@/modules/messaging/utils/messaging.mappers.js";
+import { findAccountIdByAuthId } from "@/modules/auth/index.js";
+import { requirePublicId } from "@/shared/ids/public-ids.js";
+import { messageAttachmentFolder } from "@/shared/uploads/storage-paths.js";
 
 const encodeCursor = (message: { createdAt: Date; id: string }) =>
   Buffer.from(

@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   renderEarningsCertificatePdf,
   signatureImageSource,
-} from "../utils/earnings-certificate.pdf.js";
+} from "@/modules/freelancer/utils/earnings-certificate.pdf.js";
 
 const data = {
   freelancerName: "Ada Lovelace",

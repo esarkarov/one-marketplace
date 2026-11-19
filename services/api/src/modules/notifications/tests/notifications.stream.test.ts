@@ -2,10 +2,10 @@ import { EventEmitter } from "node:events";
 import type { Request, Response } from "express";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../../agency/index.js", () => ({
+vi.mock("@/modules/agency/index.js", () => ({
   getAgencyIdForMember: vi.fn().mockResolvedValue("agency-1"),
 }));
-vi.mock("../services/notifications.service.js", () => ({
+vi.mock("@/modules/notifications/services/notifications.service.js", () => ({
   getNotifications: vi.fn(),
   readAllNotifications: vi.fn(),
   readNotification: vi.fn(),
@@ -39,14 +39,14 @@ const open = (scope: string | undefined) => {
 };
 
 describe("notification stream registration", () => {
-  let registry: typeof import("../../../middleware/utils/sse-streams.utils.js");
-  let notificationStream: typeof import("../controllers/notifications.controller.js").notificationStream;
+  let registry: typeof import("@/middleware/utils/sse-streams.utils.js");
+  let notificationStream: typeof import("@/modules/notifications/controllers/notifications.controller.js").notificationStream;
 
   beforeEach(async () => {
     vi.resetModules();
-    registry = await import("../../../middleware/utils/sse-streams.utils.js");
+    registry = await import("@/middleware/utils/sse-streams.utils.js");
     ({ notificationStream } =
-      await import("../controllers/notifications.controller.js"));
+      await import("@/modules/notifications/controllers/notifications.controller.js"));
   });
 
   const start = async (scope?: string) => {

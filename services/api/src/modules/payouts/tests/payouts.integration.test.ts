@@ -20,10 +20,10 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock(
-  "../../../infrastructure/payments/stripe.client.js",
+  "@/infrastructure/payments/stripe.client.js",
   async (importOriginal) => ({
     ...(await importOriginal<
-      typeof import("../../../infrastructure/payments/stripe.client.js")
+      typeof import("@/infrastructure/payments/stripe.client.js")
     >()),
     stripe: {
       transfers: { create: mocks.transfersCreate, list: mocks.transfersList },
@@ -33,24 +33,24 @@ vi.mock(
 );
 
 vi.mock(
-  "../../../infrastructure/events/notification.publisher.js",
+  "@/infrastructure/events/notification.publisher.js",
   async (importOriginal) => ({
     ...(await importOriginal<
-      typeof import("../../../infrastructure/events/notification.publisher.js")
+      typeof import("@/infrastructure/events/notification.publisher.js")
     >()),
     sendNotification: mocks.sendNotification,
   }),
 );
 
-import { logger } from "../../../config/logger.js";
-import { db, pool } from "../../../database/client.js";
+import { logger } from "@/config/logger.js";
+import { db, pool } from "@/database/client.js";
 import {
   accounts,
   earning_history,
   payout_history,
-} from "../../../test/support/tables.js";
-import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
-import { fakeStripeKey } from "../../../test/support/fake-secrets.js";
+} from "@/test/support/tables.js";
+import { assertTestDatabase } from "@/test/setup/assert-test-database.js";
+import { fakeStripeKey } from "@/test/support/fake-secrets.js";
 import {
   assertPayoutSchema,
   countLeftovers,
@@ -60,19 +60,19 @@ import {
   readPayout,
   secondsUntilRetry,
   timeTravel,
-} from "../../../test/support/factories.js";
-import { uuidV5 } from "../../../shared/ids/uuid-v5.js";
-import { getAdminTransactions } from "../../admin/services/admin.listings.service.js";
-import { getAdminOverviewTotals } from "../../admin/services/admin.overview.service.js";
-import { getAgencyEarningsOverview } from "../../agency/services/agency.earnings.service.js";
-import { getFreelancerEarningsOverview } from "../../freelancer/services/freelancer.earnings.service.js";
-import { RETRY_BACKOFF_SECONDS } from "../utils/payouts.failure.js";
+} from "@/test/support/factories.js";
+import { uuidV5 } from "@/shared/ids/uuid-v5.js";
+import { getAdminTransactions } from "@/modules/admin/services/admin.listings.service.js";
+import { getAdminOverviewTotals } from "@/modules/admin/services/admin.overview.service.js";
+import { getAgencyEarningsOverview } from "@/modules/agency/services/agency.earnings.service.js";
+import { getFreelancerEarningsOverview } from "@/modules/freelancer/services/freelancer.earnings.service.js";
+import { RETRY_BACKOFF_SECONDS } from "@/modules/payouts/utils/payouts.failure.js";
 import {
   PayoutTransitionError,
   type PayoutStatus,
-} from "../utils/payouts.state.js";
-import { transitionPayoutIfAllowed } from "../repositories/payouts.repository.js";
-import { processDuePayouts } from "../services/payouts.service.js";
+} from "@/modules/payouts/utils/payouts.state.js";
+import { transitionPayoutIfAllowed } from "@/modules/payouts/repositories/payouts.repository.js";
+import { processDuePayouts } from "@/modules/payouts/services/payouts.service.js";
 
 interface LogEntry {
   level: "info" | "warn" | "error";

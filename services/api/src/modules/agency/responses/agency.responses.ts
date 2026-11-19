@@ -1,9 +1,9 @@
-import { MEMBER_ROLE } from "../constants/agency.constants.js";
+import { MEMBER_ROLE } from "@/modules/agency/constants/agency.constants.js";
 import {
   INVITATION_STATUSES,
   JOB_STATUSES,
   PROPOSAL_STATUSES,
-} from "../../../shared/validation/constants/status.constants.js";
+} from "@/shared/validation/constants/status.constants.js";
 import { z } from "zod";
 import {
   ErrorBody,
@@ -12,11 +12,8 @@ import {
   ok,
   requestIdField,
   BadRequestBody,
-} from "../../../shared/responses/api-envelope.responses.js";
-import {
-  cents,
-  isoDateTime,
-} from "../../../shared/responses/scalar.responses.js";
+} from "@/shared/responses/api-envelope.responses.js";
+import { cents, isoDateTime } from "@/shared/responses/scalar.responses.js";
 
 const ResendCooldown = z
   .strictObject({

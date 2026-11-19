@@ -1,5 +1,5 @@
 import { and, eq, isNotNull, ne, sql } from "drizzle-orm";
-import type { DbExecutor } from "../../../database/database.types.js";
+import type { DbExecutor } from "@/database/database.types.js";
 import {
   agency_earning,
   client_spents,
@@ -8,7 +8,7 @@ import {
   earning_history,
   freelancer_earning,
   reviews,
-} from "../models/contracts.model.js";
+} from "@/modules/contracts/models/contracts.model.js";
 
 export const lockContractStatusForUpdate = (
   executor: DbExecutor,

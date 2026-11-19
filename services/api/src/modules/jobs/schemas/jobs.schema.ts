@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { RequestSchemas } from "../../../middleware/types/validate.types.js";
+import type { RequestSchemas } from "@/middleware/types/validate.types.js";
 
 import {
   authRoleShape,
@@ -8,22 +8,22 @@ import {
   pagingDigits,
   uuidParam,
   withIgnoredKeys,
-} from "../../../shared/validation/schemas/common.schema.js";
+} from "@/shared/validation/schemas/common.schema.js";
 import {
   limitParam,
   offsetParam,
   roleListQuerySchema,
-} from "../../../shared/validation/schemas/pagination.schema.js";
-import { moneyCents } from "../../../shared/money/money.js";
-import { COMMON_LIMITS } from "../../../shared/validation/constants/validation.constants.js";
-import { JOB_LIMITS } from "../../../shared/validation/constants/job.constants.js";
-import { MESSAGING_LIMITS } from "../../../shared/validation/constants/messaging.constants.js";
+} from "@/shared/validation/schemas/pagination.schema.js";
+import { moneyCents } from "@/shared/money/money.js";
+import { COMMON_LIMITS } from "@/shared/validation/constants/validation.constants.js";
+import { JOB_LIMITS } from "@/shared/validation/constants/job.constants.js";
+import { MESSAGING_LIMITS } from "@/shared/validation/constants/messaging.constants.js";
 import {
   MAX_ATTACHMENT_FILE_NAME_LENGTH,
   MAX_ATTACHMENTS,
-} from "../../../shared/uploads/constants/attachments.constants.js";
-import { SEARCH_QUERY_MAX_LENGTH } from "../../../shared/validation/constants/search.constants.js";
-import { SEARCH_QUERY_DESCRIPTION } from "../../../shared/validation/schemas/search.schema.js";
+} from "@/shared/uploads/constants/attachments.constants.js";
+import { SEARCH_QUERY_MAX_LENGTH } from "@/shared/validation/constants/search.constants.js";
+import { SEARCH_QUERY_DESCRIPTION } from "@/shared/validation/schemas/search.schema.js";
 
 const BUDGET_ERROR = "Every milestone needs a valid budget.";
 

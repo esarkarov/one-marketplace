@@ -1,6 +1,6 @@
 import { and, eq, inArray } from "drizzle-orm";
-import type { DbExecutor } from "../../../database/database.types.js";
-import { accounts } from "../models/auth.model.js";
+import type { DbExecutor } from "@/database/database.types.js";
+import { accounts } from "@/modules/auth/models/auth.model.js";
 
 export const setStripeCustomerId = async (
   executor: DbExecutor,

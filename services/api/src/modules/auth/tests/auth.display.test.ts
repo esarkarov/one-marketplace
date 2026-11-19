@@ -10,18 +10,18 @@ const mocks = vi.hoisted(() => ({
   findAccountIdByAuthId: vi.fn(),
 }));
 
-vi.mock("../../../config/env.js", () => ({ env: mocks.env }));
-vi.mock("../../../config/logger.js", () => ({
+vi.mock("@/config/env.js", () => ({ env: mocks.env }));
+vi.mock("@/config/logger.js", () => ({
   logger: { warn: mocks.warn },
 }));
-vi.mock("../../../database/client.js", () => ({ db: {} }));
-vi.mock("../../../infrastructure/auth/clerk.client.js", () => ({
+vi.mock("@/database/client.js", () => ({ db: {} }));
+vi.mock("@/infrastructure/auth/clerk.client.js", () => ({
   clerk: { users: { getUser: mocks.getUser } },
 }));
-vi.mock("../../../infrastructure/cache/account-auth.cache.js", () => ({
+vi.mock("@/infrastructure/cache/account-auth.cache.js", () => ({
   invalidateAccountAuthCache: async () => undefined,
 }));
-vi.mock("../repositories/auth.repository.js", () => ({
+vi.mock("@/modules/auth/repositories/auth.repository.js", () => ({
   findAccountDisplay: mocks.findAccountDisplay,
   updateAccountDisplay: mocks.updateAccountDisplay,
   insertAccountIfAbsent: mocks.insertAccountIfAbsent,
@@ -29,10 +29,11 @@ vi.mock("../repositories/auth.repository.js", () => ({
 }));
 
 const { syncAccountDisplay } =
-  await import("../services/auth.display.service.js");
-const { receiveSignup } = await import("../services/auth.service.js");
+  await import("@/modules/auth/services/auth.display.service.js");
+const { receiveSignup } =
+  await import("@/modules/auth/services/auth.service.js");
 const { CLERK_DISPLAY_SYNC_TIMEOUT_MS } =
-  await import("../constants/auth.constants.js");
+  await import("@/modules/auth/constants/auth.constants.js");
 
 const clerkUser = (overrides: Record<string, unknown> = {}) => ({
   firstName: "Ada",

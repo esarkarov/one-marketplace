@@ -1,13 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { db, pool } from "../../../database/client.js";
+import { db, pool } from "@/database/client.js";
 import {
   accounts,
   agency_earning,
   agency_metadata,
-} from "../../../test/support/tables.js";
-import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
-import { searchAgencyRows } from "../repositories/agency.search.repository.js";
+} from "@/test/support/tables.js";
+import { assertTestDatabase } from "@/test/setup/assert-test-database.js";
+import { searchAgencyRows } from "@/modules/agency/repositories/agency.search.repository.js";
 
 const PREFIX = "agency-search-";
 const like = `${PREFIX}%`;

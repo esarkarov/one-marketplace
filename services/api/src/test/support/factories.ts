@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { eq, inArray, sql } from "drizzle-orm";
-import { EARNINGS_HOLD_PERIOD_MS } from "../../modules/payouts/constants/payouts.constants.js";
-import { db, pool } from "../../database/client.js";
+import { EARNINGS_HOLD_PERIOD_MS } from "@/modules/payouts/constants/payouts.constants.js";
+import { db, pool } from "@/database/client.js";
 import {
   accounts,
   agency_metadata,
@@ -12,7 +12,7 @@ import {
   payout_history,
   proposals,
 } from "./tables.js";
-import { assertTestDatabase } from "../setup/assert-test-database.js";
+import { assertTestDatabase } from "@/test/setup/assert-test-database.js";
 
 export const TEST_PREFIX = "payout-it-";
 

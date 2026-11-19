@@ -11,16 +11,16 @@ const mocks = vi.hoisted(() => ({
   warn: vi.fn(),
 }));
 
-vi.mock("../repositories/health.repository.js", () => ({
+vi.mock("@/modules/health/repositories/health.repository.js", () => ({
   pingDatabase: mocks.ping,
 }));
 
-vi.mock("../../../infrastructure/cache/redis.client.js", () => ({
+vi.mock("@/infrastructure/cache/redis.client.js", () => ({
   redis: mocks.redis,
 }));
 
 const { readinessHandler } =
-  await import("../controllers/health.controller.js");
+  await import("@/modules/health/controllers/health.controller.js");
 
 const run = async () => {
   const json = vi.fn();

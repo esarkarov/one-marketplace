@@ -1,4 +1,4 @@
-import { buildSearchText } from "../../../shared/search/search-text.js";
+import { buildSearchText } from "@/shared/search/search-text.js";
 
 interface AgencySearchInput {
   name: string;

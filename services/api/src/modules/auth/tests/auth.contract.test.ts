@@ -16,18 +16,17 @@ const mocks = vi.hoisted(() => ({
   getUser: vi.fn(),
 }));
 
-vi.mock("../../../config/env.js", async (importOriginal) => {
-  const original =
-    await importOriginal<typeof import("../../../config/env.js")>();
+vi.mock("@/config/env.js", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@/config/env.js")>();
   return { ...original, env: { ...original.env, clerkSecretKey: "sk_test" } };
 });
 
-vi.mock("../../../infrastructure/auth/clerk.client.js", () => ({
+vi.mock("@/infrastructure/auth/clerk.client.js", () => ({
   clerk: { users: { getUser: mocks.getUser } },
   verifyToken: mocks.verifyToken,
 }));
 
-vi.mock("../../../infrastructure/cache/redis.client.js", () => ({
+vi.mock("@/infrastructure/cache/redis.client.js", () => ({
   redis: {
     get: async (key: string) => mocks.store.get(key) ?? null,
     expire: async () => true,
@@ -46,16 +45,17 @@ vi.mock("../../../infrastructure/cache/redis.client.js", () => ({
   disconnectRedis: async () => undefined,
 }));
 
-import { pool } from "../../../database/client.js";
-import { expectNoClerkIds } from "../../../test/support/clerk-id-scan.js";
-import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
+import { pool } from "@/database/client.js";
+import { expectNoClerkIds } from "@/test/support/clerk-id-scan.js";
+import { assertTestDatabase } from "@/test/setup/assert-test-database.js";
 import {
   authStatusResponses,
   signUpResponses,
-} from "../responses/auth.responses.js";
+} from "@/modules/auth/responses/auth.responses.js";
 
-const { app } = await import("../../../app.js");
-const { receiveSignup } = await import("../services/auth.service.js");
+const { app } = await import("@/app.js");
+const { receiveSignup } =
+  await import("@/modules/auth/services/auth.service.js");
 
 const PREFIX = "auth-contract-";
 const API = "/api/v1/auth";

@@ -4,12 +4,12 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   connectRedis,
   disconnectRedis,
-} from "../../../infrastructure/cache/redis.client.js";
-import { pool } from "../../../database/client.js";
-import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
-import { healthResponses } from "../responses/health.responses.js";
+} from "@/infrastructure/cache/redis.client.js";
+import { pool } from "@/database/client.js";
+import { assertTestDatabase } from "@/test/setup/assert-test-database.js";
+import { healthResponses } from "@/modules/health/responses/health.responses.js";
 
-const { app } = await import("../../../app.js");
+const { app } = await import("@/app.js");
 
 beforeAll(async () => {
   assertTestDatabase(process.env.DATABASE_URL, process.env.POSTGRES_DB);

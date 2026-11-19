@@ -10,19 +10,19 @@ const mocks = vi.hoisted(() => ({
   completeAgency: vi.fn(),
 }));
 
-vi.mock("../../../config/env.js", () => ({
+vi.mock("@/config/env.js", () => ({
   env: { stripeConnectsWebhookSecret: "whsec_test" },
 }));
 
-vi.mock("../../../infrastructure/payments/stripe.client.js", () => ({
+vi.mock("@/infrastructure/payments/stripe.client.js", () => ({
   stripe: { webhooks: { constructEvent: mocks.constructEvent } },
 }));
 
-vi.mock("../../../middleware/auth/role-guards.middleware.js", () => ({
+vi.mock("@/middleware/auth/role-guards.middleware.js", () => ({
   requireFreelancer: vi.fn(),
 }));
 
-vi.mock("../services/connects.service.js", () => ({
+vi.mock("@/modules/connects/services/connects.service.js", () => ({
   completeAgencyConnectsPurchase: mocks.completeAgency,
   completeConnectsPurchase: mocks.completeFreelancer,
   createConnectsCheckout: vi.fn(),
@@ -30,10 +30,10 @@ vi.mock("../services/connects.service.js", () => ({
 }));
 
 const { connectsWebhook } =
-  await import("../controllers/connects.controller.js");
-const { errorHandler } =
-  await import("../../../middleware/error/error.middleware.js");
-const { CONNECTS_PLANS } = await import("../constants/connects.constants.js");
+  await import("@/modules/connects/controllers/connects.controller.js");
+const { errorHandler } = await import("@/middleware/error/error.middleware.js");
+const { CONNECTS_PLANS } =
+  await import("@/modules/connects/constants/connects.constants.js");
 
 const app = express();
 app.use((req, _res, next) => {

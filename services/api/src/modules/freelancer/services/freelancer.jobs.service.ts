@@ -1,4 +1,4 @@
-import { db } from "../../../database/client.js";
+import { db } from "@/database/client.js";
 import {
   countHiresForJob,
   countHiresPerJob,
@@ -6,15 +6,15 @@ import {
   countProposalsPerJob,
   findPublishedJobDetail,
   listPublishedJobsWithClient,
-} from "../repositories/freelancer.jobs.repository.js";
-import { findFreelancerSkills } from "../repositories/freelancer.repository.js";
-import { JobFeedFilters } from "../types/freelancer.types.js";
-import { ApiError } from "../../../shared/errors/api-error.js";
-import { toJobPostResponse } from "../../jobs/index.js";
+} from "@/modules/freelancer/repositories/freelancer.jobs.repository.js";
+import { findFreelancerSkills } from "@/modules/freelancer/repositories/freelancer.repository.js";
+import { JobFeedFilters } from "@/modules/freelancer/types/freelancer.types.js";
+import { ApiError } from "@/shared/errors/api-error.js";
+import { toJobPostResponse } from "@/modules/jobs/index.js";
 import {
   fetchSize,
   toOffsetPage,
-} from "../../../shared/validation/utils/pagination.utils.js";
+} from "@/shared/validation/utils/pagination.utils.js";
 
 export const getJSSContribution = (rating: number): number => {
   const r = Math.round(rating);

@@ -3,13 +3,13 @@ import { rateLimit } from "express-rate-limit";
 import { z } from "zod";
 import request from "supertest";
 import { describe, expect, it } from "vitest";
-import { ApiError, defaultErrorCode } from "../../shared/errors/api-error.js";
+import { ApiError, defaultErrorCode } from "@/shared/errors/api-error.js";
 import { errorHandler } from "./error.middleware.js";
-import { jsonBody } from "../json-body/json-body.middleware.js";
-import { notFoundHandler } from "../not-found/not-found.middleware.js";
-import { requestIdMiddleware } from "../request-id/request-id.middleware.js";
-import { rateLimitBaseOptions } from "../utils/rate-limit.utils.js";
-import { validate } from "../validate/validate.middleware.js";
+import { jsonBody } from "@/middleware/json-body/json-body.middleware.js";
+import { notFoundHandler } from "@/middleware/not-found/not-found.middleware.js";
+import { requestIdMiddleware } from "@/middleware/request-id/request-id.middleware.js";
+import { rateLimitBaseOptions } from "@/middleware/utils/rate-limit.utils.js";
+import { validate } from "@/middleware/validate/validate.middleware.js";
 
 const throwing = (error: Error) => () => {
   throw error;

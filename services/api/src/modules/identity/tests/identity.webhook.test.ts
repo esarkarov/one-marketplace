@@ -9,21 +9,20 @@ const mocks = vi.hoisted(() => ({
   env: { stripeIdentityWebhookSecret: "whsec_identity" as string | undefined },
 }));
 
-vi.mock("../../../config/env.js", () => ({ env: mocks.env }));
+vi.mock("@/config/env.js", () => ({ env: mocks.env }));
 
-vi.mock("../../../infrastructure/payments/stripe.client.js", () => ({
+vi.mock("@/infrastructure/payments/stripe.client.js", () => ({
   stripe: { webhooks: { constructEvent: mocks.constructEvent } },
 }));
 
-vi.mock("../services/identity.service.js", () => ({
+vi.mock("@/modules/identity/services/identity.service.js", () => ({
   completeIdentityVerification: mocks.completeIdentityVerification,
   createIdentitySession: vi.fn(),
 }));
 
 const { identityWebhook } =
-  await import("../controllers/identity.controller.js");
-const { errorHandler } =
-  await import("../../../middleware/error/error.middleware.js");
+  await import("@/modules/identity/controllers/identity.controller.js");
+const { errorHandler } = await import("@/middleware/error/error.middleware.js");
 
 const app = express();
 app.use((req, _res, next) => {

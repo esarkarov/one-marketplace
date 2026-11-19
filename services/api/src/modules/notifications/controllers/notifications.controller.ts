@@ -1,28 +1,28 @@
 import { RequestHandler } from "express";
-import { asyncHandler } from "../../../middleware/utils/async-handler.utils.js";
-import { getValidated } from "../../../middleware/utils/validated-request.utils.js";
+import { asyncHandler } from "@/middleware/utils/async-handler.utils.js";
+import { getValidated } from "@/middleware/utils/validated-request.utils.js";
 import {
   listNotificationsRequest,
   markAllNotificationsReadRequest,
   markNotificationReadRequest,
   notificationStreamRequest,
-} from "../schemas/notifications.schema.js";
-import { ApiResponse } from "../../../types/common.types.js";
+} from "@/modules/notifications/schemas/notifications.schema.js";
+import { ApiResponse } from "@/types/common.types.js";
 import {
   getNotifications,
   readAllNotifications,
   readNotification,
-} from "../services/notifications.service.js";
-import { getAgencyIdForMember } from "../../agency/index.js";
+} from "@/modules/notifications/services/notifications.service.js";
+import { getAgencyIdForMember } from "@/modules/agency/index.js";
 import {
   addAgencyNotificationClient,
   addNotificationClient,
-} from "../services/notifications.sse.js";
-import { ApiError } from "../../../shared/errors/api-error.js";
+} from "@/modules/notifications/services/notifications.sse.js";
+import { ApiError } from "@/shared/errors/api-error.js";
 import {
   assertSseAvailable,
   registerSseStream,
-} from "../../../middleware/utils/sse-streams.utils.js";
+} from "@/middleware/utils/sse-streams.utils.js";
 
 type Scope = "agency" | "default";
 

@@ -1,15 +1,15 @@
 import { z } from "zod";
-import { isObject, sortKeys } from "../utils/json.utils.js";
+import { isObject, sortKeys } from "@/openapi/utils/json.utils.js";
 import {
   COMPONENTS_PREFIX,
   DEFS_PREFIX,
   IGNORED_PROPERTY_DESCRIPTION,
-} from "../constants/openapi.constants.js";
+} from "@/openapi/constants/openapi.constants.js";
 import type {
   ComponentSchemas,
   Json,
   JsonObject,
-} from "../types/openapi.types.js";
+} from "@/openapi/types/openapi.types.js";
 
 type Io = "input" | "output";
 

@@ -20,9 +20,8 @@ const mocks = vi.hoisted(() => ({
   upload: vi.fn(),
 }));
 
-vi.mock("../../../config/env.js", async (importOriginal) => {
-  const original =
-    await importOriginal<typeof import("../../../config/env.js")>();
+vi.mock("@/config/env.js", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@/config/env.js")>();
   return {
     ...original,
     env: {
@@ -33,16 +32,16 @@ vi.mock("../../../config/env.js", async (importOriginal) => {
   };
 });
 
-vi.mock("../../../infrastructure/auth/clerk.client.js", () => ({
+vi.mock("@/infrastructure/auth/clerk.client.js", () => ({
   clerk: { users: { getUser: mocks.getUser } },
   verifyToken: mocks.verifyToken,
 }));
 
-vi.mock("../../../infrastructure/storage/image-kit.client.js", () => ({
+vi.mock("@/infrastructure/storage/image-kit.client.js", () => ({
   imageKit: { files: { upload: mocks.upload, delete: vi.fn() } },
 }));
 
-vi.mock("../../../infrastructure/cache/redis.client.js", () => ({
+vi.mock("@/infrastructure/cache/redis.client.js", () => ({
   redis: {
     get: async (key: string) => mocks.store.get(key) ?? null,
     expire: async () => true,
@@ -61,12 +60,14 @@ vi.mock("../../../infrastructure/cache/redis.client.js", () => ({
   disconnectRedis: async () => undefined,
 }));
 
-vi.mock("../messaging.socket.js", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../messaging.socket.js")>()),
+vi.mock("@/modules/messaging/messaging.socket.js", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@/modules/messaging/messaging.socket.js")
+  >()),
   emitConversationUpdate: mocks.emitConversationUpdate,
 }));
 
-import { db, pool } from "../../../database/client.js";
+import { db, pool } from "@/database/client.js";
 import {
   accounts,
   client_metadata,
@@ -78,12 +79,12 @@ import {
   job_posts,
   meetings,
   proposals,
-} from "../../../test/support/tables.js";
-import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
-import { messagingResponses } from "../responses/messaging.responses.js";
-import { expectNoClerkIds } from "../../../test/support/clerk-id-scan.js";
+} from "@/test/support/tables.js";
+import { assertTestDatabase } from "@/test/setup/assert-test-database.js";
+import { messagingResponses } from "@/modules/messaging/responses/messaging.responses.js";
+import { expectNoClerkIds } from "@/test/support/clerk-id-scan.js";
 
-const { app } = await import("../../../app.js");
+const { app } = await import("@/app.js");
 
 const PREFIX = "messaging-contract-it-";
 const API = "/api/v1/conversations";

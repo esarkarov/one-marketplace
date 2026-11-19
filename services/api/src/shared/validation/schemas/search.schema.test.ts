@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { agencyTalentSearchQuerySchema } from "../../../modules/agency/schemas/agency.schema.js";
-import { marketplaceSearchQuerySchema } from "../../../modules/client/schemas/client.schema.js";
-import { talentSearchQuerySchema } from "../../../modules/freelancer/schemas/freelancer.schema.js";
+import { agencyTalentSearchQuerySchema } from "@/modules/agency/schemas/agency.schema.js";
+import { marketplaceSearchQuerySchema } from "@/modules/client/schemas/client.schema.js";
+import { talentSearchQuerySchema } from "@/modules/freelancer/schemas/freelancer.schema.js";
 import {
   SEARCH_OFFSET_MAX,
   SEARCH_QUERY_MAX_LENGTH,
-} from "../constants/search.constants.js";
+} from "@/shared/validation/constants/search.constants.js";
 
 const schemas = [
   ["talentSearchQuerySchema", talentSearchQuerySchema],

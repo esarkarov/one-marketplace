@@ -1,5 +1,5 @@
 import type { Request } from "express";
-import { ApiError } from "../../shared/errors/api-error.js";
+import { ApiError } from "@/shared/errors/api-error.js";
 
 export const requireClient = (request: Request) => {
   if (!request.auth) throw new ApiError(401, "Authentication is required.");

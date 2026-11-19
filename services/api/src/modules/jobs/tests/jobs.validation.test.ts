@@ -9,11 +9,11 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@clerk/backend", () => ({ verifyToken: mocks.verifyToken }));
 
-vi.mock("../../../infrastructure/storage/image-kit.client.js", () => ({
+vi.mock("@/infrastructure/storage/image-kit.client.js", () => ({
   imageKit: { files: { upload: vi.fn(), delete: vi.fn() } },
 }));
 
-vi.mock("../../../infrastructure/cache/redis.client.js", () => ({
+vi.mock("@/infrastructure/cache/redis.client.js", () => ({
   redis: {
     get: async (key: string) => mocks.store.get(key) ?? null,
     expire: async () => true,
@@ -26,7 +26,7 @@ vi.mock("../../../infrastructure/cache/redis.client.js", () => ({
   disconnectRedis: async () => undefined,
 }));
 
-vi.mock("../../../database/client.js", () => {
+vi.mock("@/database/client.js", () => {
   const chain = {
     from: () => chain,
     where: () => chain,
@@ -38,7 +38,7 @@ vi.mock("../../../database/client.js", () => {
   };
 });
 
-const { app } = await import("../../../app.js");
+const { app } = await import("@/app.js");
 
 const id = "123e4567-e89b-42d3-a456-426614174000";
 const bearer = { Authorization: "Bearer test-token" };
@@ -125,7 +125,7 @@ describe("jobs params and query validation", () => {
 
   it("GET /jobs/public defaults limit to 20 and offset to 0 and accepts an explicit limit", async () => {
     const { publicJobFeedQuerySchema } =
-      await import("../schemas/jobs.schema.js");
+      await import("@/modules/jobs/schemas/jobs.schema.js");
 
     expect(publicJobFeedQuerySchema.parse({})).toMatchObject({
       limit: 20,

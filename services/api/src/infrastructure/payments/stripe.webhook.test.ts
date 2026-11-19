@@ -11,7 +11,7 @@ vi.mock("./stripe.client.js", () => ({
 }));
 
 const { verifyStripeWebhook } = await import("./stripe.webhook.js");
-const { ApiError } = await import("../../shared/errors/api-error.js");
+const { ApiError } = await import("@/shared/errors/api-error.js");
 
 const buildRequest = (signature?: unknown, body: unknown = Buffer.from("{}")) =>
   ({

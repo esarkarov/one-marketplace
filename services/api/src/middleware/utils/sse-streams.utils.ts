@@ -1,10 +1,10 @@
 import type { Response } from "express";
-import { ApiError } from "../../shared/errors/api-error.js";
+import { ApiError } from "@/shared/errors/api-error.js";
 import {
   SSE_SHUTDOWN_FRAME,
   SSE_UNAVAILABLE_MESSAGE,
   SSE_UNAVAILABLE_RETRY_AFTER_SECONDS,
-} from "../constants/sse-streams.constants.js";
+} from "@/middleware/constants/sse-streams.constants.js";
 
 const openStreams = new Set<Response>();
 let closing = false;

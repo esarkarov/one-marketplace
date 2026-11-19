@@ -1,16 +1,16 @@
 import type Stripe from "stripe";
-import { env } from "../../../config/env.js";
-import { stripe } from "../../../infrastructure/payments/stripe.client.js";
-import { db } from "../../../database/client.js";
-import { logger } from "../../../config/logger.js";
-import { setStripeCustomerId } from "../../auth/index.js";
-import { ApiError } from "../../../shared/errors/api-error.js";
-import { sendNotification } from "../../../infrastructure/events/notification.publisher.js";
+import { env } from "@/config/env.js";
+import { stripe } from "@/infrastructure/payments/stripe.client.js";
+import { db } from "@/database/client.js";
+import { logger } from "@/config/logger.js";
+import { setStripeCustomerId } from "@/modules/auth/index.js";
+import { ApiError } from "@/shared/errors/api-error.js";
+import { sendNotification } from "@/infrastructure/events/notification.publisher.js";
 import {
   appendConversationMessages,
   emitConversationUpdate,
-} from "../../messaging/index.js";
-import { getAgencyOwnerId } from "../../agency/index.js";
+} from "@/modules/messaging/index.js";
+import { getAgencyOwnerId } from "@/modules/agency/index.js";
 import {
   findContractIdByProposal,
   findMilestoneFundingState,
@@ -18,8 +18,8 @@ import {
   findMilestoneIdByCheckoutSession,
   findPendingMilestoneForPaymentFunding,
   findProposalOfferForCheckout,
-} from "../repositories/contracts.repository.js";
-import { markMilestoneFundedIfPending } from "../repositories/contracts.state.repository.js";
+} from "@/modules/contracts/repositories/contracts.repository.js";
+import { markMilestoneFundedIfPending } from "@/modules/contracts/repositories/contracts.state.repository.js";
 
 const CHECKOUT_SESSION_TTL_SECONDS = 35 * 60;
 

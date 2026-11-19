@@ -2,12 +2,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({ error: vi.fn() }));
 
-vi.mock("../../../config/logger.js", () => ({
+vi.mock("@/config/logger.js", () => ({
   logger: { error: mocks.error },
 }));
 
 const { toConversationResponse, toMessageResponse, toPublicSenderId } =
-  await import("../utils/messaging.mappers.js");
+  await import("@/modules/messaging/utils/messaging.mappers.js");
 
 const CLERK_ID = "user_2clerkSender";
 const PUBLIC_ID = "7d6f6c0e-3c0a-4b53-8f33-0b2f6f1a9c11";

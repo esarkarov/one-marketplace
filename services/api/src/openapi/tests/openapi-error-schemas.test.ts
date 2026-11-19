@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { apiRouter } from "../../routes/index.js";
-import { createOpenApiDocument } from "../document.js";
-import { isObject } from "../utils/json.utils.js";
-import type { JsonObject } from "../types/openapi.types.js";
+import { apiRouter } from "@/routes/index.js";
+import { createOpenApiDocument } from "@/openapi/document.js";
+import { isObject } from "@/openapi/utils/json.utils.js";
+import type { JsonObject } from "@/openapi/types/openapi.types.js";
 import {
   identifyAccount,
   isAuthenticated,
   verifyBearerToken,
-} from "../../routes/index.js";
+} from "@/routes/index.js";
 
 const document = createOpenApiDocument(apiRouter, [
   isAuthenticated,

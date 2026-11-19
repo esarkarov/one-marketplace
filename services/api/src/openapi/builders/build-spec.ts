@@ -3,7 +3,7 @@ import {
   InternalErrorBody,
   RateLimitBody,
   ValidationErrorBody,
-} from "../../shared/responses/api-envelope.responses.js";
+} from "@/shared/responses/api-envelope.responses.js";
 import {
   buildBody,
   buildParameters,
@@ -11,26 +11,29 @@ import {
   buildWebhookOperation,
   securityOf,
 } from "./build-operation.js";
-import { contractAllowlist } from "../introspection/contract-allowlist.js";
-import { sortKeys } from "../utils/json.utils.js";
+import { contractAllowlist } from "@/openapi/introspection/contract-allowlist.js";
+import { sortKeys } from "@/openapi/utils/json.utils.js";
 import {
   ADMIN_SESSION,
   CLERK_BEARER,
   DEFAULT_PORT,
-} from "../constants/openapi.constants.js";
+} from "@/openapi/constants/openapi.constants.js";
 import {
   moduleOf,
   operationIdOf,
   titleCase,
   toOpenApiPath,
-} from "../utils/openapi-naming.utils.js";
-import type { ComponentSchemas, JsonObject } from "../types/openapi.types.js";
-import { findEmptySchemas } from "../utils/schema-traversal.utils.js";
+} from "@/openapi/utils/openapi-naming.utils.js";
+import type {
+  ComponentSchemas,
+  JsonObject,
+} from "@/openapi/types/openapi.types.js";
+import { findEmptySchemas } from "@/openapi/utils/schema-traversal.utils.js";
 import {
   routeKey,
   schemasOf,
   type RouteInfo,
-} from "../introspection/route-introspection.js";
+} from "@/openapi/introspection/route-introspection.js";
 
 interface BuildSpecOptions {
   version: string;

@@ -1,14 +1,14 @@
-import { db } from "../../../database/client.js";
-import type { messages } from "../models/messaging.model.js";
-import { ApiError } from "../../../shared/errors/api-error.js";
-import type { DbExecutor } from "../../../database/database.types.js";
-import { emitConversationUpdate } from "../messaging.socket.js";
-import { appendConversationMessages } from "../repositories/messaging.conversations.repository.js";
-import { SystemEventInput } from "../types/messaging.types.js";
+import { db } from "@/database/client.js";
+import type { messages } from "@/modules/messaging/models/messaging.model.js";
+import { ApiError } from "@/shared/errors/api-error.js";
+import type { DbExecutor } from "@/database/database.types.js";
+import { emitConversationUpdate } from "@/modules/messaging/messaging.socket.js";
+import { appendConversationMessages } from "@/modules/messaging/repositories/messaging.conversations.repository.js";
+import { SystemEventInput } from "@/modules/messaging/types/messaging.types.js";
 import { requireMember } from "./messaging.conversations.service.js";
 import { hydrateMessages } from "./messaging.messages.service.js";
-import { findAccountIdByAuthId } from "../../auth/index.js";
-import { requirePublicId } from "../../../shared/ids/public-ids.js";
+import { findAccountIdByAuthId } from "@/modules/auth/index.js";
+import { requirePublicId } from "@/shared/ids/public-ids.js";
 
 const writeSystemEventMessage = async (
   executor: DbExecutor,

@@ -1,8 +1,11 @@
 import {
   DEFAULT_DELIVERY_LIMIT,
   NOTIFICATIONS_CREATED_ROUTING_KEY,
-} from "../constants/index.js";
-import type { TopologyChannel, TopologyOptions } from "../types/index.js";
+} from "@/infrastructure/constants/index.js";
+import type {
+  TopologyChannel,
+  TopologyOptions,
+} from "@/infrastructure/types/index.js";
 
 export const topologyNames = (prefix = "") => ({
   exchange: `${prefix}notifications`,

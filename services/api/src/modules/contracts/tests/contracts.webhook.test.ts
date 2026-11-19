@@ -10,57 +10,56 @@ const mocks = vi.hoisted(() => ({
   env: { stripeWebhookSecret: "whsec_contracts" as string | undefined },
 }));
 
-vi.mock("../../../config/env.js", () => ({ env: mocks.env }));
+vi.mock("@/config/env.js", () => ({ env: mocks.env }));
 
-vi.mock("../../../infrastructure/payments/stripe.client.js", () => ({
+vi.mock("@/infrastructure/payments/stripe.client.js", () => ({
   stripe: { webhooks: { constructEvent: mocks.constructEvent } },
 }));
 
-vi.mock("../../../middleware/auth/role-guards.middleware.js", () => ({
+vi.mock("@/middleware/auth/role-guards.middleware.js", () => ({
   requireClient: vi.fn(),
   requireFreelancer: vi.fn(),
 }));
 
-vi.mock("../../agency/index.js", () => ({
+vi.mock("@/modules/agency/index.js", () => ({
   getAgencyIdForMember: vi.fn(),
   requireAgencyPermission: vi.fn(),
 }));
 
-vi.mock("../services/contracts.checkout.service.js", () => ({
+vi.mock("@/modules/contracts/services/contracts.checkout.service.js", () => ({
   createContractCheckout: vi.fn(),
   createMilestoneFundingCheckout: vi.fn(),
   fundContractMilestoneFromPayment: mocks.fundContractMilestoneFromPayment,
 }));
 
-vi.mock("../services/contracts.listing.service.js", () => ({
+vi.mock("@/modules/contracts/services/contracts.listing.service.js", () => ({
   getAccountContracts: vi.fn(),
 }));
 
-vi.mock("../services/contracts.lifecycle.service.js", () => ({
+vi.mock("@/modules/contracts/services/contracts.lifecycle.service.js", () => ({
   acceptContract: vi.fn(),
   cancelPendingContract: vi.fn(),
   createContractFromPayment: mocks.createContractFromPayment,
   finishContractWithReview: vi.fn(),
 }));
 
-vi.mock("../services/contracts.milestones.service.js", () => ({
+vi.mock("@/modules/contracts/services/contracts.milestones.service.js", () => ({
   addContractMilestone: vi.fn(),
   reviewContractMilestone: vi.fn(),
   submitContractMilestone: vi.fn(),
 }));
 
-vi.mock("../../../infrastructure/events/notification.publisher.js", () => ({
+vi.mock("@/infrastructure/events/notification.publisher.js", () => ({
   sendNotification: vi.fn(),
 }));
 
-vi.mock("../../messaging/index.js", () => ({
+vi.mock("@/modules/messaging/index.js", () => ({
   emitConversationUpdate: vi.fn(),
 }));
 
 const { contractWebhook } =
-  await import("../controllers/contracts.controller.js");
-const { errorHandler } =
-  await import("../../../middleware/error/error.middleware.js");
+  await import("@/modules/contracts/controllers/contracts.controller.js");
+const { errorHandler } = await import("@/middleware/error/error.middleware.js");
 
 const app = express();
 app.use((req, _res, next) => {

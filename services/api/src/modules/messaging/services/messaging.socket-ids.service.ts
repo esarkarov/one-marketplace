@@ -1,10 +1,10 @@
-import type { DbExecutor } from "../../../database/database.types.js";
-import { findAccountPublicIds } from "../../auth/index.js";
+import type { DbExecutor } from "@/database/database.types.js";
+import { findAccountPublicIds } from "@/modules/auth/index.js";
 import {
   buildSocketPublicIds,
   type SocketPublicIds,
-} from "../utils/messaging.socket-payloads.js";
-import type { ConversationScope } from "../types/messaging.types.js";
+} from "@/modules/messaging/utils/messaging.socket-payloads.js";
+import type { ConversationScope } from "@/modules/messaging/types/messaging.types.js";
 
 export const loadSocketPublicIds = async (
   executor: DbExecutor,

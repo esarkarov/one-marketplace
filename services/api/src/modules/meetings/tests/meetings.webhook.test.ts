@@ -15,7 +15,7 @@ const mocks = vi.hoisted(() => ({
   info: vi.fn(),
 }));
 
-vi.mock("../../../config/env.js", () => ({
+vi.mock("@/config/env.js", () => ({
   env: {
     dailyWebhookSecret: Buffer.from("daily-webhook-secret-bytes").toString(
       "base64",
@@ -23,7 +23,7 @@ vi.mock("../../../config/env.js", () => ({
   },
 }));
 
-vi.mock("../../../infrastructure/cache/redis.client.js", () => ({
+vi.mock("@/infrastructure/cache/redis.client.js", () => ({
   redis: {
     get isReady() {
       return mocks.ready;
@@ -42,15 +42,14 @@ vi.mock("../../../infrastructure/cache/redis.client.js", () => ({
   },
 }));
 
-vi.mock("../services/meetings.service.js", () => ({
+vi.mock("@/modules/meetings/services/meetings.service.js", () => ({
   endMeetingByRoomName: mocks.endMeeting,
   startMeeting: vi.fn(),
 }));
 
 const { dailyWebhookHandler } =
-  await import("../controllers/meetings.controller.js");
-const { errorHandler } =
-  await import("../../../middleware/error/error.middleware.js");
+  await import("@/modules/meetings/controllers/meetings.controller.js");
+const { errorHandler } = await import("@/middleware/error/error.middleware.js");
 
 const app = express();
 app.use((req, _res, next) => {

@@ -1,22 +1,19 @@
 import {
   ADMIN_ACCOUNT_TYPE,
   ADMIN_TALENT_KIND,
-} from "../constants/admin.constants.js";
+} from "@/modules/admin/constants/admin.constants.js";
 import {
   JOB_STATUSES,
   PROPOSAL_STATUSES,
-} from "../../../shared/validation/constants/status.constants.js";
+} from "@/shared/validation/constants/status.constants.js";
 import { z } from "zod";
 import {
   ErrorBody,
   ok,
   offsetPage,
   BadRequestBody,
-} from "../../../shared/responses/api-envelope.responses.js";
-import {
-  cents,
-  isoDateTime,
-} from "../../../shared/responses/scalar.responses.js";
+} from "@/shared/responses/api-envelope.responses.js";
+import { cents, isoDateTime } from "@/shared/responses/scalar.responses.js";
 
 const nullableDateTime = isoDateTime.nullable();
 

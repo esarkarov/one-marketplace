@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PAGINATION } from "../constants/pagination.constants.js";
+import { PAGINATION } from "@/shared/validation/constants/pagination.constants.js";
 import {
   limitParam,
   offsetParam,

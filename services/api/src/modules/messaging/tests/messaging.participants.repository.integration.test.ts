@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { db, pool } from "../../../database/client.js";
+import { db, pool } from "@/database/client.js";
 import {
   accounts,
   agency_metadata,
@@ -10,8 +10,8 @@ import {
   conversations,
   freelancer_metadata,
   messages,
-} from "../../../test/support/tables.js";
-import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
+} from "@/test/support/tables.js";
+import { assertTestDatabase } from "@/test/setup/assert-test-database.js";
 import {
   findParticipantByAccount,
   findParticipantByAgency,
@@ -22,7 +22,7 @@ import {
   markParticipantReadIfNotAhead,
   markReadIfMessageInConversation,
   resetClientReadState,
-} from "../repositories/messaging.participants.repository.js";
+} from "@/modules/messaging/repositories/messaging.participants.repository.js";
 
 const PREFIX = "messaging-participants-repo-";
 const like = `${PREFIX}%`;

@@ -8,10 +8,10 @@ import {
   it,
   vi,
 } from "vitest";
-import { db, pool } from "../../../database/client.js";
-import { accounts } from "../../../test/support/tables.js";
-import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
-import { findAccountPublicIds } from "../repositories/auth.repository.js";
+import { db, pool } from "@/database/client.js";
+import { accounts } from "@/test/support/tables.js";
+import { assertTestDatabase } from "@/test/setup/assert-test-database.js";
+import { findAccountPublicIds } from "@/modules/auth/repositories/auth.repository.js";
 
 const PREFIX = "auth-pubid-it-";
 

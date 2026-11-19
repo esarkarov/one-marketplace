@@ -1,11 +1,11 @@
 import { z } from "zod";
-import type { RequestSchemas } from "../../../middleware/types/validate.types.js";
-import { paginationQuerySchema } from "../../../shared/validation/schemas/pagination.schema.js";
+import type { RequestSchemas } from "@/middleware/types/validate.types.js";
+import { paginationQuerySchema } from "@/shared/validation/schemas/pagination.schema.js";
 import {
   redisKeyParamsSchema,
   redisScanQuerySchema,
 } from "./admin.redis.schema.js";
-import { ADMIN_LIMITS } from "../constants/admin.constants.js";
+import { ADMIN_LIMITS } from "@/modules/admin/constants/admin.constants.js";
 
 export const adminLoginBodySchema = z.strictObject({
   password: z

@@ -1,22 +1,22 @@
-import { toApiMemberRole } from "../constants/agency.constants.js";
-import { syncAccountDisplay } from "../../auth/index.js";
+import { toApiMemberRole } from "@/modules/agency/constants/agency.constants.js";
+import { syncAccountDisplay } from "@/modules/auth/index.js";
 import {
   fetchSize,
   toOffsetPage,
-} from "../../../shared/validation/utils/pagination.utils.js";
-import { db } from "../../../database/client.js";
-import { isUniqueViolation } from "../../../database/pg-errors.js";
-import { ApiError } from "../../../shared/errors/api-error.js";
-import type { DbExecutor } from "../../../database/database.types.js";
-import { logger } from "../../../config/logger.js";
-import { errorLogAttributes } from "../../../shared/logging/sanitize-log.js";
-import { sendNotification } from "../../../infrastructure/events/notification.publisher.js";
+} from "@/shared/validation/utils/pagination.utils.js";
+import { db } from "@/database/client.js";
+import { isUniqueViolation } from "@/database/pg-errors.js";
+import { ApiError } from "@/shared/errors/api-error.js";
+import type { DbExecutor } from "@/database/database.types.js";
+import { logger } from "@/config/logger.js";
+import { errorLogAttributes } from "@/shared/logging/sanitize-log.js";
+import { sendNotification } from "@/infrastructure/events/notification.publisher.js";
 import {
   AGENCY_MEMBER_UNIQUE,
   alreadyInAgencyError,
   ALREADY_IN_AGENCY_MESSAGE,
   invitationHandledError,
-} from "../utils/agency.errors.js";
+} from "@/modules/agency/utils/agency.errors.js";
 import {
   getAgencyIdForMember,
   getAgencyOwnerId,
@@ -35,8 +35,8 @@ import {
   resolveInvitationIfPending,
   setPendingInvitationRole,
   touchPendingInvitationIfCooldownElapsed,
-} from "../repositories/agency.invitations.repository.js";
-import { insertAgencyMember } from "../repositories/agency.repository.js";
+} from "@/modules/agency/repositories/agency.invitations.repository.js";
+import { insertAgencyMember } from "@/modules/agency/repositories/agency.repository.js";
 
 interface AgencyInvitationData {
   id: string;

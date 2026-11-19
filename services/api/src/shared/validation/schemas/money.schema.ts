@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { moneyCents } from "../../money/money.js";
+import { moneyCents } from "@/shared/money/money.js";
 
 export const centsQueryParam = z
   .string()

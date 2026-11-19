@@ -1,45 +1,45 @@
 import { RequestHandler } from "express";
-import { ApiError } from "../../../shared/errors/api-error.js";
-import { requireFreelancer } from "../../../middleware/auth/role-guards.middleware.js";
-import { asyncHandler } from "../../../middleware/utils/async-handler.utils.js";
-import { getValidated } from "../../../middleware/utils/validated-request.utils.js";
+import { ApiError } from "@/shared/errors/api-error.js";
+import { requireFreelancer } from "@/middleware/auth/role-guards.middleware.js";
+import { asyncHandler } from "@/middleware/utils/async-handler.utils.js";
+import { getValidated } from "@/middleware/utils/validated-request.utils.js";
 import {
   freelancerJobDetailsRequest,
   jobFeedRequest,
   publicFreelancerRequest,
   talentSearchRequest,
   upsertProfileRequest,
-} from "../schemas/freelancer.schema.js";
-import { ApiResponse } from "../../../types/common.types.js";
+} from "@/modules/freelancer/schemas/freelancer.schema.js";
+import { ApiResponse } from "@/types/common.types.js";
 import {
   PublicTalentSearchFilters,
   PublicTalentSearchPage,
   SaveFreelancerProfileInput,
-} from "../types/freelancer.types.js";
-import { requireText } from "../../../shared/validation/utils/require-text.utils.js";
-import type { UpsertProfileBody } from "../schemas/freelancer.schema.js";
-import { parseLiveUrl } from "../../../shared/uploads/portfolio-images.js";
+} from "@/modules/freelancer/types/freelancer.types.js";
+import { requireText } from "@/shared/validation/utils/require-text.utils.js";
+import type { UpsertProfileBody } from "@/modules/freelancer/schemas/freelancer.schema.js";
+import { parseLiveUrl } from "@/shared/uploads/portfolio-images.js";
 import {
   getFreelancerEarningsCertificateData,
   getFreelancerEarningsOverview,
   getFreelancerMonthlyEarnings,
   getFreelancerPayoutManagementUrl,
-} from "../services/freelancer.earnings.service.js";
+} from "@/modules/freelancer/services/freelancer.earnings.service.js";
 import {
   getFreelancerJobPost,
   getMatchedJobPosts,
-} from "../services/freelancer.jobs.service.js";
+} from "@/modules/freelancer/services/freelancer.jobs.service.js";
 import {
   getFreelancerProfile,
   getPublicFreelancerProfile,
   saveFreelancerProfile,
-} from "../services/freelancer.profile.service.js";
-import { searchPublicFreelancers } from "../services/freelancer.search.service.js";
+} from "@/modules/freelancer/services/freelancer.profile.service.js";
+import { searchPublicFreelancers } from "@/modules/freelancer/services/freelancer.search.service.js";
 import {
   toFreelancerProfileResponse,
   toFreelancerProfileSavedResponse,
-} from "../utils/freelancer.mappers.js";
-import { renderEarningsCertificatePdf } from "../utils/earnings-certificate.pdf.js";
+} from "@/modules/freelancer/utils/freelancer.mappers.js";
+import { renderEarningsCertificatePdf } from "@/modules/freelancer/utils/earnings-certificate.pdf.js";
 
 export const getLoggedInFreelancerProfile: RequestHandler = asyncHandler(
   async (request, response) => {

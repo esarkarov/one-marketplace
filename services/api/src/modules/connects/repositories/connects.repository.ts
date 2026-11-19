@@ -1,11 +1,11 @@
 import { and, desc, eq, gte, sql } from "drizzle-orm";
-import type { DbExecutor } from "../../../database/database.types.js";
-import { accounts } from "../../auth/models/auth.model.js";
+import type { DbExecutor } from "@/database/database.types.js";
+import { accounts } from "@/modules/auth/models/auth.model.js";
 import {
   connects,
   connects_history,
   connects_purchase_history,
-} from "../models/connects.model.js";
+} from "@/modules/connects/models/connects.model.js";
 
 type ConnectsOwner = { freelancerId: string } | { agencyId: string };
 

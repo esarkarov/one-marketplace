@@ -1,10 +1,10 @@
 import express from "express";
 import request from "supertest";
 import { describe, expect, it } from "vitest";
-import { createRootLogger } from "../../config/logger.js";
-import { captureLogs } from "../../test/support/capture-logs.js";
+import { createRootLogger } from "@/config/logger.js";
+import { captureLogs } from "@/test/support/capture-logs.js";
 import { createHttpLogger } from "./http-logger.middleware.js";
-import { requestIdMiddleware } from "../request-id/request-id.middleware.js";
+import { requestIdMiddleware } from "@/middleware/request-id/request-id.middleware.js";
 
 const build = () => {
   const { stream, output } = captureLogs();

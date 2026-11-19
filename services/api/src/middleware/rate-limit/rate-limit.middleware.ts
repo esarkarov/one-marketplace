@@ -1,16 +1,16 @@
 import { rateLimit } from "express-rate-limit";
-import { env } from "../../config/env.js";
+import { env } from "@/config/env.js";
 import {
   FIFTEEN_MINUTES,
   ONE_HOUR,
   PUBLIC_SEARCH_LIMIT,
   PUBLIC_SEARCH_WINDOW_MS,
-} from "../constants/rate-limit.constants.js";
+} from "@/middleware/constants/rate-limit.constants.js";
 import {
   isRateLimitExempt,
   rateLimitBaseOptions,
-} from "../utils/rate-limit.utils.js";
-import { createRedisRateLimitStore } from "../utils/redis-rate-limit-store.utils.js";
+} from "@/middleware/utils/rate-limit.utils.js";
+import { createRedisRateLimitStore } from "@/middleware/utils/redis-rate-limit-store.utils.js";
 
 const isTestEnvironment = () => env.nodeEnv === "test";
 

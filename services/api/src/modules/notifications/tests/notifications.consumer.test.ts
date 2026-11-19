@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ConsumeMessage } from "amqplib";
-import { expectNoClerkIds } from "../../../test/support/clerk-id-scan.js";
-import { createNotificationEnvelope } from "../../../infrastructure/events/notification.envelope.js";
+import { expectNoClerkIds } from "@/test/support/clerk-id-scan.js";
+import { createNotificationEnvelope } from "@/infrastructure/events/notification.envelope.js";
 
 const mocks = vi.hoisted(() => ({
   returning: vi.fn(),
@@ -14,15 +14,15 @@ const mocks = vi.hoisted(() => ({
   logInfo: vi.fn(),
 }));
 
-vi.mock("../../../config/logger.js", () => ({
+vi.mock("@/config/logger.js", () => ({
   logger: { error: mocks.logError, info: mocks.logInfo },
 }));
 
-vi.mock("../../../infrastructure/events/rabbitmq.client.js", () => ({
+vi.mock("@/infrastructure/events/rabbitmq.client.js", () => ({
   getRabbitConsumerChannel: vi.fn(),
 }));
 
-vi.mock("../../../database/client.js", () => ({
+vi.mock("@/database/client.js", () => ({
   db: {
     insert: () => ({
       values: (value: unknown) => {
@@ -39,15 +39,15 @@ vi.mock("../../../database/client.js", () => ({
   pool: { query: mocks.query },
 }));
 
-vi.mock("../services/notifications.sse.js", () => ({
+vi.mock("@/modules/notifications/services/notifications.sse.js", () => ({
   emitNotification: mocks.emit,
   emitAgencyNotification: mocks.emitAgency,
 }));
 
 const { createNotificationConsumer } =
-  await import("../notifications.consumer.js");
+  await import("@/modules/notifications/notifications.consumer.js");
 const { notificationsResponses } =
-  await import("../responses/notifications.responses.js");
+  await import("@/modules/notifications/responses/notifications.responses.js");
 
 const ACCOUNT_UUID = "7c1d2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f";
 

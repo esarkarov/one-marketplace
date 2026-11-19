@@ -15,13 +15,12 @@ const mocks = vi.hoisted(() => ({
   getUser: vi.fn(),
 }));
 
-vi.mock("../../../config/env.js", async (importOriginal) => {
-  const original =
-    await importOriginal<typeof import("../../../config/env.js")>();
+vi.mock("@/config/env.js", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@/config/env.js")>();
   return { ...original, env: { ...original.env, clerkSecretKey: "sk_test" } };
 });
 
-vi.mock("../../../infrastructure/auth/clerk.client.js", () => ({
+vi.mock("@/infrastructure/auth/clerk.client.js", () => ({
   clerk: { users: { getUser: mocks.getUser } },
 }));
 
@@ -29,8 +28,8 @@ import {
   connectRedis,
   disconnectRedis,
   redis,
-} from "../../../infrastructure/cache/redis.client.js";
-import { db, pool } from "../../../database/client.js";
+} from "@/infrastructure/cache/redis.client.js";
+import { db, pool } from "@/database/client.js";
 import {
   accounts,
   agency_metadata,
@@ -42,16 +41,13 @@ import {
   freelancer_metadata,
   job_posts,
   proposals,
-} from "../../../test/support/tables.js";
-import { expectNoClerkIds } from "../../../test/support/clerk-id-scan.js";
-import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
-import {
-  createTestData,
-  purgeLeftovers,
-} from "../../../test/support/factories.js";
-import { adminResponses } from "../responses/admin.responses.js";
+} from "@/test/support/tables.js";
+import { expectNoClerkIds } from "@/test/support/clerk-id-scan.js";
+import { assertTestDatabase } from "@/test/setup/assert-test-database.js";
+import { createTestData, purgeLeftovers } from "@/test/support/factories.js";
+import { adminResponses } from "@/modules/admin/responses/admin.responses.js";
 
-const { app } = await import("../../../app.js");
+const { app } = await import("@/app.js");
 
 const API = "/api/v1/admin";
 const PREFIX = "admin-contract-it-";

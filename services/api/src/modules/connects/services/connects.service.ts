@@ -1,20 +1,20 @@
-import { toConnectsHistoryEntryResponse } from "../utils/connects.mappers.js";
+import { toConnectsHistoryEntryResponse } from "@/modules/connects/utils/connects.mappers.js";
 import {
   CONNECTS_CACHE_TTL_SECONDS,
   CONNECTS_PLANS,
   ConnectsPlan,
   INITIAL_CONNECTS,
-} from "../constants/connects.constants.js";
+} from "@/modules/connects/constants/connects.constants.js";
 import {
   getAgencyConnectsCacheKey,
   getConnectsCacheKey,
-} from "../utils/connects.cache-keys.js";
-import { db } from "../../../database/client.js";
+} from "@/modules/connects/utils/connects.cache-keys.js";
+import { db } from "@/database/client.js";
 import {
   fetchSize,
   toOffsetPage,
-} from "../../../shared/validation/utils/pagination.utils.js";
-import { setStripeCustomerId } from "../../auth/index.js";
+} from "@/shared/validation/utils/pagination.utils.js";
+import { setStripeCustomerId } from "@/modules/auth/index.js";
 import {
   creditConnects,
   findAgencyConnectsBalance,
@@ -26,11 +26,11 @@ import {
   insertFreelancerConnectsIfAbsent,
   insertFreelancerPurchaseIfNew,
   recordConnectsHistory,
-} from "../repositories/connects.repository.js";
-import { ApiError } from "../../../shared/errors/api-error.js";
-import { redis } from "../../../infrastructure/cache/redis.client.js";
-import { env } from "../../../config/env.js";
-import { stripe } from "../../../infrastructure/payments/stripe.client.js";
+} from "@/modules/connects/repositories/connects.repository.js";
+import { ApiError } from "@/shared/errors/api-error.js";
+import { redis } from "@/infrastructure/cache/redis.client.js";
+import { env } from "@/config/env.js";
+import { stripe } from "@/infrastructure/payments/stripe.client.js";
 
 const cacheBalance = (freelancerId: string, balance: number) =>
   redis.setEx(

@@ -1,16 +1,19 @@
 import type { Server as HttpServer } from "node:http";
 import { Server } from "socket.io";
-import { socketCorsOptions } from "../../config/cors.js";
-import { db } from "../../database/client.js";
+import { socketCorsOptions } from "@/config/cors.js";
+import { db } from "@/database/client.js";
 import {
   listConversationIdsOfParticipant,
   listParticipantsOfConversations,
   markReadIfMessageInConversation,
 } from "./repositories/messaging.participants.repository.js";
-import { authenticateAccount, findAccountIdByAuthId } from "../auth/index.js";
-import { requirePublicId } from "../../shared/ids/public-ids.js";
-import { ApiError } from "../../shared/errors/api-error.js";
-import { getAgencyIdForMember } from "../agency/index.js";
+import {
+  authenticateAccount,
+  findAccountIdByAuthId,
+} from "@/modules/auth/index.js";
+import { requirePublicId } from "@/shared/ids/public-ids.js";
+import { ApiError } from "@/shared/errors/api-error.js";
+import { getAgencyIdForMember } from "@/modules/agency/index.js";
 import { ConversationScope } from "./types/messaging.types.js";
 import { loadSocketPublicIds } from "./services/messaging.socket-ids.service.js";
 import {

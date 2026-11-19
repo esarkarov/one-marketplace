@@ -1,6 +1,6 @@
 import type { Request } from "express";
 import type Stripe from "stripe";
-import { ApiError } from "../../shared/errors/api-error.js";
+import { ApiError } from "@/shared/errors/api-error.js";
 import { stripe } from "./stripe.client.js";
 
 export type StripeWebhookRequest = Pick<Request, "headers" | "body" | "logger">;

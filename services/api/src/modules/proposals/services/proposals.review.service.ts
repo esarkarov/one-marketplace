@@ -1,29 +1,32 @@
-import { db } from "../../../database/client.js";
+import { db } from "@/database/client.js";
 import {
   findClientProposalForInterview,
   findClientProposalForView,
   markProposalInterviewedIfOpen,
   markProposalShortlistedForClient,
   markProposalViewedIfSubmitted,
-} from "../repositories/proposals.repository.js";
-import { creditConnects, recordConnectsHistory } from "../../connects/index.js";
-import { toProposalSenderId } from "../utils/proposals.mappers.js";
-import { findAccountIdByAuthId } from "../../auth/index.js";
-import { requirePublicId } from "../../../shared/ids/public-ids.js";
-import { ApiError } from "../../../shared/errors/api-error.js";
+} from "@/modules/proposals/repositories/proposals.repository.js";
+import {
+  creditConnects,
+  recordConnectsHistory,
+} from "@/modules/connects/index.js";
+import { toProposalSenderId } from "@/modules/proposals/utils/proposals.mappers.js";
+import { findAccountIdByAuthId } from "@/modules/auth/index.js";
+import { requirePublicId } from "@/shared/ids/public-ids.js";
+import { ApiError } from "@/shared/errors/api-error.js";
 import {
   CONNECTS_CACHE_TTL_SECONDS,
   getAgencyConnectsCacheKey,
   getConnectsCacheKey,
   PROPOSAL_CONNECTS,
-} from "../../connects/index.js";
-import { redis } from "../../../infrastructure/cache/redis.client.js";
-import { sendNotification } from "../../../infrastructure/events/notification.publisher.js";
-import { getAgencyOwnerId } from "../../agency/index.js";
+} from "@/modules/connects/index.js";
+import { redis } from "@/infrastructure/cache/redis.client.js";
+import { sendNotification } from "@/infrastructure/events/notification.publisher.js";
+import { getAgencyOwnerId } from "@/modules/agency/index.js";
 import {
   emitConversationUpdate,
   openInterviewConversation,
-} from "../../messaging/index.js";
+} from "@/modules/messaging/index.js";
 
 export const updateProposal = async (proposalId: string, clientId: string) => {
   const existing = await findClientProposalForView(db, proposalId, clientId);

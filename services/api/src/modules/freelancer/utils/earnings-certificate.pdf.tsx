@@ -1,6 +1,6 @@
 import ReactPDFDefault, { renderToBuffer } from "@react-pdf/renderer";
-import type { EarningsCertificateData } from "../types/freelancer.types.js";
-import { formatUsdGrouped } from "../../../shared/money/money.js";
+import type { EarningsCertificateData } from "@/modules/freelancer/types/freelancer.types.js";
+import { formatUsdGrouped } from "@/shared/money/money.js";
 
 const { Document, Page, View, Text, Image, StyleSheet } = ReactPDFDefault;
 

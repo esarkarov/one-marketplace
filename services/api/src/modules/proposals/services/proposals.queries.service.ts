@@ -1,4 +1,4 @@
-import { db } from "../../../database/client.js";
+import { db } from "@/database/client.js";
 import {
   countAgencyMembers,
   findAgencyOwnerLocation,
@@ -7,13 +7,13 @@ import {
   listFreelancerProposals,
   listProposalStatusesBySender,
   countProposalStatusesBySender,
-} from "../repositories/proposals.repository.js";
+} from "@/modules/proposals/repositories/proposals.repository.js";
 import {
   fetchSize,
   toOffsetPage,
-} from "../../../shared/validation/utils/pagination.utils.js";
-import { toProposalSenderId } from "../utils/proposals.mappers.js";
-import { findAccountDisplays } from "../../auth/index.js";
+} from "@/shared/validation/utils/pagination.utils.js";
+import { toProposalSenderId } from "@/modules/proposals/utils/proposals.mappers.js";
+import { findAccountDisplays } from "@/modules/auth/index.js";
 
 const ACTIVE_PROPOSAL_STATUSES = new Set([
   "SUBMITTED",

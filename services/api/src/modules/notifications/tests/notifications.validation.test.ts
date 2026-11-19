@@ -9,7 +9,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@clerk/backend", () => ({ verifyToken: mocks.verifyToken }));
 
-vi.mock("../../../infrastructure/cache/redis.client.js", () => ({
+vi.mock("@/infrastructure/cache/redis.client.js", () => ({
   redis: {
     get: async (key: string) => mocks.store.get(key) ?? null,
     expire: async () => true,
@@ -22,7 +22,7 @@ vi.mock("../../../infrastructure/cache/redis.client.js", () => ({
   disconnectRedis: async () => undefined,
 }));
 
-vi.mock("../../../database/client.js", () => {
+vi.mock("@/database/client.js", () => {
   const chain = {
     from: () => chain,
     where: () => chain,
@@ -34,7 +34,7 @@ vi.mock("../../../database/client.js", () => {
   };
 });
 
-const { app } = await import("../../../app.js");
+const { app } = await import("@/app.js");
 
 const id = "123e4567-e89b-42d3-a456-426614174000";
 const bearer = { Authorization: "Bearer test-token" };
@@ -136,7 +136,7 @@ describe("notifications pagination limit", () => {
     async (name) => {
       const modules = {
         listNotificationsQuerySchema:
-          await import("../schemas/notifications.schema.js"),
+          await import("@/modules/notifications/schemas/notifications.schema.js"),
       } as unknown as Record<
         string,
         Record<string, { parse: (v: object) => object }>

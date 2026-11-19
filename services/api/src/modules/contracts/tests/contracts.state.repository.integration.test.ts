@@ -1,21 +1,21 @@
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { db, pool } from "../../../database/client.js";
+import { db, pool } from "@/database/client.js";
 import {
   accounts,
   contract_milestones,
   contracts,
   job_posts,
   proposals,
-} from "../../../test/support/tables.js";
-import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
+} from "@/test/support/tables.js";
+import { assertTestDatabase } from "@/test/setup/assert-test-database.js";
 import {
   insertContractIfProposalUnused,
   markContractActiveIfPending,
   markContractCompletedIfActive,
   markMilestoneFundedIfPending,
-} from "../repositories/contracts.state.repository.js";
+} from "@/modules/contracts/repositories/contracts.state.repository.js";
 
 const PREFIX = "contracts-state-repo-";
 const like = `${PREFIX}%`;

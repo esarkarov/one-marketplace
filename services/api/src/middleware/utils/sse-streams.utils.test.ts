@@ -1,7 +1,7 @@
 import { EventEmitter } from "node:events";
 import type { Response } from "express";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { SSE_SHUTDOWN_FRAME } from "../constants/sse-streams.constants.js";
+import { SSE_SHUTDOWN_FRAME } from "@/middleware/constants/sse-streams.constants.js";
 
 class FakeResponse extends EventEmitter {
   writableEnded = false;

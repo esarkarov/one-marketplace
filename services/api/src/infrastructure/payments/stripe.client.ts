@@ -1,7 +1,7 @@
 import Stripe from "stripe";
-import { env } from "../../config/env.js";
-import { createLazyClient } from "../utils/lazy-client.utils.js";
-import { STRIPE_TIMEOUT_MS } from "../constants/index.js";
+import { env } from "@/config/env.js";
+import { createLazyClient } from "@/infrastructure/utils/lazy-client.utils.js";
+import { STRIPE_TIMEOUT_MS } from "@/infrastructure/constants/index.js";
 
 export const stripe = createLazyClient(() => {
   if (!env.stripeSecretKey) {

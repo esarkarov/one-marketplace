@@ -1,4 +1,4 @@
-import { requirePublicId } from "../../../shared/ids/public-ids.js";
+import { requirePublicId } from "@/shared/ids/public-ids.js";
 
 export type SocketPublicIds = ReadonlyMap<string, string>;
 

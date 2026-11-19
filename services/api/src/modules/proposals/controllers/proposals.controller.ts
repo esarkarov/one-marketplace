@@ -1,7 +1,7 @@
-import { toProposalInterviewResponse } from "../utils/proposals.mappers.js";
+import { toProposalInterviewResponse } from "@/modules/proposals/utils/proposals.mappers.js";
 import { RequestHandler } from "express";
-import { asyncHandler } from "../../../middleware/utils/async-handler.utils.js";
-import { getValidated } from "../../../middleware/utils/validated-request.utils.js";
+import { asyncHandler } from "@/middleware/utils/async-handler.utils.js";
+import { getValidated } from "@/middleware/utils/validated-request.utils.js";
 import {
   agencyProposalMetadataRequest,
   agencyProposalsRequest,
@@ -11,34 +11,34 @@ import {
   proposalMetadataRequest,
   submitAgencyProposalRequest,
   updateProposalStatusRequest,
-} from "../schemas/proposals.schema.js";
+} from "@/modules/proposals/schemas/proposals.schema.js";
 import {
   requireClient,
   requireFreelancer,
-} from "../../../middleware/auth/role-guards.middleware.js";
-import { requireText } from "../../../shared/validation/utils/require-text.utils.js";
-import { ApiError } from "../../../shared/errors/api-error.js";
+} from "@/middleware/auth/role-guards.middleware.js";
+import { requireText } from "@/shared/validation/utils/require-text.utils.js";
+import { ApiError } from "@/shared/errors/api-error.js";
 import {
   getAgencyProposalMetadata,
   getAgencyProposals,
   getFreelancerProposalMetadata,
   getFreelancerProposals,
   getClientJobProposals,
-} from "../services/proposals.queries.service.js";
+} from "@/modules/proposals/services/proposals.queries.service.js";
 import {
   markProposalViewed,
   shortlistProposal,
   startInterview,
-} from "../services/proposals.review.service.js";
+} from "@/modules/proposals/services/proposals.review.service.js";
 import {
   submitAgencyProposal,
   submitProposal,
-} from "../services/proposals.submission.service.js";
+} from "@/modules/proposals/services/proposals.submission.service.js";
 import {
   getAgencyIdForMember,
   requireAgencyPermission,
-} from "../../agency/index.js";
-import type { ApiResponse } from "../../../types/common.types.js";
+} from "@/modules/agency/index.js";
+import type { ApiResponse } from "@/types/common.types.js";
 
 export const createProposal: RequestHandler = asyncHandler(
   async (request, response) => {

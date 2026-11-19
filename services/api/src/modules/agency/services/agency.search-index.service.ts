@@ -1,10 +1,10 @@
-import { db } from "../../../database/client.js";
+import { db } from "@/database/client.js";
 import {
   findAgencySearchSource,
   listAgencyOwnerIds as listOwnerIds,
   updateAgencySearchText,
-} from "../repositories/agency.repository.js";
-import { buildAgencySearchText } from "../utils/agency.search-text.js";
+} from "@/modules/agency/repositories/agency.repository.js";
+import { buildAgencySearchText } from "@/modules/agency/utils/agency.search-text.js";
 
 export const listAgencyOwnerIds = () => listOwnerIds(db);
 

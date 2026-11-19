@@ -1,23 +1,23 @@
 import { z } from "zod";
-import type { RequestSchemas } from "../../../middleware/types/validate.types.js";
+import type { RequestSchemas } from "@/middleware/types/validate.types.js";
 import {
   authRoleShape,
   boundedDataUrl,
   scopeField,
   uuidParam,
-} from "../../../shared/validation/schemas/common.schema.js";
+} from "@/shared/validation/schemas/common.schema.js";
 import {
   MAX_ATTACHMENT_FILE_NAME_LENGTH,
   MAX_ATTACHMENTS,
-} from "../../../shared/uploads/constants/attachments.constants.js";
+} from "@/shared/uploads/constants/attachments.constants.js";
 import {
   MESSAGES_PAGE,
   MESSAGING_LIMITS,
-} from "../../../shared/validation/constants/messaging.constants.js";
+} from "@/shared/validation/constants/messaging.constants.js";
 import {
   limitParam,
   paginationShape,
-} from "../../../shared/validation/schemas/pagination.schema.js";
+} from "@/shared/validation/schemas/pagination.schema.js";
 
 const ATTACHMENT_ERROR = "Attachment metadata is invalid.";
 

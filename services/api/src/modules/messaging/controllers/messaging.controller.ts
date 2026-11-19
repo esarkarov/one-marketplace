@@ -1,33 +1,33 @@
 import { RequestHandler } from "express";
-import { asyncHandler } from "../../../middleware/utils/async-handler.utils.js";
-import { getValidated } from "../../../middleware/utils/validated-request.utils.js";
+import { asyncHandler } from "@/middleware/utils/async-handler.utils.js";
+import { getValidated } from "@/middleware/utils/validated-request.utils.js";
 import {
   createMessageRequest,
   listConversationsRequest,
   listMessagesRequest,
   openConversationRequest,
   readConversationRequest,
-} from "../schemas/messaging.schema.js";
-import { ApiResponse } from "../../../types/common.types.js";
+} from "@/modules/messaging/schemas/messaging.schema.js";
+import { ApiResponse } from "@/types/common.types.js";
 import {
   createConversation,
   getConversations,
-} from "../services/messaging.conversations.service.js";
+} from "@/modules/messaging/services/messaging.conversations.service.js";
 import {
   getMessages,
   markConversationRead,
   sendMessage,
-} from "../services/messaging.messages.service.js";
+} from "@/modules/messaging/services/messaging.messages.service.js";
 import {
   AttachmentInput,
   ConversationScope,
-} from "../types/messaging.types.js";
-import { requireClient } from "../../../middleware/auth/role-guards.middleware.js";
-import { ApiError } from "../../../shared/errors/api-error.js";
+} from "@/modules/messaging/types/messaging.types.js";
+import { requireClient } from "@/middleware/auth/role-guards.middleware.js";
+import { ApiError } from "@/shared/errors/api-error.js";
 import {
   assertAttachmentFileName,
   validateAttachmentBatch,
-} from "../../../shared/uploads/attachments.js";
+} from "@/shared/uploads/attachments.js";
 
 const requestedScope = (value: unknown): ConversationScope =>
   value === "agency" ? "agency" : "default";

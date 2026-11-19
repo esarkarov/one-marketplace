@@ -1,4 +1,4 @@
-import { ApiError } from "../../errors/api-error.js";
+import { ApiError } from "@/shared/errors/api-error.js";
 
 export const requireText = (
   value: string | string[] | null | undefined,

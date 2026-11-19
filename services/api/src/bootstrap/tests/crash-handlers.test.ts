@@ -7,7 +7,7 @@ const hoisted = vi.hoisted(() => ({
   fatal: vi.fn(),
 }));
 
-vi.mock("../../config/logger.js", () => ({
+vi.mock("@/config/logger.js", () => ({
   logger: {
     info: hoisted.info,
     warn: vi.fn().mockResolvedValue(undefined),
@@ -16,22 +16,22 @@ vi.mock("../../config/logger.js", () => ({
   },
   rootLogger: { flush: (done: () => void) => done() },
 }));
-vi.mock("../../database/client.js", () => ({
+vi.mock("@/database/client.js", () => ({
   pool: { end: hoisted.poolEnd },
 }));
-vi.mock("../../infrastructure/cache/redis.client.js", () => ({
+vi.mock("@/infrastructure/cache/redis.client.js", () => ({
   disconnectRedis: vi.fn(),
 }));
-vi.mock("../../infrastructure/events/rabbitmq.client.js", () => ({
+vi.mock("@/infrastructure/events/rabbitmq.client.js", () => ({
   closeRabbit: vi.fn(),
 }));
-vi.mock("../../modules/notifications/notifications.consumer.js", () => ({
+vi.mock("@/modules/notifications/notifications.consumer.js", () => ({
   stopNotificationConsumer: vi.fn(),
 }));
-vi.mock("../../modules/messaging/messaging.socket.js", () => ({
+vi.mock("@/modules/messaging/messaging.socket.js", () => ({
   closeMessagingSocket: vi.fn(),
 }));
-vi.mock("../../modules/payouts/payouts.cron.js", () => ({
+vi.mock("@/modules/payouts/payouts.cron.js", () => ({
   stopPayoutCron: vi.fn(),
   waitForPayoutRun: hoisted.waitForPayoutRun,
 }));
@@ -79,7 +79,8 @@ describe("crash handlers", () => {
   });
 
   it("registers each handler once even when called repeatedly", async () => {
-    const { registerCrashHandlers } = await import("../crash-handlers.js");
+    const { registerCrashHandlers } =
+      await import("@/bootstrap/crash-handlers.js");
     registerCrashHandlers();
     registerCrashHandlers();
 
@@ -90,12 +91,13 @@ describe("crash handlers", () => {
   });
 
   it("does not register anything on import", async () => {
-    await import("../crash-handlers.js");
+    await import("@/bootstrap/crash-handlers.js");
     expect(registrations).toEqual([]);
   });
 
   it("logs an unhandled rejection, shuts down once and exits non-zero", async () => {
-    const { registerCrashHandlers } = await import("../crash-handlers.js");
+    const { registerCrashHandlers } =
+      await import("@/bootstrap/crash-handlers.js");
     registerCrashHandlers();
 
     handlerFor("unhandledRejection")(new Error("rejected"));
@@ -125,7 +127,8 @@ describe("crash handlers", () => {
         finishRun = resolve;
       }),
     );
-    const { registerCrashHandlers } = await import("../crash-handlers.js");
+    const { registerCrashHandlers } =
+      await import("@/bootstrap/crash-handlers.js");
     registerCrashHandlers();
 
     handlerFor("uncaughtException")(new Error("first"));
@@ -146,7 +149,8 @@ describe("crash handlers", () => {
 
   it("still shuts down and does not loop when the logger itself fails", async () => {
     hoisted.fatal.mockRejectedValue(new Error("logger down"));
-    const { registerCrashHandlers } = await import("../crash-handlers.js");
+    const { registerCrashHandlers } =
+      await import("@/bootstrap/crash-handlers.js");
     registerCrashHandlers();
 
     handlerFor("uncaughtException")(new Error("crash"));

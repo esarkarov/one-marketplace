@@ -60,7 +60,7 @@ export const checkTableFiles = (root = srcDir): string[] => {
     const source = parse(file);
     for (const { specifier, node } of importSpecifiers(source)) {
       if (isDrizzlePackage(specifier)) continue;
-      const resolved = resolveImport(file, specifier);
+      const resolved = resolveImport(file, specifier, root);
       if (resolved && isTableFile(toKey(root, resolved))) continue;
       const line =
         source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1;
@@ -86,7 +86,7 @@ export const findTableFileCycles = (root = srcDir): string[] => {
     if (!isTableFile(key)) continue;
     const targets = new Set<string>();
     for (const { specifier } of importSpecifiers(parse(file))) {
-      const resolved = resolveImport(file, specifier);
+      const resolved = resolveImport(file, specifier, root);
       const target = resolved ? toKey(root, resolved) : null;
       if (target && isTableFile(target)) targets.add(target);
     }
@@ -116,7 +116,7 @@ export const findDatabaseModuleImports = (root = srcDir): string[] =>
     const key = toKey(root, file);
     if (!key.startsWith("database/")) return [];
     return importSpecifiers(parse(file)).flatMap(({ specifier }) => {
-      const resolved = resolveImport(file, specifier);
+      const resolved = resolveImport(file, specifier, root);
       const target = resolved ? toKey(root, resolved) : null;
       return target?.startsWith("modules/")
         ? [`${key} imports ${target}; database/ imports no module files`]

@@ -4,8 +4,8 @@ import {
   offsetPage,
   ok,
   okNoData,
-} from "../../../shared/responses/api-envelope.responses.js";
-import { isoDateTime } from "../../../shared/responses/scalar.responses.js";
+} from "@/shared/responses/api-envelope.responses.js";
+import { isoDateTime } from "@/shared/responses/scalar.responses.js";
 
 const Notification = z
   .strictObject({

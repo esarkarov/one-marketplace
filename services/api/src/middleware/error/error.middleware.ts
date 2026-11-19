@@ -1,12 +1,12 @@
 import { ErrorRequestHandler } from "express";
-import { logger } from "../../config/logger.js";
-import { ApiError, defaultErrorCode } from "../../shared/errors/api-error.js";
-import { ApiResponse } from "../../types/common.types.js";
+import { logger } from "@/config/logger.js";
+import { ApiError, defaultErrorCode } from "@/shared/errors/api-error.js";
+import { ApiResponse } from "@/types/common.types.js";
 import { randomUUID } from "node:crypto";
 import {
   errorLogAttributes,
   sanitizeForLog,
-} from "../../shared/logging/sanitize-log.js";
+} from "@/shared/logging/sanitize-log.js";
 
 const STACK_LIMIT = 2000;
 

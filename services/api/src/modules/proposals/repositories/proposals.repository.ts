@@ -1,21 +1,21 @@
 import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
-import type { DbExecutor } from "../../../database/database.types.js";
-import { accounts } from "../../auth/models/auth.model.js";
+import type { DbExecutor } from "@/database/database.types.js";
+import { accounts } from "@/modules/auth/models/auth.model.js";
 import {
   agency_earning,
   client_spents,
   contracts,
   freelancer_earning,
-} from "../../contracts/models/contracts.model.js";
+} from "@/modules/contracts/models/contracts.model.js";
 import {
   agency_members,
   agency_metadata,
-} from "../../agency/models/agency.model.js";
-import { client_metadata } from "../../client/models/client.model.js";
-import { conversations } from "../../messaging/models/messaging.model.js";
-import { freelancer_metadata } from "../../freelancer/models/freelancer.model.js";
-import { job_posts } from "../../jobs/models/jobs.model.js";
-import { proposals } from "../models/proposals.model.js";
+} from "@/modules/agency/models/agency.model.js";
+import { client_metadata } from "@/modules/client/models/client.model.js";
+import { conversations } from "@/modules/messaging/models/messaging.model.js";
+import { freelancer_metadata } from "@/modules/freelancer/models/freelancer.model.js";
+import { job_posts } from "@/modules/jobs/models/jobs.model.js";
+import { proposals } from "@/modules/proposals/models/proposals.model.js";
 
 type SenderType = "FREELANCER" | "AGENCY";
 

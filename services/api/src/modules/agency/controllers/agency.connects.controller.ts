@@ -1,22 +1,22 @@
 import { RequestHandler } from "express";
-import { asyncHandler } from "../../../middleware/utils/async-handler.utils.js";
-import { getValidated } from "../../../middleware/utils/validated-request.utils.js";
+import { asyncHandler } from "@/middleware/utils/async-handler.utils.js";
+import { getValidated } from "@/middleware/utils/validated-request.utils.js";
 import {
   agencyConnectsHistoryRequest,
   buyAgencyConnectsRequest,
-} from "../schemas/agency.schema.js";
-import { ApiError } from "../../../shared/errors/api-error.js";
-import { ApiResponse } from "../../../types/common.types.js";
+} from "@/modules/agency/schemas/agency.schema.js";
+import { ApiError } from "@/shared/errors/api-error.js";
+import { ApiResponse } from "@/types/common.types.js";
 import {
   getAgencyIdForMember,
   requireAgencyPermission,
-} from "../services/agency.membership.service.js";
+} from "@/modules/agency/services/agency.membership.service.js";
 import {
   createAgencyConnectsCheckout,
   getAgencyConnectsBalance,
   getAgencyConnectsHistory,
   isConnectsPlan,
-} from "../../connects/index.js";
+} from "@/modules/connects/index.js";
 
 export const getAgencyConnects: RequestHandler = asyncHandler(
   async (request, response) => {

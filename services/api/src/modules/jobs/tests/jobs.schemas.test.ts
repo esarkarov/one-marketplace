@@ -3,7 +3,7 @@ import {
   jobBodySchema,
   jobIdParamsSchema,
   publicJobFeedQuerySchema,
-} from "../schemas/jobs.schema.js";
+} from "@/modules/jobs/schemas/jobs.schema.js";
 
 const message = (result: {
   success: boolean;

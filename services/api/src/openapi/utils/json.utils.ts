@@ -1,4 +1,4 @@
-import type { Json, JsonObject } from "../types/openapi.types.js";
+import type { Json, JsonObject } from "@/openapi/types/openapi.types.js";
 
 const PRINT_WIDTH = 80;
 

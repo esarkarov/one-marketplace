@@ -1,13 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { agencyInviteResponses } from "../../modules/agency/responses/agency.responses.js";
-import { jobsCreateResponses } from "../../modules/jobs/responses/jobs.responses.js";
-import { proposalsStatusResponses } from "../../modules/proposals/responses/proposals.responses.js";
+import { agencyInviteResponses } from "@/modules/agency/responses/agency.responses.js";
+import { jobsCreateResponses } from "@/modules/jobs/responses/jobs.responses.js";
+import { proposalsStatusResponses } from "@/modules/proposals/responses/proposals.responses.js";
 import {
   INVITATION_STATUSES,
   JOB_STATUSES,
   PROPOSAL_STATUSES,
-} from "../../shared/validation/constants/status.constants.js";
+} from "@/shared/validation/constants/status.constants.js";
 
 const proposalReview = (status: string) => ({
   success: true,

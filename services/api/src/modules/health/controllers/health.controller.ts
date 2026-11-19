@@ -1,12 +1,12 @@
 import type { Request, Response } from "express";
-import { SERVICE_NAME } from "../../../config/constants.js";
-import { errorLogAttributes } from "../../../shared/logging/sanitize-log.js";
-import { defaultErrorCode } from "../../../shared/errors/api-error.js";
-import { ApiResponse } from "../../../types/common.types.js";
+import { SERVICE_NAME } from "@/config/constants.js";
+import { errorLogAttributes } from "@/shared/logging/sanitize-log.js";
+import { defaultErrorCode } from "@/shared/errors/api-error.js";
+import { ApiResponse } from "@/types/common.types.js";
 import {
   checkReadiness,
   type ReadinessChecks,
-} from "../services/health.service.js";
+} from "@/modules/health/services/health.service.js";
 
 export const healthHandler = (_request: Request, response: Response) => {
   const body: ApiResponse<{

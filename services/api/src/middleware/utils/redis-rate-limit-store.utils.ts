@@ -1,15 +1,15 @@
 import { MemoryStore } from "express-rate-limit";
 import type { ClientRateLimitInfo, Options, Store } from "express-rate-limit";
-import { logger } from "../../config/logger.js";
-import { redis } from "../../infrastructure/cache/redis.client.js";
-import { errorLogAttributes } from "../../shared/logging/sanitize-log.js";
+import { logger } from "@/config/logger.js";
+import { redis } from "@/infrastructure/cache/redis.client.js";
+import { errorLogAttributes } from "@/shared/logging/sanitize-log.js";
 import {
   RATE_LIMIT_DECREMENT_SCRIPT,
   RATE_LIMIT_INCREMENT_SCRIPT,
   RATE_LIMIT_KEY_PREFIX,
   RATE_LIMIT_STORE_TIMEOUT_MS,
   RATE_LIMIT_STORE_WARN_INTERVAL_MS,
-} from "../constants/rate-limit.constants.js";
+} from "@/middleware/constants/rate-limit.constants.js";
 
 let lastWarnAt: number | undefined;
 

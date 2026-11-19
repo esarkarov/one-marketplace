@@ -1,16 +1,16 @@
 import { and, asc, eq, isNull, or, sql, type SQL } from "drizzle-orm";
 import type { PgUpdateSetSource } from "drizzle-orm/pg-core";
-import type { DbExecutor } from "../../../database/database.types.js";
-import { accounts } from "../../auth/models/auth.model.js";
-import { agency_metadata } from "../../agency/models/agency.model.js";
-import { payout_history } from "../models/payouts.model.js";
+import type { DbExecutor } from "@/database/database.types.js";
+import { accounts } from "@/modules/auth/models/auth.model.js";
+import { agency_metadata } from "@/modules/agency/models/agency.model.js";
+import { payout_history } from "@/modules/payouts/models/payouts.model.js";
 import {
   allowedFrom,
   assertTransition,
   requireAllowedFrom,
   STUCK_CLAIM_MINUTES,
   type PayoutStatus,
-} from "../utils/payouts.state.js";
+} from "@/modules/payouts/utils/payouts.state.js";
 
 const NOTIFICATION_SWEEP_LIMIT = 300;
 

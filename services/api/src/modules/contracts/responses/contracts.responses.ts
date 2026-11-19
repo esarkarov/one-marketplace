@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { COUNTERPARTY_TYPES } from "../constants/contracts.constants.js";
+import { COUNTERPARTY_TYPES } from "@/modules/contracts/constants/contracts.constants.js";
 import {
   ErrorBody,
   errorCodeEnum,
@@ -7,11 +7,8 @@ import {
   ok,
   requestIdField,
   BadRequestBody,
-} from "../../../shared/responses/api-envelope.responses.js";
-import {
-  cents,
-  isoDateTime,
-} from "../../../shared/responses/scalar.responses.js";
+} from "@/shared/responses/api-envelope.responses.js";
+import { cents, isoDateTime } from "@/shared/responses/scalar.responses.js";
 
 const codedError = <const C extends readonly [string, ...string[]]>(
   codes: C,

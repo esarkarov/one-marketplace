@@ -3,7 +3,7 @@ import {
   errorCodeEnum,
   ok,
   requestIdField,
-} from "../../../shared/responses/api-envelope.responses.js";
+} from "@/shared/responses/api-envelope.responses.js";
 
 export const identityResponses = {
   session: {

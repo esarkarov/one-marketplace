@@ -28,7 +28,7 @@ process.env.REDIS_URL = "redis://localhost:6379";
 
 try {
   const { apiRouter, identifyAccount, isAuthenticated, verifyBearerToken } =
-    await import("../routes/index.js");
+    await import("@/routes/index.js");
   const { OPENAPI_FILE, createOpenApiText } = await import("./document.js");
 
   const text = createOpenApiText(apiRouter, [

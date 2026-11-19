@@ -1,23 +1,23 @@
 import type { RequestHandler } from "express";
-import { ApiError } from "../../shared/errors/api-error.js";
-import type { ApiErrorDetail } from "../../shared/errors/api-error.js";
+import { ApiError } from "@/shared/errors/api-error.js";
+import type { ApiErrorDetail } from "@/shared/errors/api-error.js";
 import {
   DEFAULT_MESSAGE,
   MAX_REPORTED_ERRORS,
   PARTS,
   VALIDATION_ERROR_CODE,
   VALIDATION_SCHEMAS,
-} from "../constants/validate.constants.js";
+} from "@/middleware/constants/validate.constants.js";
 import type {
   ValidationInput,
   ValidationPart,
   ValidationSchemas,
-} from "../types/validate.types.js";
+} from "@/middleware/types/validate.types.js";
 import {
   collectDetails,
   issueMessage,
   toSchema,
-} from "../utils/validate.utils.js";
+} from "@/middleware/utils/validate.utils.js";
 
 export const getValidationSchemas = (
   handler: unknown,

@@ -1,17 +1,17 @@
-import { db } from "../../../database/client.js";
-import { PAGINATION } from "../../../shared/validation/constants/pagination.constants.js";
+import { db } from "@/database/client.js";
+import { PAGINATION } from "@/shared/validation/constants/pagination.constants.js";
 import {
   fetchSize,
   toOffsetPage,
-} from "../../../shared/validation/utils/pagination.utils.js";
-import { searchFreelancerRows } from "../repositories/freelancer.search.repository.js";
+} from "@/shared/validation/utils/pagination.utils.js";
+import { searchFreelancerRows } from "@/modules/freelancer/repositories/freelancer.search.repository.js";
 import {
   PublicTalentSummary,
   PublicTalentSearchFilters,
   PublicTalentSearchPage,
-} from "../types/freelancer.types.js";
-import { findAccountDisplays } from "../../auth/index.js";
-import { countryDisplayName } from "../../../shared/search/search-text.js";
+} from "@/modules/freelancer/types/freelancer.types.js";
+import { findAccountDisplays } from "@/modules/auth/index.js";
+import { countryDisplayName } from "@/shared/search/search-text.js";
 
 export const searchPublicFreelancers = async (
   filters: PublicTalentSearchFilters,

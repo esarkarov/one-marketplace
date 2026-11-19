@@ -14,9 +14,8 @@ const mocks = vi.hoisted(() => ({
   getUser: vi.fn(),
 }));
 
-vi.mock("../../../config/env.js", async (importOriginal) => {
-  const original =
-    await importOriginal<typeof import("../../../config/env.js")>();
+vi.mock("@/config/env.js", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@/config/env.js")>();
   return {
     ...original,
     env: {
@@ -27,44 +26,44 @@ vi.mock("../../../config/env.js", async (importOriginal) => {
   };
 });
 
-vi.mock("../../../infrastructure/auth/clerk.client.js", () => ({
+vi.mock("@/infrastructure/auth/clerk.client.js", () => ({
   clerk: { users: { getUser: mocks.getUser } },
   verifyToken: vi.fn(),
 }));
 
-vi.mock("../../../infrastructure/payments/stripe.client.js", () => ({
+vi.mock("@/infrastructure/payments/stripe.client.js", () => ({
   stripe: {},
 }));
 
-vi.mock("../../../infrastructure/storage/image-kit.client.js", () => ({
+vi.mock("@/infrastructure/storage/image-kit.client.js", () => ({
   imageKit: { files: { upload: vi.fn(), delete: vi.fn() } },
 }));
 
-vi.mock("../../../infrastructure/cache/account-auth.cache.js", () => ({
+vi.mock("@/infrastructure/cache/account-auth.cache.js", () => ({
   invalidateAccountAuthCache: async () => undefined,
 }));
 
-import { db, pool } from "../../../database/client.js";
+import { db, pool } from "@/database/client.js";
 import {
   accounts,
   agency_metadata,
   freelancer_metadata,
-} from "../../../test/support/tables.js";
+} from "@/test/support/tables.js";
 import {
   buildSearchText,
   countryDisplayName,
-} from "../../../shared/search/search-text.js";
-import { buildAgencySearchText } from "../utils/agency.search-text.js";
-import { searchPublicAgencies } from "../services/agency.search.service.js";
-import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
+} from "@/shared/search/search-text.js";
+import { buildAgencySearchText } from "@/modules/agency/utils/agency.search-text.js";
+import { searchPublicAgencies } from "@/modules/agency/services/agency.search.service.js";
+import { assertTestDatabase } from "@/test/setup/assert-test-database.js";
 import {
   createAgency,
   updateAgencyProfile,
-} from "../services/agency.profile.service.js";
+} from "@/modules/agency/services/agency.profile.service.js";
 import {
   listAgencyOwnerIds,
   rebuildAgencySearchText,
-} from "../services/agency.search-index.service.js";
+} from "@/modules/agency/services/agency.search-index.service.js";
 
 const PREFIX = "agency-stext-it-";
 const newAuthId = () => `${PREFIX}${randomUUID()}`;

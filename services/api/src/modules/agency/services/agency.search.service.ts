@@ -1,18 +1,18 @@
-import { db } from "../../../database/client.js";
-import { toSafeCents } from "../../../shared/money/money.js";
-import { PAGINATION } from "../../../shared/validation/constants/pagination.constants.js";
+import { db } from "@/database/client.js";
+import { toSafeCents } from "@/shared/money/money.js";
+import { PAGINATION } from "@/shared/validation/constants/pagination.constants.js";
 import {
   fetchSize,
   toOffsetPage,
-} from "../../../shared/validation/utils/pagination.utils.js";
-import { searchAgencyRows } from "../repositories/agency.search.repository.js";
+} from "@/shared/validation/utils/pagination.utils.js";
+import { searchAgencyRows } from "@/modules/agency/repositories/agency.search.repository.js";
 import {
   PublicAgencySummary,
   PublicAgencyFilters,
   PublicAgencyFeedPage,
-} from "../types/agency.types.js";
+} from "@/modules/agency/types/agency.types.js";
 
-import { countryDisplayName } from "../../../shared/search/search-text.js";
+import { countryDisplayName } from "@/shared/search/search-text.js";
 
 export const searchPublicAgencies = async (
   filters: PublicAgencyFilters,

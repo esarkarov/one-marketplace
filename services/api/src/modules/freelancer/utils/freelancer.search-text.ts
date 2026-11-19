@@ -1,7 +1,7 @@
 import {
   buildSearchText,
   countryDisplayName,
-} from "../../../shared/search/search-text.js";
+} from "@/shared/search/search-text.js";
 
 interface FreelancerSearchInput {
   displayName: string | null;

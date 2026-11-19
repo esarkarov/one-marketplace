@@ -4,8 +4,8 @@ import type { AddressInfo } from "node:net";
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-const { app } = await import("../../../app.js");
-const { pool } = await import("../../../database/client.js");
+const { app } = await import("@/app.js");
+const { pool } = await import("@/database/client.js");
 
 let server: Server;
 let baseUrl: string;

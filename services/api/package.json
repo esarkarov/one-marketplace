@@ -10,7 +10,7 @@
   "scripts": {
     "openapi:generate": "tsx src/openapi/generate.ts",
     "dev": "tsx watch --env-file=../../.env src/server.ts",
-    "build": "node node_modules/@typescript/native/bin/tsc -p tsconfig.build.json --noEmit false",
+    "build": "node node_modules/@typescript/native/bin/tsc -p tsconfig.build.json --noEmit false && node scripts/rewrite-dist-aliases.mjs",
     "start": "node --env-file-if-exists=../../.env dist/server.js",
     "lint": "eslint",
     "typecheck": "node node_modules/@typescript/native/bin/tsc --noEmit && node node_modules/@typescript/native/bin/tsc --noEmit -p tsconfig.scripts.json",

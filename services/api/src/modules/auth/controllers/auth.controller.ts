@@ -1,14 +1,14 @@
 import { RequestHandler } from "express";
-import { ApiError } from "../../../shared/errors/api-error.js";
-import { ApiResponse } from "../../../types/common.types.js";
-import { asyncHandler } from "../../../middleware/utils/async-handler.utils.js";
-import { getValidated } from "../../../middleware/utils/validated-request.utils.js";
-import { signUpRequest } from "../schemas/auth.schema.js";
-import { receiveSignup } from "../services/auth.service.js";
+import { ApiError } from "@/shared/errors/api-error.js";
+import { ApiResponse } from "@/types/common.types.js";
+import { asyncHandler } from "@/middleware/utils/async-handler.utils.js";
+import { getValidated } from "@/middleware/utils/validated-request.utils.js";
+import { signUpRequest } from "@/modules/auth/schemas/auth.schema.js";
+import { receiveSignup } from "@/modules/auth/services/auth.service.js";
 import {
   authenticateAccount,
   getBearerToken,
-} from "../middleware/auth.middleware.js";
+} from "@/modules/auth/middleware/auth.middleware.js";
 
 interface AuthStatusData {
   role: "client" | "freelancer";

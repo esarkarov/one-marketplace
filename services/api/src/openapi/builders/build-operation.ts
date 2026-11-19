@@ -3,26 +3,26 @@ import type { z } from "zod";
 import {
   requireAdminSession,
   requireAdminSessionAllowingQueryToken,
-} from "../../middleware/auth/admin-session.middleware.js";
-import { convertSchema } from "../conversion/convert-schema.js";
-import { isObject } from "../utils/json.utils.js";
+} from "@/middleware/auth/admin-session.middleware.js";
+import { convertSchema } from "@/openapi/conversion/convert-schema.js";
+import { isObject } from "@/openapi/utils/json.utils.js";
 import {
   ADMIN_SESSION,
   CLERK_BEARER,
   COMPONENTS_PREFIX,
   CONTROLLER_AUTH_OVERRIDES,
   SIGNATURE_HEADERS,
-} from "../constants/openapi.constants.js";
+} from "@/openapi/constants/openapi.constants.js";
 import type {
   ComponentSchemas,
   Json,
   JsonObject,
-} from "../types/openapi.types.js";
+} from "@/openapi/types/openapi.types.js";
 import {
   routeKey,
   type RouteInfo,
-} from "../introspection/route-introspection.js";
-import type { ValidationSchemas } from "../../middleware/types/validate.types.js";
+} from "@/openapi/introspection/route-introspection.js";
+import type { ValidationSchemas } from "@/middleware/types/validate.types.js";
 
 const ADMIN_GUARDS: ReadonlySet<unknown> = new Set([
   requireAdminSession,

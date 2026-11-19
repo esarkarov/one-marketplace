@@ -1,5 +1,5 @@
 import type { Channel } from "amqplib";
-import type { NOTIFICATION_CREATED_TYPE } from "../constants/index.js";
+import type { NOTIFICATION_CREATED_TYPE } from "@/infrastructure/constants/index.js";
 
 export interface DailyRoom {
   id: string;

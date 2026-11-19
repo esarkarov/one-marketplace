@@ -5,13 +5,13 @@ import { describe, expect, it, vi } from "vitest";
 
 const secret = "s".repeat(32);
 
-vi.mock("../../config/env.js", () => ({
+vi.mock("@/config/env.js", () => ({
   env: { adminSessionSecret: "s".repeat(32) },
 }));
 
 const { requireAdminSession, requireAdminSessionAllowingQueryToken } =
   await import("./admin-session.middleware.js");
-const { errorHandler } = await import("../error/error.middleware.js");
+const { errorHandler } = await import("@/middleware/error/error.middleware.js");
 
 const token = (expiresAt = Date.now() + 60_000) => {
   const raw = String(expiresAt);

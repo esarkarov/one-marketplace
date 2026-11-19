@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ApiError } from "../errors/api-error.js";
+import { ApiError } from "@/shared/errors/api-error.js";
 import { MAX_LIVE_URL_LENGTH } from "./constants/portfolio-images.constants.js";
 import type { StoredImage } from "./types/portfolio-images.types.js";
 

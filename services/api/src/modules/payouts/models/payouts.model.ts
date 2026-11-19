@@ -9,9 +9,9 @@ import {
   timestamp,
   uuid,
 } from "drizzle-orm/pg-core";
-import { accounts } from "../../auth/models/auth.model.js";
-import { agency_metadata } from "../../agency/models/agency.model.js";
-import { earning_history } from "../../contracts/models/contracts.model.js";
+import { accounts } from "@/modules/auth/models/auth.model.js";
+import { agency_metadata } from "@/modules/agency/models/agency.model.js";
+import { earning_history } from "@/modules/contracts/models/contracts.model.js";
 
 export const payout_history = pgTable(
   "payout_history",

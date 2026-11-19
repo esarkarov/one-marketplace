@@ -35,7 +35,7 @@ describe("test support tables", () => {
         .filter(
           (entry) =>
             entry.source !==
-            `../../${tableFileOf(tableOwners[entry.name]!).replace(/\.ts$/, ".js")}`,
+            `@/${tableFileOf(tableOwners[entry.name]!).replace(/\.ts$/, ".js")}`,
         )
         .map((entry) => entry.name),
     ).toEqual([]);

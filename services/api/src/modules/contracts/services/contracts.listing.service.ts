@@ -1,17 +1,20 @@
-import { findAccountDisplays, findAccountPublicIds } from "../../auth/index.js";
-import { getAgencyIdForMember } from "../../agency/index.js";
+import {
+  findAccountDisplays,
+  findAccountPublicIds,
+} from "@/modules/auth/index.js";
+import { getAgencyIdForMember } from "@/modules/agency/index.js";
 import {
   listAccountContractIds,
   listAgencySummariesByIds,
   listContractRows,
-} from "../repositories/contracts.repository.js";
-import { db } from "../../../database/client.js";
-import { requirePublicId } from "../../../shared/ids/public-ids.js";
-import type { CounterpartyType } from "../constants/contracts.constants.js";
+} from "@/modules/contracts/repositories/contracts.repository.js";
+import { db } from "@/database/client.js";
+import { requirePublicId } from "@/shared/ids/public-ids.js";
+import type { CounterpartyType } from "@/modules/contracts/constants/contracts.constants.js";
 import {
   fetchSize,
   toOffsetPage,
-} from "../../../shared/validation/utils/pagination.utils.js";
+} from "@/shared/validation/utils/pagination.utils.js";
 
 export const getAccountContracts = async (
   userId: string,

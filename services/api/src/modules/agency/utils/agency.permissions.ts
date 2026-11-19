@@ -1,4 +1,4 @@
-import { STORED_MEMBER_ROLE } from "../constants/agency.constants.js";
+import { STORED_MEMBER_ROLE } from "@/modules/agency/constants/agency.constants.js";
 const OWNER_ENTRY = "owner";
 const BUSINESS_MANAGER_ROLE = STORED_MEMBER_ROLE.BUSINESS_MANAGER;
 

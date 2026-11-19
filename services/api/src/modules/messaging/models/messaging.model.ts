@@ -12,10 +12,10 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
-import { accounts } from "../../auth/models/auth.model.js";
-import { agency_metadata } from "../../agency/models/agency.model.js";
-import { job_posts } from "../../jobs/models/jobs.model.js";
-import { proposals } from "../../proposals/models/proposals.model.js";
+import { accounts } from "@/modules/auth/models/auth.model.js";
+import { agency_metadata } from "@/modules/agency/models/agency.model.js";
+import { job_posts } from "@/modules/jobs/models/jobs.model.js";
+import { proposals } from "@/modules/proposals/models/proposals.model.js";
 
 export const conversations = pgTable(
   "conversations",

@@ -2,8 +2,8 @@ import { z } from "zod";
 import {
   ok,
   requestIdField,
-} from "../../../shared/responses/api-envelope.responses.js";
-import { isoDateTime } from "../../../shared/responses/scalar.responses.js";
+} from "@/shared/responses/api-envelope.responses.js";
+import { isoDateTime } from "@/shared/responses/scalar.responses.js";
 
 export const healthResponses = {
   health: {

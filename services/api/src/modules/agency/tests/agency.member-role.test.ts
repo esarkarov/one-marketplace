@@ -4,7 +4,7 @@ import {
   STORED_MEMBER_ROLE,
   toApiMemberRole,
   toStoredMemberRole,
-} from "../constants/agency.constants.js";
+} from "@/modules/agency/constants/agency.constants.js";
 
 describe("member role mapping", () => {
   it("maps each API value to its stored value", () => {

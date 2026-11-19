@@ -1,16 +1,16 @@
 import { RequestHandler } from "express";
-import { ApiResponse } from "../../../types/common.types.js";
-import { ApiError } from "../../../shared/errors/api-error.js";
-import { asyncHandler } from "../../../middleware/utils/async-handler.utils.js";
-import { getValidated } from "../../../middleware/utils/validated-request.utils.js";
+import { ApiResponse } from "@/types/common.types.js";
+import { ApiError } from "@/shared/errors/api-error.js";
+import { asyncHandler } from "@/middleware/utils/async-handler.utils.js";
+import { getValidated } from "@/middleware/utils/validated-request.utils.js";
 import {
   requireClient,
   requireFreelancer,
-} from "../../../middleware/auth/role-guards.middleware.js";
+} from "@/middleware/auth/role-guards.middleware.js";
 import {
   createContractCheckout,
   createMilestoneFundingCheckout,
-} from "../services/contracts.checkout.service.js";
+} from "@/modules/contracts/services/contracts.checkout.service.js";
 import {
   acceptContractRequest,
   addMilestoneRequest,
@@ -23,23 +23,23 @@ import {
   reviewMilestoneRequest,
   submitMilestoneRequest,
   withdrawContractRequest,
-} from "../schemas/contracts.schema.js";
+} from "@/modules/contracts/schemas/contracts.schema.js";
 import {
   getAccountContracts,
   getFreelancerAccountContracts,
-} from "../services/contracts.listing.service.js";
+} from "@/modules/contracts/services/contracts.listing.service.js";
 import {
   acceptOffer,
   declineOffer,
   finishContractAsParty,
   withdrawOffer,
-} from "../services/contracts.lifecycle.service.js";
+} from "@/modules/contracts/services/contracts.lifecycle.service.js";
 import {
   addMilestone,
   reviewMilestone,
   submitMilestone,
-} from "../services/contracts.milestones.service.js";
-import { handleContractWebhook } from "../services/contracts.webhook.service.js";
+} from "@/modules/contracts/services/contracts.milestones.service.js";
+import { handleContractWebhook } from "@/modules/contracts/services/contracts.webhook.service.js";
 
 export const startContractCheckout: RequestHandler = asyncHandler(
   async (request, response) => {

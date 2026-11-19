@@ -9,14 +9,14 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@clerk/backend", () => ({ verifyToken: mocks.verifyToken }));
 
-vi.mock("../../../infrastructure/payments/stripe.client.js", () => ({
+vi.mock("@/infrastructure/payments/stripe.client.js", () => ({
   stripe: {
     webhooks: { constructEvent: vi.fn() },
     identity: { verificationSessions: { create: vi.fn() } },
   },
 }));
 
-vi.mock("../../../infrastructure/cache/redis.client.js", () => ({
+vi.mock("@/infrastructure/cache/redis.client.js", () => ({
   redis: {
     get: async (key: string) => mocks.store.get(key) ?? null,
     expire: async () => true,
@@ -29,7 +29,7 @@ vi.mock("../../../infrastructure/cache/redis.client.js", () => ({
   disconnectRedis: async () => undefined,
 }));
 
-vi.mock("../../../database/client.js", () => {
+vi.mock("@/database/client.js", () => {
   const chain = {
     from: () => chain,
     where: () => chain,
@@ -41,7 +41,7 @@ vi.mock("../../../database/client.js", () => {
   };
 });
 
-const { app } = await import("../../../app.js");
+const { app } = await import("@/app.js");
 
 const bearer = { Authorization: "Bearer test-token" };
 const path = "/api/v1/identity/session";

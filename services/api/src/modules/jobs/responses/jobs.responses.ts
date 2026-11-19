@@ -1,4 +1,4 @@
-import { JOB_STATUSES } from "../../../shared/validation/constants/status.constants.js";
+import { JOB_STATUSES } from "@/shared/validation/constants/status.constants.js";
 import { z } from "zod";
 import {
   ErrorBody,
@@ -7,11 +7,8 @@ import {
   requestIdField,
   okNoData,
   BadRequestBody,
-} from "../../../shared/responses/api-envelope.responses.js";
-import {
-  cents,
-  isoDateTime,
-} from "../../../shared/responses/scalar.responses.js";
+} from "@/shared/responses/api-envelope.responses.js";
+import { cents, isoDateTime } from "@/shared/responses/scalar.responses.js";
 
 const jobPostFields = {
   id: z.uuid(),

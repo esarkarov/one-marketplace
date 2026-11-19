@@ -1,9 +1,9 @@
 import { createHmac, timingSafeEqual } from "crypto";
-import type { AppLogger } from "../../../config/logger.js";
-import { env } from "../../../config/env.js";
-import { redis } from "../../../infrastructure/cache/redis.client.js";
-import { ApiError } from "../../../shared/errors/api-error.js";
-import { errorLogAttributes } from "../../../shared/logging/sanitize-log.js";
+import type { AppLogger } from "@/config/logger.js";
+import { env } from "@/config/env.js";
+import { redis } from "@/infrastructure/cache/redis.client.js";
+import { ApiError } from "@/shared/errors/api-error.js";
+import { errorLogAttributes } from "@/shared/logging/sanitize-log.js";
 import { endMeetingByRoomName } from "./meetings.service.js";
 
 interface DailyMeetingEndedEvent {

@@ -1,8 +1,8 @@
-import { env } from "../../../config/env.js";
+import { env } from "@/config/env.js";
 import {
   verifyStripeWebhook,
   type StripeWebhookRequest,
-} from "../../../infrastructure/payments/stripe.webhook.js";
+} from "@/infrastructure/payments/stripe.webhook.js";
 import { completeIdentityVerification } from "./identity.service.js";
 
 export const handleIdentityWebhook = async (

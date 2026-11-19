@@ -1,20 +1,23 @@
-import { logger } from "../../../config/logger.js";
-import { db } from "../../../database/client.js";
-import { isUniqueViolation } from "../../../database/pg-errors.js";
-import { appendJobMilestone } from "../../jobs/index.js";
-import { ApiError } from "../../../shared/errors/api-error.js";
-import { splitFee } from "../../../shared/money/money.js";
-import { sendNotification } from "../../../infrastructure/events/notification.publisher.js";
+import { logger } from "@/config/logger.js";
+import { db } from "@/database/client.js";
+import { isUniqueViolation } from "@/database/pg-errors.js";
+import { appendJobMilestone } from "@/modules/jobs/index.js";
+import { ApiError } from "@/shared/errors/api-error.js";
+import { splitFee } from "@/shared/money/money.js";
+import { sendNotification } from "@/infrastructure/events/notification.publisher.js";
 import {
   appendConversationMessages,
   emitConversationUpdate,
-} from "../../messaging/index.js";
-import { getAgencyIdForMember, getAgencyOwnerId } from "../../agency/index.js";
+} from "@/modules/messaging/index.js";
+import {
+  getAgencyIdForMember,
+  getAgencyOwnerId,
+} from "@/modules/agency/index.js";
 import {
   findContractForNewMilestone,
   findMilestoneForReview,
   findMilestoneForSubmission,
-} from "../repositories/contracts.repository.js";
+} from "@/modules/contracts/repositories/contracts.repository.js";
 import {
   addAgencyEarning,
   addClientSpent,
@@ -26,7 +29,7 @@ import {
   markMilestoneReviewedIfAwaitingReview,
   markMilestoneSubmittedIfActiveAndFunded,
   readMilestoneAppendState,
-} from "../repositories/contracts.state.repository.js";
+} from "@/modules/contracts/repositories/contracts.state.repository.js";
 
 const milestoneAddNotAllowed = () =>
   new ApiError(

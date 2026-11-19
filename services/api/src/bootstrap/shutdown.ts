@@ -1,15 +1,15 @@
-import { logger, rootLogger } from "../config/logger.js";
-import { pool } from "../database/client.js";
-import { disconnectRedis } from "../infrastructure/cache/redis.client.js";
-import { closeRabbit } from "../infrastructure/events/rabbitmq.client.js";
-import { stopNotificationConsumer } from "../modules/notifications/notifications.consumer.js";
-import { closeMessagingSocket } from "../modules/messaging/messaging.socket.js";
+import { logger, rootLogger } from "@/config/logger.js";
+import { pool } from "@/database/client.js";
+import { disconnectRedis } from "@/infrastructure/cache/redis.client.js";
+import { closeRabbit } from "@/infrastructure/events/rabbitmq.client.js";
+import { stopNotificationConsumer } from "@/modules/notifications/notifications.consumer.js";
+import { closeMessagingSocket } from "@/modules/messaging/messaging.socket.js";
 import {
   stopPayoutCron,
   waitForPayoutRun,
-} from "../modules/payouts/payouts.cron.js";
-import { closeAllSseStreams } from "../middleware/utils/sse-streams.utils.js";
-import { errorLogAttributes } from "../shared/logging/sanitize-log.js";
+} from "@/modules/payouts/payouts.cron.js";
+import { closeAllSseStreams } from "@/middleware/utils/sse-streams.utils.js";
+import { errorLogAttributes } from "@/shared/logging/sanitize-log.js";
 import { getHttpServer } from "./http-server.js";
 
 let isShuttingDown = false;

@@ -4,8 +4,8 @@ import {
   connectRedis,
   disconnectRedis,
   redis,
-} from "../../infrastructure/cache/redis.client.js";
-import { RedisRateLimitStore } from "../utils/redis-rate-limit-store.utils.js";
+} from "@/infrastructure/cache/redis.client.js";
+import { RedisRateLimitStore } from "@/middleware/utils/redis-rate-limit-store.utils.js";
 
 const RUN = `it-${randomUUID()}`;
 const WINDOW = 60_000;

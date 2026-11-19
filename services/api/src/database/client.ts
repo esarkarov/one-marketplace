@@ -1,8 +1,8 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
-import { env } from "../config/env.js";
-import { logger } from "../config/logger.js";
-import { errorMessageForLog } from "../shared/logging/sanitize-log.js";
+import { env } from "@/config/env.js";
+import { logger } from "@/config/logger.js";
+import { errorMessageForLog } from "@/shared/logging/sanitize-log.js";
 import {
   POOL_CONNECTION_TIMEOUT_MS,
   POOL_IDLE_IN_TRANSACTION_TIMEOUT_MS,

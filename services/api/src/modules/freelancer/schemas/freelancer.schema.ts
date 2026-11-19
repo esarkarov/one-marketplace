@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { RequestSchemas } from "../../../middleware/types/validate.types.js";
+import type { RequestSchemas } from "@/middleware/types/validate.types.js";
 
 import {
   authRoleShape,
@@ -8,14 +8,14 @@ import {
   pagingDigits,
   uuidParams,
   withIgnoredKeys,
-} from "../../../shared/validation/schemas/common.schema.js";
-import { moneyCents } from "../../../shared/money/money.js";
-import { centsQueryParam } from "../../../shared/validation/schemas/money.schema.js";
-import { paginationShape } from "../../../shared/validation/schemas/pagination.schema.js";
-import { searchPagingShape } from "../../../shared/validation/schemas/search.schema.js";
-import { FREELANCER_LIMITS } from "../constants/freelancer.constants.js";
-import { JOB_LIMITS } from "../../../shared/validation/constants/job.constants.js";
-import { MAX_LIVE_URL_LENGTH } from "../../../shared/uploads/constants/portfolio-images.constants.js";
+} from "@/shared/validation/schemas/common.schema.js";
+import { moneyCents } from "@/shared/money/money.js";
+import { centsQueryParam } from "@/shared/validation/schemas/money.schema.js";
+import { paginationShape } from "@/shared/validation/schemas/pagination.schema.js";
+import { searchPagingShape } from "@/shared/validation/schemas/search.schema.js";
+import { FREELANCER_LIMITS } from "@/modules/freelancer/constants/freelancer.constants.js";
+import { JOB_LIMITS } from "@/shared/validation/constants/job.constants.js";
+import { MAX_LIVE_URL_LENGTH } from "@/shared/uploads/constants/portfolio-images.constants.js";
 
 export const MIN_HOURLY_RATE_CENTS = 500;
 export const MAX_HOURLY_RATE_CENTS = 100_000;

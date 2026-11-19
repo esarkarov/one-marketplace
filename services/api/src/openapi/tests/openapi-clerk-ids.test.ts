@@ -4,10 +4,10 @@ import {
   identifyAccount,
   isAuthenticated,
   verifyBearerToken,
-} from "../../routes/index.js";
-import { createOpenApiDocument } from "../document.js";
-import { isObject } from "../utils/json.utils.js";
-import type { JsonObject } from "../types/openapi.types.js";
+} from "@/routes/index.js";
+import { createOpenApiDocument } from "@/openapi/document.js";
+import { isObject } from "@/openapi/utils/json.utils.js";
+import type { JsonObject } from "@/openapi/types/openapi.types.js";
 
 const FORBIDDEN = new Set(["authId", "auth_id", "clerkId", "clerk_id"]);
 

@@ -1,6 +1,6 @@
 import ImageKit from "@imagekit/nodejs";
-import { env } from "../../config/env.js";
-import { createLazyClient } from "../utils/lazy-client.utils.js";
+import { env } from "@/config/env.js";
+import { createLazyClient } from "@/infrastructure/utils/lazy-client.utils.js";
 
 export const imageKit = createLazyClient(() => {
   if (!env.imageKitPrivateKey) {

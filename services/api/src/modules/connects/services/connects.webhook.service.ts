@@ -1,10 +1,10 @@
-import { env } from "../../../config/env.js";
+import { env } from "@/config/env.js";
 import {
   verifyStripeWebhook,
   type StripeWebhookRequest,
-} from "../../../infrastructure/payments/stripe.webhook.js";
-import { CONNECTS_PLANS } from "../constants/connects.constants.js";
-import { isConnectsPlan } from "../utils/connects.plans.js";
+} from "@/infrastructure/payments/stripe.webhook.js";
+import { CONNECTS_PLANS } from "@/modules/connects/constants/connects.constants.js";
+import { isConnectsPlan } from "@/modules/connects/utils/connects.plans.js";
 import {
   completeAgencyConnectsPurchase,
   completeConnectsPurchase,

@@ -20,7 +20,7 @@ const state = vi.hoisted(() => ({
   emitAgency: vi.fn(),
 }));
 
-vi.mock("../../database/client.js", () => ({
+vi.mock("@/database/client.js", () => ({
   db: {
     insert: () => ({
       values: (value: { event_id: string; recipient_id: string | null }) => {
@@ -49,7 +49,7 @@ vi.mock("../../database/client.js", () => ({
   pool: { query: async () => ({ rows: [] }) },
 }));
 
-vi.mock("../../modules/notifications/services/notifications.sse.js", () => ({
+vi.mock("@/modules/notifications/services/notifications.sse.js", () => ({
   emitNotification: state.emit,
   emitAgencyNotification: state.emitAgency,
 }));
@@ -67,14 +67,14 @@ const isLocal = (() => {
 const { createRabbitChannel, createRabbitConnection } =
   await import("./rabbitmq.client.js");
 const { createNotificationConsumer } =
-  await import("../../modules/notifications/notifications.consumer.js");
+  await import("@/modules/notifications/notifications.consumer.js");
 const { createNotificationEnvelope } =
   await import("./notification.envelope.js");
 const { publishNotificationEnvelope } =
   await import("./notification.publisher.js");
 const { topologyNames } = await import("./notification.topology.js");
 const { NOTIFICATIONS_CREATED_ROUTING_KEY } =
-  await import("../constants/index.js");
+  await import("@/infrastructure/constants/index.js");
 
 const prefix = `it-${randomUUID().slice(0, 8)}.`;
 const names = topologyNames(prefix);

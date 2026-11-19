@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ApiError } from "../../errors/api-error.js";
+import { ApiError } from "@/shared/errors/api-error.js";
 import { requireText, requireWebsite } from "./require-text.utils.js";
 
 const failure = (run: () => unknown) => {

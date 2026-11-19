@@ -60,9 +60,14 @@ export const isTestKey = (key: string) =>
 export const resolveImport = (
   from: string,
   specifier: string,
+  root = srcDir,
 ): string | null => {
-  if (!specifier.startsWith(".")) return null;
-  const base = path.resolve(path.dirname(from), specifier);
+  const base = specifier.startsWith("@/")
+    ? path.join(root, specifier.slice(2))
+    : specifier.startsWith(".")
+      ? path.resolve(path.dirname(from), specifier)
+      : null;
+  if (!base) return null;
   for (const candidate of [
     base.replace(/\.js$/, ".ts"),
     `${base}.ts`,
@@ -242,7 +247,7 @@ export const analyzeTableAccess = (
 
     const targetOf = (specifier: ts.Expression | undefined) => {
       if (!specifier || !ts.isStringLiteralLike(specifier)) return null;
-      const resolved = resolveImport(file, specifier.text);
+      const resolved = resolveImport(file, specifier.text, root);
       return resolved && isTableSource(toKey(root, resolved)) ? resolved : null;
     };
 

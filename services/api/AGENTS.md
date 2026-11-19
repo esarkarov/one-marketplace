@@ -1,6 +1,6 @@
 # services/api
 
-Express 5 modular monolith. Package name: `@onemarketplace/api`. ESM; import local files with `.js` suffixes. Tutorial code currently sits flat under `services/` and is being moved here module by module (`docs/decisions/0003-api-migration.md`). It is the product source of truth: read a module fully before changing it.
+Express 5 modular monolith. Package name: `@onemarketplace/api`. ESM; import across directories with `@/` (the `src` root) and siblings with `./`, always with `.js` suffixes; `../` is not allowed (`docs/decisions/0020-import-aliases.md`). Tutorial code currently sits flat under `services/` and is being moved here module by module (`docs/decisions/0003-api-migration.md`). It is the product source of truth: read a module fully before changing it.
 
 ## Layout
 

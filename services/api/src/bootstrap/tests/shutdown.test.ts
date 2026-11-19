@@ -18,11 +18,11 @@ const hoisted = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("../http-server.js", () => ({
+vi.mock("@/bootstrap/http-server.js", () => ({
   getHttpServer: () => hoisted.server.current,
 }));
 
-vi.mock("../../config/logger.js", () => ({
+vi.mock("@/config/logger.js", () => ({
   logger: {
     info: vi.fn().mockResolvedValue(undefined),
     warn: hoisted.warn,
@@ -31,22 +31,22 @@ vi.mock("../../config/logger.js", () => ({
   },
   rootLogger: { flush: (done: () => void) => done() },
 }));
-vi.mock("../../database/client.js", () => ({
+vi.mock("@/database/client.js", () => ({
   pool: { end: hoisted.poolEnd },
 }));
-vi.mock("../../infrastructure/cache/redis.client.js", () => ({
+vi.mock("@/infrastructure/cache/redis.client.js", () => ({
   disconnectRedis: vi.fn(),
 }));
-vi.mock("../../infrastructure/events/rabbitmq.client.js", () => ({
+vi.mock("@/infrastructure/events/rabbitmq.client.js", () => ({
   closeRabbit: vi.fn(),
 }));
-vi.mock("../../modules/notifications/notifications.consumer.js", () => ({
+vi.mock("@/modules/notifications/notifications.consumer.js", () => ({
   stopNotificationConsumer: vi.fn(),
 }));
-vi.mock("../../modules/messaging/messaging.socket.js", () => ({
+vi.mock("@/modules/messaging/messaging.socket.js", () => ({
   closeMessagingSocket: vi.fn(),
 }));
-vi.mock("../../modules/payouts/payouts.cron.js", () => ({
+vi.mock("@/modules/payouts/payouts.cron.js", () => ({
   stopPayoutCron: async () => {
     hoisted.order.push("stop-cron");
   },
@@ -89,7 +89,7 @@ describe("shutdown payout drain", () => {
         };
       }),
     );
-    const { shutdown } = await import("../shutdown.js");
+    const { shutdown } = await import("@/bootstrap/shutdown.js");
 
     const done = shutdown("SIGINT");
     await flush();
@@ -109,7 +109,7 @@ describe("shutdown payout drain", () => {
       new Promise<void>(() => undefined),
     );
     const { shutdown, PAYOUT_DRAIN_TIMEOUT_MS } =
-      await import("../shutdown.js");
+      await import("@/bootstrap/shutdown.js");
 
     const done = shutdown("SIGTERM");
     await vi.advanceTimersByTimeAsync(PAYOUT_DRAIN_TIMEOUT_MS - 1);
@@ -125,7 +125,7 @@ describe("shutdown payout drain", () => {
 
   it("keeps the drain bound below the forced-exit timeout", async () => {
     const { PAYOUT_DRAIN_TIMEOUT_MS, SHUTDOWN_TIMEOUT_MS } =
-      await import("../shutdown.js");
+      await import("@/bootstrap/shutdown.js");
     expect(PAYOUT_DRAIN_TIMEOUT_MS).toBeGreaterThan(0);
     expect(PAYOUT_DRAIN_TIMEOUT_MS).toBeLessThan(SHUTDOWN_TIMEOUT_MS);
   });
@@ -178,8 +178,8 @@ describe("shutdown SSE streams", () => {
   };
 
   it("stops listening, ends streams, then drains payouts", async () => {
-    const sse = await import("../../middleware/utils/sse-streams.utils.js");
-    const { shutdown } = await import("../shutdown.js");
+    const sse = await import("@/middleware/utils/sse-streams.utils.js");
+    const { shutdown } = await import("@/bootstrap/shutdown.js");
     const stream = fakeStream();
     sse.registerSseStream(stream as unknown as Response);
 
@@ -207,9 +207,9 @@ describe("shutdown SSE streams", () => {
     hoisted.waitForPayoutRun.mockReturnValue(
       new Promise<void>(() => undefined),
     );
-    const sse = await import("../../middleware/utils/sse-streams.utils.js");
+    const sse = await import("@/middleware/utils/sse-streams.utils.js");
     const { shutdown, PAYOUT_DRAIN_TIMEOUT_MS } =
-      await import("../shutdown.js");
+      await import("@/bootstrap/shutdown.js");
     const stream = fakeStream();
     sse.registerSseStream(stream as unknown as Response);
 
@@ -225,8 +225,8 @@ describe("shutdown SSE streams", () => {
   });
 
   it("does not write twice when shutdown runs twice", async () => {
-    const sse = await import("../../middleware/utils/sse-streams.utils.js");
-    const { shutdown } = await import("../shutdown.js");
+    const sse = await import("@/middleware/utils/sse-streams.utils.js");
+    const { shutdown } = await import("@/bootstrap/shutdown.js");
     const stream = fakeStream();
     sse.registerSseStream(stream as unknown as Response);
 
@@ -238,8 +238,8 @@ describe("shutdown SSE streams", () => {
   });
 
   it("answers new SSE requests with 503 and Retry-After once shutdown started", async () => {
-    const sse = await import("../../middleware/utils/sse-streams.utils.js");
-    const { shutdown } = await import("../shutdown.js");
+    const sse = await import("@/middleware/utils/sse-streams.utils.js");
+    const { shutdown } = await import("@/bootstrap/shutdown.js");
     await shutdown("SIGTERM");
 
     const headers: Record<string, string> = {};

@@ -1,4 +1,4 @@
-import type { ValidationPart } from "../types/validate.types.js";
+import type { ValidationPart } from "@/middleware/types/validate.types.js";
 
 export const VALIDATION_SCHEMAS = Symbol("onemarketplace.validation-schemas");
 

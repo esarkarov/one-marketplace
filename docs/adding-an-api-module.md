@@ -1,6 +1,6 @@
 # Adding an API module or route
 
-On-demand checklist for `services/api`. Rules and rationale: `services/api/AGENTS.md` and `docs/decisions/0013-api-source-layout-and-import-boundaries.md`. Paths are relative to `services/api/src`.
+On-demand checklist for `services/api`. Rules and rationale: `services/api/AGENTS.md` and `docs/decisions/0013-api-source-layout-and-import-boundaries.md`. Paths are relative to `services/api/src`. Import across directories with `@/modules/...` and the like, siblings with `./` (ADR 0020).
 
 ## New module
 

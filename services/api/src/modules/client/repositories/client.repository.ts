@@ -1,8 +1,8 @@
 import { and, asc, count, desc, eq, inArray, sql } from "drizzle-orm";
 import { unionAll } from "drizzle-orm/pg-core";
-import type { DbExecutor } from "../../../database/database.types.js";
-import type { SaveClientProfileInput } from "../types/client.types.js";
-import { accounts } from "../../auth/models/auth.model.js";
+import type { DbExecutor } from "@/database/database.types.js";
+import type { SaveClientProfileInput } from "@/modules/client/types/client.types.js";
+import { accounts } from "@/modules/auth/models/auth.model.js";
 import {
   agency_earning,
   client_spents,
@@ -10,17 +10,17 @@ import {
   contracts,
   freelancer_earning,
   reviews,
-} from "../../contracts/models/contracts.model.js";
-import { agency_metadata } from "../../agency/models/agency.model.js";
-import { client_metadata } from "../models/client.model.js";
+} from "@/modules/contracts/models/contracts.model.js";
+import { agency_metadata } from "@/modules/agency/models/agency.model.js";
+import { client_metadata } from "@/modules/client/models/client.model.js";
 import {
   conversation_participants,
   messages,
-} from "../../messaging/models/messaging.model.js";
-import { freelancer_metadata } from "../../freelancer/models/freelancer.model.js";
-import { job_posts } from "../../jobs/models/jobs.model.js";
-import { proposals } from "../../proposals/models/proposals.model.js";
-import { matchAllTerms } from "../../../shared/search/search-conditions.repository.js";
+} from "@/modules/messaging/models/messaging.model.js";
+import { freelancer_metadata } from "@/modules/freelancer/models/freelancer.model.js";
+import { job_posts } from "@/modules/jobs/models/jobs.model.js";
+import { proposals } from "@/modules/proposals/models/proposals.model.js";
+import { matchAllTerms } from "@/shared/search/search-conditions.repository.js";
 
 export const findClientProfile = async (
   executor: DbExecutor,

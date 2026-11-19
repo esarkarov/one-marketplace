@@ -1,8 +1,8 @@
 import { z } from "zod";
-import type { RequestSchemas } from "../../../middleware/types/validate.types.js";
-import { isConnectsPlan } from "../utils/connects.plans.js";
-import { authRoleShape } from "../../../shared/validation/schemas/common.schema.js";
-import { roleListQuerySchema } from "../../../shared/validation/schemas/pagination.schema.js";
+import type { RequestSchemas } from "@/middleware/types/validate.types.js";
+import { isConnectsPlan } from "@/modules/connects/utils/connects.plans.js";
+import { authRoleShape } from "@/shared/validation/schemas/common.schema.js";
+import { roleListQuerySchema } from "@/shared/validation/schemas/pagination.schema.js";
 
 const PLAN_ERROR = "Select a valid Connects package.";
 

@@ -1,4 +1,4 @@
-import { COMMON_LIMITS } from "../constants/validation.constants.js";
+import { COMMON_LIMITS } from "@/shared/validation/constants/validation.constants.js";
 
 export const isValidEmail = (value: string): boolean => {
   if (value.length > COMMON_LIMITS.email || /\s/.test(value)) return false;

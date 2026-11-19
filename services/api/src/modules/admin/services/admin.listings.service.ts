@@ -2,12 +2,12 @@ import {
   ADMIN_ACCOUNT_TYPE,
   type AdminAccountType,
   ADMIN_TALENT_KIND,
-} from "../constants/admin.constants.js";
-import { clerk } from "../../../infrastructure/auth/clerk.client.js";
-import { db } from "../../../database/client.js";
-import { env } from "../../../config/env.js";
-import { requirePublicId } from "../../../shared/ids/public-ids.js";
-import { findAccountPublicIds } from "../../auth/index.js";
+} from "@/modules/admin/constants/admin.constants.js";
+import { clerk } from "@/infrastructure/auth/clerk.client.js";
+import { db } from "@/database/client.js";
+import { env } from "@/config/env.js";
+import { requirePublicId } from "@/shared/ids/public-ids.js";
+import { findAccountPublicIds } from "@/modules/auth/index.js";
 import {
   listAccountsWithCompany,
   listAgenciesWithOwner,
@@ -20,17 +20,17 @@ import {
   listPaidPayouts,
   listProposalsPage,
   listRecentEarnings,
-} from "../repositories/admin.repository.js";
+} from "@/modules/admin/repositories/admin.repository.js";
 import {
   Pagination,
   AdminAccountRow,
   AdminTransactionRow,
-} from "../types/admin.types.js";
+} from "@/modules/admin/types/admin.types.js";
 import {
   fetchSize,
   toOffsetPage,
-} from "../../../shared/validation/utils/pagination.utils.js";
-import { mergePages } from "../utils/admin.pagination.js";
+} from "@/shared/validation/utils/pagination.utils.js";
+import { mergePages } from "@/modules/admin/utils/admin.pagination.js";
 
 const clerkNames = async (authIds: string[]) => {
   const unique = [...new Set(authIds)];

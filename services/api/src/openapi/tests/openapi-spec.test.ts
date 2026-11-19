@@ -1,33 +1,33 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { env, parseEnv } from "../../config/env.js";
+import { env, parseEnv } from "@/config/env.js";
 import {
   apiRouter,
   identifyAccount,
   isAuthenticated,
   verifyBearerToken,
-} from "../../routes/index.js";
-import { contractAllowlist } from "../introspection/contract-allowlist.js";
-import { routeKey } from "../introspection/route-introspection.js";
-import { publicRoutes } from "../../test/architecture/routing/validation-allowlist.js";
+} from "@/routes/index.js";
+import { contractAllowlist } from "@/openapi/introspection/contract-allowlist.js";
+import { routeKey } from "@/openapi/introspection/route-introspection.js";
+import { publicRoutes } from "@/test/architecture/routing/validation-allowlist.js";
 import {
   CONTROLLER_AUTH_OVERRIDES,
   DEFAULT_PORT,
-} from "../constants/openapi.constants.js";
-import { toOpenApiPath } from "../utils/openapi-naming.utils.js";
+} from "@/openapi/constants/openapi.constants.js";
+import { toOpenApiPath } from "@/openapi/utils/openapi-naming.utils.js";
 import {
   OPENAPI_FILE,
   collectApiRoutes,
   createOpenApiDocument,
   createOpenApiText,
-} from "../document.js";
-import { isObject } from "../utils/json.utils.js";
-import type { Json, JsonObject } from "../types/openapi.types.js";
+} from "@/openapi/document.js";
+import { isObject } from "@/openapi/utils/json.utils.js";
+import type { Json, JsonObject } from "@/openapi/types/openapi.types.js";
 import {
   findEmptySchemas,
   walkDocumentSchemas,
   walkSchema,
-} from "../utils/schema-traversal.utils.js";
+} from "@/openapi/utils/schema-traversal.utils.js";
 
 const METHODS = ["get", "post", "put", "patch", "delete"];
 const routes = collectApiRoutes(apiRouter);

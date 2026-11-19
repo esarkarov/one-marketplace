@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { fakeStripeKey } from "../../../test/support/fake-secrets.js";
+import { fakeStripeKey } from "@/test/support/fake-secrets.js";
 import {
   bumpIdempotencyKey,
   classifyPayoutFailure,
   retryDelaySeconds,
-} from "../utils/payouts.failure.js";
+} from "@/modules/payouts/utils/payouts.failure.js";
 
 const stripeError = (type: string, statusCode?: number, code?: string) =>
   Object.assign(

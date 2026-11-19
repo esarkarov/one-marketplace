@@ -1,14 +1,14 @@
-import { redis } from "../../../infrastructure/cache/redis.client.js";
-import { getRabbitStatus } from "../../../infrastructure/events/rabbitmq.client.js";
-import { logger } from "../../../config/logger.js";
-import { errorLogAttributes } from "../../../shared/logging/sanitize-log.js";
-import { ApiError } from "../../../shared/errors/api-error.js";
+import { redis } from "@/infrastructure/cache/redis.client.js";
+import { getRabbitStatus } from "@/infrastructure/events/rabbitmq.client.js";
+import { logger } from "@/config/logger.js";
+import { errorLogAttributes } from "@/shared/logging/sanitize-log.js";
+import { ApiError } from "@/shared/errors/api-error.js";
 import {
   isAllowedRedisKey,
   REDIS_REDACTED_PREFIX,
   REDIS_REDACTED_VALUE,
-} from "../schemas/admin.redis.schema.js";
-import { pingDatabase } from "../../health/index.js";
+} from "@/modules/admin/schemas/admin.redis.schema.js";
+import { pingDatabase } from "@/modules/health/index.js";
 
 export const getSystemHealth = async () => {
   const startedAt = Date.now();

@@ -1,14 +1,14 @@
-import { env } from "../../../config/env.js";
-import { logger } from "../../../config/logger.js";
-import { db } from "../../../database/client.js";
-import { clerk } from "../../../infrastructure/auth/clerk.client.js";
-import { CLERK_DISPLAY_SYNC_TIMEOUT_MS } from "../constants/auth.constants.js";
+import { env } from "@/config/env.js";
+import { logger } from "@/config/logger.js";
+import { db } from "@/database/client.js";
+import { clerk } from "@/infrastructure/auth/clerk.client.js";
+import { CLERK_DISPLAY_SYNC_TIMEOUT_MS } from "@/modules/auth/constants/auth.constants.js";
 import {
   findAccountDisplay,
   listAccountDisplays,
   updateAccountDisplay,
-} from "../repositories/auth.repository.js";
-import type { AccountDisplay } from "../types/auth.types.js";
+} from "@/modules/auth/repositories/auth.repository.js";
+import type { AccountDisplay } from "@/modules/auth/types/auth.types.js";
 
 interface ClerkDisplaySource {
   firstName: string | null;

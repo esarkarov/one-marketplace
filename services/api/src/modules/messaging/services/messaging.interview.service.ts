@@ -1,15 +1,15 @@
-import type { DbExecutor } from "../../../database/database.types.js";
-import { ApiError } from "../../../shared/errors/api-error.js";
+import type { DbExecutor } from "@/database/database.types.js";
+import { ApiError } from "@/shared/errors/api-error.js";
 import {
   insertOrFindConversationByContextKey,
   setConversationLastMessage,
-} from "../repositories/messaging.conversations.repository.js";
-import { insertMessages } from "../repositories/messaging.messages.repository.js";
+} from "@/modules/messaging/repositories/messaging.conversations.repository.js";
+import { insertMessages } from "@/modules/messaging/repositories/messaging.messages.repository.js";
 import {
   incrementUnreadCounts,
   insertConversationParticipantsIfAbsent,
   resetClientReadState,
-} from "../repositories/messaging.participants.repository.js";
+} from "@/modules/messaging/repositories/messaging.participants.repository.js";
 
 export const openInterviewConversation = async (
   executor: DbExecutor,

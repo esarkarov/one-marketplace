@@ -4,7 +4,7 @@ import {
   DEFAULT_JSON_LIMIT,
   LARGE_BODY_ROUTES,
   LARGE_JSON_LIMIT,
-} from "../constants/json-body.constants.js";
+} from "@/middleware/constants/json-body.constants.js";
 
 export const isLargeBodyRoute = (method: string, path: string): boolean =>
   LARGE_BODY_ROUTES.some(

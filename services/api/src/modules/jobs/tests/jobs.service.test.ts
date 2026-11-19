@@ -11,15 +11,15 @@ const mocks = vi.hoisted(() => ({
   logError: vi.fn(),
 }));
 
-vi.mock("../../../config/env.js", () => ({
+vi.mock("@/config/env.js", () => ({
   env: { imageKitPrivateKey: "ik_test", nodeEnv: "test" },
 }));
 
-vi.mock("../../../config/logger.js", () => ({
+vi.mock("@/config/logger.js", () => ({
   logger: { error: mocks.logError, warn: async () => undefined },
 }));
 
-vi.mock("../../../infrastructure/storage/image-kit.client.js", () => ({
+vi.mock("@/infrastructure/storage/image-kit.client.js", () => ({
   imageKit: {
     files: { upload: mocks.upload, delete: mocks.deleteFile },
   },
@@ -27,7 +27,7 @@ vi.mock("../../../infrastructure/storage/image-kit.client.js", () => ({
 
 vi.mock("@clerk/backend", () => ({ createClerkClient: () => ({}) }));
 
-vi.mock("../../../database/client.js", () => {
+vi.mock("@/database/client.js", () => {
   const chain: Record<string, unknown> = {};
   for (const method of ["select", "from", "where", "update", "set"]) {
     chain[method] = () => chain;
@@ -40,9 +40,9 @@ vi.mock("../../../database/client.js", () => {
   return { db: chain };
 });
 
-const { updateJobPost } = await import("../services/jobs.service.js");
-const { errorHandler } =
-  await import("../../../middleware/error/error.middleware.js");
+const { updateJobPost } =
+  await import("@/modules/jobs/services/jobs.service.js");
+const { errorHandler } = await import("@/middleware/error/error.middleware.js");
 
 const existingJob = { id: "job_1", attachments: [] };
 const newAttachment = {

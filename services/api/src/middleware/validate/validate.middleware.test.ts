@@ -5,9 +5,9 @@ import { z } from "zod";
 import {
   uuidParams,
   withIgnoredKeys,
-} from "../../shared/validation/schemas/common.schema.js";
-import { errorHandler } from "../error/error.middleware.js";
-import { VALIDATION_SCHEMAS } from "../constants/validate.constants.js";
+} from "@/shared/validation/schemas/common.schema.js";
+import { errorHandler } from "@/middleware/error/error.middleware.js";
+import { VALIDATION_SCHEMAS } from "@/middleware/constants/validate.constants.js";
 import { getValidationSchemas, validate } from "./validate.middleware.js";
 
 const itemsValidator = validate({

@@ -1,10 +1,10 @@
-import { EARNINGS_HOLD_PERIOD_MS } from "../constants/payouts.constants.js";
-import { stripe } from "../../../infrastructure/payments/stripe.client.js";
-import { db } from "../../../database/client.js";
-import { sendNotification } from "../../../infrastructure/events/notification.publisher.js";
-import { logger } from "../../../config/logger.js";
-import { formatUsd } from "../../../shared/money/money.js";
-import { uuidV5 } from "../../../shared/ids/uuid-v5.js";
+import { EARNINGS_HOLD_PERIOD_MS } from "@/modules/payouts/constants/payouts.constants.js";
+import { stripe } from "@/infrastructure/payments/stripe.client.js";
+import { db } from "@/database/client.js";
+import { sendNotification } from "@/infrastructure/events/notification.publisher.js";
+import { logger } from "@/config/logger.js";
+import { formatUsd } from "@/shared/money/money.js";
+import { uuidV5 } from "@/shared/ids/uuid-v5.js";
 import {
   bumpIdempotencyKey,
   classifyPayoutFailure,
@@ -12,7 +12,7 @@ import {
   PAYOUT_MAX_ATTEMPTS,
   retryDelaySeconds,
   type PayoutFailure,
-} from "../utils/payouts.failure.js";
+} from "@/modules/payouts/utils/payouts.failure.js";
 import {
   claimPayoutIfClaimableSkipLocked,
   failProcessingPayoutIfAttemptsMatch,
@@ -23,7 +23,7 @@ import {
   markProcessingPayoutPaidIfAttemptsMatch,
   parkProcessingPayoutIfAttemptsMatch,
   type PayoutRecord,
-} from "../repositories/payouts.repository.js";
+} from "@/modules/payouts/repositories/payouts.repository.js";
 
 const TRANSFER_LIST_LIMIT = 10;
 

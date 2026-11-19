@@ -9,7 +9,7 @@ const mocks = vi.hoisted(() => ({
   get: vi.fn(),
 }));
 
-vi.mock("../../../infrastructure/cache/redis.client.js", () => ({
+vi.mock("@/infrastructure/cache/redis.client.js", () => ({
   redis: {
     scan: mocks.scan,
     type: mocks.type,
@@ -18,21 +18,21 @@ vi.mock("../../../infrastructure/cache/redis.client.js", () => ({
   },
 }));
 
-vi.mock("../../../infrastructure/events/rabbitmq.client.js", () => ({
+vi.mock("@/infrastructure/events/rabbitmq.client.js", () => ({
   getRabbitStatus: () => ({ ok: false }),
 }));
 
-vi.mock("../../../database/client.js", () => ({
+vi.mock("@/database/client.js", () => ({
   db: {},
   pool: { end: async () => undefined },
 }));
 
-vi.mock("../../../middleware/rate-limit/rate-limit.middleware.js", () => ({
+vi.mock("@/middleware/rate-limit/rate-limit.middleware.js", () => ({
   adminLimiter: (_req: unknown, _res: unknown, next: () => void) => next(),
   adminLoginLimiter: (_req: unknown, _res: unknown, next: () => void) => next(),
 }));
 
-vi.mock("../../../middleware/auth/admin-session.middleware.js", () => {
+vi.mock("@/middleware/auth/admin-session.middleware.js", () => {
   const passThrough = (_req: unknown, _res: unknown, next: () => void) =>
     next();
   return {
@@ -41,9 +41,8 @@ vi.mock("../../../middleware/auth/admin-session.middleware.js", () => {
   };
 });
 
-const { adminRouter } = await import("../admin.route.js");
-const { errorHandler } =
-  await import("../../../middleware/error/error.middleware.js");
+const { adminRouter } = await import("@/modules/admin/admin.route.js");
+const { errorHandler } = await import("@/middleware/error/error.middleware.js");
 
 const app = express();
 app.use("/admin", adminRouter);

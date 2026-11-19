@@ -1,17 +1,17 @@
 import { z } from "zod";
-import type { RequestSchemas } from "../../../middleware/types/validate.types.js";
+import type { RequestSchemas } from "@/middleware/types/validate.types.js";
 import {
   authRoleShape,
   boundedText,
   scopeField,
   uuidParam,
-} from "../../../shared/validation/schemas/common.schema.js";
+} from "@/shared/validation/schemas/common.schema.js";
 import {
   paginationShape,
   roleListQuerySchema,
-} from "../../../shared/validation/schemas/pagination.schema.js";
-import { MAX_MONEY_CENTS } from "../../../shared/money/money.js";
-import { CONTRACT_LIMITS } from "../constants/contracts.constants.js";
+} from "@/shared/validation/schemas/pagination.schema.js";
+import { MAX_MONEY_CENTS } from "@/shared/money/money.js";
+import { CONTRACT_LIMITS } from "@/modules/contracts/constants/contracts.constants.js";
 
 export const MIN_MILESTONE_CENTS = 1000;
 

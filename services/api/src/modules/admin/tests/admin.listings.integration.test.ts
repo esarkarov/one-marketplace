@@ -1,17 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { count, like as likeOp } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { db, pool } from "../../../database/client.js";
-import {
-  accounts,
-  agency_metadata,
-  job_posts,
-} from "../../../test/support/tables.js";
-import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
+import { db, pool } from "@/database/client.js";
+import { accounts, agency_metadata, job_posts } from "@/test/support/tables.js";
+import { assertTestDatabase } from "@/test/setup/assert-test-database.js";
 import {
   getAdminAccounts,
   getAdminJobPosts,
-} from "../services/admin.listings.service.js";
+} from "@/modules/admin/services/admin.listings.service.js";
 
 const PREFIX = "admin-listings-it-";
 const like = `${PREFIX}%`;

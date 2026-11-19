@@ -1,25 +1,25 @@
 import { RequestHandler } from "express";
-import { asyncHandler } from "../../../middleware/utils/async-handler.utils.js";
-import { getValidated } from "../../../middleware/utils/validated-request.utils.js";
+import { asyncHandler } from "@/middleware/utils/async-handler.utils.js";
+import { getValidated } from "@/middleware/utils/validated-request.utils.js";
 import {
   agencyJobFeedRequest,
   agencySearchRequest,
   createAgencyRequest,
   publicAgencyRequest,
   updateAgencyRequest,
-} from "../schemas/agency.schema.js";
-import { ApiError } from "../../../shared/errors/api-error.js";
-import { ApiResponse } from "../../../types/common.types.js";
-import { requireText } from "../../../shared/validation/utils/require-text.utils.js";
-import { parseLiveUrl } from "../../../shared/uploads/portfolio-images.js";
+} from "@/modules/agency/schemas/agency.schema.js";
+import { ApiError } from "@/shared/errors/api-error.js";
+import { ApiResponse } from "@/types/common.types.js";
+import { requireText } from "@/shared/validation/utils/require-text.utils.js";
+import { parseLiveUrl } from "@/shared/uploads/portfolio-images.js";
 import {
   createAgency,
   getAgencyForMember,
   getAgencyTags,
   getPublicAgencyProfile,
   updateAgencyProfile,
-} from "../services/agency.profile.service.js";
-import { searchPublicAgencies } from "../services/agency.search.service.js";
+} from "@/modules/agency/services/agency.profile.service.js";
+import { searchPublicAgencies } from "@/modules/agency/services/agency.search.service.js";
 import {
   AgencyData,
   PublicAgencyData,
@@ -27,8 +27,8 @@ import {
   PublicAgencyFeedPage,
   PublicAgencyFilters,
   UpdateAgencyPortfolioInput,
-} from "../types/agency.types.js";
-import { getMatchedJobPostsBySkills } from "../../freelancer/index.js";
+} from "@/modules/agency/types/agency.types.js";
+import { getMatchedJobPostsBySkills } from "@/modules/freelancer/index.js";
 
 const requireAgencyWebsite = (
   value: string | null | undefined,

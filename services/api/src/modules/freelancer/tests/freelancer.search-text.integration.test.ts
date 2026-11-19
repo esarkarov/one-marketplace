@@ -16,9 +16,8 @@ const mocks = vi.hoisted(() => ({
   upload: vi.fn(),
 }));
 
-vi.mock("../../../config/env.js", async (importOriginal) => {
-  const original =
-    await importOriginal<typeof import("../../../config/env.js")>();
+vi.mock("@/config/env.js", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@/config/env.js")>();
   return {
     ...original,
     env: {
@@ -29,37 +28,37 @@ vi.mock("../../../config/env.js", async (importOriginal) => {
   };
 });
 
-vi.mock("../../../infrastructure/auth/clerk.client.js", () => ({
+vi.mock("@/infrastructure/auth/clerk.client.js", () => ({
   clerk: { users: { getUser: mocks.getUser } },
   verifyToken: vi.fn(),
 }));
 
-vi.mock("../../../infrastructure/payments/stripe.client.js", () => ({
+vi.mock("@/infrastructure/payments/stripe.client.js", () => ({
   stripe: {},
 }));
 
-vi.mock("../../../infrastructure/storage/image-kit.client.js", () => ({
+vi.mock("@/infrastructure/storage/image-kit.client.js", () => ({
   imageKit: { files: { upload: mocks.upload, delete: vi.fn() } },
 }));
 
-vi.mock("../../../infrastructure/cache/account-auth.cache.js", () => ({
+vi.mock("@/infrastructure/cache/account-auth.cache.js", () => ({
   invalidateAccountAuthCache: async () => undefined,
 }));
 
-import { env } from "../../../config/env.js";
-import { db, pool } from "../../../database/client.js";
-import { accounts, freelancer_metadata } from "../../../test/support/tables.js";
-import { buildFreelancerSearchFields } from "../utils/freelancer.search-text.js";
-import { searchPublicFreelancers } from "../services/freelancer.search.service.js";
-import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
+import { env } from "@/config/env.js";
+import { db, pool } from "@/database/client.js";
+import { accounts, freelancer_metadata } from "@/test/support/tables.js";
+import { buildFreelancerSearchFields } from "@/modules/freelancer/utils/freelancer.search-text.js";
+import { searchPublicFreelancers } from "@/modules/freelancer/services/freelancer.search.service.js";
+import { assertTestDatabase } from "@/test/setup/assert-test-database.js";
 import {
   getPublicFreelancerProfile,
   saveFreelancerProfile,
-} from "../services/freelancer.profile.service.js";
+} from "@/modules/freelancer/services/freelancer.profile.service.js";
 import {
   listFreelancerAuthIds,
   rebuildFreelancerSearchText,
-} from "../services/freelancer.search-index.service.js";
+} from "@/modules/freelancer/services/freelancer.search-index.service.js";
 
 const PREFIX = "freelancer-stext-it-";
 const newAuthId = () => `${PREFIX}${randomUUID()}`;

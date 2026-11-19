@@ -4,7 +4,7 @@ import {
   jobFeedQuerySchema,
   talentSearchQuerySchema,
   upsertProfileBodySchema,
-} from "../schemas/freelancer.schema.js";
+} from "@/modules/freelancer/schemas/freelancer.schema.js";
 
 const body = (hourlyRateCents: unknown) => ({
   freelancerMetadata: { hourlyRateCents },

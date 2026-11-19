@@ -1,7 +1,10 @@
 import type { Request } from "express";
-import { ApiError } from "../../shared/errors/api-error.js";
-import { PARTS } from "../constants/validate.constants.js";
-import type { RequestSchemas, Validated } from "../types/validate.types.js";
+import { ApiError } from "@/shared/errors/api-error.js";
+import { PARTS } from "@/middleware/constants/validate.constants.js";
+import type {
+  RequestSchemas,
+  Validated,
+} from "@/middleware/types/validate.types.js";
 
 export const getValidated = <const S extends RequestSchemas>(
   request: Request,

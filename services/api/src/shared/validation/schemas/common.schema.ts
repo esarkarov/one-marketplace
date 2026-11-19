@@ -1,9 +1,9 @@
 import { z } from "zod";
-import { COMMON_LIMITS } from "../constants/validation.constants.js";
+import { COMMON_LIMITS } from "@/shared/validation/constants/validation.constants.js";
 import {
   MAX_DATA_URL_HEADER_LENGTH,
   MAX_ENCODED_LENGTH,
-} from "../../uploads/constants/attachments.constants.js";
+} from "@/shared/uploads/constants/attachments.constants.js";
 
 const ACCOUNT_ROLES = ["client", "freelancer"] as const;
 

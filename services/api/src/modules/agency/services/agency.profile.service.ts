@@ -1,24 +1,27 @@
-import { toApiMemberRole } from "../constants/agency.constants.js";
+import { toApiMemberRole } from "@/modules/agency/constants/agency.constants.js";
 import { randomUUID } from "crypto";
-import { findAccountDisplays, syncAccountDisplay } from "../../auth/index.js";
-import { buildAgencySearchText } from "../utils/agency.search-text.js";
-import { db } from "../../../database/client.js";
-import { isUniqueViolation } from "../../../database/pg-errors.js";
-import { requirePublicId } from "../../../shared/ids/public-ids.js";
-import { ApiError } from "../../../shared/errors/api-error.js";
-import { imageKit } from "../../../infrastructure/storage/image-kit.client.js";
-import { env } from "../../../config/env.js";
-import { logger } from "../../../config/logger.js";
-import { errorLogAttributes } from "../../../shared/logging/sanitize-log.js";
-import { addAgencyConnects } from "../../connects/index.js";
-import { sendNotification } from "../../../infrastructure/events/notification.publisher.js";
-import { INITIAL_CONNECTS } from "../../connects/index.js";
-import { getJSSContribution } from "../../freelancer/index.js";
+import {
+  findAccountDisplays,
+  syncAccountDisplay,
+} from "@/modules/auth/index.js";
+import { buildAgencySearchText } from "@/modules/agency/utils/agency.search-text.js";
+import { db } from "@/database/client.js";
+import { isUniqueViolation } from "@/database/pg-errors.js";
+import { requirePublicId } from "@/shared/ids/public-ids.js";
+import { ApiError } from "@/shared/errors/api-error.js";
+import { imageKit } from "@/infrastructure/storage/image-kit.client.js";
+import { env } from "@/config/env.js";
+import { logger } from "@/config/logger.js";
+import { errorLogAttributes } from "@/shared/logging/sanitize-log.js";
+import { addAgencyConnects } from "@/modules/connects/index.js";
+import { sendNotification } from "@/infrastructure/events/notification.publisher.js";
+import { INITIAL_CONNECTS } from "@/modules/connects/index.js";
+import { getJSSContribution } from "@/modules/freelancer/index.js";
 import {
   isImageDataUrl,
   reuseStoredImage,
-} from "../../../shared/uploads/portfolio-images.js";
-import type { StoredImage } from "../../../shared/uploads/types/portfolio-images.types.js";
+} from "@/shared/uploads/portfolio-images.js";
+import type { StoredImage } from "@/shared/uploads/types/portfolio-images.types.js";
 import {
   AgencyPortfolioItem,
   AgencyMember,
@@ -29,15 +32,15 @@ import {
   CreateAgencyInput,
   ImageInput,
   UpdateAgencyInput,
-} from "../types/agency.types.js";
+} from "@/modules/agency/types/agency.types.js";
 import {
   AGENCY_MEMBER_UNIQUE,
   AGENCY_OWNER_UNIQUE,
   alreadyInAgencyError,
   ALREADY_IN_AGENCY_MESSAGE,
-} from "../utils/agency.errors.js";
+} from "@/modules/agency/utils/agency.errors.js";
 import { getAgencyIdForMember } from "./agency.membership.service.js";
-import { agencyPortfolioFolder } from "../../../shared/uploads/storage-paths.js";
+import { agencyPortfolioFolder } from "@/shared/uploads/storage-paths.js";
 import {
   deletePortfolioOfAgency,
   findAgencyByOwner,
@@ -54,7 +57,7 @@ import {
   listContractReviewRatings,
   listPortfolioOfAgency,
   updateAgencyProfileByOwner,
-} from "../repositories/agency.repository.js";
+} from "@/modules/agency/repositories/agency.repository.js";
 
 const regionNames = new Intl.DisplayNames(["en"], { type: "region" });
 

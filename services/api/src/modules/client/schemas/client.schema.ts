@@ -1,15 +1,15 @@
 import { z } from "zod";
-import type { RequestSchemas } from "../../../middleware/types/validate.types.js";
+import type { RequestSchemas } from "@/middleware/types/validate.types.js";
 
 import {
   authRoleShape,
   optionalBoundedText,
   withIgnoredKeys,
-} from "../../../shared/validation/schemas/common.schema.js";
-import { roleListQuerySchema } from "../../../shared/validation/schemas/pagination.schema.js";
-import { countryCodeSchema } from "../../../shared/validation/schemas/country.schema.js";
-import { searchPagingShape } from "../../../shared/validation/schemas/search.schema.js";
-import { CLIENT_LIMITS } from "../constants/client.constants.js";
+} from "@/shared/validation/schemas/common.schema.js";
+import { roleListQuerySchema } from "@/shared/validation/schemas/pagination.schema.js";
+import { countryCodeSchema } from "@/shared/validation/schemas/country.schema.js";
+import { searchPagingShape } from "@/shared/validation/schemas/search.schema.js";
+import { CLIENT_LIMITS } from "@/modules/client/constants/client.constants.js";
 
 export const marketplaceSearchQuerySchema = z.strictObject({
   ...authRoleShape,

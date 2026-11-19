@@ -1,9 +1,9 @@
 import { and, asc, desc, eq, gte, lte, sql } from "drizzle-orm";
-import type { DbExecutor } from "../../../database/database.types.js";
-import { accounts } from "../../auth/models/auth.model.js";
-import { freelancer_earning } from "../../contracts/models/contracts.model.js";
-import { freelancer_metadata } from "../models/freelancer.model.js";
-import { matchAllTerms } from "../../../shared/search/search-conditions.repository.js";
+import type { DbExecutor } from "@/database/database.types.js";
+import { accounts } from "@/modules/auth/models/auth.model.js";
+import { freelancer_earning } from "@/modules/contracts/models/contracts.model.js";
+import { freelancer_metadata } from "@/modules/freelancer/models/freelancer.model.js";
+import { matchAllTerms } from "@/shared/search/search-conditions.repository.js";
 
 export interface TalentSearchCriteria {
   query?: string;

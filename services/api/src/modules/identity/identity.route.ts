@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { isAuthenticated } from "../auth/index.js";
-import { validate } from "../../middleware/validate/validate.middleware.js";
+import { isAuthenticated } from "@/modules/auth/index.js";
+import { validate } from "@/middleware/validate/validate.middleware.js";
 import {
   identityWebhook,
   startIdentityVerification,

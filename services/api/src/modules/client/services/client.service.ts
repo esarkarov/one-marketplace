@@ -1,18 +1,18 @@
-import { MARKETPLACE_ACCOUNT_TYPE } from "../constants/client.constants.js";
-import { PAGINATION } from "../../../shared/validation/constants/pagination.constants.js";
+import { MARKETPLACE_ACCOUNT_TYPE } from "@/modules/client/constants/client.constants.js";
+import { PAGINATION } from "@/shared/validation/constants/pagination.constants.js";
 import {
   fetchSize,
   toOffsetPage,
-} from "../../../shared/validation/utils/pagination.utils.js";
-import { db } from "../../../database/client.js";
-import { countryDisplayName } from "../../../shared/search/search-text.js";
-import { toSafeCents } from "../../../shared/money/money.js";
+} from "@/shared/validation/utils/pagination.utils.js";
+import { db } from "@/database/client.js";
+import { countryDisplayName } from "@/shared/search/search-text.js";
+import { toSafeCents } from "@/shared/money/money.js";
 import {
   findAccountDisplays,
   markClientOnboardingComplete,
   setStripeCustomerId,
   syncAccountDisplay,
-} from "../../auth/index.js";
+} from "@/modules/auth/index.js";
 import {
   countJobsOfClient,
   countPublishedJobsOfClient,
@@ -31,11 +31,11 @@ import {
   findProposalStatsOfClient,
   findReviewsForContracts,
   upsertClientMetadata,
-} from "../repositories/client.repository.js";
-import { ApiError } from "../../../shared/errors/api-error.js";
-import { env } from "../../../config/env.js";
-import { stripe } from "../../../infrastructure/payments/stripe.client.js";
-import { invalidateAccountAuthCache } from "../../../infrastructure/cache/account-auth.cache.js";
+} from "@/modules/client/repositories/client.repository.js";
+import { ApiError } from "@/shared/errors/api-error.js";
+import { env } from "@/config/env.js";
+import { stripe } from "@/infrastructure/payments/stripe.client.js";
+import { invalidateAccountAuthCache } from "@/infrastructure/cache/account-auth.cache.js";
 import type {
   ClientCompletedContract,
   ClientDashboardOverview,
@@ -45,7 +45,7 @@ import type {
   MarketplaceSearchPage,
   MarketplaceSearchResult,
   SaveClientProfileInput,
-} from "../types/client.types.js";
+} from "@/modules/client/types/client.types.js";
 
 export const getClientProfile = async (
   userId: string,

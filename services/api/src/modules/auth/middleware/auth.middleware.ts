@@ -1,17 +1,17 @@
 import type { Request, RequestHandler } from "express";
-import { asyncHandler } from "../../../middleware/utils/async-handler.utils.js";
-import { ApiError } from "../../../shared/errors/api-error.js";
-import { env } from "../../../config/env.js";
-import { allowedOrigins } from "../../../config/cors.js";
+import { asyncHandler } from "@/middleware/utils/async-handler.utils.js";
+import { ApiError } from "@/shared/errors/api-error.js";
+import { env } from "@/config/env.js";
+import { allowedOrigins } from "@/config/cors.js";
 import {
   ACCOUNT_AUTH_CACHE_TTL_SECONDS,
   ACCOUNT_AUTH_NEGATIVE_CACHE_TTL_SECONDS,
-} from "../constants/auth.constants.js";
-import { getAccountAuthCacheKey } from "../../../infrastructure/utils/account-auth-cache-key.utils.js";
-import { verifyToken } from "../../../infrastructure/auth/clerk.client.js";
-import { redis } from "../../../infrastructure/cache/redis.client.js";
-import { db } from "../../../database/client.js";
-import { findAccountOnboardingState } from "../repositories/auth.repository.js";
+} from "@/modules/auth/constants/auth.constants.js";
+import { getAccountAuthCacheKey } from "@/infrastructure/utils/account-auth-cache-key.utils.js";
+import { verifyToken } from "@/infrastructure/auth/clerk.client.js";
+import { redis } from "@/infrastructure/cache/redis.client.js";
+import { db } from "@/database/client.js";
+import { findAccountOnboardingState } from "@/modules/auth/repositories/auth.repository.js";
 
 const accountRoles = ["client", "freelancer"] as const;
 type AccountRole = (typeof accountRoles)[number];

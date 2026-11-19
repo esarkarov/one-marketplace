@@ -1,5 +1,5 @@
-import { redis } from "../../../infrastructure/cache/redis.client.js";
-import { pingDatabase } from "../repositories/health.repository.js";
+import { redis } from "@/infrastructure/cache/redis.client.js";
+import { pingDatabase } from "@/modules/health/repositories/health.repository.js";
 
 type CheckStatus = "ok" | "failed";
 

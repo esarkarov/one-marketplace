@@ -1,14 +1,14 @@
 import type { NextFunction, Request, Response } from "express";
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("../services/jobs.service.js", () => ({}));
+vi.mock("@/modules/jobs/services/jobs.service.js", () => ({}));
 
 const {
   createClientJobPost,
   editClientJobPost,
   getClientJobPosts,
   removeClientJobPost,
-} = await import("../controllers/jobs.controller.js");
+} = await import("@/modules/jobs/controllers/jobs.controller.js");
 
 const run = async (
   handler: (req: Request, res: Response, next: NextFunction) => void,

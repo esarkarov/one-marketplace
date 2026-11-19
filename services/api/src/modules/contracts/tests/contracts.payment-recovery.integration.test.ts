@@ -21,9 +21,8 @@ const mocks = vi.hoisted(() => ({
   loggerError: vi.fn(),
 }));
 
-vi.mock("../../../config/env.js", async (importOriginal) => {
-  const original =
-    await importOriginal<typeof import("../../../config/env.js")>();
+vi.mock("@/config/env.js", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@/config/env.js")>();
   return {
     ...original,
     env: {
@@ -34,9 +33,8 @@ vi.mock("../../../config/env.js", async (importOriginal) => {
   };
 });
 
-vi.mock("../../../config/logger.js", async (importOriginal) => {
-  const original =
-    await importOriginal<typeof import("../../../config/logger.js")>();
+vi.mock("@/config/logger.js", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@/config/logger.js")>();
   return {
     ...original,
     logger: {
@@ -47,7 +45,7 @@ vi.mock("../../../config/logger.js", async (importOriginal) => {
   };
 });
 
-vi.mock("../../../infrastructure/payments/stripe.client.js", () => ({
+vi.mock("@/infrastructure/payments/stripe.client.js", () => ({
   stripe: {
     refunds: { create: mocks.refundCreate },
     customers: { create: mocks.customersCreate },
@@ -56,23 +54,23 @@ vi.mock("../../../infrastructure/payments/stripe.client.js", () => ({
 }));
 
 vi.mock(
-  "../../../infrastructure/events/notification.publisher.js",
+  "@/infrastructure/events/notification.publisher.js",
   async (importOriginal) => ({
     ...(await importOriginal<
-      typeof import("../../../infrastructure/events/notification.publisher.js")
+      typeof import("@/infrastructure/events/notification.publisher.js")
     >()),
     sendNotification: mocks.sendNotification,
   }),
 );
 
-vi.mock("../../messaging/messaging.socket.js", async (importOriginal) => ({
+vi.mock("@/modules/messaging/messaging.socket.js", async (importOriginal) => ({
   ...(await importOriginal<
-    typeof import("../../messaging/messaging.socket.js")
+    typeof import("@/modules/messaging/messaging.socket.js")
   >()),
   emitConversationUpdate: mocks.emitConversationUpdate,
 }));
 
-import { db, pool } from "../../../database/client.js";
+import { db, pool } from "@/database/client.js";
 import {
   accounts,
   contract_milestones,
@@ -81,18 +79,18 @@ import {
   conversations,
   job_posts,
   proposals,
-} from "../../../test/support/tables.js";
-import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
-import { getFreelancerProposalMetadata } from "../../proposals/services/proposals.queries.service.js";
+} from "@/test/support/tables.js";
+import { assertTestDatabase } from "@/test/setup/assert-test-database.js";
+import { getFreelancerProposalMetadata } from "@/modules/proposals/services/proposals.queries.service.js";
 import {
   createContractCheckout,
   createMilestoneFundingCheckout,
   fundContractMilestoneFromPayment,
-} from "../services/contracts.checkout.service.js";
+} from "@/modules/contracts/services/contracts.checkout.service.js";
 import {
   acceptContract,
   createContractFromPayment,
-} from "../services/contracts.lifecycle.service.js";
+} from "@/modules/contracts/services/contracts.lifecycle.service.js";
 
 const PREFIX = "payment-recovery-";
 const like = `${PREFIX}%`;

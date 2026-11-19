@@ -10,10 +10,10 @@ import {
   isAuthenticated,
   resolveAccountRole,
   verifyBearerToken,
-} from "../auth/index.js";
-import { largeJsonBody } from "../../middleware/json-body/json-body.middleware.js";
-import { messageWriteLimiter } from "../../middleware/rate-limit/user-rate-limit.middleware.js";
-import { validate } from "../../middleware/validate/validate.middleware.js";
+} from "@/modules/auth/index.js";
+import { largeJsonBody } from "@/middleware/json-body/json-body.middleware.js";
+import { messageWriteLimiter } from "@/middleware/rate-limit/user-rate-limit.middleware.js";
+import { validate } from "@/middleware/validate/validate.middleware.js";
 import {
   createMessageRequest,
   listConversationsRequest,

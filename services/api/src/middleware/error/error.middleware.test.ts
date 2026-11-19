@@ -2,16 +2,12 @@ import express from "express";
 import type { Request, Response } from "express";
 import request from "supertest";
 import { describe, expect, it, vi } from "vitest";
-import {
-  createAppLogger,
-  createRootLogger,
-  logger,
-} from "../../config/logger.js";
-import { captureLogs } from "../../test/support/capture-logs.js";
-import { fakeStripeKey } from "../../test/support/fake-secrets.js";
-import { ApiError } from "../../shared/errors/api-error.js";
+import { createAppLogger, createRootLogger, logger } from "@/config/logger.js";
+import { captureLogs } from "@/test/support/capture-logs.js";
+import { fakeStripeKey } from "@/test/support/fake-secrets.js";
+import { ApiError } from "@/shared/errors/api-error.js";
 import { errorHandler } from "./error.middleware.js";
-import { requestIdMiddleware } from "../request-id/request-id.middleware.js";
+import { requestIdMiddleware } from "@/middleware/request-id/request-id.middleware.js";
 
 const app = express();
 app.use(requestIdMiddleware);

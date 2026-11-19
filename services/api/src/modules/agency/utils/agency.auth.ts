@@ -1,6 +1,6 @@
 import { RequestHandler } from "express";
-import { ApiError } from "../../../shared/errors/api-error.js";
-import { getAgencyIdentityForOwner } from "../services/agency.profile.service.js";
+import { ApiError } from "@/shared/errors/api-error.js";
+import { getAgencyIdentityForOwner } from "@/modules/agency/services/agency.profile.service.js";
 
 export const requireAgencyAuth = (request: Parameters<RequestHandler>[0]) => {
   if (!request.auth) throw new ApiError(401, "Authentication is required.");

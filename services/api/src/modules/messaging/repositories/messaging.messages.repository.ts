@@ -9,9 +9,12 @@ import {
   or,
   sql,
 } from "drizzle-orm";
-import type { DbExecutor } from "../../../database/database.types.js";
-import { accounts } from "../../auth/models/auth.model.js";
-import { message_attachments, messages } from "../models/messaging.model.js";
+import type { DbExecutor } from "@/database/database.types.js";
+import { accounts } from "@/modules/auth/models/auth.model.js";
+import {
+  message_attachments,
+  messages,
+} from "@/modules/messaging/models/messaging.model.js";
 
 export type NewMessage = Omit<typeof messages.$inferInsert, "conversation_id">;
 

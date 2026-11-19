@@ -1,23 +1,26 @@
-import { requirePublicId } from "../../../shared/ids/public-ids.js";
-import { toProposalResponse } from "../utils/proposals.mappers.js";
-import { db } from "../../../database/client.js";
+import { requirePublicId } from "@/shared/ids/public-ids.js";
+import { toProposalResponse } from "@/modules/proposals/utils/proposals.mappers.js";
+import { db } from "@/database/client.js";
 import {
   findAgencyName,
   findPublishedJobForProposal,
   insertProposalIfAbsent,
-} from "../repositories/proposals.repository.js";
-import { findAccountIdByAuthId } from "../../auth/index.js";
-import { debitConnects, recordConnectsHistory } from "../../connects/index.js";
-import { ApiError } from "../../../shared/errors/api-error.js";
+} from "@/modules/proposals/repositories/proposals.repository.js";
+import { findAccountIdByAuthId } from "@/modules/auth/index.js";
+import {
+  debitConnects,
+  recordConnectsHistory,
+} from "@/modules/connects/index.js";
+import { ApiError } from "@/shared/errors/api-error.js";
 import {
   CONNECTS_CACHE_TTL_SECONDS,
   getAgencyConnectsCacheKey,
   getConnectsCacheKey,
   PROPOSAL_CONNECTS,
-} from "../../connects/index.js";
-import { redis } from "../../../infrastructure/cache/redis.client.js";
-import { getAgencyTeamMemberIds } from "../../agency/index.js";
-import { sendNotification } from "../../../infrastructure/events/notification.publisher.js";
+} from "@/modules/connects/index.js";
+import { redis } from "@/infrastructure/cache/redis.client.js";
+import { getAgencyTeamMemberIds } from "@/modules/agency/index.js";
+import { sendNotification } from "@/infrastructure/events/notification.publisher.js";
 
 export const submitProposal = async (
   freelancerId: string,

@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   createMessageBodySchema,
   openConversationBodySchema,
-} from "../schemas/messaging.schema.js";
+} from "@/modules/messaging/schemas/messaging.schema.js";
 
 describe("createMessageBodySchema", () => {
   it("accepts null body and attachments", () => {

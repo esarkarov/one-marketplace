@@ -4,13 +4,13 @@ import { describe, expect, it, vi } from "vitest";
 import {
   PUBLIC_SEARCH_LIMIT,
   PUBLIC_SEARCH_WINDOW_MS,
-} from "../constants/rate-limit.constants.js";
+} from "@/middleware/constants/rate-limit.constants.js";
 
-vi.mock("../../infrastructure/cache/redis.client.js", () => ({
+vi.mock("@/infrastructure/cache/redis.client.js", () => ({
   redis: { isReady: false },
 }));
 
-vi.mock("../../config/env.js", () => ({ env: { nodeEnv: "production" } }));
+vi.mock("@/config/env.js", () => ({ env: { nodeEnv: "production" } }));
 
 const { publicSearchLimiter } = await import("./rate-limit.middleware.js");
 

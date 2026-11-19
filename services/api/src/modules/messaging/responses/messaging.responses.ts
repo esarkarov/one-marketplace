@@ -5,8 +5,8 @@ import {
   offsetPage,
   ok,
   BadRequestBody,
-} from "../../../shared/responses/api-envelope.responses.js";
-import { isoDateTime } from "../../../shared/responses/scalar.responses.js";
+} from "@/shared/responses/api-envelope.responses.js";
+import { isoDateTime } from "@/shared/responses/scalar.responses.js";
 
 const MessageAttachment = z
   .strictObject({

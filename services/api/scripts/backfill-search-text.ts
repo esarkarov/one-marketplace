@@ -1,13 +1,13 @@
-import { logger } from "../src/config/logger.js";
+import { logger } from "@/config/logger.js";
 import {
   listAgencyOwnerIds,
   rebuildAgencySearchText,
-} from "../src/modules/agency/index.js";
-import { syncAccountDisplay } from "../src/modules/auth/index.js";
+} from "@/modules/agency/index.js";
+import { syncAccountDisplay } from "@/modules/auth/index.js";
 import {
   listFreelancerAuthIds,
   rebuildFreelancerSearchText,
-} from "../src/modules/freelancer/index.js";
+} from "@/modules/freelancer/index.js";
 
 // Rebuilds accounts.display_name/avatar_url (from Clerk) and the search_text
 // and location_text columns of freelancer and agency profiles. Idempotent:

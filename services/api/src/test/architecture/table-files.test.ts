@@ -201,3 +201,66 @@ describe("database imports", () => {
     expect(findDatabaseModuleImports()).toEqual([]);
   });
 });
+
+describe("analyzers resolve @/ specifiers like relative ones", () => {
+  const owners = (name: string) =>
+    ({ a_table: "a", b_table: "b" })[name as "a_table"];
+
+  it("allows an @/ import of another table file and flags other @/ imports", () => {
+    const allowed = tree({
+      "modules/a/models/a.model.ts": table("a"),
+      "modules/b/models/b.model.ts": `import { a } from "@/modules/a/models/a.model.js";\n${table("b")}`,
+    });
+    expect(checkTableFiles(allowed)).toEqual([]);
+
+    const flagged = tree({
+      "config/env.ts": "export const env = {};\n",
+      "modules/a/a.service.ts": "export const service = 1;\n",
+      "modules/a/models/a.model.ts": `import { env } from "@/config/env.js";\nimport { service } from "@/modules/a/a.service.js";\n${table("a")}`,
+    });
+    expect(checkTableFiles(flagged)).toHaveLength(2);
+  });
+
+  it("detects a table file cycle written with @/", () => {
+    const root = tree({
+      "modules/a/models/a.model.ts": `import { b } from "@/modules/b/models/b.model.js";\n${table("a")}`,
+      "modules/b/models/b.model.ts": `import { a } from "@/modules/a/models/a.model.js";\n${table("b")}`,
+    });
+    expect(findTableFileCycles(root)).toEqual([
+      "modules/a/models/a.model.ts -> modules/b/models/b.model.ts -> modules/a/models/a.model.ts",
+    ]);
+  });
+
+  it("detects a cross-module read and write written with @/", () => {
+    const root = tree({
+      "modules/a/models/a.model.ts": table("a_table"),
+      "modules/b/b.service.ts": `import { a_table } from "@/modules/a/models/a.model.js";\nexport const run = (db: any) => db.select().from(a_table);\n`,
+      "modules/c/c.service.ts": `import { a_table } from "@/modules/a/models/a.model.js";\nexport const run = (tx: any) => tx.update(a_table);\n`,
+    });
+    const { edges, violations } = analyzeTableAccess(owners, root);
+    expect(violations).toEqual([]);
+    expect(
+      [...edges.values()].map(
+        (edge) => `${edge.importer} -> ${edge.owner} ${edge.access}`,
+      ),
+    ).toEqual(["b -> a read", "c -> a write"]);
+  });
+
+  it("flags a namespace import of a table file written with @/", () => {
+    const root = tree({
+      "modules/a/models/a.model.ts": table("a_table"),
+      "modules/b/b.service.ts": `import * as schema from "@/modules/a/models/a.model.js";\nexport const run = schema;\n`,
+    });
+    expect(analyzeTableAccess(owners, root).violations).toHaveLength(1);
+  });
+
+  it("flags a database file that imports a module file with @/", () => {
+    const root = tree({
+      "modules/a/models/a.model.ts": table("a_table"),
+      "database/aggregate.ts": `export * from "@/modules/a/models/a.model.js";\n`,
+    });
+    expect(findDatabaseModuleImports(root)).toEqual([
+      "database/aggregate.ts imports modules/a/models/a.model.ts; database/ imports no module files",
+    ]);
+  });
+});

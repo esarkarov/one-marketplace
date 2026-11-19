@@ -1,6 +1,6 @@
-import { db } from "../../../database/client.js";
-import { toSafeCents } from "../../../shared/money/money.js";
-import { setStripeConnectAccountId } from "../../auth/index.js";
+import { db } from "@/database/client.js";
+import { toSafeCents } from "@/shared/money/money.js";
+import { setStripeConnectAccountId } from "@/modules/auth/index.js";
 import {
   findCertificateAccount,
   findHasEarnings,
@@ -8,16 +8,16 @@ import {
   listEarningAmounts,
   listEarningsWithPayoutState,
   listMonthlyEarningTotals,
-} from "../repositories/freelancer.earnings.repository.js";
-import { EarningsCertificateData } from "../types/freelancer.types.js";
-import { env } from "../../../config/env.js";
-import { stripe } from "../../../infrastructure/payments/stripe.client.js";
-import type { StripeRequirementsLike } from "../../../types/common.types.js";
-import { ApiError } from "../../../shared/errors/api-error.js";
-import { EARNINGS_HOLD_PERIOD_MS } from "../../payouts/index.js";
-import { PLATFORM_FEE_BPS } from "../../../shared/money/money.js";
-import { STRIPE_PAYOUT_ELIGIBLE_COUNTRIES } from "../../../infrastructure/constants/index.js";
-import { clerk } from "../../../infrastructure/auth/clerk.client.js";
+} from "@/modules/freelancer/repositories/freelancer.earnings.repository.js";
+import { EarningsCertificateData } from "@/modules/freelancer/types/freelancer.types.js";
+import { env } from "@/config/env.js";
+import { stripe } from "@/infrastructure/payments/stripe.client.js";
+import type { StripeRequirementsLike } from "@/types/common.types.js";
+import { ApiError } from "@/shared/errors/api-error.js";
+import { EARNINGS_HOLD_PERIOD_MS } from "@/modules/payouts/index.js";
+import { PLATFORM_FEE_BPS } from "@/shared/money/money.js";
+import { STRIPE_PAYOUT_ELIGIBLE_COUNTRIES } from "@/infrastructure/constants/index.js";
+import { clerk } from "@/infrastructure/auth/clerk.client.js";
 
 const MONTHLY_EARNINGS_SPAN = 7;
 

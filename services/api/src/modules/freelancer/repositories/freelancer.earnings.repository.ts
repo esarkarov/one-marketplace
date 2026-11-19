@@ -1,13 +1,13 @@
 import { and, desc, eq, gte, sql } from "drizzle-orm";
-import type { DbExecutor } from "../../../database/database.types.js";
-import { accounts } from "../../auth/models/auth.model.js";
-import { client_metadata } from "../../client/models/client.model.js";
+import type { DbExecutor } from "@/database/database.types.js";
+import { accounts } from "@/modules/auth/models/auth.model.js";
+import { client_metadata } from "@/modules/client/models/client.model.js";
 import {
   contracts,
   earning_history,
-} from "../../contracts/models/contracts.model.js";
-import { payout_history } from "../../payouts/models/payouts.model.js";
-import { freelancer_metadata } from "../models/freelancer.model.js";
+} from "@/modules/contracts/models/contracts.model.js";
+import { payout_history } from "@/modules/payouts/models/payouts.model.js";
+import { freelancer_metadata } from "@/modules/freelancer/models/freelancer.model.js";
 
 export const findHasEarnings = async (executor: DbExecutor, userId: string) => {
   const [earningsCheck] = await executor

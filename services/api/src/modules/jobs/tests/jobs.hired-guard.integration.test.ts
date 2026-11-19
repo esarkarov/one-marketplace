@@ -1,13 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { db, pool } from "../../../database/client.js";
-import { accounts, job_posts } from "../../../test/support/tables.js";
-import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
+import { db, pool } from "@/database/client.js";
+import { accounts, job_posts } from "@/test/support/tables.js";
+import { assertTestDatabase } from "@/test/setup/assert-test-database.js";
 import {
   findOwnedJobStatus,
   markJobHired,
-} from "../repositories/jobs.repository.js";
+} from "@/modules/jobs/repositories/jobs.repository.js";
 
 const PREFIX = "jobs-hired-guard-";
 const like = `${PREFIX}%`;

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { DEFAULT_ERROR_CODES } from "../errors/api-error.js";
+import { DEFAULT_ERROR_CODES } from "@/shared/errors/api-error.js";
 
 const MAX_VALIDATION_ERRORS = 50;
 

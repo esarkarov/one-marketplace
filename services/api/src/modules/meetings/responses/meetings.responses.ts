@@ -1,9 +1,6 @@
 import { z } from "zod";
-import {
-  ErrorBody,
-  ok,
-} from "../../../shared/responses/api-envelope.responses.js";
-import { isoDateTime } from "../../../shared/responses/scalar.responses.js";
+import { ErrorBody, ok } from "@/shared/responses/api-envelope.responses.js";
+import { isoDateTime } from "@/shared/responses/scalar.responses.js";
 
 export const meetingsResponses = {
   create: {

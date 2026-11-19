@@ -2,13 +2,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({ findAccountPublicIds: vi.fn() }));
 
-vi.mock("../../auth/index.js", () => ({
+vi.mock("@/modules/auth/index.js", () => ({
   findAccountPublicIds: mocks.findAccountPublicIds,
 }));
 
-import type { DbExecutor } from "../../../database/database.types.js";
-import { findClerkIdLeaks } from "../../../test/support/clerk-id-scan.js";
-import { loadSocketPublicIds } from "../services/messaging.socket-ids.service.js";
+import type { DbExecutor } from "@/database/database.types.js";
+import { findClerkIdLeaks } from "@/test/support/clerk-id-scan.js";
+import { loadSocketPublicIds } from "@/modules/messaging/services/messaging.socket-ids.service.js";
 import {
   buildSocketPublicIds,
   toConversationUpdatePayload,
@@ -16,7 +16,7 @@ import {
   toPresenceOnlinePayload,
   toPresenceSnapshotPayload,
   toTypingUpdatePayload,
-} from "../utils/messaging.socket-payloads.js";
+} from "@/modules/messaging/utils/messaging.socket-payloads.js";
 
 const SELF_CLERK = "user_self";
 const PARTNER_CLERK = "user_partner";

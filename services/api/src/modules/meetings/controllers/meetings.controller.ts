@@ -1,11 +1,11 @@
 import type { RequestHandler } from "express";
-import { asyncHandler } from "../../../middleware/utils/async-handler.utils.js";
-import { getValidated } from "../../../middleware/utils/validated-request.utils.js";
-import { createMeetingRequest } from "../schemas/meetings.schema.js";
-import { ApiError } from "../../../shared/errors/api-error.js";
-import { ApiResponse } from "../../../types/common.types.js";
-import { startMeeting } from "../services/meetings.service.js";
-import { handleDailyWebhook } from "../services/meetings.webhook.service.js";
+import { asyncHandler } from "@/middleware/utils/async-handler.utils.js";
+import { getValidated } from "@/middleware/utils/validated-request.utils.js";
+import { createMeetingRequest } from "@/modules/meetings/schemas/meetings.schema.js";
+import { ApiError } from "@/shared/errors/api-error.js";
+import { ApiResponse } from "@/types/common.types.js";
+import { startMeeting } from "@/modules/meetings/services/meetings.service.js";
+import { handleDailyWebhook } from "@/modules/meetings/services/meetings.webhook.service.js";
 
 export const createMeetingHandler: RequestHandler = asyncHandler(
   async (request, response) => {

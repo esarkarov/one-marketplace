@@ -1,21 +1,21 @@
 import { createServer, type Server } from "node:http";
-import { SERVICE_NAME } from "../config/constants.js";
-import { env } from "../config/env.js";
-import { logger } from "../config/logger.js";
-import { app } from "../app.js";
-import { errorLogAttributes } from "../shared/logging/sanitize-log.js";
+import { SERVICE_NAME } from "@/config/constants.js";
+import { env } from "@/config/env.js";
+import { logger } from "@/config/logger.js";
+import { app } from "@/app.js";
+import { errorLogAttributes } from "@/shared/logging/sanitize-log.js";
 import {
   connectRedis,
   disconnectRedis,
-} from "../infrastructure/cache/redis.client.js";
+} from "@/infrastructure/cache/redis.client.js";
 import {
   closeRabbit,
   isRabbitEnabled,
-} from "../infrastructure/events/rabbitmq.client.js";
-import { pingDatabase } from "../modules/health/index.js";
-import { startNotificationConsumer } from "../modules/notifications/notifications.consumer.js";
-import { initializeMessagingSocket } from "../modules/messaging/messaging.socket.js";
-import { startPayoutCron } from "../modules/payouts/payouts.cron.js";
+} from "@/infrastructure/events/rabbitmq.client.js";
+import { pingDatabase } from "@/modules/health/index.js";
+import { startNotificationConsumer } from "@/modules/notifications/notifications.consumer.js";
+import { initializeMessagingSocket } from "@/modules/messaging/messaging.socket.js";
+import { startPayoutCron } from "@/modules/payouts/payouts.cron.js";
 import { handleFatalError } from "./crash-handlers.js";
 import { setHttpServer } from "./http-server.js";
 import { exitWithFlush, SHUTDOWN_TIMEOUT_MS } from "./shutdown.js";

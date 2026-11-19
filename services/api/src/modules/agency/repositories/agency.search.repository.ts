@@ -1,10 +1,13 @@
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
-import type { DbExecutor } from "../../../database/database.types.js";
-import { accounts } from "../../auth/models/auth.model.js";
-import { agency_earning } from "../../contracts/models/contracts.model.js";
-import { freelancer_metadata } from "../../freelancer/models/freelancer.model.js";
-import { agency_members, agency_metadata } from "../models/agency.model.js";
-import { matchAllTerms } from "../../../shared/search/search-conditions.repository.js";
+import type { DbExecutor } from "@/database/database.types.js";
+import { accounts } from "@/modules/auth/models/auth.model.js";
+import { agency_earning } from "@/modules/contracts/models/contracts.model.js";
+import { freelancer_metadata } from "@/modules/freelancer/models/freelancer.model.js";
+import {
+  agency_members,
+  agency_metadata,
+} from "@/modules/agency/models/agency.model.js";
+import { matchAllTerms } from "@/shared/search/search-conditions.repository.js";
 
 interface AgencySearchCriteria {
   query?: string;

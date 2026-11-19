@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { validate } from "../../middleware/validate/validate.middleware.js";
-import { isAuthenticated } from "../auth/index.js";
+import { validate } from "@/middleware/validate/validate.middleware.js";
+import { isAuthenticated } from "@/modules/auth/index.js";
 import {
   agencyProposalMetadataRequest,
   agencyProposalsRequest,
@@ -15,7 +15,7 @@ import {
   agencyProposalMetadataResponses,
   agencyProposalsResponses,
   agencySubmitProposalResponses,
-} from "../agency/index.js";
+} from "@/modules/agency/index.js";
 import {
   createProposal,
   getAgencyProposalMetadataHandler,

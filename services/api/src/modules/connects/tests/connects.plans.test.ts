@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isConnectsPlan } from "../utils/connects.plans.js";
+import { isConnectsPlan } from "@/modules/connects/utils/connects.plans.js";
 
 describe("isConnectsPlan", () => {
   it.each([20, 40, 80])("accepts the plan %d", (plan) => {

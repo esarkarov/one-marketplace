@@ -1,14 +1,14 @@
-import { db } from "../../../database/client.js";
+import { db } from "@/database/client.js";
 import {
   fetchSize,
   toOffsetPage,
-} from "../../../shared/validation/utils/pagination.utils.js";
+} from "@/shared/validation/utils/pagination.utils.js";
 import {
   findLatestNotifications,
   markAllNotificationsRead,
   markNotificationReadForRecipient,
-} from "../repositories/notifications.repository.js";
-import { toNotificationResponse } from "../utils/notifications.mappers.js";
+} from "@/modules/notifications/repositories/notifications.repository.js";
+import { toNotificationResponse } from "@/modules/notifications/utils/notifications.mappers.js";
 
 export const getNotifications = async (
   userId: string,

@@ -2,7 +2,7 @@ import { z } from "zod";
 import {
   BadRequestBody,
   ok,
-} from "../../../shared/responses/api-envelope.responses.js";
+} from "@/shared/responses/api-envelope.responses.js";
 
 export const AuthStatus = z
   .strictObject({

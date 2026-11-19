@@ -1,10 +1,10 @@
-import { db } from "../../../database/client.js";
+import { db } from "@/database/client.js";
 import {
   findFreelancerSearchSource,
   listFreelancerAuthIds as listAuthIds,
   updateFreelancerSearchFields,
-} from "../repositories/freelancer.repository.js";
-import { buildFreelancerSearchFields } from "../utils/freelancer.search-text.js";
+} from "@/modules/freelancer/repositories/freelancer.repository.js";
+import { buildFreelancerSearchFields } from "@/modules/freelancer/utils/freelancer.search-text.js";
 
 export const listFreelancerAuthIds = () => listAuthIds(db);
 

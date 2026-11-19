@@ -1,10 +1,10 @@
 import {
   MEMBER_ROLE,
   toStoredMemberRole,
-} from "../constants/agency.constants.js";
+} from "@/modules/agency/constants/agency.constants.js";
 import { RequestHandler } from "express";
-import { asyncHandler } from "../../../middleware/utils/async-handler.utils.js";
-import { getValidated } from "../../../middleware/utils/validated-request.utils.js";
+import { asyncHandler } from "@/middleware/utils/async-handler.utils.js";
+import { getValidated } from "@/middleware/utils/validated-request.utils.js";
 import {
   agencyTeamInvitationsRequest,
   cancelAgencyInvitationRequest,
@@ -15,10 +15,10 @@ import {
   respondToAgencyInvitationRequest,
   updateAgencyInvitationRoleRequest,
   updateAgencyMemberRoleRequest,
-} from "../schemas/agency.schema.js";
-import { ApiError } from "../../../shared/errors/api-error.js";
-import { isValidEmail } from "../../../shared/validation/utils/email.utils.js";
-import { requireText } from "../../../shared/validation/utils/require-text.utils.js";
+} from "@/modules/agency/schemas/agency.schema.js";
+import { ApiError } from "@/shared/errors/api-error.js";
+import { isValidEmail } from "@/shared/validation/utils/email.utils.js";
+import { requireText } from "@/shared/validation/utils/require-text.utils.js";
 import {
   cancelAgencyInvitation,
   getAgencyInvitations,
@@ -27,15 +27,18 @@ import {
   resendAgencyInvitation,
   respondToAgencyInvitation,
   updateAgencyInvitationRole,
-} from "../services/agency.invitations.service.js";
+} from "@/modules/agency/services/agency.invitations.service.js";
 import {
   getAgencyIdForMember,
   removeAgencyMember,
   requireAgencyPermission,
   updateAgencyMemberRole,
-} from "../services/agency.membership.service.js";
-import { getAgencyOwnerVerification } from "../services/agency.profile.service.js";
-import { requireAgencyAuth, requireAgencyOwner } from "../utils/agency.auth.js";
+} from "@/modules/agency/services/agency.membership.service.js";
+import { getAgencyOwnerVerification } from "@/modules/agency/services/agency.profile.service.js";
+import {
+  requireAgencyAuth,
+  requireAgencyOwner,
+} from "@/modules/agency/utils/agency.auth.js";
 
 export const getAgencyTeamInvitationsHandler: RequestHandler = asyncHandler(
   async (request, response) => {

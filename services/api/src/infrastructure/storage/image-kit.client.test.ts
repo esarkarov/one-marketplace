@@ -15,7 +15,7 @@ vi.mock("@imagekit/nodejs", () => ({
   },
 }));
 
-vi.mock("../../config/env.js", () => ({ env: hoisted.env }));
+vi.mock("@/config/env.js", () => ({ env: hoisted.env }));
 
 const loadClient = async () => {
   vi.resetModules();

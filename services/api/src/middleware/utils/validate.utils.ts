@@ -1,10 +1,13 @@
 import { z } from "zod";
-import type { ApiErrorDetail } from "../../shared/errors/api-error.js";
+import type { ApiErrorDetail } from "@/shared/errors/api-error.js";
 import {
   DEFAULT_MESSAGE,
   MAX_KEY_NAME_LENGTH,
-} from "../constants/validate.constants.js";
-import type { SchemaInput, ValidationPart } from "../types/validate.types.js";
+} from "@/middleware/constants/validate.constants.js";
+import type {
+  SchemaInput,
+  ValidationPart,
+} from "@/middleware/types/validate.types.js";
 
 export const toSchema = (input: SchemaInput): z.ZodType =>
   input instanceof z.ZodType ? input : z.strictObject(input);

@@ -2,7 +2,7 @@ import type {
   FreelancerProfileData,
   FreelancerProfileRecord,
   StoredPortfolio,
-} from "../types/freelancer.types.js";
+} from "@/modules/freelancer/types/freelancer.types.js";
 
 export const toFreelancerPortfolioResponse = (portfolio: StoredPortfolio) => ({
   id: portfolio.id,
