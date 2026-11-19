@@ -12,7 +12,7 @@ import { logger } from "../../../config/logger.js";
 import { errorLogAttributes } from "../../../shared/logging/sanitize-log.js";
 import { addAgencyConnects } from "../../connects/index.js";
 import { sendNotification } from "../../../infrastructure/events/notification.publisher.js";
-import { INITIAL_CONNECTS } from "../../../config/constants.js";
+import { INITIAL_CONNECTS } from "../../connects/index.js";
 import { getJSSContribution } from "../../freelancer/index.js";
 import {
   isImageDataUrl,

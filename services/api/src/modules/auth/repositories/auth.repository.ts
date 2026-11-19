@@ -126,6 +126,20 @@ export const findAccountDisplay = async (
   return row;
 };
 
+export const findAccountPublicIds = async (
+  executor: DbExecutor,
+  authIds: string[],
+): Promise<Map<string, string>> => {
+  const unique = [...new Set(authIds)];
+  if (unique.length === 0) return new Map();
+
+  const rows = await executor
+    .select({ authId: accounts.auth_id, id: accounts.id })
+    .from(accounts)
+    .where(inArray(accounts.auth_id, unique));
+  return new Map(rows.map(({ authId, id }) => [authId, id]));
+};
+
 export const listAccountDisplays = (executor: DbExecutor, authIds: string[]) =>
   executor
     .select({

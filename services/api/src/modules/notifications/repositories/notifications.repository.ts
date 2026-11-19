@@ -1,4 +1,4 @@
-import { and, desc, eq, or, sql } from "drizzle-orm";
+import { and, desc, eq, or } from "drizzle-orm";
 import type { DbExecutor } from "../../../database/database.types.js";
 import { accounts } from "../../auth/models/auth.model.js";
 import { notifications } from "../models/notifications.model.js";
@@ -106,6 +106,3 @@ export const insertNotificationIfNew = async (
     recipientAccountId: account?.id ?? null,
   }));
 };
-
-export const pingDatabase = (executor: DbExecutor) =>
-  executor.execute(sql`select 1`);

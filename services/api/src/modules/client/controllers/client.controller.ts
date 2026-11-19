@@ -19,7 +19,10 @@ import {
   SaveClientProfileInput,
 } from "../types/client.types.js";
 import { ApiResponse } from "../../../types/common.types.js";
-import { requireText, requireWebsite } from "../../../config/constants.js";
+import {
+  requireText,
+  requireWebsite,
+} from "../../../shared/validation/utils/require-text.utils.js";
 
 export const getLoggedInClientProfile: RequestHandler = asyncHandler(
   async (request, response) => {

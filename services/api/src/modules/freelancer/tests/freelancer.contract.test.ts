@@ -100,7 +100,7 @@ import {
 } from "../../../test/support/tables.js";
 import { expectNoClerkIds } from "../../../test/support/clerk-id-scan.js";
 import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
-import { getAccountAuthCacheKey } from "../../../config/constants.js";
+import { getAccountAuthCacheKey } from "../../../infrastructure/utils/account-auth-cache-key.utils.js";
 import { saveFreelancerProfile } from "../services/freelancer.profile.service.js";
 import {
   freelancerEarningsCertificateResponses,

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { CONNECTS_PLANS } from "../../../config/constants.js";
+import { isConnectsPlan } from "../utils/connects.plans.js";
 import { authRoleShape } from "../../../shared/validation/schemas/common.schema.js";
 
 const PLAN_ERROR = "Select a valid Connects package.";
@@ -10,7 +10,5 @@ export const buyConnectsBodySchema = z.strictObject({
   ...authRoleShape,
   connects: z
     .number({ error: PLAN_ERROR })
-    .refine((value) => Object.hasOwn(CONNECTS_PLANS, String(value)), {
-      error: PLAN_ERROR,
-    }),
+    .refine(isConnectsPlan, { error: PLAN_ERROR }),
 });

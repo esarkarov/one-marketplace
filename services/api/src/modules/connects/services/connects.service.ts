@@ -3,10 +3,12 @@ import {
   CONNECTS_CACHE_TTL_SECONDS,
   CONNECTS_PLANS,
   ConnectsPlan,
+  INITIAL_CONNECTS,
+} from "../constants/connects.constants.js";
+import {
   getAgencyConnectsCacheKey,
   getConnectsCacheKey,
-  INITIAL_CONNECTS,
-} from "../../../config/constants.js";
+} from "../utils/connects.cache-keys.js";
 import { db } from "../../../database/client.js";
 import {
   fetchSize,

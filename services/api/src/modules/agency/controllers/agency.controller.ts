@@ -2,7 +2,7 @@ import { RequestHandler } from "express";
 import { asyncHandler } from "../../../middleware/utils/async-handler.utils.js";
 import { ApiError } from "../../../shared/errors/api-error.js";
 import { ApiResponse } from "../../../types/common.types.js";
-import { requireText } from "../../../config/constants.js";
+import { requireText } from "../../../shared/validation/utils/require-text.utils.js";
 import { parseLiveUrl } from "../../../shared/uploads/portfolio-images.js";
 import {
   createAgency,

@@ -4,10 +4,8 @@ import type { ConsumeMessage } from "amqplib";
 import { getRabbitConsumerChannel } from "../../infrastructure/events/rabbitmq.client.js";
 import { logger } from "../../config/logger.js";
 import { db } from "../../database/client.js";
-import {
-  insertNotificationIfNew,
-  pingDatabase,
-} from "./repositories/notifications.repository.js";
+import { pingDatabase } from "../health/index.js";
+import { insertNotificationIfNew } from "./repositories/notifications.repository.js";
 import {
   emitAgencyNotification,
   emitNotification,
@@ -106,7 +104,7 @@ export const createNotificationConsumer = (options: {
     resumeTimer = setTimeout(async () => {
       if (stopped) return;
       try {
-        await pingDatabase(db);
+        await pingDatabase();
         await subscribe();
         if (stopped) {
           const tag = consumerTag;

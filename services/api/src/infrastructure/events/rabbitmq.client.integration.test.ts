@@ -45,8 +45,8 @@ vi.mock("../../database/client.js", () => ({
         }),
       }),
     }),
-    execute: async () => [],
   },
+  pool: { query: async () => ({ rows: [] }) },
 }));
 
 vi.mock("../../modules/notifications/services/notifications.sse.js", () => ({

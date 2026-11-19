@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { eq, inArray, sql } from "drizzle-orm";
-import { EARNINGS_HOLD_PERIOD_MS } from "../../config/constants.js";
+import { EARNINGS_HOLD_PERIOD_MS } from "../../modules/payouts/constants/payouts.constants.js";
 import { db, pool } from "../../database/client.js";
 import {
   accounts,

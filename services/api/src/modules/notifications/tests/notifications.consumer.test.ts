@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({
   returning: vi.fn(),
   accountLookup: vi.fn(),
   values: vi.fn(),
-  execute: vi.fn(),
+  query: vi.fn(),
   emit: vi.fn(),
   emitAgency: vi.fn(),
   logError: vi.fn(),
@@ -35,8 +35,8 @@ vi.mock("../../../database/client.js", () => ({
     select: () => ({
       from: () => ({ where: () => ({ limit: mocks.accountLookup }) }),
     }),
-    execute: mocks.execute,
   },
+  pool: { query: mocks.query },
 }));
 
 vi.mock("../services/notifications.sse.js", () => ({
@@ -293,8 +293,8 @@ describe("notification consumer", () => {
     vi.useFakeTimers();
     const { channel, consumer, deliver } = setup();
     mocks.returning.mockRejectedValue(new Error("connection refused"));
-    mocks.execute.mockRejectedValueOnce(new Error("down"));
-    mocks.execute.mockResolvedValue([]);
+    mocks.query.mockRejectedValueOnce(new Error("down"));
+    mocks.query.mockResolvedValue([]);
     await consumer.start();
 
     const msg = message(envelope());
@@ -306,11 +306,11 @@ describe("notification consumer", () => {
     expect(channel.consume).toHaveBeenCalledTimes(1);
 
     await vi.advanceTimersByTimeAsync(1_000);
-    expect(mocks.execute).toHaveBeenCalledTimes(1);
+    expect(mocks.query).toHaveBeenCalledTimes(1);
     expect(channel.consume).toHaveBeenCalledTimes(1);
 
     await vi.advanceTimersByTimeAsync(2_000);
-    expect(mocks.execute).toHaveBeenCalledTimes(2);
+    expect(mocks.query).toHaveBeenCalledTimes(2);
     expect(channel.consume).toHaveBeenCalledTimes(2);
 
     await consumer.stop();
@@ -320,7 +320,7 @@ describe("notification consumer", () => {
     vi.useFakeTimers();
     const { consumer, deliver } = setup();
     mocks.returning.mockRejectedValue(new Error("secret db failure"));
-    mocks.execute.mockResolvedValue([]);
+    mocks.query.mockResolvedValue([]);
 
     await consumer.start();
     expect(mocks.logInfo).toHaveBeenLastCalledWith({
@@ -354,7 +354,7 @@ describe("notification consumer", () => {
     vi.useFakeTimers();
     const { consumer, deliver } = setup();
     mocks.returning.mockRejectedValue(new Error("db down"));
-    mocks.execute.mockRejectedValue(new Error("still down"));
+    mocks.query.mockRejectedValue(new Error("still down"));
     await consumer.start();
 
     deliver(message(envelope()));
@@ -399,7 +399,7 @@ describe("notification consumer", () => {
       deliveryLimit: 2,
     });
     mocks.returning.mockRejectedValue(new Error("down"));
-    mocks.execute.mockResolvedValue([]);
+    mocks.query.mockResolvedValue([]);
     await consumer.start();
 
     const msg = message(envelope());
@@ -426,7 +426,7 @@ describe("notification consumer", () => {
     await consumer.stop();
     await vi.advanceTimersByTimeAsync(60_000);
 
-    expect(mocks.execute).not.toHaveBeenCalled();
+    expect(mocks.query).not.toHaveBeenCalled();
     expect(channel.consume).toHaveBeenCalledTimes(1);
   });
 

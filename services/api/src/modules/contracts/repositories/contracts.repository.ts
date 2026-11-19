@@ -263,12 +263,6 @@ export const listContractRows = (
       asc(contract_milestones.id),
     );
 
-export const listPublicAccountIds = (executor: DbExecutor, authIds: string[]) =>
-  executor
-    .select({ authId: accounts.auth_id, id: accounts.id })
-    .from(accounts)
-    .where(inArray(accounts.auth_id, authIds));
-
 export const findContractIdByProposal = (
   executor: DbExecutor,
   proposalId: string,

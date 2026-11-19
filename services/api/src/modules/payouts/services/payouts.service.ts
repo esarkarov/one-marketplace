@@ -1,4 +1,4 @@
-import { EARNINGS_HOLD_PERIOD_MS } from "../../../config/constants.js";
+import { EARNINGS_HOLD_PERIOD_MS } from "../constants/payouts.constants.js";
 import { stripe } from "../../../infrastructure/payments/stripe.client.js";
 import { db } from "../../../database/client.js";
 import { sendNotification } from "../../../infrastructure/events/notification.publisher.js";

@@ -7,8 +7,8 @@ import { clerk } from "../../../infrastructure/auth/clerk.client.js";
 import { db } from "../../../database/client.js";
 import { env } from "../../../config/env.js";
 import { requirePublicId } from "../../../shared/ids/public-ids.js";
+import { findAccountPublicIds } from "../../auth/index.js";
 import {
-  listAccountPublicIdsByAuthIds,
   listAccountsWithCompany,
   listAgenciesWithOwner,
   listAgencyNamesByIds,
@@ -180,15 +180,10 @@ export const getAdminContracts = async ({ limit, offset }: Pagination) => {
   const freelancerIds = rows
     .map((row) => row.freelancerAuthId)
     .filter((id): id is string => Boolean(id));
-  const [names, talentAccounts] = await Promise.all([
+  const [names, accountIdByAuthId] = await Promise.all([
     clerkNames(freelancerIds),
-    freelancerIds.length
-      ? listAccountPublicIdsByAuthIds(db, [...new Set(freelancerIds)])
-      : Promise.resolve([]),
+    findAccountPublicIds(db, freelancerIds),
   ]);
-  const accountIdByAuthId = new Map(
-    talentAccounts.map((account) => [account.authId, account.id]),
-  );
 
   const milestoneRows = rows.length
     ? await listMilestonesForContracts(

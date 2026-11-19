@@ -9,7 +9,7 @@ import {
   vi,
 } from "vitest";
 import { app } from "./app.js";
-import { getAccountAuthCacheKey } from "./config/constants.js";
+import { getAccountAuthCacheKey } from "./infrastructure/utils/account-auth-cache-key.utils.js";
 import {
   connectRedis,
   disconnectRedis,

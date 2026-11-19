@@ -1,6 +1,6 @@
 import { RequestHandler } from "express";
 import { env } from "../../../config/env.js";
-import { stripe } from "../../../infrastructure/payments/stripe.client.js";
+import { verifyStripeWebhook } from "../../../infrastructure/payments/stripe.webhook.js";
 import { ApiResponse } from "../../../types/common.types.js";
 import { ApiError } from "../../../shared/errors/api-error.js";
 import { asyncHandler } from "../../../middleware/utils/async-handler.utils.js";
@@ -485,37 +485,11 @@ export const finishContract: RequestHandler = asyncHandler(
 
 export const contractWebhook: RequestHandler = asyncHandler(
   async (request, response) => {
-    const signature = request.headers["stripe-signature"];
-    if (!env.stripeWebhookSecret || typeof signature !== "string") {
-      await request.logger.warn({
-        message: "Webhook signature rejected",
-        eventName: "webhook.inbound.rejected",
-        attributes: {
-          "webhook.source": "stripe",
-          "webhook.reject_reason": "missing_signature_or_secret",
-        },
-      });
-      throw new ApiError(400, "Invalid Stripe webhook.");
-    }
-
-    let event: ReturnType<typeof stripe.webhooks.constructEvent>;
-    try {
-      event = stripe.webhooks.constructEvent(
-        request.body,
-        signature,
-        env.stripeWebhookSecret,
-      );
-    } catch {
-      await request.logger.warn({
-        message: "Webhook signature rejected",
-        eventName: "webhook.inbound.rejected",
-        attributes: {
-          "webhook.source": "stripe",
-          "webhook.reject_reason": "invalid_signature",
-        },
-      });
-      throw new ApiError(400, "Invalid Stripe webhook signature.");
-    }
+    const event = await verifyStripeWebhook(request, {
+      secret: env.stripeWebhookSecret,
+      source: "stripe",
+      missingMessage: "Invalid Stripe webhook.",
+    });
 
     if (
       event.type === "checkout.session.completed" ||

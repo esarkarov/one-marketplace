@@ -16,7 +16,7 @@ import {
   getAgencyConnectsCacheKey,
   getConnectsCacheKey,
   PROPOSAL_CONNECTS,
-} from "../../../config/constants.js";
+} from "../../connects/index.js";
 import { redis } from "../../../infrastructure/cache/redis.client.js";
 import { getAgencyOwnerId } from "../../agency/index.js";
 import {

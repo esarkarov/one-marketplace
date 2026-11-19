@@ -1,5 +1,5 @@
 import type { DbExecutor } from "../../../database/database.types.js";
-import { listAccountPublicIdsByAuthIds } from "../repositories/messaging.participants.repository.js";
+import { findAccountPublicIds } from "../../auth/index.js";
 import {
   buildSocketPublicIds,
   type SocketPublicIds,
@@ -21,11 +21,12 @@ export const loadSocketPublicIds = async (
     .filter(({ scope }) => scope === "agency")
     .map(({ userId }) => userId);
   if (input.agencyId) agencyIds.push(input.agencyId);
-  const rows = await listAccountPublicIdsByAuthIds(executor, [
-    ...new Set([input.userId, ...personIds]),
+  const publicIds = await findAccountPublicIds(executor, [
+    input.userId,
+    ...personIds,
   ]);
   return buildSocketPublicIds({
     agencyIds: [...new Set(agencyIds)],
-    rows,
+    rows: [...publicIds].map(([authId, id]) => ({ authId, id })),
   });
 };

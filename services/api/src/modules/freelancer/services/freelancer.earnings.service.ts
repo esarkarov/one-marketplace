@@ -14,11 +14,9 @@ import { env } from "../../../config/env.js";
 import { stripe } from "../../../infrastructure/payments/stripe.client.js";
 import type { StripeRequirementsLike } from "../../../types/common.types.js";
 import { ApiError } from "../../../shared/errors/api-error.js";
-import {
-  EARNINGS_HOLD_PERIOD_MS,
-  PLATFORM_FEE_BPS,
-  STRIPE_PAYOUT_ELIGIBLE_COUNTRIES,
-} from "../../../config/constants.js";
+import { EARNINGS_HOLD_PERIOD_MS } from "../../payouts/index.js";
+import { PLATFORM_FEE_BPS } from "../../../shared/money/money.js";
+import { STRIPE_PAYOUT_ELIGIBLE_COUNTRIES } from "../../../infrastructure/constants/index.js";
 import { clerk } from "../../../infrastructure/auth/clerk.client.js";
 
 const MONTHLY_EARNINGS_SPAN = 7;

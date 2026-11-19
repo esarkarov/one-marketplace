@@ -9,7 +9,7 @@ Every module follows the folder layout of ADR 0016 (`docs/decisions/0016-module-
 1. Create `modules/<name>/` (kebab-case) with `<name>.route.ts` at the root and, only for the folders that hold files: `controllers/<name>.controller.ts`, `services/<name>.service.ts`, `repositories/<name>.repository.ts`, `schemas/<name>.schema.ts` (zod request schemas), `responses/<name>.responses.ts`, `types/<name>.types.ts`, `utils/` for helpers, and `models/<name>.model.ts` when the module owns tables (drizzle tables and enums; the drizzle glob `src/modules/*/models/*.model.ts` picks it up with no config change). Add each new table or enum to `table-ownership.ts` and `src/test/support/tables.ts`. Middleware goes in `middleware/<name>.middleware.ts`; the `.cron`, `.socket` and `.consumer` entry points stay at the module root and `.sse.ts` goes in `services/`. Tests go in `tests/`.
 2. Mount the router in `routes/index.ts`. Routes that must combine two modules are wired in `routes/`, not by one module importing another's controller.
 3. Add the module to `moduleLayers` in `test/architecture/import-boundaries.test.ts`, and to the layer table in ADR 0013 in the same PR. A module may import only a strictly lower layer. Never add an entry to `test/architecture/boundary-exceptions.ts`.
-4. Create `index.ts` only when another module needs something from this one (today `agency`, `auth`, `connects`, `freelancer`, `health`, `jobs`, `messaging`, `proposals`). Export the minimum, as plain re-exports of functions.
+4. Create `index.ts` only when another module needs something from this one (today `agency`, `auth`, `connects`, `freelancer`, `health`, `jobs`, `messaging`, `payouts`, `proposals`). Export the minimum, as plain re-exports of functions.
 
 ## New route
 

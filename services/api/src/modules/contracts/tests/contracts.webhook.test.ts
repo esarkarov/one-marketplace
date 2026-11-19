@@ -1,0 +1,196 @@
+import express from "express";
+import request from "supertest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const mocks = vi.hoisted(() => ({
+  constructEvent: vi.fn(),
+  warn: vi.fn(),
+  createContractFromPayment: vi.fn(),
+  fundContractMilestoneFromPayment: vi.fn(),
+  env: { stripeWebhookSecret: "whsec_contracts" as string | undefined },
+}));
+
+vi.mock("../../../config/env.js", () => ({ env: mocks.env }));
+
+vi.mock("../../../infrastructure/payments/stripe.client.js", () => ({
+  stripe: { webhooks: { constructEvent: mocks.constructEvent } },
+}));
+
+vi.mock("../../../middleware/auth/role-guards.middleware.js", () => ({
+  requireClient: vi.fn(),
+  requireFreelancer: vi.fn(),
+}));
+
+vi.mock("../../agency/index.js", () => ({
+  getAgencyIdForMember: vi.fn(),
+  requireAgencyPermission: vi.fn(),
+}));
+
+vi.mock("../services/contracts.checkout.service.js", () => ({
+  createContractCheckout: vi.fn(),
+  createMilestoneFundingCheckout: vi.fn(),
+  fundContractMilestoneFromPayment: mocks.fundContractMilestoneFromPayment,
+}));
+
+vi.mock("../services/contracts.listing.service.js", () => ({
+  getAccountContracts: vi.fn(),
+}));
+
+vi.mock("../services/contracts.lifecycle.service.js", () => ({
+  acceptContract: vi.fn(),
+  cancelPendingContract: vi.fn(),
+  createContractFromPayment: mocks.createContractFromPayment,
+  finishContractWithReview: vi.fn(),
+}));
+
+vi.mock("../services/contracts.milestones.service.js", () => ({
+  addContractMilestone: vi.fn(),
+  reviewContractMilestone: vi.fn(),
+  submitContractMilestone: vi.fn(),
+}));
+
+vi.mock("../../../infrastructure/events/notification.publisher.js", () => ({
+  sendNotification: vi.fn(),
+}));
+
+vi.mock("../../messaging/index.js", () => ({
+  emitConversationUpdate: vi.fn(),
+}));
+
+const { contractWebhook } =
+  await import("../controllers/contracts.controller.js");
+const { errorHandler } =
+  await import("../../../middleware/error/error.middleware.js");
+
+const app = express();
+app.use((req, _res, next) => {
+  req.logger = {
+    warn: mocks.warn,
+    info: async () => undefined,
+    error: async () => undefined,
+  } as unknown as typeof req.logger;
+  next();
+});
+app.post("/webhook", express.raw({ type: "*/*" }), contractWebhook);
+app.use(errorHandler);
+
+const post = (signature?: string) => {
+  const call = request(app)
+    .post("/webhook")
+    .set("content-type", "application/json");
+  return (signature ? call.set("stripe-signature", signature) : call).send(
+    '{"ok":true}',
+  );
+};
+
+describe("contract webhook signature verification", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.env.stripeWebhookSecret = "whsec_contracts";
+  });
+
+  it("rejects a missing signature header with the missing-secret log and message", async () => {
+    const response = await post();
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      success: false,
+      message: "Invalid Stripe webhook.",
+      code: "BAD_REQUEST",
+      requestId: expect.any(String),
+    });
+    expect(mocks.warn).toHaveBeenCalledOnce();
+    expect(mocks.warn).toHaveBeenCalledWith({
+      message: "Webhook signature rejected",
+      eventName: "webhook.inbound.rejected",
+      attributes: {
+        "webhook.source": "stripe",
+        "webhook.reject_reason": "missing_signature_or_secret",
+      },
+    });
+    expect(mocks.constructEvent).not.toHaveBeenCalled();
+  });
+
+  it("rejects a missing secret with the same message and log", async () => {
+    mocks.env.stripeWebhookSecret = undefined;
+
+    const response = await post("sig");
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe("Invalid Stripe webhook.");
+    expect(mocks.warn).toHaveBeenCalledWith({
+      message: "Webhook signature rejected",
+      eventName: "webhook.inbound.rejected",
+      attributes: {
+        "webhook.source": "stripe",
+        "webhook.reject_reason": "missing_signature_or_secret",
+      },
+    });
+    expect(mocks.constructEvent).not.toHaveBeenCalled();
+  });
+
+  it("rejects an invalid signature with the invalid-signature log and message", async () => {
+    mocks.constructEvent.mockImplementation(() => {
+      throw new Error("No signatures found matching the expected signature");
+    });
+
+    const response = await post("bad");
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      success: false,
+      message: "Invalid Stripe webhook signature.",
+      code: "BAD_REQUEST",
+      requestId: expect.any(String),
+    });
+    expect(mocks.warn).toHaveBeenCalledOnce();
+    expect(mocks.warn).toHaveBeenCalledWith({
+      message: "Webhook signature rejected",
+      eventName: "webhook.inbound.rejected",
+      attributes: {
+        "webhook.source": "stripe",
+        "webhook.reject_reason": "invalid_signature",
+      },
+    });
+    expect(mocks.createContractFromPayment).not.toHaveBeenCalled();
+  });
+
+  it("verifies against the raw body, header and webhook secret, then handles the event", async () => {
+    const session = { id: "cs_1", metadata: {} };
+    mocks.constructEvent.mockReturnValue({
+      type: "checkout.session.completed",
+      data: { object: session },
+    });
+
+    const response = await post("good");
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ received: true });
+    expect(mocks.constructEvent).toHaveBeenCalledWith(
+      Buffer.from('{"ok":true}'),
+      "good",
+      "whsec_contracts",
+    );
+    expect(mocks.createContractFromPayment).toHaveBeenCalledWith(session);
+    expect(mocks.warn).not.toHaveBeenCalled();
+  });
+
+  it("routes milestone funding sessions to the funding handler", async () => {
+    const session = {
+      id: "cs_2",
+      metadata: { paymentType: "CONTRACT_MILESTONE_FUNDING" },
+    };
+    mocks.constructEvent.mockReturnValue({
+      type: "checkout.session.async_payment_succeeded",
+      data: { object: session },
+    });
+
+    const response = await post("good");
+
+    expect(response.status).toBe(200);
+    expect(mocks.fundContractMilestoneFromPayment).toHaveBeenCalledWith(
+      session,
+    );
+    expect(mocks.createContractFromPayment).not.toHaveBeenCalled();
+  });
+});

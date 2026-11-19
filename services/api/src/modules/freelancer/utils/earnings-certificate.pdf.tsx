@@ -1,13 +1,13 @@
 import ReactPDFDefault, { renderToBuffer } from "@react-pdf/renderer";
-import { fileURLToPath } from "node:url";
 import type { EarningsCertificateData } from "../types/freelancer.types.js";
 import { formatUsdGrouped } from "../../../shared/money/money.js";
 
 const { Document, Page, View, Text, Image, StyleSheet } = ReactPDFDefault;
 
-const signatureImagePath = fileURLToPath(
-  new URL("../../../assets/signature.png", import.meta.url),
-);
+export const signatureImageSource = new URL(
+  "../../../../assets/signature.png",
+  import.meta.url,
+).href;
 
 const styles = StyleSheet.create({
   page: {
@@ -247,7 +247,7 @@ function EarningsCertificateDocument({
 
         <View style={styles.signatureBlock}>
           <View style={styles.signatureContainer}>
-            <Image src={signatureImagePath} style={styles.signatureImage} />
+            <Image src={signatureImageSource} style={styles.signatureImage} />
             <View style={styles.signatureLine}>
               <Text style={styles.signatureLineName}>Shahriar Sajeeb</Text>
               <Text style={styles.muted}>Founder & Authorized Signatory,</Text>

@@ -6,6 +6,7 @@ export {
   markIdentityVerified,
   setStripeConnectAccountId,
   findAccountIdByAuthId,
+  findAccountPublicIds,
 } from "./repositories/auth.repository.js";
 export {
   authenticateAccount,

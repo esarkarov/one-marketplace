@@ -319,12 +319,10 @@ describe("connects checkout account write", () => {
 });
 
 const service = await import("../services/connects.service.js");
-const {
-  INITIAL_CONNECTS,
-  CONNECTS_PLANS,
-  getAgencyConnectsCacheKey,
-  getConnectsCacheKey,
-} = await import("../../../config/constants.js");
+const { INITIAL_CONNECTS, CONNECTS_PLANS } =
+  await import("../constants/connects.constants.js");
+const { getAgencyConnectsCacheKey, getConnectsCacheKey } =
+  await import("../utils/connects.cache-keys.js");
 
 describe("connects service writes against real Postgres", () => {
   const seedBareFreelancer = async () => {

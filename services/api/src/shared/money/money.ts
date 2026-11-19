@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { PLATFORM_FEE_BPS } from "../../config/constants.js";
+export const PLATFORM_FEE_BPS = 1000;
 
 export const MAX_MONEY_CENTS = Number.MAX_SAFE_INTEGER;
 

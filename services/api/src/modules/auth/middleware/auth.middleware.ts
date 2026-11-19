@@ -6,8 +6,8 @@ import { allowedOrigins } from "../../../config/cors.js";
 import {
   ACCOUNT_AUTH_CACHE_TTL_SECONDS,
   ACCOUNT_AUTH_NEGATIVE_CACHE_TTL_SECONDS,
-  getAccountAuthCacheKey,
-} from "../../../config/constants.js";
+} from "../constants/auth.constants.js";
+import { getAccountAuthCacheKey } from "../../../infrastructure/utils/account-auth-cache-key.utils.js";
 import { verifyToken } from "../../../infrastructure/auth/clerk.client.js";
 import { redis } from "../../../infrastructure/cache/redis.client.js";
 import { db } from "../../../database/client.js";

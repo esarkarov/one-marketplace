@@ -90,7 +90,7 @@ import {
   countryDisplayName,
 } from "../../../shared/search/search-text.js";
 import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";
-import { getAccountAuthCacheKey } from "../../../config/constants.js";
+import { getAccountAuthCacheKey } from "../../../infrastructure/utils/account-auth-cache-key.utils.js";
 import {
   getClientFinanceManagementUrl,
   getClientProfile,

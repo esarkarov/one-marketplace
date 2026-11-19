@@ -1,7 +1,6 @@
 import { and, eq, inArray, ne, sql } from "drizzle-orm";
 import type { DbExecutor } from "../../../database/database.types.js";
 import { agency_metadata } from "../../agency/models/agency.model.js";
-import { accounts } from "../../auth/models/auth.model.js";
 import { client_metadata } from "../../client/models/client.model.js";
 import { freelancer_metadata } from "../../freelancer/models/freelancer.model.js";
 import {
@@ -282,12 +281,3 @@ export const markReadIfMessageInConversation = async (
     .returning({ id: conversation_participants.id });
   return participant;
 };
-
-export const listAccountPublicIdsByAuthIds = (
-  executor: DbExecutor,
-  authIds: string[],
-) =>
-  executor
-    .select({ authId: accounts.auth_id, id: accounts.id })
-    .from(accounts)
-    .where(inArray(accounts.auth_id, authIds));

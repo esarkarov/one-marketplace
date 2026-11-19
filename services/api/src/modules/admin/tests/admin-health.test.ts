@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   ping: vi.fn(),
-  execute: vi.fn(),
+  query: vi.fn(),
   rabbit: vi.fn(),
   logError: vi.fn(),
 }));
@@ -17,8 +17,8 @@ vi.mock("../../../config/logger.js", () => ({
   logger: { error: mocks.logError },
 }));
 vi.mock("../../../database/client.js", () => ({
-  db: { execute: mocks.execute },
-  pool: { end: async () => undefined },
+  db: {},
+  pool: { end: async () => undefined, query: mocks.query },
 }));
 
 const { getSystemHealth } = await import("../services/admin.system.service.js");
@@ -26,7 +26,7 @@ const { getSystemHealth } = await import("../services/admin.system.service.js");
 beforeEach(() => {
   vi.resetAllMocks();
   mocks.ping.mockResolvedValue("PONG");
-  mocks.execute.mockResolvedValue([]);
+  mocks.query.mockResolvedValue([]);
   mocks.rabbit.mockResolvedValue({ ok: true });
 });
 
@@ -76,7 +76,7 @@ describe("getSystemHealth", () => {
   });
 
   it("returns only ok false when the database fails and logs server-side", async () => {
-    mocks.execute.mockRejectedValue(new Error("postgres://u:secret@h down"));
+    mocks.query.mockRejectedValue(new Error("postgres://u:secret@h down"));
 
     const health = await getSystemHealth();
 

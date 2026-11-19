@@ -8,7 +8,7 @@ import {
   PublicTalentSearchPage,
   SaveFreelancerProfileInput,
 } from "../types/freelancer.types.js";
-import { requireText } from "../../../config/constants.js";
+import { requireText } from "../../../shared/validation/utils/require-text.utils.js";
 import type { UpsertProfileBody } from "../schemas/freelancer.schema.js";
 import { parseLiveUrl } from "../../../shared/uploads/portfolio-images.js";
 import {

@@ -10,8 +10,8 @@ import {
   createAgencyConnectsCheckout,
   getAgencyConnectsBalance,
   getAgencyConnectsHistory,
+  isConnectsPlan,
 } from "../../connects/index.js";
-import { CONNECTS_PLANS, ConnectsPlan } from "../../../config/constants.js";
 
 export const getAgencyConnects: RequestHandler = asyncHandler(
   async (request, response) => {
@@ -92,8 +92,8 @@ export const buyAgencyConnects: RequestHandler = asyncHandler(
       );
     }
 
-    const purchasedConnects = Number(request.body?.connects) as ConnectsPlan;
-    if (!(purchasedConnects in CONNECTS_PLANS)) {
+    const purchasedConnects = request.body?.connects;
+    if (!isConnectsPlan(purchasedConnects)) {
       throw new ApiError(400, "Select a valid Connects package.");
     }
 

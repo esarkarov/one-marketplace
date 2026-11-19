@@ -360,15 +360,6 @@ export const listConnectsPurchases = (executor: DbExecutor, limit: number) =>
     )
     .limit(limit);
 
-export const listAccountPublicIdsByAuthIds = (
-  executor: DbExecutor,
-  authIds: string[],
-) =>
-  executor
-    .select({ authId: accounts.auth_id, id: accounts.id })
-    .from(accounts)
-    .where(inArray(accounts.auth_id, authIds));
-
 export const listAgencyNamesByIds = (
   executor: DbExecutor,
   agencyIds: string[],
@@ -377,6 +368,3 @@ export const listAgencyNamesByIds = (
     .select({ id: agency_metadata.id, name: agency_metadata.name })
     .from(agency_metadata)
     .where(inArray(agency_metadata.id, agencyIds));
-
-export const pingDatabase = (executor: DbExecutor) =>
-  executor.execute(sql`SELECT 1`);

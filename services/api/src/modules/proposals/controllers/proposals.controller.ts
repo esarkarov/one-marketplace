@@ -6,7 +6,7 @@ import {
   requireClient,
   requireFreelancer,
 } from "../../../middleware/auth/role-guards.middleware.js";
-import { requireText } from "../../../config/constants.js";
+import { requireText } from "../../../shared/validation/utils/require-text.utils.js";
 import { ApiError } from "../../../shared/errors/api-error.js";
 import type { submitProposalBodySchema } from "../schemas/proposals.schema.js";
 import {

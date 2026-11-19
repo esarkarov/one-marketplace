@@ -495,6 +495,28 @@ describe.each(ROLE_CASES)("agency role: $label", (roleCase) => {
     }
   });
 
+  it("connects.checkout answers an unknown plan with the exact legacy body, after the permission check", async () => {
+    const { actorId } = await setupAgency(roleCase);
+
+    const response = await request(app)
+      .post(`${API}/agency/connects/checkout`)
+      .set(as(actorId))
+      .send({ role: "freelancer", connects: 7 });
+
+    expect(mocks.sessionsCreate).not.toHaveBeenCalled();
+    if (roleCase.allowed) {
+      expect(response.status).toBe(400);
+      expect(response.body).toEqual({
+        success: false,
+        message: "Select a valid Connects package.",
+        code: "BAD_REQUEST",
+        requestId: expect.any(String),
+      });
+    } else {
+      expectDenied(response);
+    }
+  });
+
   it.each(["summary", "overview"])("earnings.view (%s)", async (path) => {
     const { agencyId, actorId } = await setupAgency(roleCase);
     const ownEarningId = await seedEarning(agencyId, 20000);

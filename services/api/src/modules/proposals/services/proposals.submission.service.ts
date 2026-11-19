@@ -14,7 +14,7 @@ import {
   getAgencyConnectsCacheKey,
   getConnectsCacheKey,
   PROPOSAL_CONNECTS,
-} from "../../../config/constants.js";
+} from "../../connects/index.js";
 import { redis } from "../../../infrastructure/cache/redis.client.js";
 import { getAgencyTeamMemberIds } from "../../agency/index.js";
 import { sendNotification } from "../../../infrastructure/events/notification.publisher.js";

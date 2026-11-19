@@ -8,10 +8,13 @@ import {
   createConnectsCheckout,
   getConnectsHistory,
 } from "../services/connects.service.js";
-import { CONNECTS_PLANS, ConnectsPlan } from "../../../config/constants.js";
-import { ApiError } from "../../../shared/errors/api-error.js";
+import {
+  CONNECTS_PLANS,
+  ConnectsPlan,
+} from "../constants/connects.constants.js";
+import { isConnectsPlan } from "../utils/connects.plans.js";
 import { env } from "../../../config/env.js";
-import { stripe } from "../../../infrastructure/payments/stripe.client.js";
+import { verifyStripeWebhook } from "../../../infrastructure/payments/stripe.webhook.js";
 
 export const getAvailableConnects: RequestHandler = async (
   request,
@@ -60,49 +63,21 @@ export const buyConnects: RequestHandler = asyncHandler(
 
 export const connectsWebhook: RequestHandler = asyncHandler(
   async (request, response) => {
-    const signature = request.headers["stripe-signature"];
-    if (!env.stripeConnectsWebhookSecret || typeof signature !== "string") {
-      await request.logger.warn({
-        message: "Webhook signature rejected",
-        eventName: "webhook.inbound.rejected",
-        attributes: {
-          "webhook.source": "stripe",
-          "webhook.reject_reason": "missing_signature_or_secret",
-        },
-      });
-      throw new ApiError(400, "Invalid Stripe webhook.");
-    }
-
-    let event;
-    try {
-      event = stripe.webhooks.constructEvent(
-        request.body,
-        signature,
-        env.stripeConnectsWebhookSecret,
-      );
-    } catch {
-      await request.logger.warn({
-        message: "Webhook signature rejected",
-        eventName: "webhook.inbound.rejected",
-        attributes: {
-          "webhook.source": "stripe",
-          "webhook.reject_reason": "invalid_signature",
-        },
-      });
-      throw new ApiError(400, "Invalid Stripe webhook signature.");
-    }
+    const event = await verifyStripeWebhook(request, {
+      secret: env.stripeConnectsWebhookSecret,
+      source: "stripe",
+      missingMessage: "Invalid Stripe webhook.",
+    });
 
     if (event.type === "checkout.session.completed") {
       const session = event.data.object;
-      const purchasedConnects = Number(
-        session.metadata?.purchasedConnects,
-      ) as ConnectsPlan;
+      const purchasedConnects = Number(session.metadata?.purchasedConnects);
       const freelancerId = session.metadata?.freelancerId;
       const agencyId = session.metadata?.agencyId;
 
       if (
         session.payment_status === "paid" &&
-        purchasedConnects in CONNECTS_PLANS
+        isConnectsPlan(purchasedConnects)
       ) {
         if (freelancerId) {
           await completeConnectsPurchase(

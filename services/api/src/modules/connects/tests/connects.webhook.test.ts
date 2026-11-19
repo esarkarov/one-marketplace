@@ -68,6 +68,14 @@ describe("connects webhook", () => {
       requestId: expect.any(String),
     });
     expect(mocks.warn).toHaveBeenCalledOnce();
+    expect(mocks.warn).toHaveBeenCalledWith({
+      message: "Webhook signature rejected",
+      eventName: "webhook.inbound.rejected",
+      attributes: {
+        "webhook.source": "stripe",
+        "webhook.reject_reason": "invalid_signature",
+      },
+    });
     expect(mocks.complete).not.toHaveBeenCalled();
   });
 
@@ -78,6 +86,41 @@ describe("connects webhook", () => {
       .send("{}");
 
     expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      success: false,
+      message: "Invalid Stripe webhook.",
+      code: "BAD_REQUEST",
+      requestId: expect.any(String),
+    });
+    expect(mocks.warn).toHaveBeenCalledOnce();
+    expect(mocks.warn).toHaveBeenCalledWith({
+      message: "Webhook signature rejected",
+      eventName: "webhook.inbound.rejected",
+      attributes: {
+        "webhook.source": "stripe",
+        "webhook.reject_reason": "missing_signature_or_secret",
+      },
+    });
     expect(mocks.constructEvent).not.toHaveBeenCalled();
+  });
+
+  it("verifies against the raw body, header and connects secret", async () => {
+    mocks.constructEvent.mockReturnValue({
+      type: "payment_intent.created",
+      data: { object: {} },
+    });
+
+    const response = await request(app)
+      .post("/webhook")
+      .set("stripe-signature", "good")
+      .set("content-type", "application/json")
+      .send("{}");
+
+    expect(response.status).toBe(200);
+    expect(mocks.constructEvent).toHaveBeenCalledWith(
+      Buffer.from("{}"),
+      "good",
+      "whsec_test",
+    );
   });
 });

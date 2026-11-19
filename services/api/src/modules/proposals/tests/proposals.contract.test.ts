@@ -87,7 +87,7 @@ import {
   messages,
   proposals,
 } from "../../../test/support/tables.js";
-import { PROPOSAL_CONNECTS } from "../../../config/constants.js";
+import { PROPOSAL_CONNECTS } from "../../connects/constants/connects.constants.js";
 import { expectNoClerkIds } from "../../../test/support/clerk-id-scan.js";
 import { logger } from "../../../config/logger.js";
 import { assertTestDatabase } from "../../../test/setup/assert-test-database.js";

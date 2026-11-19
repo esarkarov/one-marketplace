@@ -1,4 +1,4 @@
-import { getAccountAuthCacheKeys } from "../../config/constants.js";
+import { getAccountAuthCacheKeys } from "../utils/account-auth-cache-key.utils.js";
 import { logger } from "../../config/logger.js";
 import { redis } from "./redis.client.js";
 import { errorLogAttributes } from "../../shared/logging/sanitize-log.js";

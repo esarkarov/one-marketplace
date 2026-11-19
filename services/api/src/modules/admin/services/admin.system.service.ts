@@ -1,4 +1,3 @@
-import { db } from "../../../database/client.js";
 import { redis } from "../../../infrastructure/cache/redis.client.js";
 import { getRabbitStatus } from "../../../infrastructure/events/rabbitmq.client.js";
 import { logger } from "../../../config/logger.js";
@@ -9,7 +8,7 @@ import {
   REDIS_REDACTED_PREFIX,
   REDIS_REDACTED_VALUE,
 } from "../schemas/admin.redis.schema.js";
-import { pingDatabase } from "../repositories/admin.repository.js";
+import { pingDatabase } from "../../health/index.js";
 
 export const getSystemHealth = async () => {
   const startedAt = Date.now();
@@ -22,7 +21,7 @@ export const getSystemHealth = async () => {
     })(),
     (async () => {
       const start = Date.now();
-      await pingDatabase(db);
+      await pingDatabase();
       return { ok: true, latencyMs: Date.now() - start };
     })(),
     Promise.resolve().then(getRabbitStatus),

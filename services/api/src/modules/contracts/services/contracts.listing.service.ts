@@ -1,9 +1,8 @@
-import { findAccountDisplays } from "../../auth/index.js";
+import { findAccountDisplays, findAccountPublicIds } from "../../auth/index.js";
 import {
   listAccountContractIds,
   listAgencySummariesByIds,
   listContractRows,
-  listPublicAccountIds,
 } from "../repositories/contracts.repository.js";
 import { db } from "../../../database/client.js";
 import { requirePublicId } from "../../../shared/ids/public-ids.js";
@@ -43,14 +42,7 @@ export const getAccountContracts = async (
         .filter((id): id is string => Boolean(id)),
     ),
   ];
-  const publicIds = new Map(
-    counterpartyIds.length
-      ? (await listPublicAccountIds(db, counterpartyIds)).map((account) => [
-          account.authId,
-          account.id,
-        ])
-      : [],
-  );
+  const publicIds = await findAccountPublicIds(db, counterpartyIds);
   const displays = await findAccountDisplays(counterpartyIds);
 
   const agencyIds = [

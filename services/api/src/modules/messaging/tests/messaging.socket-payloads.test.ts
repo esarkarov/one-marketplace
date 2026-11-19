@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({ listAccountPublicIdsByAuthIds: vi.fn() }));
+const mocks = vi.hoisted(() => ({ findAccountPublicIds: vi.fn() }));
 
-vi.mock("../repositories/messaging.participants.repository.js", () => ({
-  listAccountPublicIdsByAuthIds: mocks.listAccountPublicIdsByAuthIds,
+vi.mock("../../auth/index.js", () => ({
+  findAccountPublicIds: mocks.findAccountPublicIds,
 }));
 
 import type { DbExecutor } from "../../../database/database.types.js";
@@ -109,11 +109,13 @@ describe("socket payload builders", () => {
 
 describe("loadSocketPublicIds", () => {
   beforeEach(() => {
-    mocks.listAccountPublicIdsByAuthIds.mockReset();
-    mocks.listAccountPublicIdsByAuthIds.mockResolvedValue([
-      { authId: SELF_CLERK, id: SELF_UUID },
-      { authId: PARTNER_CLERK, id: PARTNER_UUID },
-    ]);
+    mocks.findAccountPublicIds.mockReset();
+    mocks.findAccountPublicIds.mockResolvedValue(
+      new Map([
+        [SELF_CLERK, SELF_UUID],
+        [PARTNER_CLERK, PARTNER_UUID],
+      ]),
+    );
   });
 
   const executor = {} as DbExecutor;
@@ -129,9 +131,10 @@ describe("loadSocketPublicIds", () => {
       ],
     });
 
-    expect(mocks.listAccountPublicIdsByAuthIds).toHaveBeenCalledTimes(1);
-    expect(mocks.listAccountPublicIdsByAuthIds).toHaveBeenCalledWith(executor, [
+    expect(mocks.findAccountPublicIds).toHaveBeenCalledTimes(1);
+    expect(mocks.findAccountPublicIds).toHaveBeenCalledWith(executor, [
       SELF_CLERK,
+      PARTNER_CLERK,
       PARTNER_CLERK,
     ]);
     expect(map.get(SELF_CLERK)).toBe(SELF_UUID);
@@ -154,6 +157,6 @@ describe("loadSocketPublicIds", () => {
       });
       toPresenceSnapshotPayload(map, [PARTNER_CLERK]);
     }
-    expect(mocks.listAccountPublicIdsByAuthIds).toHaveBeenCalledTimes(1);
+    expect(mocks.findAccountPublicIds).toHaveBeenCalledTimes(1);
   });
 });
