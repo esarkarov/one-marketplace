@@ -8,7 +8,6 @@ import {
   MembersPanel,
   NotificationsPanel,
   OverviewPanel,
-  SecurityPanel,
   VerificationPanel,
 } from "../_components/settings/settings-panels";
 import type { AgencySettingsSectionId } from "../_components/settings/settings-data";
@@ -51,7 +50,6 @@ export function AgencySettingsDashboard({
           )}
           {section === "members" && <MembersPanel />}
           {section === "verification" && <VerificationPanel />}
-          {section === "security" && <SecurityPanel />}
           {section === "notifications" && <NotificationsPanel />}
         </div>
       </div>

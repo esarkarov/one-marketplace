@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { ProposalsDashboard } from "./proposals-dashboard";
+import { Suspense } from "react";
 
 export const metadata: Metadata = {
   title: "Agency Proposals | OneMarketplace.io",
@@ -7,5 +8,9 @@ export const metadata: Metadata = {
 };
 
 export default function AgencyProposalsPage() {
-  return <ProposalsDashboard />;
+  return (
+    <Suspense>
+      <ProposalsDashboard />
+    </Suspense>
+  );
 }

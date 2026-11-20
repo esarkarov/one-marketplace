@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { TeamDashboard } from "./team-dashboard";
+import { Suspense } from "react";
 
 export const metadata: Metadata = {
   title: "Agency Team | OneMarketplace.io",
@@ -8,5 +9,9 @@ export const metadata: Metadata = {
 };
 
 export default function AgencyTeamPage() {
-  return <TeamDashboard />;
+  return (
+    <Suspense>
+      <TeamDashboard />
+    </Suspense>
+  );
 }

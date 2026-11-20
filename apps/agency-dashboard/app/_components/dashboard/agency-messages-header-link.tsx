@@ -2,15 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { initialAgencyConversations } from "../messages/messages-data";
+import { useUnreadMessages } from "@/hooks/use-unread-messages";
 import { Icon } from "../ui/icon";
 
 export function AgencyMessagesHeaderLink() {
   const pathname = usePathname();
-  const unreadCount = initialAgencyConversations.reduce(
-    (total, conversation) => total + conversation.unread,
-    0,
-  );
+  const unreadCount = useUnreadMessages();
   const active = pathname === "/messages";
 
   return (

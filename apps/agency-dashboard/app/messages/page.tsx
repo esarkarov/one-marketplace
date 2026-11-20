@@ -7,6 +7,12 @@ export const metadata: Metadata = {
     "Manage agency conversations with clients about proposals and contracts.",
 };
 
-export default function AgencyMessagesPage() {
-  return <MessagesDashboard />;
+export default async function AgencyMessagesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ conversationId?: string }>;
+}) {
+  const { conversationId } = await searchParams;
+
+  return <MessagesDashboard conversationId={conversationId} />;
 }

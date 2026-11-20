@@ -1,9 +1,12 @@
 export type AgencyProposalStatus =
-  "Interview" | "Viewed" | "Submitted" | "Archived" | "Withdrawn";
+  | "Interview"
+  | "Viewed"
+  | "Submitted"
+  | "Archived";
 
 export type AgencyProposal = {
-  id: number;
-  jobId: number;
+  id: string;
+  jobId: string;
   title: string;
   client: string;
   status: AgencyProposalStatus;
@@ -16,6 +19,6 @@ export type AgencyProposal = {
   clientSpent: string;
   activity: string;
   coverLetter: string;
-  milestonePlan: string[];
   skills: string[];
+  conversationId: string | null;
 };

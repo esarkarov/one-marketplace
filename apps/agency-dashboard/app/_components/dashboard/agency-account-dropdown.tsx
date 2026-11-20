@@ -1,8 +1,16 @@
 "use client";
 
+import { useAuth, useClerk, useUser } from "@clerk/nextjs";
 import { Icon } from "@iconify/react";
+import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+
+type AgencyMineMember = {
+  freelancerId: string;
+  isOwner: boolean;
+  role: string;
+};
 
 const accountItems = [
   {
@@ -34,6 +42,31 @@ const accountItems = [
 export function AgencyAccountDropdown() {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const { user, isLoaded } = useUser();
+  const { getToken } = useAuth();
+  const { signOut } = useClerk();
+
+  const { data: agency } = useQuery({
+    queryKey: ["agency-mine"],
+    enabled: Boolean(user),
+    queryFn: async () => {
+      const token = await getToken();
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_SERVER_URI}/agency/mine?role=freelancer`,
+        { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" },
+      );
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message);
+      return result.data as { name: string; members: AgencyMineMember[] } | null;
+    },
+  });
+
+  const membership = agency?.members.find(
+    (member) => member.freelancerId === user?.id,
+  );
+  const roleLabel = membership?.isOwner
+    ? "Owner"
+    : (membership?.role ?? "Member");
 
   useEffect(() => {
     if (!open) return;
@@ -53,10 +86,8 @@ export function AgencyAccountDropdown() {
     };
   }, [open]);
 
-  const logOut = () => {
-    window.localStorage.clear();
-    window.sessionStorage.clear();
-    window.location.assign("/login");
+  const logOut = async () => {
+    await signOut();
   };
 
   return (
@@ -73,9 +104,18 @@ export function AgencyAccountDropdown() {
             : "border-black/8 hover:bg-black/3"
         }`}
       >
-        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#496e67] text-xs font-semibold text-white">
-          SK
-        </span>
+        {isLoaded && user?.imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={user.imageUrl}
+            alt={user.fullName ?? "Account"}
+            className="h-8 w-8 rounded-full object-cover"
+          />
+        ) : (
+          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#496e67] text-xs font-semibold text-white">
+            ...
+          </span>
+        )}
         <Icon
           icon="solar:alt-arrow-down-linear"
           width="16"
@@ -90,13 +130,24 @@ export function AgencyAccountDropdown() {
           className="fixed top-17 right-3 z-50 w-[calc(100vw-1.5rem)] overflow-hidden rounded-2xl border border-black/8 bg-white shadow-[0_24px_70px_rgba(26,34,26,0.18)] sm:absolute sm:top-12 sm:right-0 sm:w-80"
         >
           <div className="flex items-center gap-3 border-b border-black/7 p-4">
-            <span className="flex h-11 w-11 items-center justify-center rounded-full bg-[#496e67] text-sm font-semibold text-white">
-              SK
-            </span>
+            {isLoaded && user?.imageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={user.imageUrl}
+                alt={user.fullName ?? "Account"}
+                className="h-11 w-11 rounded-full object-cover"
+              />
+            ) : (
+              <span className="flex h-11 w-11 items-center justify-center rounded-full bg-[#496e67] text-sm font-semibold text-white">
+                ...
+              </span>
+            )}
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold">Shahriar Sajeeb</p>
+              <p className="truncate text-sm font-semibold">
+                {user?.fullName ?? "Loading..."}
+              </p>
               <p className="mt-0.5 truncate text-[11px] text-[#7b8078]">
-                Owner · Northstar Digital
+                {roleLabel} · {agency?.name ?? "your agency"}
               </p>
             </div>
             <span className="rounded-full bg-[#e6f2e3] px-2 py-1 text-[9px] font-semibold text-[#477344]">
@@ -133,7 +184,7 @@ export function AgencyAccountDropdown() {
 
           <div className="border-t border-black/7 p-2">
             <a
-              href="http://localhost:3001"
+              href={process.env.NEXT_PUBLIC_FREELANCER_DASHBOARD}
               role="menuitem"
               onClick={() => setOpen(false)}
               className="flex items-center gap-3 rounded-xl px-3 py-3 transition hover:bg-[#f4f6f2]"

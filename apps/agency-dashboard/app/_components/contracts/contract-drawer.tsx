@@ -11,16 +11,28 @@ const milestoneStyles: Record<AgencyMilestoneStatus, string> = {
   Upcoming: "bg-[#f0f1ee] text-[#747971]",
 };
 
+type ContractDrawerProps = {
+  contract: AgencyContract;
+  onClose: () => void;
+  onSubmit: () => void;
+  onAccept: () => void;
+  onReject: () => void;
+  onFinish: () => void;
+};
+
 export function ContractDrawer({
   contract,
   onClose,
   onSubmit,
-}: {
-  contract: AgencyContract;
-  onClose: () => void;
-  onSubmit: () => void;
-}) {
-  const completed = contract.status === "Completed";
+  onAccept,
+  onReject,
+  onFinish,
+}: ContractDrawerProps) {
+  const pending = contract.status === "Pending";
+  const awaiting = contract.status === "Awaiting feedback";
+  const allMilestonesCompleted =
+    contract.milestones.length > 0 &&
+    contract.milestones.every((milestone) => milestone.status === "Paid");
 
   return (
     <div
@@ -50,34 +62,34 @@ export function ContractDrawer({
         </header>
 
         <div className="grid gap-7 p-6 sm:p-8">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <span
-              className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
-                contractStatusStyles[contract.status]
-              }`}
-            >
-              {contract.status}
-            </span>
-            <Link
-              href="/messages"
-              className="inline-flex items-center gap-2 rounded-xl border border-black/9 px-4 py-2.5 text-xs font-semibold hover:bg-black/3"
-            >
-              <Icon name="message" size={16} /> Message client
-            </Link>
-          </div>
-
-          <section className="rounded-2xl bg-[#f1f5ef] p-5">
-            <div className="flex items-center gap-3">
-              <span className="flex h-11 w-11 items-center justify-center rounded-full bg-[#496e67] text-xs font-semibold text-white">
-                {contract.clientInitials}
-              </span>
-              <div>
-                <p className="text-sm font-semibold">{contract.client}</p>
+          <section className="flex flex-col justify-between gap-4 rounded-2xl bg-[#f1f5ef] p-5 sm:flex-row sm:items-center">
+            <div>
+              <p className="text-xs text-[#777d75]">Client</p>
+              <p className="mt-1 font-semibold">{contract.client}</p>
+              {contract.clientLocation && (
                 <p className="mt-1 text-xs text-[#777d75]">
-                  {contract.clientLocation} · Contracted with Northstar Digital
+                  {contract.clientLocation}
                 </p>
-              </div>
+              )}
             </div>
+            {contract.conversationId ? (
+              <Link
+                href={`/messages?conversationId=${contract.conversationId}`}
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-black/9 bg-white px-4 text-xs font-semibold"
+              >
+                <Icon name="message" size={17} />
+                Message client
+              </Link>
+            ) : (
+              <button
+                type="button"
+                disabled
+                className="inline-flex h-10 cursor-not-allowed items-center justify-center gap-2 rounded-xl border border-black/9 bg-white px-4 text-xs font-semibold opacity-45"
+              >
+                <Icon name="message" size={17} />
+                Message client
+              </button>
+            )}
           </section>
 
           <section>
@@ -92,10 +104,7 @@ export function ContractDrawer({
                 ["In escrow", contract.escrow],
                 ["Started", contract.started],
               ].map(([label, value]) => (
-                <div
-                  key={label}
-                  className="rounded-xl border border-black/7 p-3"
-                >
+                <div key={label} className="rounded-xl border border-black/7 p-3">
                   <p className="text-[10px] text-[#858a82]">{label}</p>
                   <p className="mt-1.5 text-sm font-semibold">{value}</p>
                 </div>
@@ -119,9 +128,7 @@ export function ContractDrawer({
               {contract.milestones.map((milestone, index) => (
                 <div
                   key={milestone.id}
-                  className={`flex items-center gap-4 p-4 ${
-                    index ? "border-t border-black/7" : ""
-                  }`}
+                  className={`flex items-center gap-4 p-4 ${index ? "border-t border-black/7" : ""}`}
                 >
                   <span
                     className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
@@ -131,10 +138,8 @@ export function ContractDrawer({
                     }`}
                   >
                     <Icon
-                      name={
-                        milestone.status === "Paid" ? "verified" : "calendar"
-                      }
-                      size={17}
+                      name={milestone.status === "Paid" ? "check-circle" : "clock"}
+                      size={18}
                     />
                   </span>
                   <div className="min-w-0 flex-1">
@@ -148,9 +153,7 @@ export function ContractDrawer({
                   <div className="text-right">
                     <p className="text-sm font-semibold">{milestone.amount}</p>
                     <span
-                      className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                        milestoneStyles[milestone.status]
-                      }`}
+                      className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ${milestoneStyles[milestone.status]}`}
                     >
                       {milestone.status}
                     </span>
@@ -161,9 +164,7 @@ export function ContractDrawer({
           </section>
 
           <section className="rounded-2xl bg-[#252724] p-5 text-white">
-            <p className="text-xs text-white/60">
-              {completed ? "Contract result" : "Current milestone"}
-            </p>
+            <p className="text-xs text-white/60">Current milestone</p>
             <p className="mt-2 font-semibold">{contract.currentMilestone}</p>
             <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-white/15">
               <div
@@ -175,7 +176,26 @@ export function ContractDrawer({
               <span className="text-xs text-white/65">
                 {contract.progress}% complete
               </span>
-              {!completed && (
+              {pending ? (
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={onReject}
+                    className="cursor-pointer rounded-lg border border-white/25 px-3.5 py-2 text-xs font-semibold"
+                  >
+                    Reject
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onAccept}
+                    className="cursor-pointer rounded-lg bg-white px-3.5 py-2 text-xs font-semibold text-[#252724]"
+                  >
+                    Accept contract
+                  </button>
+                </div>
+              ) : !awaiting &&
+                contract.status !== "Completed" &&
+                contract.currentMilestoneId ? (
                 <button
                   type="button"
                   onClick={onSubmit}
@@ -183,7 +203,24 @@ export function ContractDrawer({
                 >
                   Submit work
                 </button>
-              )}
+              ) : contract.status === "Active" && allMilestonesCompleted ? (
+                <button
+                  type="button"
+                  onClick={onFinish}
+                  className="cursor-pointer rounded-lg bg-white px-3.5 py-2 text-xs font-semibold text-[#252724]"
+                >
+                  Finish contract
+                </button>
+              ) : contract.status === "Completed" &&
+                !contract.reviewedByCurrentUser ? (
+                <button
+                  type="button"
+                  onClick={onFinish}
+                  className="cursor-pointer rounded-lg bg-white px-3.5 py-2 text-xs font-semibold text-[#252724]"
+                >
+                  Give review
+                </button>
+              ) : null}
             </div>
           </section>
         </div>

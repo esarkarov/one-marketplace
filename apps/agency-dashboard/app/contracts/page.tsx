@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { ContractsDashboard } from "./contracts-dashboard";
 
 export const metadata: Metadata = {
@@ -8,5 +9,9 @@ export const metadata: Metadata = {
 };
 
 export default function AgencyContractsPage() {
-  return <ContractsDashboard />;
+  return (
+    <Suspense>
+      <ContractsDashboard />
+    </Suspense>
+  );
 }

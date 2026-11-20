@@ -24,7 +24,17 @@ export type IconName =
   | "close"
   | "paperclip"
   | "send"
-  | "video";
+  | "video"
+  | "download"
+  | "upload"
+  | "check-circle"
+  | "flag"
+  | "restart-circle"
+  | "shield-check"
+  | "star"
+  | "clock"
+  | "money"
+  | "question-circle";
 
 const icons: Record<IconName, { default: string; active?: string }> = {
   home: {
@@ -74,10 +84,23 @@ const icons: Record<IconName, { default: string; active?: string }> = {
   },
   tuning: { default: "solar:tuning-2-linear" },
   verified: { default: "solar:verified-check-bold" },
-  close: { default: "solar:close-circle-linear" },
+  close: {
+    default: "solar:close-circle-linear",
+    active: "solar:close-circle-bold",
+  },
   paperclip: { default: "solar:paperclip-linear" },
   send: { default: "solar:plain-2-bold" },
   video: { default: "solar:videocamera-record-linear" },
+  download: { default: "solar:download-minimalistic-linear" },
+  upload: { default: "solar:upload-minimalistic-linear" },
+  "check-circle": { default: "solar:check-circle-bold" },
+  flag: { default: "solar:flag-linear" },
+  "restart-circle": { default: "solar:restart-circle-linear" },
+  "shield-check": { default: "solar:shield-check-bold" },
+  star: { default: "solar:star-bold" },
+  clock: { default: "solar:clock-circle-linear" },
+  money: { default: "solar:hand-money-linear" },
+  "question-circle": { default: "solar:question-circle-linear" },
 };
 
 export function Icon({

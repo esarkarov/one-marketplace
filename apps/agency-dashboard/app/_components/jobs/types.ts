@@ -1,5 +1,5 @@
 export type AgencyJob = {
-  id: number;
+  id: string;
   title: string;
   company: string;
   verified: boolean;
@@ -10,9 +10,8 @@ export type AgencyJob = {
   duration: string;
   description: string;
   skills: string[];
+  screeningQuestions: string[];
   proposals: string;
-  rating: number;
-  spent: string;
-  location: string;
+  hires?: number;
   featured?: boolean;
 };

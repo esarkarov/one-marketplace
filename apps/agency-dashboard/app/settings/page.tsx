@@ -9,7 +9,7 @@ import { AgencySettingsDashboard } from "./settings-dashboard";
 export const metadata: Metadata = {
   title: "Agency Settings | OneMarketplace.io",
   description:
-    "Manage your agency profile, members, security, and notification preferences.",
+    "Manage your agency profile, members, and identity verification.",
 };
 
 export default async function AgencySettingsPage({

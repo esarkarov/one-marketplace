@@ -1,43 +1,36 @@
 "use client";
 
+import { useState } from "react";
 import { Icon } from "../ui/icon";
-import { allAgencyPermissions } from "./team-data";
-import type { AgencyMember, AgencyMemberRole, AgencyPermission } from "./types";
+import type { TeamRow } from "./types";
+
+const getInitials = (name: string) =>
+  name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((word) => word[0]?.toUpperCase())
+    .join("") || "?";
 
 export function MemberDrawer({
-  member,
+  row,
   onClose,
-  onUpdate,
+  onUpdateRole,
   onRemove,
   onResend,
+  onCancel,
 }: {
-  member: AgencyMember;
+  row: TeamRow;
   onClose: () => void;
-  onUpdate: (member: AgencyMember) => void;
-  onRemove: (member: AgencyMember) => void;
-  onResend: (member: AgencyMember) => void;
+  onUpdateRole: (row: TeamRow, role: "Business manager" | "Agency member") => void;
+  onRemove: (row: TeamRow) => void;
+  onResend: (row: TeamRow) => void;
+  onCancel: (row: TeamRow) => void;
 }) {
-  const owner = member.role === "Agency owner";
-  const pending = member.status === "Invitation pending";
-
-  const setRole = (role: AgencyMemberRole) => {
-    const permissions =
-      role === "Agency member"
-        ? []
-        : role === "Business manager"
-          ? member.permissions
-          : [...allAgencyPermissions];
-    onUpdate({ ...member, role, permissions: [...permissions] });
-  };
-
-  const togglePermission = (permission: AgencyPermission) => {
-    onUpdate({
-      ...member,
-      permissions: member.permissions.includes(permission)
-        ? member.permissions.filter((item) => item !== permission)
-        : [...member.permissions, permission],
-    });
-  };
+  const pending = row.kind === "invitation";
+  const owner = row.kind === "member" && row.isOwner;
+  const name = pending ? row.email : row.name;
+  const [resending, setResending] = useState(false);
 
   return (
     <div
@@ -68,16 +61,22 @@ export function MemberDrawer({
 
         <div className="grid gap-7 p-6 sm:p-8">
           <section className="flex items-center gap-4 rounded-2xl bg-[#f1f5ef] p-5">
-            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[#496e67] text-sm font-semibold text-white">
-              {member.initials}
+            <span className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#496e67] text-sm font-semibold text-white">
+              {row.avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={row.avatarUrl}
+                  alt=""
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                getInitials(name)
+              )}
             </span>
             <div className="min-w-0">
-              <h3 className="truncate font-semibold">{member.name}</h3>
-              <p className="mt-1 truncate text-sm text-[#6f756d]">
-                {member.title}
-              </p>
+              <h3 className="truncate font-semibold">{name}</h3>
               <p className="mt-1 truncate text-xs text-[#858a82]">
-                {member.email}
+                {pending ? row.email : `${row.jobSuccessScore}% job success`}
               </p>
             </div>
           </section>
@@ -88,20 +87,24 @@ export function MemberDrawer({
                 <h3 className="text-sm font-semibold">Invitation status</h3>
                 <div className="mt-3 rounded-xl border border-[#dfd3a9] bg-[#faf7eb] p-4">
                   <p className="text-sm font-semibold text-[#6f653d]">
-                    Waiting for {member.name} to join
+                    Waiting for {name} to join
                   </p>
                   <p className="mt-1 text-xs leading-5 text-[#7a745f]">
-                    The invitation was sent to {member.email}. They must accept
-                    it before appearing on the public agency profile.
+                    An invitation was sent to {row.email}. They must accept it
+                    from their freelancer dashboard before appearing on your
+                    public agency profile.
                   </p>
                 </div>
               </section>
               <section>
                 <h3 className="text-sm font-semibold">Planned account role</h3>
                 <select
-                  value={member.role}
+                  value={row.role}
                   onChange={(event) =>
-                    setRole(event.target.value as AgencyMemberRole)
+                    onUpdateRole(
+                      row,
+                      event.target.value as "Business manager" | "Agency member",
+                    )
                   }
                   className="mt-3 h-11 w-full rounded-xl border border-black/10 bg-white px-3 text-sm outline-none"
                 >
@@ -112,14 +115,18 @@ export function MemberDrawer({
               <div className="flex gap-2">
                 <button
                   type="button"
-                  onClick={() => onResend(member)}
-                  className="h-11 flex-1 cursor-pointer rounded-xl bg-[#252724] px-4 text-sm font-semibold text-white"
+                  disabled={resending}
+                  onClick={() => {
+                    setResending(true);
+                    onResend(row);
+                  }}
+                  className="h-11 flex-1 cursor-pointer rounded-xl bg-[#252724] px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  Resend invitation
+                  {resending ? "Resending…" : "Resend invitation"}
                 </button>
                 <button
                   type="button"
-                  onClick={() => onRemove(member)}
+                  onClick={() => onCancel(row)}
                   className="h-11 cursor-pointer rounded-xl border border-[#d8bcbc] px-4 text-sm font-semibold text-[#8b5656]"
                 >
                   Cancel invite
@@ -132,10 +139,9 @@ export function MemberDrawer({
                 <h3 className="text-sm font-semibold">Public agency profile</h3>
                 <div className="mt-3 grid grid-cols-2 gap-3">
                   {[
-                    ["Specialty", member.specialty],
-                    ["Location", member.location],
-                    ["Profile", `${member.profileComplete}% complete`],
-                    ["Visibility", member.publicProfile ? "Public" : "Hidden"],
+                    ["Rating", row.rating ? row.rating.toFixed(1) : "Not rated"],
+                    ["Job success", `${row.jobSuccessScore}%`],
+                    ["Completed projects", String(row.completedProjects)],
                   ].map(([label, value]) => (
                     <div
                       key={label}
@@ -147,14 +153,20 @@ export function MemberDrawer({
                   ))}
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {member.skills.map((skill) => (
-                    <span
-                      key={skill}
-                      className="rounded-lg bg-[#edf2eb] px-2.5 py-1.5 text-xs"
-                    >
-                      {skill}
-                    </span>
-                  ))}
+                  {row.skills.length > 0 ? (
+                    row.skills.map((skill) => (
+                      <span
+                        key={skill}
+                        className="rounded-lg bg-[#edf2eb] px-2.5 py-1.5 text-xs"
+                      >
+                        {skill}
+                      </span>
+                    ))
+                  ) : (
+                    <p className="text-xs text-[#9a9f97]">
+                      No skills listed on their profile yet.
+                    </p>
+                  )}
                 </div>
               </section>
 
@@ -162,50 +174,31 @@ export function MemberDrawer({
                 <h3 className="text-sm font-semibold">Agency account role</h3>
                 <select
                   disabled={owner}
-                  value={member.role}
+                  value={row.role}
                   onChange={(event) =>
-                    setRole(event.target.value as AgencyMemberRole)
+                    onUpdateRole(
+                      row,
+                      event.target.value as "Business manager" | "Agency member",
+                    )
                   }
                   className="mt-3 h-11 w-full rounded-xl border border-black/10 bg-white px-3 text-sm outline-none disabled:bg-[#f1f3ef] disabled:text-[#7b8078]"
                 >
-                  <option>Agency owner</option>
+                  {owner && <option>Agency owner</option>}
                   <option>Business manager</option>
                   <option>Agency member</option>
                 </select>
                 <p className="mt-2 text-[11px] leading-5 text-[#858a82]">
                   {owner
-                    ? "The agency owner has every permission and cannot be removed."
+                    ? "The agency owner cannot be reassigned or removed."
                     : "Roles control access to the agency account, not internal project assignments."}
                 </p>
               </section>
-
-              {!owner && member.role === "Business manager" && (
-                <section>
-                  <h3 className="text-sm font-semibold">Permissions</h3>
-                  <div className="mt-3 divide-y divide-black/6 overflow-hidden rounded-xl border border-black/8">
-                    {allAgencyPermissions.map((permission) => (
-                      <label
-                        key={permission}
-                        className="flex cursor-pointer items-center justify-between gap-4 px-4 py-3 text-sm"
-                      >
-                        {permission}
-                        <input
-                          type="checkbox"
-                          checked={member.permissions.includes(permission)}
-                          onChange={() => togglePermission(permission)}
-                          className="h-4 w-4 accent-[#5f875c]"
-                        />
-                      </label>
-                    ))}
-                  </div>
-                </section>
-              )}
 
               {!owner && (
                 <section className="border-t border-black/7 pt-6">
                   <button
                     type="button"
-                    onClick={() => onRemove(member)}
+                    onClick={() => onRemove(row)}
                     className="cursor-pointer text-xs font-semibold text-[#8b5656] hover:underline"
                   >
                     Remove from agency

@@ -4,18 +4,54 @@ import { useState } from "react";
 import { Icon } from "../ui/icon";
 import type { AgencyContract } from "./types";
 
+type SubmitWorkModalProps = {
+  contract: AgencyContract;
+  onClose: () => void;
+  onSubmit: (input: {
+    submissionMessage: string;
+    submissionDeliveryLink?: string;
+  }) => Promise<void>;
+};
+
 export function SubmitWorkModal({
   contract,
   onClose,
-  onSubmitted,
-}: {
-  contract: AgencyContract;
-  onClose: () => void;
-  onSubmitted: (contract: AgencyContract) => void;
-}) {
-  const [complete, setComplete] = useState(false);
+  onSubmit,
+}: SubmitWorkModalProps) {
+  const [submitted, setSubmitted] = useState(false);
+  const [comment, setComment] = useState("");
+  const [commentError, setCommentError] = useState("");
+  const [deliveryLink, setDeliveryLink] = useState("");
+  const [submitError, setSubmitError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
-  if (complete) {
+  const submitWork = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const normalizedComment = comment.trim();
+    if (normalizedComment.length < 10) {
+      setCommentError(
+        "Add a comment of at least 10 characters before submitting.",
+      );
+      return;
+    }
+    setSubmitting(true);
+    setSubmitError("");
+    try {
+      await onSubmit({
+        submissionMessage: normalizedComment,
+        submissionDeliveryLink: deliveryLink.trim() || undefined,
+      });
+      setSubmitted(true);
+    } catch (error) {
+      setSubmitError(
+        error instanceof Error ? error.message : "Work could not be submitted.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (submitted) {
     return (
       <div
         role="dialog"
@@ -24,19 +60,15 @@ export function SubmitWorkModal({
       >
         <div className="w-full max-w-md rounded-2xl bg-white p-8 text-center shadow-2xl">
           <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#e6f2e3] text-[#4d784a]">
-            <Icon name="verified" size={29} />
+            <Icon name="check-circle" size={30} />
           </span>
           <h2 className="mt-5 text-xl font-semibold">Agency work submitted</h2>
           <p className="mt-2 text-sm leading-6 text-[#737870]">
-            Northstar Digital’s submission was sent to {contract.client} for
-            review.
+            Your submission was sent to {contract.client} for review.
           </p>
           <button
             type="button"
-            onClick={() => {
-              onSubmitted(contract);
-              onClose();
-            }}
+            onClick={onClose}
             className="mt-6 h-11 w-full cursor-pointer rounded-xl bg-[#252724] text-sm font-semibold text-white"
           >
             Back to contracts
@@ -50,14 +82,11 @@ export function SubmitWorkModal({
     <div
       role="dialog"
       aria-modal="true"
-      aria-labelledby="submit-title"
+      aria-labelledby="submit-work-title"
       className="fixed inset-0 z-60 grid place-items-center bg-[#172018]/45 p-5 backdrop-blur-[2px]"
     >
       <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          setComplete(true);
-        }}
+        onSubmit={submitWork}
         className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl sm:p-7"
       >
         <div className="flex items-start justify-between">
@@ -65,7 +94,7 @@ export function SubmitWorkModal({
             <p className="text-xs font-semibold tracking-wide text-[#62805f] uppercase">
               Agency milestone submission
             </p>
-            <h2 id="submit-title" className="mt-2 text-xl font-semibold">
+            <h2 id="submit-work-title" className="mt-2 text-xl font-semibold">
               Submit work for review
             </h2>
           </div>
@@ -79,42 +108,52 @@ export function SubmitWorkModal({
           </button>
         </div>
         <div className="mt-5 rounded-xl bg-[#f2f5f0] p-4">
-          <p className="text-[11px] text-[#7b8078]">
-            {contract.client} · Submitted as Northstar Digital
-          </p>
+          <p className="text-[11px] text-[#7b8078]">{contract.client}</p>
           <p className="mt-1 text-sm font-semibold">
             {contract.currentMilestone}
           </p>
         </div>
         <label className="mt-5 block text-xs font-semibold">
-          Message to client
+          Comment to client <span className="text-[#a04d4d]">*</span>
           <textarea
             required
+            value={comment}
+            onChange={(event) => {
+              setComment(event.target.value);
+              if (commentError) setCommentError("");
+            }}
             rows={5}
-            placeholder="Summarize what the agency completed and anything the client should review…"
-            className="mt-2 w-full resize-none rounded-xl border border-black/10 p-3 text-sm font-normal outline-none focus:border-[#6e916a]"
+            placeholder="Summarize what the agency completed, how the client can review it, and anything else they should know…"
+            aria-invalid={Boolean(commentError)}
+            className={`mt-2 w-full resize-none rounded-xl border p-3 text-sm font-normal outline-none ${
+              commentError
+                ? "border-[#c56b6b] focus:border-[#c56b6b]"
+                : "border-black/10 focus:border-[#6e916a]"
+            }`}
           />
         </label>
+        {commentError && (
+          <p className="mt-2 text-[10px] font-medium text-[#a65050]">
+            {commentError}
+          </p>
+        )}
+        <p className="mt-2 text-[10px] leading-5 text-[#7b8179]">
+          Every milestone submission must include a clear review comment.
+        </p>
         <label className="mt-4 block text-xs font-semibold">
           Deliverable link{" "}
           <span className="font-normal text-[#8a8f87]">(optional)</span>
           <input
             type="url"
+            value={deliveryLink}
+            onChange={(event) => setDeliveryLink(event.target.value)}
             placeholder="https://…"
             className="mt-2 h-11 w-full rounded-xl border border-black/10 px-3 text-sm font-normal outline-none focus:border-[#6e916a]"
           />
         </label>
-        <label className="mt-4 flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-black/15 p-4 text-sm text-[#696f67] hover:bg-black/2">
-          <Icon name="plus" size={20} />
-          <span>
-            <strong className="font-semibold text-[#343833]">
-              Attach deliverables
-            </strong>
-            <br />
-            <span className="text-xs">PDF, ZIP, PNG, or JPG up to 25 MB</span>
-          </span>
-          <input type="file" multiple className="sr-only" />
-        </label>
+        {submitError && (
+          <p className="mt-3 text-xs text-[#a65050]">{submitError}</p>
+        )}
         <div className="mt-6 flex justify-end gap-2">
           <button
             type="button"
@@ -125,9 +164,10 @@ export function SubmitWorkModal({
           </button>
           <button
             type="submit"
-            className="h-11 cursor-pointer rounded-xl bg-[#252724] px-5 text-sm font-semibold text-white"
+            disabled={!comment.trim() || submitting}
+            className="h-11 cursor-pointer rounded-xl bg-[#252724] px-5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
           >
-            Submit agency work
+            {submitting ? "Submitting…" : "Submit agency work"}
           </button>
         </div>
       </form>

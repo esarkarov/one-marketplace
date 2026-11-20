@@ -3,15 +3,20 @@
 import { Icon } from "@iconify/react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { agencyNotifications } from "./agency-notifications-data";
+import {
+  presentNotification,
+  useAgencyNotifications,
+  useAgencyNotificationStream,
+} from "@/hooks/use-agency-notifications";
 
 export function AgencyNotificationsPopover() {
   const [open, setOpen] = useState(false);
-  const [notifications, setNotifications] = useState(
-    agencyNotifications.map((notification) => ({ ...notification })),
-  );
+  const { notifications: data, markAllRead, markRead } = useAgencyNotifications();
+  const notifications = data.slice(0, 6).map(presentNotification);
   const containerRef = useRef<HTMLDivElement>(null);
-  const unreadCount = notifications.filter((item) => item.unread).length;
+  const unreadCount = data.filter((item) => !item.is_read).length;
+
+  useAgencyNotificationStream();
 
   useEffect(() => {
     if (!open) return;
@@ -31,12 +36,6 @@ export function AgencyNotificationsPopover() {
     };
   }, [open]);
 
-  const markAllRead = () => {
-    setNotifications((current) =>
-      current.map((notification) => ({ ...notification, unread: false })),
-    );
-  };
-
   return (
     <div ref={containerRef} className="relative">
       <button
@@ -49,10 +48,7 @@ export function AgencyNotificationsPopover() {
           open ? "bg-[#edf4ea] text-[#4e774b]" : "hover:bg-black/5"
         }`}
       >
-        <Icon
-          icon={open ? "solar:bell-bold" : "solar:bell-linear"}
-          width="22"
-        />
+        <Icon icon={open ? "solar:bell-bold" : "solar:bell-linear"} width="22" />
         {unreadCount > 0 && (
           <span className="absolute top-1.5 right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full border-2 border-white bg-[#5f8d5c] px-1 text-[8px] font-bold text-white">
             {unreadCount}
@@ -85,7 +81,7 @@ export function AgencyNotificationsPopover() {
               {unreadCount > 0 && (
                 <button
                   type="button"
-                  onClick={markAllRead}
+                  onClick={() => markAllRead()}
                   className="cursor-pointer text-xs font-semibold text-[#52784f] hover:underline"
                 >
                   Mark all as read
@@ -94,18 +90,17 @@ export function AgencyNotificationsPopover() {
             </header>
 
             <div className="max-h-105 overflow-y-auto">
+              {notifications.length === 0 && (
+                <p className="px-5 py-10 text-center text-xs text-[#8a8f87]">
+                  You have no notifications yet.
+                </p>
+              )}
               {notifications.map((notification, index) => (
                 <Link
                   key={notification.id}
                   href={notification.href}
                   onClick={() => {
-                    setNotifications((current) =>
-                      current.map((item) =>
-                        item.id === notification.id
-                          ? { ...item, unread: false }
-                          : item,
-                      ),
-                    );
+                    if (notification.unread) markRead(notification.id);
                     setOpen(false);
                   }}
                   className={`relative flex gap-3.5 px-5 py-4 transition hover:bg-[#f7f8f5] ${

@@ -1,45 +1,66 @@
 "use client";
 
 import { useState } from "react";
+import { useAuth } from "@clerk/nextjs";
 import { Icon } from "../ui/icon";
-import type { AgencyMember, AgencyMemberRole } from "./types";
+import type { AgencyMemberRole, PendingInvitation } from "./types";
 
 export function InviteMemberModal({
+  agencyName,
   onClose,
-  onInvite,
+  onInvited,
 }: {
+  agencyName: string;
   onClose: () => void;
-  onInvite: (member: AgencyMember) => void;
+  onInvited: (invitation: PendingInvitation) => void;
 }) {
+  const { getToken } = useAuth();
   const [complete, setComplete] = useState(false);
+  const [notifiedInApp, setNotifiedInApp] = useState(false);
   const [email, setEmail] = useState("");
-  const [name, setName] = useState("");
-  const [role, setRole] = useState<AgencyMemberRole>("Agency member");
+  const [role, setRole] = useState<Exclude<AgencyMemberRole, "Agency owner">>(
+    "Agency member",
+  );
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
-  const invite = () => {
-    const initials = name
-      .split(" ")
-      .map((part) => part[0])
-      .join("")
-      .slice(0, 2)
-      .toUpperCase();
-    onInvite({
-      id: Date.now(),
-      name,
-      initials: initials || "NM",
-      email,
-      title: "Freelancer profile pending",
-      specialty: "Not selected",
-      location: "Not available",
-      role,
-      status: "Invitation pending",
-      joined: "Invited just now",
-      profileComplete: 0,
-      publicProfile: false,
-      skills: [],
-      permissions: [],
-    });
-    setComplete(true);
+  const invite = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setSubmitting(true);
+    setError("");
+    try {
+      const token = await getToken();
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_SERVER_URI}/agency/team/invitations?role=freelancer`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ email, memberRole: role }),
+        },
+      );
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message);
+
+      onInvited({
+        kind: "invitation",
+        id: result.data.id,
+        email: result.data.email,
+        avatarUrl: result.data.avatarUrl,
+        role: result.data.role,
+        createdAt: result.data.createdAt,
+      });
+      setNotifiedInApp(Boolean(result.data.notifiedInApp));
+      setComplete(true);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "The invitation could not be sent.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (complete) {
@@ -55,8 +76,10 @@ export function InviteMemberModal({
           </span>
           <h2 className="mt-5 text-xl font-semibold">Invitation sent</h2>
           <p className="mt-2 text-sm leading-6 text-[#737870]">
-            {name} was invited to join Northstar Digital. Their agency profile
-            will remain hidden until they accept.
+            {email} was invited to join {agencyName}.{" "}
+            {notifiedInApp
+              ? "They've been notified in their dashboard and can accept it from there."
+              : "We couldn't find an existing freelancer account for that email yet — they'll see the invitation as soon as they sign up with it."}
           </p>
           <button
             type="button"
@@ -78,10 +101,7 @@ export function InviteMemberModal({
       className="fixed inset-0 z-60 grid place-items-center bg-[#172018]/45 p-5 backdrop-blur-[2px]"
     >
       <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          invite();
-        }}
+        onSubmit={invite}
         className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl sm:p-7"
       >
         <div className="flex items-start justify-between">
@@ -103,20 +123,10 @@ export function InviteMemberModal({
           </button>
         </div>
         <p className="mt-4 text-sm leading-6 text-[#737870]">
-          Invited freelancers keep their personal accounts and choose whether to
-          join your agency.
+          Invited freelancers keep their personal accounts and choose whether
+          to join your agency.
         </p>
         <label className="mt-5 block text-xs font-semibold">
-          Freelancer name
-          <input
-            required
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            placeholder="Full name"
-            className="mt-2 h-11 w-full rounded-xl border border-black/10 px-3 text-sm font-normal outline-none focus:border-[#6e916a]"
-          />
-        </label>
-        <label className="mt-4 block text-xs font-semibold">
           Email address
           <input
             required
@@ -132,7 +142,7 @@ export function InviteMemberModal({
           <select
             value={role}
             onChange={(event) =>
-              setRole(event.target.value as AgencyMemberRole)
+              setRole(event.target.value as "Business manager" | "Agency member")
             }
             className="mt-2 h-11 w-full rounded-xl border border-black/10 bg-white px-3 text-sm font-normal outline-none"
           >
@@ -144,6 +154,7 @@ export function InviteMemberModal({
           Agency members appear on the public roster after accepting and
           completing their profile. This does not assign them to client work.
         </div>
+        {error && <p className="mt-3 text-xs text-[#a65050]">{error}</p>}
         <div className="mt-6 flex justify-end gap-2">
           <button
             type="button"
@@ -154,9 +165,10 @@ export function InviteMemberModal({
           </button>
           <button
             type="submit"
-            className="h-11 cursor-pointer rounded-xl bg-[#252724] px-5 text-sm font-semibold text-white"
+            disabled={submitting}
+            className="h-11 cursor-pointer rounded-xl bg-[#252724] px-5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Send invitation
+            {submitting ? "Sending…" : "Send invitation"}
           </button>
         </div>
       </form>

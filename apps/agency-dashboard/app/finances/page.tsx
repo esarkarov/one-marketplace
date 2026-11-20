@@ -5,8 +5,7 @@ import { FinancesDashboard } from "./finances-dashboard";
 
 export const metadata: Metadata = {
   title: "Agency Finances | OneMarketplace.io",
-  description:
-    "Manage agency earnings, withdrawals, Connects, statements, and tax information.",
+  description: "Manage agency earnings, withdrawals, and Connects.",
 };
 
 export default async function AgencyFinancesPage({

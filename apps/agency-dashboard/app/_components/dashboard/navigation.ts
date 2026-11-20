@@ -12,5 +12,5 @@ export const agencyNavigation = [
   { href: "/team", label: "Team", icon: "team" },
   { href: "/messages", label: "Messages", icon: "message" },
   { href: "/finances", label: "Finances", icon: "wallet" },
-  { href: "/settings", label: "Settings", icon: "settings" },
+  { href: "/settings?section=overview", label: "Settings", icon: "settings" },
 ] as const;

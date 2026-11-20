@@ -2,36 +2,138 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { useAuth, useUser } from "@clerk/nextjs";
+import { useQuery } from "@tanstack/react-query";
 import { AgencyShell } from "../_components/dashboard/agency-shell";
 import { ProposalDrawer } from "../_components/proposals/proposal-drawer";
-import {
-  initialAgencyProposals,
-  proposalStatusStyles,
-} from "../_components/proposals/proposals-data";
+import { proposalStatusStyles } from "../_components/proposals/proposals-data";
 import type {
   AgencyProposal,
   AgencyProposalStatus,
 } from "../_components/proposals/types";
 import { Icon } from "../_components/ui/icon";
 
-const tabs = [
-  "All",
-  "Interview",
-  "Viewed",
-  "Submitted",
-  "Archived",
-  "Withdrawn",
-] as const;
+type ApiProposal = {
+  id: string;
+  jobId: string;
+  title: string;
+  company: string | null;
+  status: string;
+  submittedAt: string | null;
+  budget: string;
+  bidAmount: string;
+  duration: string;
+  coverLetter: string;
+  skills: string[];
+  clientRating: string | null;
+  clientReviewCount: number | null;
+  clientTotalSpent: string | null;
+  conversationId: string | null;
+};
+
+const presentStatus = (status: string): AgencyProposalStatus => {
+  const normalized = status.toUpperCase();
+  if (normalized === "INTERVIEWED") return "Interview";
+  if (normalized === "VIEWED") return "Viewed";
+  if (normalized === "ARCHIVED" || normalized === "REJECTED") return "Archived";
+  return "Submitted";
+};
+
+const activityFor = (status: AgencyProposalStatus) =>
+  ({
+    Interview: "The client invited you to interview",
+    Viewed: "Viewed by client",
+    Submitted: "Awaiting client review",
+    Archived: "This opportunity is no longer active",
+  })[status];
+
+const presentProposal = (proposal: ApiProposal): AgencyProposal => {
+  const status = presentStatus(proposal.status);
+  return {
+    id: proposal.id,
+    jobId: proposal.jobId,
+    title: proposal.title,
+    client: proposal.company ?? "Client",
+    status,
+    submitted: proposal.submittedAt
+      ? new Date(proposal.submittedAt).toLocaleDateString(undefined, {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        })
+      : "recently",
+    clientBudget: `$${Number(proposal.budget).toLocaleString()} fixed`,
+    agencyBid: `$${Number(proposal.bidAmount).toLocaleString()}`,
+    duration: proposal.duration,
+    connects: 6,
+    clientRating:
+      proposal.clientReviewCount && proposal.clientReviewCount > 0
+        ? Number(proposal.clientRating).toFixed(1)
+        : "Not rated",
+    clientSpent:
+      proposal.clientTotalSpent && Number(proposal.clientTotalSpent) > 0
+        ? `$${Number(proposal.clientTotalSpent).toLocaleString()} spent`
+        : "No spend yet",
+    activity: activityFor(status),
+    coverLetter: proposal.coverLetter,
+    skills: proposal.skills,
+    conversationId: proposal.conversationId,
+  };
+};
+
+const tabs = ["All", "Interview", "Viewed", "Submitted", "Archived"] as const;
 const proposalsPerPage = 3;
+const emptyProposals: ApiProposal[] = [];
 
 export function ProposalsDashboard() {
-  const [proposals, setProposals] = useState(initialAgencyProposals);
+  const { user, isLoaded: userLoaded } = useUser();
+  const { getToken } = useAuth();
   const [activeTab, setActiveTab] = useState<(typeof tabs)[number]>("All");
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<AgencyProposal | null>(null);
   const [page, setPage] = useState(1);
-  const [withdrawTarget, setWithdrawTarget] = useState<AgencyProposal | null>(
-    null,
+
+  const { data: agency } = useQuery<{
+    name: string;
+    avatarImage: { imageId: string; url: string } | null;
+  } | null>({
+    queryKey: ["agency-mine"],
+    enabled: Boolean(user),
+    queryFn: async () => {
+      const token = await getToken();
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_SERVER_URI}/agency/mine?role=freelancer`,
+        { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" },
+      );
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message);
+      return result.data;
+    },
+  });
+  const agencyName = agency?.name ?? "your agency";
+  const agencyAvatarUrl = agency?.avatarImage?.url ?? null;
+
+  const { data: proposalData = emptyProposals, isLoading } = useQuery<
+    ApiProposal[]
+  >({
+    queryKey: ["agency-proposals"],
+    enabled: Boolean(user),
+    queryFn: async () => {
+      const token = await getToken();
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_SERVER_URI}/agency/proposals?role=freelancer`,
+        { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" },
+      );
+      const result = await response.json();
+      if (!response.ok)
+        throw new Error(result.message || "Proposals could not be loaded.");
+      return result.data;
+    },
+  });
+
+  const proposals = useMemo(
+    () => proposalData.map(presentProposal),
+    [proposalData],
   );
 
   const filtered = useMemo(() => {
@@ -57,31 +159,6 @@ export function ProposalsDashboard() {
   const count = (status: AgencyProposalStatus) =>
     proposals.filter((proposal) => proposal.status === status).length;
 
-  const withdrawProposal = () => {
-    if (!withdrawTarget) return;
-    setProposals((current) =>
-      current.map((proposal) =>
-        proposal.id === withdrawTarget.id
-          ? {
-              ...proposal,
-              status: "Withdrawn",
-              activity: "Withdrawn just now",
-            }
-          : proposal,
-      ),
-    );
-    setSelected((current) =>
-      current?.id === withdrawTarget.id
-        ? {
-            ...current,
-            status: "Withdrawn",
-            activity: "Withdrawn just now",
-          }
-        : current,
-    );
-    setWithdrawTarget(null);
-  };
-
   return (
     <AgencyShell>
       <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
@@ -93,8 +170,7 @@ export function ProposalsDashboard() {
             Agency proposals
           </h1>
           <p className="mt-2 text-sm text-[#72776f]">
-            Track client activity and every proposal submitted as Northstar
-            Digital.
+            Track client activity and every proposal submitted as {agencyName}.
           </p>
         </div>
         <Link
@@ -127,9 +203,7 @@ export function ProposalsDashboard() {
           ],
           [
             "Agency Connects used",
-            proposals
-              .filter((proposal) => proposal.status !== "Withdrawn")
-              .reduce((total, proposal) => total + proposal.connects, 0),
+            proposals.length * 6,
             "wallet",
             "bg-[#eeeaf5] text-[#6b5d82]",
           ],
@@ -241,9 +315,9 @@ export function ProposalsDashboard() {
                 >
                   View proposal
                 </button>
-                {proposal.status === "Interview" && (
+                {proposal.status === "Interview" && proposal.conversationId && (
                   <Link
-                    href="/messages"
+                    href={`/messages?conversationId=${proposal.conversationId}`}
                     className="inline-flex h-10 items-center rounded-xl bg-[#252724] px-4 text-xs font-semibold text-white"
                   >
                     Message client
@@ -254,17 +328,18 @@ export function ProposalsDashboard() {
           </article>
         ))}
 
-        {!filtered.length && (
+        {userLoaded && !isLoading && !filtered.length && (
           <div className="px-6 py-16 text-center">
-            <Icon
-              name="proposal"
-              size={34}
-              className="mx-auto text-[#858a82]"
-            />
+            <Icon name="proposal" size={34} className="mx-auto text-[#858a82]" />
             <h2 className="mt-4 font-semibold">No proposals found</h2>
             <p className="mt-2 text-sm text-[#7c8179]">
               Try another status or search term.
             </p>
+          </div>
+        )}
+        {userLoaded && isLoading && (
+          <div className="px-6 py-16 text-center text-sm text-[#7c8179]">
+            Loading proposals...
           </div>
         )}
 
@@ -324,41 +399,10 @@ export function ProposalsDashboard() {
       {selected && (
         <ProposalDrawer
           proposal={selected}
+          agencyName={agencyName}
+          agencyAvatarUrl={agencyAvatarUrl}
           onClose={() => setSelected(null)}
-          onWithdraw={setWithdrawTarget}
         />
-      )}
-
-      {withdrawTarget && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          className="fixed inset-0 z-60 grid place-items-center bg-[#172018]/45 p-5 backdrop-blur-[2px]"
-        >
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
-            <h2 className="text-lg font-semibold">Withdraw agency proposal?</h2>
-            <p className="mt-2 text-sm leading-6 text-[#737870]">
-              Northstar Digital will no longer be considered for “
-              {withdrawTarget.title}.” This cannot be undone.
-            </p>
-            <div className="mt-6 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setWithdrawTarget(null)}
-                className="h-10 cursor-pointer rounded-xl border border-black/10 px-4 text-xs font-semibold"
-              >
-                Keep proposal
-              </button>
-              <button
-                type="button"
-                onClick={withdrawProposal}
-                className="h-10 cursor-pointer rounded-xl bg-[#8b5656] px-4 text-xs font-semibold text-white"
-              >
-                Withdraw proposal
-              </button>
-            </div>
-          </div>
-        </div>
       )}
     </AgencyShell>
   );

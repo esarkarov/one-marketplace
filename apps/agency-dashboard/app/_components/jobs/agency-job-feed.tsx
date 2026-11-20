@@ -2,29 +2,195 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useAuth, useUser } from "@clerk/nextjs";
+import { useQuery } from "@tanstack/react-query";
+import { format } from "timeago.js";
 import { AgencySidebar } from "../dashboard/agency-sidebar";
 import { AgencyHeader } from "../dashboard/agency-header";
 import { Icon } from "../ui/icon";
 import { AgencyJobCard } from "./agency-job-card";
 import { AgencyProposalModal } from "./agency-proposal-modal";
-import { agencyJobs } from "./jobs-data";
 import type { AgencyJob } from "./types";
 import { redirect } from "next/navigation";
+import { useAgencyProposalMetadata } from "@/hooks/use-agency-proposal-metadata";
+
+interface AgencySummary {
+  name: string;
+  avatarImage: { imageId: string; url: string } | null;
+  members: unknown[];
+}
+
+const mapApiJob = (job: any): AgencyJob => ({
+  id: job.id,
+  title: job.title,
+  company: job.companyName ?? "Client",
+  verified: job.paymentVerified === true,
+  posted: format(job.published_at ?? job.created_at ?? new Date()),
+  budget: `$${Number(job.total_budget).toLocaleString()}`,
+  budgetValue: Number(job.total_budget),
+  level: job.expertise_level,
+  duration: job.expected_duration,
+  description: job.description,
+  skills: job.skills ?? [],
+  screeningQuestions: job.screening_questions ?? [],
+  proposals: String(job.proposalCount ?? 0),
+  hires: job.hireCount ?? 0,
+  featured: (job.matchScore ?? 0) >= 4,
+});
+
+const JobCardsSkeleton = () => (
+  <div className="grid gap-4" aria-label="Loading job posts" aria-busy="true">
+    {[0, 1].map((item) => (
+      <div
+        key={item}
+        className="animate-pulse rounded-2xl border border-black/8 bg-white p-7"
+      >
+        <div className="h-3 w-32 rounded-full bg-[#e5e8e2]" />
+        <div className="mt-4 h-6 w-3/4 rounded-full bg-[#dfe4dc]" />
+        <div className="mt-5 h-3 w-2/5 rounded-full bg-[#e9ece6]" />
+        <div className="mt-6 h-3 w-full rounded-full bg-[#e5e8e2]" />
+        <div className="mt-2 h-3 w-4/5 rounded-full bg-[#e9ece6]" />
+        <div className="mt-6 flex gap-2">
+          {[20, 24, 16].map((width) => (
+            <div
+              key={width}
+              className="h-7 rounded-lg bg-[#e5e8e2]"
+              style={{ width: `${width}%` }}
+            />
+          ))}
+        </div>
+      </div>
+    ))}
+  </div>
+);
 
 export function AgencyJobFeed() {
+  const { user } = useUser();
+  const { getToken } = useAuth();
   const [search, setSearch] = useState("");
-  const [activeTab, setActiveTab] = useState("Best matches");
-  const [saved, setSaved] = useState<number[]>([]);
+  const [activeTab, setActiveTab] = useState("Most recent");
+  const [saved, setSaved] = useState<string[]>([]);
   const [proposalJob, setProposalJob] = useState<AgencyJob | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [expertOnly, setExpertOnly] = useState(false);
   const [verifiedOnly, setVerifiedOnly] = useState(false);
   const [minBudget, setMinBudget] = useState("");
 
+  const { data: agency } = useQuery({
+    queryKey: ["agency-mine"],
+    queryFn: async () => {
+      const token = await getToken();
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_SERVER_URI}/agency/mine?role=freelancer`,
+        { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" },
+      );
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.message || "The agency could not be loaded.");
+      }
+      return result.data as AgencySummary | null;
+    },
+  });
+
+  const query = useMemo(() => {
+    const params = new URLSearchParams({
+      role: "freelancer",
+      filter: activeTab === "Most recent" ? "recent" : "best-match",
+    });
+    if (expertOnly) params.set("levels", "Expert");
+    if (minBudget) params.set("minBudget", minBudget);
+    if (verifiedOnly) params.set("paymentVerified", "true");
+    return params.toString();
+  }, [activeTab, expertOnly, minBudget, verifiedOnly]);
+
+  const {
+    data: apiJobs = [],
+    isLoading: jobsLoading,
+    isError: jobsError,
+  } = useQuery({
+    queryKey: ["agency-jobs", query],
+    enabled: Boolean(user) && activeTab !== "Saved jobs",
+    queryFn: async () => {
+      const token = await getToken();
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_SERVER_URI}/agency/jobs?${query}`,
+        { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" },
+      );
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.message || "Job posts could not be loaded.");
+      }
+      return result.data as any[];
+    },
+  });
+
+  const { data: agencyConnects, isLoading: connectsLoading } = useQuery({
+    queryKey: ["agency-connects"],
+    enabled: Boolean(user),
+    queryFn: async () => {
+      const token = await getToken();
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_SERVER_URI}/agency/connects?role=freelancer`,
+        { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" },
+      );
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.message || "Agency Connects could not be loaded.");
+      }
+      return result.data as { connects: number };
+    },
+  });
+
+  const { data: proposalMetadata, isLoading: proposalMetadataLoading } =
+    useAgencyProposalMetadata();
+
+  const { data: earningsSummary } = useQuery({
+    queryKey: ["agency-earnings-summary"],
+    enabled: Boolean(user),
+    queryFn: async () => {
+      const token = await getToken();
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_SERVER_URI}/agency/earnings/summary?role=freelancer`,
+        { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" },
+      );
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(
+          result.message || "The earnings summary could not be loaded.",
+        );
+      }
+      return result.data as {
+        hasEarnings: boolean;
+        currentMonthTotal: number;
+        previousMonthTotal: number;
+        series: Array<{ month: string; total: number }>;
+      };
+    },
+  });
+
+  const earningsChange =
+    (earningsSummary?.currentMonthTotal ?? 0) -
+    (earningsSummary?.previousMonthTotal ?? 0);
+  const earningsChartMax = Math.max(
+    ...(earningsSummary?.series.map((item) => item.total) ?? [0]),
+    1,
+  );
+
+  const appliedJobIds = useMemo(
+    () => new Set(proposalMetadata?.proposals.map((proposal) => proposal.jobId)),
+    [proposalMetadata],
+  );
+
+  const mappedJobs = useMemo(() => apiJobs.map(mapApiJob), [apiJobs]);
+
   const visibleJobs = useMemo(() => {
     const query = search.trim().toLowerCase();
-    return agencyJobs.filter((job) => {
-      if (activeTab === "Saved jobs" && !saved.includes(job.id)) return false;
+    const source =
+      activeTab === "Saved jobs"
+        ? mappedJobs.filter((job) => saved.includes(job.id))
+        : mappedJobs;
+
+    return source.filter((job) => {
       if (
         query &&
         !`${job.title} ${job.company} ${job.description} ${job.skills.join(" ")}`
@@ -32,12 +198,9 @@ export function AgencyJobFeed() {
           .includes(query)
       )
         return false;
-      if (expertOnly && job.level !== "Expert") return false;
-      if (verifiedOnly && !job.verified) return false;
-      if (minBudget && job.budgetValue < Number(minBudget)) return false;
       return true;
     });
-  }, [activeTab, expertOnly, minBudget, saved, search, verifiedOnly]);
+  }, [activeTab, mappedJobs, saved, search]);
 
   const activeFilters =
     Number(expertOnly) + Number(verifiedOnly) + Number(Boolean(minBudget));
@@ -49,10 +212,14 @@ export function AgencyJobFeed() {
         <div className="mb-8 flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
           <div>
             <p className="text-sm font-medium text-[#62805f]">
-              Tuesday, July 28
+              {new Date().toLocaleDateString("en-US", {
+                weekday: "long",
+                month: "long",
+                day: "numeric",
+              })}
             </p>
             <h1 className="mt-2 text-3xl font-semibold tracking-[-0.045em] sm:text-4xl">
-              Good morning, Northstar Digital.
+              Good morning, {agency?.name ?? "your agency"}.
             </h1>
             <p className="mt-2 text-sm text-[#72776f]">
               Here are fixed-price opportunities matched to your agency profile.
@@ -73,7 +240,7 @@ export function AgencyJobFeed() {
           <section className="min-w-0">
             <div className="rounded-2xl border border-black/8 bg-white px-3 pt-3">
               <div className="flex gap-1 border-b border-black/7 px-2">
-                {["Best matches", "Most recent", "Saved jobs"].map((tab) => (
+                {["Most recent", "Best matches", "Saved jobs"].map((tab) => (
                   <button
                     key={tab}
                     type="button"
@@ -170,33 +337,48 @@ export function AgencyJobFeed() {
               </div>
             </div>
             <div className="mt-4 grid gap-4">
-              {visibleJobs.map((job) => (
-                <AgencyJobCard
-                  key={job.id}
-                  job={job}
-                  saved={saved.includes(job.id)}
-                  onSave={() =>
-                    setSaved((current) =>
-                      current.includes(job.id)
-                        ? current.filter((id) => id !== job.id)
-                        : [...current, job.id],
-                    )
-                  }
-                  onPropose={() => setProposalJob(job)}
-                />
-              ))}
-              {!visibleJobs.length && (
+              {jobsLoading && activeTab !== "Saved jobs" ? (
+                <JobCardsSkeleton />
+              ) : jobsError ? (
                 <div className="rounded-2xl border border-dashed border-black/12 bg-white px-6 py-16 text-center">
-                  <Icon
-                    name="briefcase"
-                    size={34}
-                    className="mx-auto text-[#7c8179]"
-                  />
-                  <h2 className="mt-4 font-semibold">No matching jobs</h2>
+                  <h2 className="font-semibold">Job posts could not be loaded</h2>
                   <p className="mt-2 text-sm text-[#777c74]">
-                    Try adjusting your search or filters.
+                    Please try again in a moment.
                   </p>
                 </div>
+              ) : (
+                <>
+                  {visibleJobs.map((job) => (
+                    <AgencyJobCard
+                      key={job.id}
+                      job={job}
+                      saved={saved.includes(job.id)}
+                      onSave={() =>
+                        setSaved((current) =>
+                          current.includes(job.id)
+                            ? current.filter((id) => id !== job.id)
+                            : [...current, job.id],
+                        )
+                      }
+                      onPropose={() => setProposalJob(job)}
+                      hasApplied={appliedJobIds.has(job.id)}
+                      proposalMetadataLoading={proposalMetadataLoading}
+                    />
+                  ))}
+                  {!visibleJobs.length && (
+                    <div className="rounded-2xl border border-dashed border-black/12 bg-white px-6 py-16 text-center">
+                      <Icon
+                        name="briefcase"
+                        size={34}
+                        className="mx-auto text-[#7c8179]"
+                      />
+                      <h2 className="mt-4 font-semibold">No matching jobs</h2>
+                      <p className="mt-2 text-sm text-[#777c74]">
+                        Try adjusting your search or filters.
+                      </p>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </section>
@@ -213,9 +395,12 @@ export function AgencyJobFeed() {
               </div>
               <div className="mt-5 grid grid-cols-3 gap-2 text-center">
                 {[
-                  ["6", "Active"],
-                  ["2", "Viewed"],
-                  ["1", "Interview"],
+                  [String(proposalMetadata?.counts.active ?? 0), "Active"],
+                  [String(proposalMetadata?.counts.viewed ?? 0), "Viewed"],
+                  [
+                    String(proposalMetadata?.counts.interviewed ?? 0),
+                    "Interview",
+                  ],
                 ].map(([value, label], index) => (
                   <div
                     key={label}
@@ -229,7 +414,9 @@ export function AgencyJobFeed() {
               <div className="mt-5 border-t border-black/7 pt-4">
                 <div className="flex justify-between text-xs">
                   <span className="text-[#777c74]">Agency Connects</span>
-                  <strong>112</strong>
+                  <strong>
+                    {connectsLoading ? "—" : (agencyConnects?.connects ?? 0)}
+                  </strong>
                 </div>
                 <button
                   onClick={() => redirect("/finances?section=connects")}
@@ -240,27 +427,38 @@ export function AgencyJobFeed() {
                 </button>
               </div>
             </section>
-            <section className="rounded-2xl bg-[#252a26] p-5 text-white">
-              <div className="flex justify-between">
-                <p className="text-xs text-[#b9c1b8]">
-                  Agency earnings this month
+            {earningsSummary?.hasEarnings && (
+              <section className="rounded-2xl bg-[#252a26] p-5 text-white">
+                <div className="flex justify-between">
+                  <p className="text-xs text-[#b9c1b8]">
+                    Agency earnings this month
+                  </p>
+                  <Icon name="chart" size={20} className="text-[#9fbb9c]" />
+                </div>
+                <p className="mt-3 text-3xl font-semibold">
+                  ${Math.round(earningsSummary.currentMonthTotal).toLocaleString()}
                 </p>
-                <Icon name="chart" size={20} className="text-[#9fbb9c]" />
-              </div>
-              <p className="mt-3 text-3xl font-semibold">$18,420</p>
-              <p className="mt-1 text-xs text-[#aeb6ad]">
-                +$4,800 from last month
-              </p>
-              <div className="mt-5 flex h-14 items-end gap-2">
-                {[35, 52, 44, 70, 59, 86, 100].map((height, index) => (
-                  <span
-                    key={index}
-                    className="flex-1 rounded-t bg-[#71866f]"
-                    style={{ height: `${height}%` }}
-                  />
-                ))}
-              </div>
-            </section>
+                <p className="mt-1 text-xs text-[#aeb6ad]">
+                  {earningsChange >= 0 ? "+" : "-"}$
+                  {Math.round(Math.abs(earningsChange)).toLocaleString()} from
+                  last month
+                </p>
+                <div
+                  className="mt-5 flex h-14 items-end gap-2"
+                  aria-hidden="true"
+                >
+                  {earningsSummary.series.map((item) => (
+                    <span
+                      key={item.month}
+                      className="flex-1 rounded-t bg-[#71866f]"
+                      style={{
+                        height: `${Math.max(4, Math.round((item.total / earningsChartMax) * 100))}%`,
+                      }}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
             <section className="rounded-2xl border border-[#d5dfd2] bg-[#edf4ea] p-5">
               <Icon name="team" size={22} className="text-[#52784f]" />
               <h2 className="mt-4 font-semibold">Strengthen your agency</h2>
@@ -281,6 +479,7 @@ export function AgencyJobFeed() {
       {proposalJob && (
         <AgencyProposalModal
           job={proposalJob}
+          agency={agency ?? null}
           onClose={() => setProposalJob(null)}
         />
       )}
