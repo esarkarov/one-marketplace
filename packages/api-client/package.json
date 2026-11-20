@@ -1,0 +1,30 @@
+{
+  "name": "@onemarketplace/api-client",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "generate": "node scripts/generate.mjs",
+    "typecheck": "node node_modules/@typescript/native/bin/tsc --noEmit",
+    "lint": "eslint",
+    "test": "vitest run",
+    "test:quiet": "vitest run --reporter=dot"
+  },
+  "dependencies": {
+    "openapi-fetch": "catalog:"
+  },
+  "devDependencies": {
+    "@onemarketplace/eslint-config": "workspace:*",
+    "@onemarketplace/tsconfig": "workspace:*",
+    "@types/node": "catalog:",
+    "@typescript/native": "catalog:",
+    "eslint": "catalog:",
+    "openapi-typescript": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

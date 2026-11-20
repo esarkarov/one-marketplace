@@ -6,7 +6,7 @@ pnpm monorepo for a freelancing marketplace.
 
 - apps/\*: Next.js dashboards (landing-page, client-dashboard, freelancer-dashboard, agency-dashboard, admin-dashboard)
 - services/api: Express 5 modular monolith with one module per domain, including the Drizzle schema and migrations. The tutorial code was migrated into it (`docs/decisions/0003-api-migration.md`); `services/` holds nothing else.
-- packages/\*: shared code, scoped as `@onemarketplace/<folder-name>`
+- packages/\*: shared code, scoped as `@onemarketplace/<folder-name>`; `packages/api-client` is the typed API client generated from `docs/api/openapi.json` (source only, no React; see its README)
 - infra/docker: local Postgres and Redis
 
 ## Docs

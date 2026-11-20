@@ -6,3 +6,4 @@ coverage
 pnpm-lock.yaml
 .claude/skills/
 services/api/drizzle/
+packages/api-client/src/generated/

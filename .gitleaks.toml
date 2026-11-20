@@ -4,3 +4,13 @@ useDefault = true
 [[allowlists]]
 description = "Example env files"
 paths = ['''(^|/)\.env\.example$''']
+
+# The generated api-client files carry a sha256 of docs/api/openapi.json in a header comment.
+# It is a hash, not a secret, and the drift test needs the header format unchanged.
+[[allowlists]]
+description = "openapi-sha256 header in generated api-client files"
+condition = "AND"
+targetRules = ["generic-api-key"]
+paths = ['''packages/api-client/src/generated/.*\.ts$''']
+regexTarget = "line"
+regexes = ['''openapi-sha256:\s*[0-9a-f]{64}''']
