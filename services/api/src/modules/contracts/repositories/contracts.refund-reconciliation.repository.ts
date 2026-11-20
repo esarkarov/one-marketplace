@@ -68,26 +68,42 @@ const candidateOrder = [
   asc(contracts.id),
 ];
 
-export const claimRefundCandidates = (
+interface ClaimedRefundRow extends Record<string, unknown> {
+  id: string;
+  attempts: number;
+  cancelled_at: Date | string | null;
+  cancelled_by: "CLIENT" | "TALENT" | null;
+}
+
+export const claimRefundCandidates = async (
   executor: DbExecutor,
   filter: RefundCandidateFilter & { leaseUntil: Date },
-) =>
-  executor
-    .update(contracts)
-    .set({ refund_next_attempt_at: filter.leaseUntil })
-    .where(
-      inArray(
-        contracts.id,
-        executor
-          .select({ id: contracts.id })
-          .from(contracts)
-          .where(candidateWhere(executor, filter))
-          .orderBy(...candidateOrder)
-          .limit(filter.limit)
-          .for("update", { skipLocked: true }),
-      ),
-    )
-    .returning(candidateColumns);
+) => {
+  const picked = executor
+    .select({ id: contracts.id })
+    .from(contracts)
+    .where(candidateWhere(executor, filter))
+    .orderBy(...candidateOrder)
+    .limit(filter.limit)
+    .for("update", { skipLocked: true });
+  const result = await executor.execute<ClaimedRefundRow>(sql`
+    WITH picked AS MATERIALIZED (${picked})
+    UPDATE contracts
+    SET refund_next_attempt_at = ${filter.leaseUntil.toISOString()}::timestamptz
+    FROM picked
+    WHERE contracts.id = picked.id
+    RETURNING contracts.id AS id,
+      contracts.refund_attempts AS attempts,
+      contracts.cancelled_at AS cancelled_at,
+      contracts.cancelled_by AS cancelled_by
+  `);
+  return result.rows.map((row) => ({
+    id: row.id,
+    attempts: row.attempts,
+    cancelledAt: row.cancelled_at === null ? null : new Date(row.cancelled_at),
+    cancelledBy: row.cancelled_by,
+  }));
+};
 
 export const listRefundCandidates = (
   executor: DbExecutor,

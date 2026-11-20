@@ -1,35 +1,39 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   apiDir,
-  collectSpecifiers,
+  collectSpecifiersInDirs,
   findParentRelativeImports,
+  findParentRelativeSites,
   findUnresolvedAliases,
-  listSourceFiles,
+  findUnresolvedAliasSites,
   srcRoot,
+  type SpecifierSite,
 } from "./import-specifiers.js";
 
 const scanned = [srcRoot, path.join(apiDir, "scripts")];
 
 describe("import aliases", () => {
+  let sites: SpecifierSite[] = [];
+  beforeAll(() => {
+    sites = collectSpecifiersInDirs(scanned);
+  });
+
   it("has no parent-relative import, export-from, dynamic import or mock path in src or scripts", () => {
     expect(
-      findParentRelativeImports(scanned),
+      findParentRelativeSites(sites),
       "import across directories with @/ (the src root); only ./ stays relative (ADR 0020)",
     ).toEqual([]);
   });
 
   it("resolves every @/ specifier to an existing file under src", () => {
-    expect(findUnresolvedAliases(scanned)).toEqual([]);
+    expect(findUnresolvedAliasSites(sites)).toEqual([]);
   });
 
   it("sees a meaningful number of alias specifiers", () => {
-    const aliases = scanned
-      .flatMap((dir) => listSourceFiles(dir))
-      .flatMap((file) => collectSpecifiers(file))
-      .filter(({ specifier }) => specifier.startsWith("@/"));
+    const aliases = sites.filter(({ specifier }) => specifier.startsWith("@/"));
     expect(aliases.length).toBeGreaterThan(1500);
   });
 });

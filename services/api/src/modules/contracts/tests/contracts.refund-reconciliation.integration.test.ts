@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { sql } from "drizzle-orm";
 import {
   afterAll,
   beforeAll,
@@ -118,6 +119,7 @@ import {
 import { assertTestDatabase } from "@/test/setup/assert-test-database.js";
 import { uuidV5 } from "@/shared/ids/uuid-v5.js";
 import { withdrawOffer } from "@/modules/contracts/services/contracts.lifecycle.service.js";
+import { claimRefundCandidates } from "@/modules/contracts/repositories/contracts.refund-reconciliation.repository.js";
 import { reconcileCancelledContractRefunds } from "@/modules/contracts/services/contracts.refund-reconciliation.service.js";
 
 const PREFIX = "contracts-refund-recon-it-";
@@ -142,6 +144,7 @@ const insertAccount = async (role: "CLIENT" | "FREELANCER") => {
 };
 
 interface SeedOptions {
+  contractId?: string;
   status?: "PENDING" | "ACTIVE" | "COMPLETED" | "CANCELLED";
   agency?: boolean;
   cancelledAt?: Date | null;
@@ -229,6 +232,7 @@ const seed = async (options: SeedOptions = {}) => {
   const [contract] = await db
     .insert(contracts)
     .values({
+      ...(options.contractId ? { id: options.contractId } : {}),
       proposal_id: proposal!.id,
       job_id: job!.id,
       client_id: clientId,
@@ -1052,6 +1056,41 @@ describe("candidates", () => {
     expect(summary.scanned).toBe(50);
     expect(summary.markedDone).toBe(50);
   }, 60_000);
+
+  describe.each([
+    { rows: 3, limit: 2 },
+    { rows: 52, limit: 50 },
+  ])(
+    "claim under a nested loop plan with $rows rows and limit $limit",
+    ({ rows, limit }) => {
+      it("never claims more than the limit", async () => {
+        for (let index = 0; index < rows; index += 1) {
+          await seed({
+            contractId: `00000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`,
+          });
+        }
+        const now = new Date();
+
+        const claimed = await db.transaction(async (tx) => {
+          await tx.execute(sql`SET LOCAL enable_hashjoin = off`);
+          await tx.execute(sql`SET LOCAL enable_mergejoin = off`);
+          await tx.execute(sql`SET LOCAL enable_material = off`);
+          await tx.execute(sql`SET LOCAL enable_hashagg = off`);
+          await tx.execute(sql`SET LOCAL enable_sort = off`);
+          return claimRefundCandidates(tx, {
+            now,
+            cancelledBefore: new Date(now.getTime() - 5 * MINUTE),
+            maxAttempts: 20,
+            limit,
+            leaseUntil: new Date(now.getTime() + 10 * MINUTE),
+          });
+        });
+
+        expect(claimed).toHaveLength(limit);
+        expect(new Set(claimed.map((row) => row.id)).size).toBe(limit);
+      }, 60_000);
+    },
+  );
 });
 
 describe("lease", () => {

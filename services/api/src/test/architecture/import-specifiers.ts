@@ -103,32 +103,34 @@ export const resolveAlias = (
   return null;
 };
 
-export const findParentRelativeImports = (dirs: string[]): string[] =>
+export const collectSpecifiersInDirs = (dirs: string[]): SpecifierSite[] =>
   dirs.flatMap((dir) =>
-    listSourceFiles(dir).flatMap((file) =>
-      collectSpecifiers(file)
-        .filter(({ specifier }) => isParentRelative(specifier))
-        .map(
-          ({ line, specifier }) =>
-            `${path.relative(apiDir, file).split(path.sep).join("/")}:${line} ${specifier}`,
-        ),
-    ),
+    listSourceFiles(dir).flatMap((file) => collectSpecifiers(file)),
   );
+
+const describeSite = ({ file, line, specifier }: SpecifierSite) =>
+  `${path.relative(apiDir, file).split(path.sep).join("/")}:${line} ${specifier}`;
+
+export const findParentRelativeSites = (sites: SpecifierSite[]): string[] =>
+  sites
+    .filter(({ specifier }) => isParentRelative(specifier))
+    .map(describeSite);
+
+export const findUnresolvedAliasSites = (
+  sites: SpecifierSite[],
+  root = srcRoot,
+): string[] =>
+  sites
+    .filter(
+      ({ specifier }) =>
+        specifier.startsWith("@/") && !resolveAlias(specifier, root),
+    )
+    .map(describeSite);
+
+export const findParentRelativeImports = (dirs: string[]): string[] =>
+  findParentRelativeSites(collectSpecifiersInDirs(dirs));
 
 export const findUnresolvedAliases = (
   dirs: string[],
   root = srcRoot,
-): string[] =>
-  dirs.flatMap((dir) =>
-    listSourceFiles(dir).flatMap((file) =>
-      collectSpecifiers(file)
-        .filter(
-          ({ specifier }) =>
-            specifier.startsWith("@/") && !resolveAlias(specifier, root),
-        )
-        .map(
-          ({ line, specifier }) =>
-            `${path.relative(apiDir, file).split(path.sep).join("/")}:${line} ${specifier}`,
-        ),
-    ),
-  );
+): string[] => findUnresolvedAliasSites(collectSpecifiersInDirs(dirs), root);

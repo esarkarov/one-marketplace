@@ -209,7 +209,11 @@ const tableSnapshot = async () =>
     ).rows,
     (
       await pool.query(
-        "select * from contract_milestones where stripe_checkout_session_id is not null order by id",
+        `select m.* from contract_milestones m
+           join contracts c on c.id = m.contract_id
+          where c.client_id like $1 and m.stripe_checkout_session_id is not null
+          order by m.id`,
+        [`${PREFIX}%`],
       )
     ).rows,
   ]);
