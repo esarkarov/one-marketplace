@@ -1,17 +1,15 @@
-import { cookies } from "next/headers";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { SESSION_COOKIE } from "../../../../../lib/admin-session";
+import { getApiBaseUrl } from "../../../../../lib/admin-api";
+import { proxyRedisKeys } from "../../../../../lib/handlers";
 
 export async function GET(request: NextRequest) {
-  const token = (await cookies()).get(SESSION_COOKIE)?.value;
-  const pattern = request.nextUrl.searchParams.get("pattern") ?? "*";
-  const response = await fetch(
-    `${process.env.NEXT_PUBLIC_SERVER_URI}/admin/system/redis/keys?pattern=${encodeURIComponent(pattern)}`,
+  return proxyRedisKeys(
     {
-      cache: "no-store",
-      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      baseUrl: getApiBaseUrl(),
+      token: request.cookies.get(SESSION_COOKIE)?.value,
+      signal: request.signal,
     },
+    request.nextUrl.searchParams.get("pattern") ?? "*",
   );
-  const result = await response.json();
-  return NextResponse.json(result, { status: response.status });
 }

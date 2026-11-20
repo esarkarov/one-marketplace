@@ -53,7 +53,11 @@ export function LogsStream() {
     };
     source.onerror = () => {
       setConnected(false);
-      setError("Log stream disconnected — retrying…");
+      setError(
+        source.readyState === EventSource.CLOSED
+          ? "Log stream closed. Reload the page or sign in again."
+          : "Log stream disconnected — retrying…",
+      );
     };
     source.onmessage = (event) => {
       try {

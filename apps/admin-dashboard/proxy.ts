@@ -1,17 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
-import { SESSION_COOKIE, verifySessionToken } from "./lib/admin-session";
+import { decideAccess, UNAUTHENTICATED_BODY } from "./lib/access";
+import { SESSION_COOKIE } from "./lib/admin-session";
 
-export async function proxy(request: NextRequest) {
-  const token = request.cookies.get(SESSION_COOKIE)?.value;
-  const secret = process.env.ADMIN_SESSION_SECRET;
-  const valid = secret ? await verifySessionToken(token, secret) : false;
-  if (valid) return NextResponse.next();
+export function proxy(request: NextRequest) {
+  const { pathname, search } = request.nextUrl;
+  const decision = decideAccess({
+    hasSessionCookie: Boolean(request.cookies.get(SESSION_COOKIE)?.value),
+    pathname,
+    search,
+    isApiRoute: pathname === "/api" || pathname.startsWith("/api/"),
+  });
+
+  if (decision.action === "allow") return NextResponse.next();
+
+  if (decision.action === "unauthenticated") {
+    return NextResponse.json(UNAUTHENTICATED_BODY, { status: 401 });
+  }
 
   const loginUrl = new URL("/login", request.url);
-  loginUrl.searchParams.set("next", request.nextUrl.pathname);
+  loginUrl.searchParams.set("next", decision.next);
   return NextResponse.redirect(loginUrl);
 }
 
 export const config = {
-  matcher: ["/((?!login|api/session|_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };

@@ -1,30 +1,26 @@
 import type { Metadata } from "next";
 import { PageHeader } from "../../_components/admin-shell";
 import {
+  formatDateTime,
+  unwrap,
+  type Components,
+} from "@onemarketplace/api-client";
+import {
+  ApiErrorBanner,
   Badge,
   EmptyState,
-  ErrorBanner,
   Pagination,
   TableShell,
 } from "../../_components/ui";
 import { fetchAdmin } from "../../_components/fetch-admin";
-import { formatCurrency, formatDate } from "../../_components/format";
+import { transactionAmountView } from "../../../lib/money-views";
+import { parseOffset } from "../../../lib/labels";
 
 const PAGE_SIZE = 20;
 
 export const metadata: Metadata = { title: "Transactions" };
 
-type TransactionType =
-  "MILESTONE_FUNDED" | "EARNING" | "PAYOUT" | "CONNECTS_PURCHASE";
-
-interface AdminTransaction {
-  id: string;
-  type: TransactionType;
-  description: string;
-  party: string;
-  amount: number;
-  createdAt: string;
-}
+type TransactionType = Components["schemas"]["AdminTransactionItem"]["type"];
 
 const TYPE_LABEL: Record<TransactionType, string> = {
   MILESTONE_FUNDED: "Milestone funded",
@@ -46,11 +42,16 @@ export default async function TransactionsPage({
 }: {
   searchParams: Promise<{ offset?: string }>;
 }) {
-  const offset = Math.max(0, Number((await searchParams).offset) || 0);
-  const { data, error } = await fetchAdmin<{
-    results: AdminTransaction[];
-    hasMore: boolean;
-  }>(`/admin/transactions?limit=${PAGE_SIZE}&offset=${offset}`);
+  const offset = parseOffset((await searchParams).offset);
+  const { data, error } = await fetchAdmin(
+    `/transactions?offset=${offset}`,
+    (api) =>
+      unwrap(
+        api.GET("/api/v1/admin/transactions", {
+          params: { query: { limit: PAGE_SIZE, offset } },
+        }),
+      ),
+  );
   const transactions = data?.results ?? [];
 
   return (
@@ -60,7 +61,7 @@ export default async function TransactionsPage({
         title="Transactions"
         description="Every escrow funding, earning, payout, and Connects purchase, newest first."
       />
-      {error && <ErrorBanner message={error} />}
+      {error && <ApiErrorBanner error={error} />}
       <TableShell
         title="Transaction ledger"
         description="Merged across milestones, earnings, payouts, and Connects"
@@ -106,10 +107,10 @@ export default async function TransactionsPage({
                   {transaction.party}
                 </td>
                 <td className="px-5 py-4 text-right font-semibold">
-                  {formatCurrency(transaction.amount)}
+                  {transactionAmountView(transaction)}
                 </td>
                 <td className="px-5 py-4 text-[#858a82]">
-                  {formatDate(transaction.createdAt)}
+                  {formatDateTime(transaction.createdAt)}
                 </td>
               </tr>
             ))}

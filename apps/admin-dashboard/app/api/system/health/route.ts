@@ -1,16 +1,12 @@
-import { cookies } from "next/headers";
-import { NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { SESSION_COOKIE } from "../../../../lib/admin-session";
+import { getApiBaseUrl } from "../../../../lib/admin-api";
+import { proxySystemHealth } from "../../../../lib/handlers";
 
-export async function GET() {
-  const token = (await cookies()).get(SESSION_COOKIE)?.value;
-  const response = await fetch(
-    `${process.env.NEXT_PUBLIC_SERVER_URI}/admin/system/health`,
-    {
-      cache: "no-store",
-      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-    },
-  );
-  const result = await response.json();
-  return NextResponse.json(result, { status: response.status });
+export async function GET(request: NextRequest) {
+  return proxySystemHealth({
+    baseUrl: getApiBaseUrl(),
+    token: request.cookies.get(SESSION_COOKIE)?.value,
+    signal: request.signal,
+  });
 }

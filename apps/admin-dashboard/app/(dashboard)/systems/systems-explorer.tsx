@@ -3,37 +3,39 @@
 import { useCallback, useEffect, useState } from "react";
 import { PageHeader } from "../../_components/admin-shell";
 import { AdminIcon } from "../../_components/admin-icon";
+import { formatDateTime, type Paths } from "@onemarketplace/api-client";
 import { Badge, ErrorBanner } from "../../_components/ui";
-import { formatDate } from "../../_components/format";
+import {
+  BrowserApiError,
+  getAdminJson,
+  redirectToLogin,
+} from "../../../lib/browser-api";
 
-interface CheckResult {
-  ok: boolean;
-  latencyMs?: number;
-  server?: string;
-  error?: string;
+type OkData<T> = T extends {
+  responses: { 200: { content: { "application/json": { data: infer D } } } };
+}
+  ? D
+  : never;
+
+type SystemHealth = OkData<Paths["/api/v1/admin/system/health"]["get"]>;
+type CheckResult = SystemHealth["redis"];
+type RedisKeys = OkData<Paths["/api/v1/admin/system/redis/keys"]["get"]>;
+type RedisKeyDetail = OkData<
+  Paths["/api/v1/admin/system/redis/keys/{key}"]["get"]
+>;
+
+interface Failure {
+  message: string;
+  requestId: string | undefined;
 }
 
-interface SystemHealth {
-  redis: CheckResult;
-  database: CheckResult;
-  nats: CheckResult;
-  process: {
-    uptimeSeconds: number;
-    memory: { rss: number; heapUsed: number; heapTotal: number };
-    loadAverage: [number, number, number];
-    cpuCount: number;
-    totalMemoryMb: number;
-    freeMemoryMb: number;
-    nodeVersion: string;
-  };
-  checkedAt: string;
-}
-
-interface RedisKeyRow {
-  key: string;
-  type: string;
-  ttl: number;
-}
+const toFailure = (error: unknown, fallback: string): Failure =>
+  error instanceof BrowserApiError
+    ? { message: error.message, requestId: error.requestId }
+    : {
+        message: error instanceof Error ? error.message : fallback,
+        requestId: undefined,
+      };
 
 const REFRESH_MS = 10_000;
 
@@ -46,34 +48,28 @@ function formatUptime(seconds: number) {
 
 export function SystemsExplorer() {
   const [health, setHealth] = useState<SystemHealth | null>(null);
-  const [healthError, setHealthError] = useState("");
+  const [healthError, setHealthError] = useState<Failure | null>(null);
 
   const [pattern, setPattern] = useState("*");
-  const [keys, setKeys] = useState<RedisKeyRow[] | null>(null);
+  const [keys, setKeys] = useState<RedisKeys["keys"] | null>(null);
   const [scanning, setScanning] = useState(false);
-  const [scanError, setScanError] = useState("");
+  const [scanError, setScanError] = useState<Failure | null>(null);
   const [truncated, setTruncated] = useState(false);
 
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
-  const [keyDetail, setKeyDetail] = useState<{
-    type: string;
-    ttl: number;
-    value: unknown;
-    truncated: boolean;
-  } | null>(null);
-  const [keyDetailError, setKeyDetailError] = useState("");
+  const [keyDetail, setKeyDetail] = useState<RedisKeyDetail | null>(null);
+  const [keyDetailError, setKeyDetailError] = useState<Failure | null>(null);
 
   const loadHealth = useCallback(async () => {
     try {
-      const response = await fetch("/api/system/health", { cache: "no-store" });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.message);
-      setHealth(result.data);
-      setHealthError("");
-    } catch (error) {
-      setHealthError(
-        error instanceof Error ? error.message : "Could not reach the server.",
+      setHealth(
+        await getAdminJson<SystemHealth>("/api/system/health", {
+          onUnauthenticated: redirectToLogin,
+        }),
       );
+      setHealthError(null);
+    } catch (error) {
+      setHealthError(toFailure(error, "Could not reach the server."));
     }
   }, []);
 
@@ -88,20 +84,16 @@ export function SystemsExplorer() {
 
   const scanKeys = useCallback(async () => {
     setScanning(true);
-    setScanError("");
+    setScanError(null);
     try {
-      const response = await fetch(
+      const result = await getAdminJson<RedisKeys>(
         `/api/system/redis/keys?pattern=${encodeURIComponent(pattern || "*")}`,
-        { cache: "no-store" },
+        { onUnauthenticated: redirectToLogin },
       );
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.message);
-      setKeys(result.data.keys);
-      setTruncated(result.data.truncated);
+      setKeys(result.keys);
+      setTruncated(result.truncated);
     } catch (error) {
-      setScanError(
-        error instanceof Error ? error.message : "Redis scan failed.",
-      );
+      setScanError(toFailure(error, "Redis scan failed."));
     } finally {
       setScanning(false);
     }
@@ -116,19 +108,16 @@ export function SystemsExplorer() {
   const inspectKey = useCallback(async (key: string) => {
     setSelectedKey(key);
     setKeyDetail(null);
-    setKeyDetailError("");
+    setKeyDetailError(null);
     try {
-      const response = await fetch(
-        `/api/system/redis/keys/${encodeURIComponent(key)}`,
-        { cache: "no-store" },
+      setKeyDetail(
+        await getAdminJson<RedisKeyDetail>(
+          `/api/system/redis/keys/${encodeURIComponent(key)}`,
+          { onUnauthenticated: redirectToLogin },
+        ),
       );
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.message);
-      setKeyDetail(result.data);
     } catch (error) {
-      setKeyDetailError(
-        error instanceof Error ? error.message : "Could not load this key.",
-      );
+      setKeyDetailError(toFailure(error, "Could not load this key."));
     }
   }, []);
 
@@ -137,9 +126,9 @@ export function SystemsExplorer() {
       <PageHeader
         eyebrow="Infrastructure"
         title="Systems"
-        description="Redis, Postgres, and NATS health, machine load, and a live Redis explorer."
+        description="Redis, Postgres, and RabbitMQ health, machine load, and a live Redis explorer."
       />
-      {healthError && <ErrorBanner message={healthError} />}
+      {healthError && <ErrorBanner {...healthError} />}
 
       {health && (
         <>
@@ -152,9 +141,8 @@ export function SystemsExplorer() {
             />
             <HealthCard
               icon="server"
-              label="NATS"
-              result={health.nats}
-              detail={health.nats.server}
+              label="RabbitMQ"
+              result={health.rabbitmq}
             />
             <article className="rounded-2xl border border-black/8 bg-white p-5">
               <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#edf4ea] text-[#52784f]">
@@ -176,15 +164,15 @@ export function SystemsExplorer() {
               <div className="mt-4 grid grid-cols-3 gap-3">
                 <MiniStat
                   label="Load (1m)"
-                  value={health.process.loadAverage[0].toFixed(2)}
+                  value={(health.process.loadAverage[0] ?? 0).toFixed(2)}
                 />
                 <MiniStat
                   label="Load (5m)"
-                  value={health.process.loadAverage[1].toFixed(2)}
+                  value={(health.process.loadAverage[1] ?? 0).toFixed(2)}
                 />
                 <MiniStat
                   label="Load (15m)"
-                  value={health.process.loadAverage[2].toFixed(2)}
+                  value={(health.process.loadAverage[2] ?? 0).toFixed(2)}
                 />
               </div>
               <div className="mt-3 grid grid-cols-3 gap-3">
@@ -202,8 +190,8 @@ export function SystemsExplorer() {
                 />
               </div>
               <p className="mt-4 text-[10px] text-[#969b94]">
-                Last checked {formatDate(health.checkedAt)} · refreshes every
-                10s
+                Last checked {formatDateTime(health.checkedAt)} · refreshes
+                every 10s
               </p>
             </article>
 
@@ -255,7 +243,7 @@ export function SystemsExplorer() {
           </div>
         </header>
 
-        {scanError && <ErrorBanner message={scanError} />}
+        {scanError && <ErrorBanner {...scanError} />}
 
         <div className="grid xl:grid-cols-[1fr_1.2fr]">
           <div className="max-h-100 overflow-y-auto border-b border-black/7 xl:border-r xl:border-b-0">
@@ -314,9 +302,14 @@ export function SystemsExplorer() {
                   {keyDetail && <Badge label={keyDetail.type} tone="blue" />}
                 </div>
                 {keyDetailError && (
-                  <p className="mt-3 text-xs text-[#9a5953]">
-                    {keyDetailError}
-                  </p>
+                  <div className="mt-3 text-xs text-[#9a5953]">
+                    {keyDetailError.message}
+                    {keyDetailError.requestId && (
+                      <p className="mt-1 text-[10px] text-[#b08a86]">
+                        Request ID: {keyDetailError.requestId}
+                      </p>
+                    )}
+                  </div>
                 )}
                 {keyDetail && (
                   <>
@@ -372,7 +365,7 @@ function HealthCard({
       </p>
       <h2 className="mt-1 text-xs font-semibold">{label}</h2>
       <p className="mt-2 truncate text-[10px] text-[#858a82]">
-        {result.ok ? (detail ?? "Responding normally") : result.error}
+        {result.ok ? (detail ?? "Responding normally") : "Not responding"}
       </p>
     </article>
   );

@@ -1,51 +1,35 @@
 import type { Metadata } from "next";
 import { PageHeader } from "../_components/admin-shell";
 import { AdminIcon } from "../_components/admin-icon";
-import { ErrorBanner, Pagination } from "../_components/ui";
+import { formatDateTime, unwrap } from "@onemarketplace/api-client";
+import { ApiErrorBanner, Pagination } from "../_components/ui";
 import { fetchAdmin } from "../_components/fetch-admin";
-import { formatCurrency, formatDate } from "../_components/format";
+import { overviewVolumeView } from "../../lib/money-views";
+import { parseOffset } from "../../lib/labels";
 
 export const metadata: Metadata = { title: "Overview" };
 
 const PAGE_SIZE = 10;
-
-interface OverviewData {
-  totals: {
-    freelancers: number;
-    clients: number;
-    agencies: number;
-    jobPosts: number;
-    proposals: number;
-    contracts: number;
-    activeContracts: number;
-  };
-  volume: {
-    totalContractValue: number;
-    totalPaidOut: number;
-    totalConnectsRevenue: number;
-  };
-}
-
-interface ActivityItem {
-  type: string;
-  id: string;
-  title: string;
-  createdAt: string;
-}
 
 export default async function OverviewPage({
   searchParams,
 }: {
   searchParams: Promise<{ offset?: string }>;
 }) {
-  const offset = Math.max(0, Number((await searchParams).offset) || 0);
+  const offset = parseOffset((await searchParams).offset);
+  const currentPath = `/?offset=${offset}`;
   const [{ data, error }, activity] = await Promise.all([
-    fetchAdmin<OverviewData>("/admin/overview"),
-    fetchAdmin<{ results: ActivityItem[]; hasMore: boolean }>(
-      `/admin/overview/activity?limit=${PAGE_SIZE}&offset=${offset}`,
+    fetchAdmin(currentPath, (api) => unwrap(api.GET("/api/v1/admin/overview"))),
+    fetchAdmin(currentPath, (api) =>
+      unwrap(
+        api.GET("/api/v1/admin/overview/activity", {
+          params: { query: { limit: PAGE_SIZE, offset } },
+        }),
+      ),
     ),
   ]);
   const recentActivity = activity.data?.results ?? [];
+  const volume = data ? overviewVolumeView(data.volume) : null;
 
   return (
     <>
@@ -55,11 +39,11 @@ export default async function OverviewPage({
         description="Live counts and recent activity across every side of OneMarketplace.io."
       />
 
-      {(error || activity.error) && (
-        <ErrorBanner message={error ?? activity.error ?? "Request failed."} />
+      {(error ?? activity.error) && (
+        <ApiErrorBanner error={error ?? activity.error} />
       )}
 
-      {data && (
+      {data && volume && (
         <section className="mt-8 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <Metric
             icon="users"
@@ -83,13 +67,13 @@ export default async function OverviewPage({
           <Metric
             icon="wallet"
             label="Total contract value"
-            value={formatCurrency(data.volume.totalContractValue)}
+            value={volume.totalContractValue}
           />
           <Metric
             icon="wallet"
             label="Paid out"
-            value={formatCurrency(data.volume.totalPaidOut)}
-            detail={`${formatCurrency(data.volume.totalConnectsRevenue)} Connects revenue`}
+            value={volume.totalPaidOut}
+            detail={`${volume.connectsRevenue} Connects revenue`}
           />
         </section>
       )}
@@ -115,7 +99,7 @@ export default async function OverviewPage({
                 <p className="mt-0.5 text-[10px] text-[#858a82]">{item.type}</p>
               </div>
               <span className="shrink-0 text-[10px] text-[#969b94]">
-                {formatDate(item.createdAt)}
+                {formatDateTime(item.createdAt)}
               </span>
             </div>
           ))}

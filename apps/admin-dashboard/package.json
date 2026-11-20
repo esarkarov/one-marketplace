@@ -7,9 +7,12 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "typecheck": "node node_modules/@typescript/native/bin/tsc --noEmit"
+    "typecheck": "node node_modules/@typescript/native/bin/tsc --noEmit",
+    "test": "vitest run",
+    "test:quiet": "vitest run --reporter=dot"
   },
   "dependencies": {
+    "@onemarketplace/api-client": "workspace:*",
     "next": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:"
@@ -24,6 +27,7 @@
     "eslint": "catalog:",
     "tailwindcss": "catalog:",
     "typescript": "catalog:",
-    "@typescript/native": "catalog:"
+    "@typescript/native": "catalog:",
+    "vitest": "catalog:"
   }
 }

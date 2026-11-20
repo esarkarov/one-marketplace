@@ -4,55 +4,21 @@ import { useEffect, useState } from "react";
 import { AdminIcon } from "../../_components/admin-icon";
 import { Badge, EmptyState, TableShell } from "../../_components/ui";
 import {
-  formatCurrency,
   formatDate,
-  initialsFor,
-} from "../../_components/format";
+  formatDateTime,
+  type Components,
+} from "@onemarketplace/api-client";
+import { initialsFor } from "../../_components/format";
+import { contractMoneyView } from "../../../lib/money-views";
+import {
+  CONTRACT_STATUS,
+  TALENT_KIND_LABEL,
+  type Tone,
+} from "../../../lib/labels";
 
-interface ContractMilestone {
-  id: string;
-  title: string;
-  amount: number;
-  dueDate: string;
-  position: number;
-  status: "PENDING" | "ACTIVE" | "COMPLETED";
-  fundedAt: string | null;
-  submissionMessage: string | null;
-  submissionDeliveryLink: string | null;
-  completedAt: string | null;
-}
+export type AdminContract = Components["schemas"]["AdminContractItem"];
 
-export interface AdminContract {
-  id: string;
-  title: string;
-  status: "PENDING" | "ACTIVE" | "COMPLETED";
-  totalAmount: number;
-  jobId: string;
-  proposalId: string;
-  clientId: string;
-  clientName: string;
-  clientEmail: string | null;
-  talentId: string | null;
-  talentName: string;
-  talentAvatarUrl: string | null;
-  talentEmail: string | null;
-  agencySpecialty: string | null;
-  agencyWebsite: string | null;
-  talentKind: "Agency" | "Freelancer";
-  createdAt: string;
-  updatedAt: string | null;
-  startedAt: string | null;
-  completedAt: string | null;
-  milestones: ContractMilestone[];
-}
-
-const STATUS_TONE: Record<string, "green" | "amber" | "blue"> = {
-  PENDING: "amber",
-  ACTIVE: "blue",
-  COMPLETED: "green",
-};
-
-const MILESTONE_TONE: Record<string, "green" | "amber" | "blue"> = {
+const MILESTONE_TONE: Record<string, Tone> = {
   PENDING: "amber",
   ACTIVE: "blue",
   COMPLETED: "green",
@@ -66,6 +32,7 @@ export function ContractsTable({
   footer?: React.ReactNode;
 }) {
   const [selected, setSelected] = useState<AdminContract | null>(null);
+  const selectedMoney = selected ? contractMoneyView(selected) : null;
 
   useEffect(() => {
     if (!selected) return;
@@ -80,7 +47,7 @@ export function ContractsTable({
     <>
       <TableShell
         title="Contract explorer"
-        description="Active and completed engagements — click a row to review"
+        description="Pending, active, completed and cancelled engagements — click a row to review"
         count={contracts.length}
         footer={footer}
       >
@@ -90,6 +57,7 @@ export function ContractsTable({
               <th className="px-5 py-3">Contract</th>
               <th className="px-5 py-3">Client</th>
               <th className="px-5 py-3">Talent</th>
+              <th className="px-5 py-3">Kind</th>
               <th className="px-5 py-3">Value</th>
               <th className="px-5 py-3">Status</th>
               <th className="px-5 py-3">Created</th>
@@ -110,21 +78,24 @@ export function ContractsTable({
                 </td>
                 <td className="px-5 py-4 text-[#71766e]">
                   {contract.talentName}
-                  <span className="ml-1.5 text-[10px] text-[#a3a89f]">
-                    ({contract.talentKind})
-                  </span>
-                </td>
-                <td className="px-5 py-4 font-semibold">
-                  {formatCurrency(contract.totalAmount)}
                 </td>
                 <td className="px-5 py-4">
                   <Badge
-                    label={contract.status}
-                    tone={STATUS_TONE[contract.status] ?? "gray"}
+                    label={TALENT_KIND_LABEL[contract.talentKind]}
+                    tone="gray"
+                  />
+                </td>
+                <td className="px-5 py-4 font-semibold">
+                  {contractMoneyView(contract).total}
+                </td>
+                <td className="px-5 py-4">
+                  <Badge
+                    label={CONTRACT_STATUS[contract.status].label}
+                    tone={CONTRACT_STATUS[contract.status].tone}
                   />
                 </td>
                 <td className="px-5 py-4 text-[#858a82]">
-                  {formatDate(contract.createdAt)}
+                  {formatDateTime(contract.createdAt)}
                 </td>
               </tr>
             ))}
@@ -146,11 +117,11 @@ export function ContractsTable({
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge
-                    label={selected.status}
-                    tone={STATUS_TONE[selected.status] ?? "gray"}
+                    label={CONTRACT_STATUS[selected.status].label}
+                    tone={CONTRACT_STATUS[selected.status].tone}
                   />
                   <span className="text-[10px] text-[#858a82]">
-                    {selected.talentKind}
+                    {TALENT_KIND_LABEL[selected.talentKind]}
                   </span>
                 </div>
                 <h2 className="mt-2 text-lg font-semibold">{selected.title}</h2>
@@ -167,16 +138,19 @@ export function ContractsTable({
 
             <div className="overflow-y-auto p-5">
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <Stat label="Value" value={selectedMoney?.total ?? "—"} />
                 <Stat
-                  label="Value"
-                  value={formatCurrency(selected.totalAmount)}
+                  label="Started"
+                  value={formatDateTime(selected.startedAt)}
                 />
-                <Stat label="Started" value={formatDate(selected.startedAt)} />
                 <Stat
                   label="Completed"
-                  value={formatDate(selected.completedAt)}
+                  value={formatDateTime(selected.completedAt)}
                 />
-                <Stat label="Created" value={formatDate(selected.createdAt)} />
+                <Stat
+                  label="Created"
+                  value={formatDateTime(selected.createdAt)}
+                />
               </div>
 
               <Section title="Client">
@@ -240,12 +214,14 @@ export function ContractsTable({
                           />
                         </div>
                         <p className="mt-1 text-[10px] text-[#858a82]">
-                          {formatCurrency(milestone.amount)} · due{" "}
-                          {formatDate(milestone.dueDate)}
+                          {selectedMoney?.milestones.find(
+                            (item) => item.id === milestone.id,
+                          )?.amount ?? "—"}{" "}
+                          · due {formatDate(milestone.dueDate)}
                           {milestone.fundedAt &&
-                            ` · funded ${formatDate(milestone.fundedAt)}`}
+                            ` · funded ${formatDateTime(milestone.fundedAt)}`}
                           {milestone.completedAt &&
-                            ` · completed ${formatDate(milestone.completedAt)}`}
+                            ` · completed ${formatDateTime(milestone.completedAt)}`}
                         </p>
                         {milestone.submissionMessage && (
                           <p className="mt-1.5 text-[10px] text-[#71766e]">

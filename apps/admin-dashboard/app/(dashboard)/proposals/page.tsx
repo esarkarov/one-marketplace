@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { PageHeader } from "../../_components/admin-shell";
-import { ErrorBanner, Pagination } from "../../_components/ui";
+import { unwrap } from "@onemarketplace/api-client";
+import { ApiErrorBanner, Pagination } from "../../_components/ui";
+import { parseOffset } from "../../../lib/labels";
 import { fetchAdmin } from "../../_components/fetch-admin";
-import { ProposalsTable, type AdminProposal } from "./proposals-table";
+import { ProposalsTable } from "./proposals-table";
 
 export const metadata: Metadata = { title: "Proposals" };
 
@@ -13,11 +15,16 @@ export default async function ProposalsPage({
 }: {
   searchParams: Promise<{ offset?: string }>;
 }) {
-  const offset = Math.max(0, Number((await searchParams).offset) || 0);
-  const { data, error } = await fetchAdmin<{
-    results: AdminProposal[];
-    hasMore: boolean;
-  }>(`/admin/proposals?limit=${PAGE_SIZE}&offset=${offset}`);
+  const offset = parseOffset((await searchParams).offset);
+  const { data, error } = await fetchAdmin(
+    `/proposals?offset=${offset}`,
+    (api) =>
+      unwrap(
+        api.GET("/api/v1/admin/proposals", {
+          params: { query: { limit: PAGE_SIZE, offset } },
+        }),
+      ),
+  );
   const proposals = data?.results ?? [];
 
   return (
@@ -27,7 +34,7 @@ export default async function ProposalsPage({
         title="Proposals"
         description="Every proposal submitted for a job post, newest first."
       />
-      {error && <ErrorBanner message={error} />}
+      {error && <ApiErrorBanner error={error} />}
       <ProposalsTable
         proposals={proposals}
         footer={

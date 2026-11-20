@@ -3,51 +3,15 @@
 import { useEffect, useState } from "react";
 import { AdminIcon } from "../../_components/admin-icon";
 import { Badge, EmptyState, TableShell } from "../../_components/ui";
-import { formatCurrency, formatDate } from "../../_components/format";
+import {
+  formatDate,
+  formatDateTime,
+  type Components,
+} from "@onemarketplace/api-client";
+import { jobPostMoneyView } from "../../../lib/money-views";
+import { JOB_STATUS_TONE } from "../../../lib/labels";
 
-export interface AdminJobPost {
-  id: string;
-  title: string;
-  description: string;
-  status: string;
-  totalBudget: number;
-  expertiseLevel: string;
-  expectedDuration: string;
-  skills: string[];
-  milestones: Array<{
-    id: string;
-    title: string;
-    budget: number;
-    dueDate: string;
-  }>;
-  screeningQuestions: string[];
-  attachments: Array<{
-    fileId: string;
-    fileName: string;
-    fileUrl: string;
-    fileType: string;
-    fileSize: number;
-  }>;
-  clientId: string;
-  clientName: string;
-  companyWebsite: string | null;
-  industry: string | null;
-  companyDescription: string | null;
-  clientEmail: string | null;
-  proposalCount: number;
-  hireCount: number;
-  createdAt: string;
-  updatedAt: string | null;
-  publishedAt: string | null;
-  hiredAt: string | null;
-}
-
-const STATUS_TONE: Record<string, "green" | "amber" | "gray" | "red"> = {
-  PUBLISHED: "green",
-  DRAFT: "gray",
-  HIRED: "amber",
-  CLOSED: "red",
-};
+export type AdminJobPost = Components["schemas"]["AdminJobPostItem"];
 
 export function JobPostsTable({
   jobs,
@@ -57,6 +21,7 @@ export function JobPostsTable({
   footer?: React.ReactNode;
 }) {
   const [selected, setSelected] = useState<AdminJobPost | null>(null);
+  const selectedMoney = selected ? jobPostMoneyView(selected) : null;
 
   useEffect(() => {
     if (!selected) return;
@@ -102,12 +67,12 @@ export function JobPostsTable({
                 </td>
                 <td className="px-5 py-4 text-[#71766e]">{job.clientName}</td>
                 <td className="px-5 py-4 font-semibold">
-                  {formatCurrency(job.totalBudget)}
+                  {jobPostMoneyView(job).totalBudget}
                 </td>
                 <td className="px-5 py-4">
                   <Badge
                     label={job.status}
-                    tone={STATUS_TONE[job.status] ?? "gray"}
+                    tone={JOB_STATUS_TONE[job.status]}
                   />
                 </td>
                 <td className="px-5 py-4 text-[#71766e]">
@@ -115,7 +80,7 @@ export function JobPostsTable({
                 </td>
                 <td className="px-5 py-4 text-[#71766e]">{job.hireCount}</td>
                 <td className="px-5 py-4 text-[#858a82]">
-                  {formatDate(job.createdAt)}
+                  {formatDateTime(job.createdAt)}
                 </td>
               </tr>
             ))}
@@ -138,7 +103,7 @@ export function JobPostsTable({
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge
                     label={selected.status}
-                    tone={STATUS_TONE[selected.status] ?? "gray"}
+                    tone={JOB_STATUS_TONE[selected.status]}
                   />
                   <span className="text-[10px] text-[#858a82]">
                     {selected.expertiseLevel} · {selected.expectedDuration}
@@ -160,14 +125,17 @@ export function JobPostsTable({
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <Stat
                   label="Budget"
-                  value={formatCurrency(selected.totalBudget)}
+                  value={selectedMoney?.totalBudget ?? "—"}
                 />
                 <Stat
                   label="Proposals"
                   value={String(selected.proposalCount)}
                 />
                 <Stat label="Hires" value={String(selected.hireCount)} />
-                <Stat label="Posted" value={formatDate(selected.createdAt)} />
+                <Stat
+                  label="Posted"
+                  value={formatDateTime(selected.createdAt)}
+                />
               </div>
 
               <Section title="Description">
@@ -203,8 +171,10 @@ export function JobPostsTable({
                           {milestone.title}
                         </span>
                         <span className="shrink-0 text-[#858a82]">
-                          {formatCurrency(milestone.budget)} · due{" "}
-                          {formatDate(milestone.dueDate)}
+                          {selectedMoney?.milestones.find(
+                            (item) => item.id === milestone.id,
+                          )?.budget ?? "—"}{" "}
+                          · due {formatDate(milestone.dueDate)}
                         </span>
                       </div>
                     ))}
@@ -212,20 +182,20 @@ export function JobPostsTable({
                 </Section>
               )}
 
-              {selected.screeningQuestions.length > 0 && (
+              {(selected.screeningQuestions?.length ?? 0) > 0 && (
                 <Section title="Screening questions">
                   <ol className="list-decimal space-y-1.5 pl-4 text-xs text-[#4a4e47]">
-                    {selected.screeningQuestions.map((question) => (
+                    {selected.screeningQuestions?.map((question) => (
                       <li key={question}>{question}</li>
                     ))}
                   </ol>
                 </Section>
               )}
 
-              {selected.attachments.length > 0 && (
+              {(selected.attachments?.length ?? 0) > 0 && (
                 <Section title="Attachments">
                   <div className="space-y-1.5">
-                    {selected.attachments.map((attachment) => (
+                    {selected.attachments?.map((attachment) => (
                       <a
                         key={attachment.fileId || attachment.fileUrl}
                         href={attachment.fileUrl}
@@ -247,7 +217,9 @@ export function JobPostsTable({
 
               <Section title="Client">
                 <div className="rounded-xl bg-[#f4f6f2] p-3 text-xs leading-6">
-                  <p className="font-semibold">{selected.clientName}</p>
+                  <p className="font-semibold">
+                    {selected.companyName ?? selected.clientName}
+                  </p>
                   {selected.clientEmail && <p>{selected.clientEmail}</p>}
                   {selected.industry && (
                     <p className="text-[#71766e]">{selected.industry}</p>

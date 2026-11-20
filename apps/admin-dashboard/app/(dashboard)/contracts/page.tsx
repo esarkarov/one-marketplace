@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { PageHeader } from "../../_components/admin-shell";
-import { ErrorBanner, Pagination } from "../../_components/ui";
+import { unwrap } from "@onemarketplace/api-client";
+import { ApiErrorBanner, Pagination } from "../../_components/ui";
+import { parseOffset } from "../../../lib/labels";
 import { fetchAdmin } from "../../_components/fetch-admin";
-import { ContractsTable, type AdminContract } from "./contracts-table";
+import { ContractsTable } from "./contracts-table";
 
 export const metadata: Metadata = { title: "Contracts" };
 
@@ -13,11 +15,16 @@ export default async function ContractsPage({
 }: {
   searchParams: Promise<{ offset?: string }>;
 }) {
-  const offset = Math.max(0, Number((await searchParams).offset) || 0);
-  const { data, error } = await fetchAdmin<{
-    results: AdminContract[];
-    hasMore: boolean;
-  }>(`/admin/contracts?limit=${PAGE_SIZE}&offset=${offset}`);
+  const offset = parseOffset((await searchParams).offset);
+  const { data, error } = await fetchAdmin(
+    `/contracts?offset=${offset}`,
+    (api) =>
+      unwrap(
+        api.GET("/api/v1/admin/contracts", {
+          params: { query: { limit: PAGE_SIZE, offset } },
+        }),
+      ),
+  );
   const contracts = data?.results ?? [];
 
   return (
@@ -27,7 +34,7 @@ export default async function ContractsPage({
         title="Contracts"
         description="Every contract between a client and talent, newest first."
       />
-      {error && <ErrorBanner message={error} />}
+      {error && <ApiErrorBanner error={error} />}
       <ContractsTable
         contracts={contracts}
         footer={

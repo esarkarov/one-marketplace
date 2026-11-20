@@ -4,34 +4,12 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AdminIcon } from "../../_components/admin-icon";
 import { Badge, EmptyState, TableShell } from "../../_components/ui";
-import {
-  formatCurrency,
-  formatDate,
-  initialsFor,
-} from "../../_components/format";
+import { formatDateTime, type Components } from "@onemarketplace/api-client";
+import { initialsFor } from "../../_components/format";
+import { proposalMoneyView } from "../../../lib/money-views";
+import { TALENT_KIND_LABEL } from "../../../lib/labels";
 
-export interface AdminProposal {
-  id: string;
-  jobId: string;
-  jobTitle: string;
-  jobBudget: number;
-  jobStatus: string;
-  senderId: string;
-  senderType: "FREELANCER" | "AGENCY";
-  senderName: string;
-  senderAvatarUrl: string | null;
-  senderEmail: string | null;
-  agencySpecialty: string | null;
-  agencyWebsite: string | null;
-  coverLetter: string;
-  bidAmount: number;
-  duration: string;
-  screeningAnswers: Array<{ question: string; answer: string }>;
-  status: string;
-  isShortlisted: boolean;
-  createdAt: string;
-  updatedAt: string | null;
-}
+export type AdminProposal = Components["schemas"]["AdminProposalItem"];
 
 const STATUS_TONE: Record<string, "green" | "amber" | "blue" | "gray"> = {
   SUBMITTED: "gray",
@@ -48,6 +26,7 @@ export function ProposalsTable({
   footer?: React.ReactNode;
 }) {
   const [selected, setSelected] = useState<AdminProposal | null>(null);
+  const selectedMoney = selected ? proposalMoneyView(selected) : null;
 
   useEffect(() => {
     if (!selected) return;
@@ -70,6 +49,7 @@ export function ProposalsTable({
           <thead className="bg-[#fafbf9] text-[10px] font-semibold tracking-[.08em] text-[#7c8179] uppercase">
             <tr>
               <th className="px-5 py-3">Sender</th>
+              <th className="px-5 py-3">Kind</th>
               <th className="px-5 py-3">Job</th>
               <th className="px-5 py-3">Bid</th>
               <th className="px-5 py-3">Status</th>
@@ -85,16 +65,23 @@ export function ProposalsTable({
               >
                 <td className="px-5 py-4">
                   <strong>{proposal.senderName}</strong>
-                  <p className="mt-0.5 text-[10px] text-[#858a82]">
-                    {proposal.senderType === "AGENCY" ? "Agency" : "Freelancer"}
-                    {proposal.isShortlisted && " · Shortlisted"}
-                  </p>
+                  {proposal.isShortlisted && (
+                    <p className="mt-0.5 text-[10px] text-[#858a82]">
+                      Shortlisted
+                    </p>
+                  )}
+                </td>
+                <td className="px-5 py-4">
+                  <Badge
+                    label={TALENT_KIND_LABEL[proposal.senderType]}
+                    tone="gray"
+                  />
                 </td>
                 <td className="max-w-72 px-5 py-4 text-[#71766e]">
                   <span className="line-clamp-1">{proposal.jobTitle}</span>
                 </td>
                 <td className="px-5 py-4 font-semibold">
-                  {formatCurrency(proposal.bidAmount)}
+                  {proposalMoneyView(proposal).bid}
                 </td>
                 <td className="px-5 py-4">
                   <Badge
@@ -103,7 +90,7 @@ export function ProposalsTable({
                   />
                 </td>
                 <td className="px-5 py-4 text-[#858a82]">
-                  {formatDate(proposal.createdAt)}
+                  {formatDateTime(proposal.createdAt)}
                 </td>
               </tr>
             ))}
@@ -149,7 +136,7 @@ export function ProposalsTable({
                     )}
                   </div>
                   <p className="mt-0.5 truncate text-[10px] text-[#858a82]">
-                    {selected.senderType === "AGENCY" ? "Agency" : "Freelancer"}
+                    {TALENT_KIND_LABEL[selected.senderType]}
                     {selected.senderEmail && ` · ${selected.senderEmail}`}
                   </p>
                 </div>
@@ -166,15 +153,15 @@ export function ProposalsTable({
 
             <div className="overflow-y-auto p-5">
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <Stat label="Bid" value={formatCurrency(selected.bidAmount)} />
+                <Stat label="Bid" value={selectedMoney?.bid ?? "—"} />
                 <Stat label="Duration" value={selected.duration} />
                 <Stat
                   label="Job budget"
-                  value={formatCurrency(selected.jobBudget)}
+                  value={selectedMoney?.jobBudget ?? "—"}
                 />
                 <Stat
                   label="Submitted"
-                  value={formatDate(selected.createdAt)}
+                  value={formatDateTime(selected.createdAt)}
                 />
               </div>
 

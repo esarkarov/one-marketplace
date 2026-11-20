@@ -1,10 +1,34 @@
 import Link from "next/link";
+import { errorMessage, isApiError } from "@onemarketplace/api-client";
 
-export function ErrorBanner({ message }: { message: string }) {
+export function ErrorBanner({
+  message,
+  requestId,
+}: {
+  message: string;
+  requestId?: string | undefined;
+}) {
   return (
-    <div className="mt-5 rounded-2xl border border-[#ead7d5] bg-[#fff8f7] px-5 py-4 text-sm text-[#9a5953]">
+    <div
+      role="alert"
+      className="mt-5 rounded-2xl border border-[#ead7d5] bg-[#fff8f7] px-5 py-4 text-sm text-[#9a5953]"
+    >
       {message}
+      {requestId && (
+        <p className="mt-1 text-[10px] text-[#b08a86]">
+          Request ID: {requestId}
+        </p>
+      )}
     </div>
+  );
+}
+
+export function ApiErrorBanner({ error }: { error: unknown }) {
+  return (
+    <ErrorBanner
+      message={errorMessage(error)}
+      requestId={isApiError(error) ? error.requestId : undefined}
+    />
   );
 }
 

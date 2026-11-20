@@ -1,41 +1,36 @@
 import type { Metadata } from "next";
 import { PageHeader } from "../../_components/admin-shell";
+import { formatDateTime, unwrap } from "@onemarketplace/api-client";
 import {
+  ApiErrorBanner,
   Badge,
   EmptyState,
-  ErrorBanner,
   Pagination,
   TableShell,
 } from "../../_components/ui";
 import { fetchAdmin } from "../../_components/fetch-admin";
-import { formatDate, initialsFor } from "../../_components/format";
+import { initialsFor } from "../../_components/format";
+import { ACCOUNT_TYPE_LABEL, parseOffset } from "../../../lib/labels";
 
 export const metadata: Metadata = { title: "Accounts" };
 
 const PAGE_SIZE = 20;
-
-interface AdminAccount {
-  id: string;
-  type: "Freelancer" | "Client" | "Agency";
-  name: string;
-  avatarUrl: string | null;
-  email: string;
-  verified: boolean;
-  paymentVerified: boolean;
-  onboarded: boolean;
-  createdAt: string;
-}
 
 export default async function AccountsPage({
   searchParams,
 }: {
   searchParams: Promise<{ offset?: string }>;
 }) {
-  const offset = Math.max(0, Number((await searchParams).offset) || 0);
-  const { data, error } = await fetchAdmin<{
-    results: AdminAccount[];
-    hasMore: boolean;
-  }>(`/admin/accounts?limit=${PAGE_SIZE}&offset=${offset}`);
+  const offset = parseOffset((await searchParams).offset);
+  const { data, error } = await fetchAdmin(
+    `/accounts?offset=${offset}`,
+    (api) =>
+      unwrap(
+        api.GET("/api/v1/admin/accounts", {
+          params: { query: { limit: PAGE_SIZE, offset } },
+        }),
+      ),
+  );
   const accounts = data?.results ?? [];
 
   return (
@@ -45,7 +40,7 @@ export default async function AccountsPage({
         title="Accounts"
         description="Every freelancer, client, and agency account, newest first."
       />
-      {error && <ErrorBanner message={error} />}
+      {error && <ApiErrorBanner error={error} />}
       <TableShell
         title="Account explorer"
         description="Clients, freelancers, and agencies in one place"
@@ -93,7 +88,9 @@ export default async function AccountsPage({
                     <strong>{account.name}</strong>
                   </div>
                 </td>
-                <td className="px-5 py-4 text-[#71766e]">{account.type}</td>
+                <td className="px-5 py-4 text-[#71766e]">
+                  {ACCOUNT_TYPE_LABEL[account.type]}
+                </td>
                 <td className="px-5 py-4 text-[#71766e]">{account.email}</td>
                 <td className="px-5 py-4">
                   <div className="flex flex-wrap gap-1.5">
@@ -108,7 +105,7 @@ export default async function AccountsPage({
                   </div>
                 </td>
                 <td className="px-5 py-4 text-[#858a82]">
-                  {formatDate(account.createdAt)}
+                  {formatDateTime(account.createdAt)}
                 </td>
               </tr>
             ))}

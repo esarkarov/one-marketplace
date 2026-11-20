@@ -1,27 +1,37 @@
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { ApiError, isApiError } from "@onemarketplace/api-client";
+import {
+  createAdminApi,
+  getApiBaseUrl,
+  type AdminApi,
+} from "../../lib/admin-api";
 import { SESSION_COOKIE } from "../../lib/admin-session";
+import { expiredLoginPath } from "../../lib/safe-next-path";
 
-// Server-only — reads the httpOnly session cookie (invisible to client JS by
-// design) and forwards it to the backend, which independently verifies the
-// same signed token. Only call this from Server Components.
+export type AdminResult<T> =
+  { data: T; error: null } | { data: null; error: ApiError | Error };
+
 export async function fetchAdmin<T>(
-  path: string,
-): Promise<{ data: T | null; error: string | null }> {
+  currentPath: string,
+  call: (api: AdminApi) => Promise<T>,
+): Promise<AdminResult<T>> {
+  const token = (await cookies()).get(SESSION_COOKIE)?.value;
+  let failure: unknown;
+
   try {
-    const token = (await cookies()).get(SESSION_COOKIE)?.value;
-    const response = await fetch(
-      `${process.env.NEXT_PUBLIC_SERVER_URI}${path}`,
-      {
-        cache: "no-store",
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      },
-    );
-    const result = await response.json();
-    if (!response.ok) {
-      return { data: null, error: result.message || "Request failed." };
-    }
-    return { data: result.data as T, error: null };
-  } catch {
-    return { data: null, error: "Could not reach the server." };
+    const api = createAdminApi({ baseUrl: getApiBaseUrl(), token });
+    return { data: await call(api), error: null };
+  } catch (error) {
+    failure = error;
   }
+
+  if (isApiError(failure) && failure.status === 401) {
+    redirect(expiredLoginPath(currentPath));
+  }
+
+  return {
+    data: null,
+    error: failure instanceof Error ? failure : new Error("Request failed."),
+  };
 }

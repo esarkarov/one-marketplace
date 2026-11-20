@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { PageHeader } from "../../_components/admin-shell";
-import { ErrorBanner, Pagination } from "../../_components/ui";
+import { unwrap } from "@onemarketplace/api-client";
+import { ApiErrorBanner, Pagination } from "../../_components/ui";
+import { parseOffset } from "../../../lib/labels";
 import { fetchAdmin } from "../../_components/fetch-admin";
-import { JobPostsTable, type AdminJobPost } from "./job-posts-table";
+import { JobPostsTable } from "./job-posts-table";
 
 export const metadata: Metadata = { title: "Job Posts" };
 
@@ -13,11 +15,16 @@ export default async function JobPostsPage({
 }: {
   searchParams: Promise<{ offset?: string }>;
 }) {
-  const offset = Math.max(0, Number((await searchParams).offset) || 0);
-  const { data, error } = await fetchAdmin<{
-    results: AdminJobPost[];
-    hasMore: boolean;
-  }>(`/admin/job-posts?limit=${PAGE_SIZE}&offset=${offset}`);
+  const offset = parseOffset((await searchParams).offset);
+  const { data, error } = await fetchAdmin(
+    `/job-posts?offset=${offset}`,
+    (api) =>
+      unwrap(
+        api.GET("/api/v1/admin/job-posts", {
+          params: { query: { limit: PAGE_SIZE, offset } },
+        }),
+      ),
+  );
   const jobs = data?.results ?? [];
 
   return (
@@ -27,7 +34,7 @@ export default async function JobPostsPage({
         title="Job posts"
         description="Every job post and its proposal/hire stats, newest first."
       />
-      {error && <ErrorBanner message={error} />}
+      {error && <ApiErrorBanner error={error} />}
       <JobPostsTable
         jobs={jobs}
         footer={
