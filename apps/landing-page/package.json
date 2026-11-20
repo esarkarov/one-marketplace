@@ -10,6 +10,7 @@
     "typecheck": "node node_modules/@typescript/native/bin/tsc --noEmit"
   },
   "dependencies": {
+    "@clerk/nextjs": "catalog:",
     "@iconify/react": "catalog:",
     "next": "catalog:",
     "react": "catalog:",

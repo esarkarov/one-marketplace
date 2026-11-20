@@ -10,6 +10,12 @@ catalog:
   eslint-config-next: 16.4.6
   "@iconify/react": ^6.0.4
   react-hook-form: ^7.92.0
+  "@clerk/nextjs": ^7.10.0
+  "@clerk/shared": ^4.48.0
+  "@tanstack/react-query": ^5.108.0
+  socket.io-client: ^4.8.4
+  timeago.js: ^4.3.1
+  sonner: ^2.0.8
   tailwindcss: ^4.3.5
   "@tailwindcss/postcss": ^4.3.5
   typescript: npm:@typescript/typescript6@^6.0.2

@@ -10,12 +10,17 @@
     "typecheck": "node node_modules/@typescript/native/bin/tsc --noEmit"
   },
   "dependencies": {
+    "@clerk/nextjs": "catalog:",
+    "@clerk/shared": "catalog:",
     "@iconify/react": "catalog:",
+    "@tanstack/react-query": "catalog:",
     "next": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
     "react-hook-form": "catalog:",
-    "sonner": "^2.0.8"
+    "socket.io-client": "catalog:",
+    "sonner": "catalog:",
+    "timeago.js": "catalog:"
   },
   "devDependencies": {
     "@onemarketplace/eslint-config": "workspace:*",

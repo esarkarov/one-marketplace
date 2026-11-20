@@ -10,13 +10,19 @@
     "typecheck": "node node_modules/@typescript/native/bin/tsc --noEmit"
   },
   "dependencies": {
+    "@clerk/nextjs": "catalog:",
+    "@clerk/shared": "catalog:",
     "@iconify/react": "catalog:",
+    "@tanstack/react-query": "catalog:",
     "date-fns": "^4.4.0",
     "next": "catalog:",
     "react": "catalog:",
     "react-day-picker": "^10.0.2",
     "react-dom": "catalog:",
-    "react-hook-form": "catalog:"
+    "react-hook-form": "catalog:",
+    "socket.io-client": "catalog:",
+    "sonner": "catalog:",
+    "timeago.js": "catalog:"
   },
   "devDependencies": {
     "@onemarketplace/eslint-config": "workspace:*",
