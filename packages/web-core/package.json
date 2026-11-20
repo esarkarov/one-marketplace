@@ -1,0 +1,43 @@
+{
+  "name": "@onemarketplace/web-core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "node node_modules/@typescript/native/bin/tsc --noEmit",
+    "lint": "eslint",
+    "test": "vitest run",
+    "test:quiet": "vitest run --reporter=dot"
+  },
+  "dependencies": {
+    "@onemarketplace/api-client": "workspace:*"
+  },
+  "peerDependencies": {
+    "@tanstack/react-query": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "socket.io-client": "catalog:"
+  },
+  "devDependencies": {
+    "@onemarketplace/eslint-config": "workspace:*",
+    "@onemarketplace/tsconfig": "workspace:*",
+    "@tanstack/react-query": "catalog:",
+    "@testing-library/dom": "catalog:",
+    "@testing-library/react": "catalog:",
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@typescript/native": "catalog:",
+    "eslint": "catalog:",
+    "jsdom": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "socket.io-client": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

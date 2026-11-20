@@ -51,3 +51,11 @@ Checklist for the five Next.js apps. They already call the API from the browser 
 - The must-not-lose notices are stored in the same database transaction as the change they describe, so a broker outage never loses them; only the live push can be missed, and the refetch recovers it. They are `CONTRACT_OFFER`, `MILESTONE_FUNDED`, `MILESTONE_SUBMITTED`, `MILESTONE_APPROVED`, `MILESTONE_CHANGES_REQUESTED`, `CONTRACT_DECLINED`, `CONTRACT_WITHDRAWN`, `PAYOUT_COMPLETED`, `PROPOSAL_INTERVIEWED` and `AGENCY_INVITATION`.
 - The nice-to-have notices still travel through RabbitMQ and can be lost while the broker is down, with no record for the client: `CONTRACT_ACCEPTED`, `MILESTONE_ADDED`, `CONTRACT_COMPLETED`, `REVIEW_RECEIVED`, `PROPOSAL_RECEIVED`, `PROPOSAL_VIEWED`, the answered-invitation notice and `AGENCY_WELCOME_BONUS`. Do not make a screen depend on one of them; read the state from its own endpoint.
 - Operators: alert on the log names `queue.publish.skipped` and `queue.publish.failed`; since ADR 0024 they concern only the nice-to-have list.
+
+## Shared hooks in web-core
+
+`@onemarketplace/web-core` (`packages/web-core`, README for usage) implements the notification and messaging rules above once, so apps should use it instead of their own stream, socket and unread hooks:
+
+- `useNotificationStream` opens one SSE connection per tab, reconnects after errors and after a clean end, stops on 401 and 403, refetches `GET /notifications` on every (re)connect and after a long idle, and merges pushes by `id`. `useNotifications`, `useMarkNotificationRead` and `useMarkAllNotificationsRead` use the `{ results, hasMore }` envelope. There is no unread-count endpoint, so the unread count comes from the first 100 notifications.
+- `useMessagingSocket` keeps one socket per tab and sends a fresh token on every connect (the handshake `auth` is a function). `useUnreadMessages` reads `totalUnread` from `GET /conversations`.
+- Which id to compare: message `senderId`, `conversation:update.senderId` and `typing:update.userId` are always the public account id, also in agency scope; `presence:*` ids are the agency id for the agency side. `useAccount()` exposes `actorId` (account id, use `isMine(senderId)`) and `presenceId`. Never compare Clerk user ids. In an agency conversation a teammate's message is not "mine".
