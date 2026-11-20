@@ -184,3 +184,7 @@ The `AGENTS.md` wording on RabbitMQ (optional, enabled by `RABBITMQ_URL`) is cor
 ## Clarification (2026-11-19)
 
 Table definition files (`modules/<name>/models/<name>.model.ts`) are exempt from the module-boundary, module-layer and module-cycle rules in `import-boundaries.test.ts` (`isTableFile`), so a repository may import another module's table file whatever the layers. Cross-module table reads are governed by `table-access-allowlist.ts` and `table-access.test.ts` (ADR 0014 sections 9 and 11), which also fail any cross-module write. No rule changed; this records what the test already does.
+
+## Clarification (2026-11-19, notification-store)
+
+ADR 0024 adds the layer-0 module `notification-store`, which owns `notifications` (the owner in section 4 was `notifications`). The layer table in section 3 is otherwise unchanged; the current layers are in `docs/architecture.md`.

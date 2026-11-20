@@ -75,7 +75,7 @@ import { transitionPayoutIfAllowed } from "@/modules/payouts/repositories/payout
 import { processDuePayouts } from "@/modules/payouts/services/payouts.service.js";
 
 interface LogEntry {
-  level: "info" | "warn" | "error";
+  level: "debug" | "info" | "warn" | "error";
   message: string;
   eventName?: string;
   attributes?: Record<string, unknown>;
@@ -257,7 +257,7 @@ beforeEach(() => {
   mocks.sendNotification.mockReset();
   mocks.sendNotification.mockResolvedValue("published");
 
-  spies = (["info", "warn", "error"] as const).map((level) =>
+  spies = (["debug", "info", "warn", "error"] as const).map((level) =>
     vi.spyOn(logger, level).mockImplementation((payload) => {
       logs.push({ level, ...payload });
       return Promise.resolve();
@@ -1043,7 +1043,7 @@ describe("payout flow against real Postgres", () => {
       expect(createCallsFor(id)).toHaveLength(1);
     });
 
-    it("sets notified_at when RabbitMQ is disabled and does not resend", async () => {
+    it("leaves notified_at NULL when RabbitMQ is disabled, then delivers and marks it once the broker is enabled", async () => {
       const fixture = await data.createPayoutFixture({
         payout: { status: "PAID", attempts: 1 },
       });
@@ -1053,8 +1053,37 @@ describe("payout flow against real Postgres", () => {
       await processDuePayouts();
       await processDuePayouts();
 
-      expect(notificationsFor(id)).toHaveLength(1);
+      expect(notificationsFor(id)).toHaveLength(2);
+      expect((await readPayout(id))!.notified_at).toBeNull();
+
+      mocks.sendNotification.mockResolvedValue("published");
+      await processDuePayouts();
+
+      expect(notificationsFor(id)).toHaveLength(3);
+      expect(notificationsFor(id)[2]![0]).toMatchObject({
+        eventId: uuidV5(id),
+      });
       expect((await readPayout(id))!.notified_at).not.toBeNull();
+
+      await processDuePayouts();
+      expect(notificationsFor(id)).toHaveLength(3);
+    });
+
+    it("logs a disabled broker at debug level only, never warn or error", async () => {
+      const fixture = await data.createPayoutFixture({
+        payout: { status: "PAID", attempts: 1 },
+      });
+      const id = fixture.payoutId!;
+      mocks.sendNotification.mockResolvedValue("disabled");
+
+      await processDuePayouts();
+
+      expect(
+        eventsFor(id, "payment.payout.notification_skipped").map(
+          (entry) => entry.level,
+        ),
+      ).toEqual(["debug"]);
+      expect(eventsFor(id, "payment.payout.notification_failed")).toEqual([]);
     });
   });
 

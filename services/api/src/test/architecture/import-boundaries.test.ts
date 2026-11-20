@@ -24,6 +24,7 @@ const infrastructureDirs = [
 const moduleLayers: Record<string, number> = {
   auth: 0,
   health: 0,
+  "notification-store": 0,
   admin: 1,
   client: 1,
   identity: 1,

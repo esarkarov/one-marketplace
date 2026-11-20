@@ -67,3 +67,9 @@ Without `RABBITMQ_URL` the publisher is a no-op, the consumer is not started, an
 - The failure count is in-memory and resets on restart, so a poison message can take up to five more attempts after a restart; the broker delivery limit still covers consumer crashes.
 - Docker is not needed to run the API, but it is needed to run the RabbitMQ integration test and to inspect the dead-letter queue in the management UI (`http://127.0.0.1:15672`).
 - Compose pins RabbitMQ to the exact patch tag (see `infra/AGENTS.md`).
+
+## Correction (2026-11-19)
+
+- The publish-site list under Consequences is stale. The calls now live in the services: `proposals.submission.service.ts`, `proposals.review.service.ts`, `agency.invitations.service.ts`, `agency.profile.service.ts`, `contracts.checkout.service.ts`, `contracts.lifecycle.service.ts`, `contracts.milestones.service.ts` and `payouts.service.ts`.
+- "Optional" means the API starts without RabbitMQ. In practice RabbitMQ is the only notification write path: `sendNotification` only publishes, and the consumer is the only writer of the `notifications` row. Without a broker no notice is stored or pushed, and while the broker is disconnected a notice is skipped with no record (`queue.publish.skipped`).
+- ADR 0024 decides the follow-up: must-not-lose notices are written in the business transaction. This ADR's topology, envelope and consumer rules stay for the remaining notices.

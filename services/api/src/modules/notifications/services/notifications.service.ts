@@ -4,10 +4,10 @@ import {
   toOffsetPage,
 } from "@/shared/validation/utils/pagination.utils.js";
 import {
-  findLatestNotifications,
   markAllNotificationsRead,
   markNotificationReadForRecipient,
-} from "@/modules/notifications/repositories/notifications.repository.js";
+} from "@/modules/notification-store/index.js";
+import { findLatestNotifications } from "@/modules/notifications/repositories/notifications.repository.js";
 import { toNotificationResponse } from "@/modules/notifications/utils/notifications.mappers.js";
 
 export const getNotifications = async (

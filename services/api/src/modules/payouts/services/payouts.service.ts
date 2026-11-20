@@ -100,7 +100,16 @@ const notifyPaid = async (row: PayoutRecord): Promise<void> => {
         },
   );
 
-  if (result !== "published" && result !== "disabled") {
+  if (result === "disabled") {
+    await logger.debug({
+      message: "Payout notification skipped: RabbitMQ is disabled",
+      eventName: "payment.payout.notification_skipped",
+      attributes: payoutAttributes(row),
+    });
+    return;
+  }
+
+  if (result !== "published") {
     await logger.warn({
       message: "Payout notification not published, will retry",
       eventName: "payment.payout.notification_failed",

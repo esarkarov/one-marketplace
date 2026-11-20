@@ -1,7 +1,11 @@
-import { and, desc, eq, or } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import type { DbExecutor } from "@/database/database.types.js";
 import { accounts } from "@/modules/auth/models/auth.model.js";
-import { notifications } from "@/modules/notifications/models/notifications.model.js";
+import {
+  insertNotification,
+  type NotificationInsertInput,
+} from "@/modules/notification-store/index.js";
+import { notifications } from "@/modules/notification-store/models/notification-store.model.js";
 
 export const findLatestNotifications = (
   executor: DbExecutor,
@@ -25,71 +29,12 @@ export const findLatestNotifications = (
     .limit(page.limit)
     .offset(page.offset);
 
-export const markAllNotificationsRead = (
-  executor: DbExecutor,
-  userId: string,
-  agencyId: string | null,
-) =>
-  executor
-    .update(notifications)
-    .set({ is_read: true, read_at: new Date() })
-    .where(
-      agencyId
-        ? eq(notifications.agency_id, agencyId)
-        : eq(notifications.recipient_id, userId),
-    );
-
-export const markNotificationReadForRecipient = (
-  executor: DbExecutor,
-  userId: string,
-  notificationId: string,
-  agencyId: string | null,
-) =>
-  executor
-    .update(notifications)
-    .set({ is_read: true, read_at: new Date() })
-    .where(
-      and(
-        eq(notifications.id, notificationId),
-        agencyId
-          ? or(
-              eq(notifications.recipient_id, userId),
-              eq(notifications.agency_id, agencyId),
-            )
-          : eq(notifications.recipient_id, userId),
-      ),
-    )
-    .returning({ id: notifications.id });
-
 export const insertNotificationIfNew = async (
   executor: DbExecutor,
-  input: {
-    eventId: string;
-    recipientId: string | null;
-    agencyId: string | null;
-    type: string;
-    title: string;
-    message: string;
-    link: string | null | undefined;
-    metadata: Record<string, unknown> | null | undefined;
-    createdAt: Date;
-  },
+  input: NotificationInsertInput,
 ) => {
-  const inserted = await executor
-    .insert(notifications)
-    .values({
-      event_id: input.eventId,
-      recipient_id: input.recipientId,
-      agency_id: input.agencyId,
-      type: input.type,
-      title: input.title,
-      message: input.message,
-      link: input.link,
-      metadata: input.metadata,
-      created_at: input.createdAt,
-    })
-    .onConflictDoNothing({ target: notifications.event_id })
-    .returning();
+  const notification = await insertNotification(executor, input);
+  const inserted = notification ? [notification] : [];
   if (!input.recipientId || !inserted.length) {
     return inserted.map((notification) => ({
       notification,

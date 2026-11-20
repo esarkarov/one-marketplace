@@ -28,7 +28,7 @@ export const tableOwners: Record<string, string> = {
 
   meetings: "meetings",
 
-  notifications: "notifications",
+  notifications: "notification-store",
 
   contractStatus: "contracts",
   contractMilestoneStatus: "contracts",
