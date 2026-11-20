@@ -1,3 +1,5 @@
+import { normalizeBaseUrl } from "@onemarketplace/api-client";
+
 export interface SseEvent {
   event: string;
   data: string;
@@ -106,7 +108,7 @@ export interface NotificationStream {
 }
 
 const streamUrl = (baseUrl: string, role: string, scope?: string): string => {
-  const origin = baseUrl.replace(/\/+$/, "").replace(/\/api\/v1$/, "");
+  const origin = normalizeBaseUrl(baseUrl);
   const query = new URLSearchParams({ role });
   if (scope) query.set("scope", scope);
   return `${origin}/api/v1/notifications/stream?${query.toString()}`;

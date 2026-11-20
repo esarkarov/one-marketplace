@@ -416,3 +416,53 @@ describe("createNotificationStream", () => {
     stream.stop();
   });
 });
+
+const requestedUrl = async (baseUrl: string, scope?: string) => {
+  let capture!: (url: string) => void;
+  const captured = new Promise<string>((resolve) => {
+    capture = resolve;
+  });
+  const stream = createNotificationStream({
+    baseUrl,
+    role: "client",
+    scope,
+    getToken: async () => "tok",
+    fetch: (async (url: RequestInfo | URL, init?: RequestInit) => {
+      capture(String(url));
+      return sseResponse(init?.signal ?? undefined).response;
+    }) as typeof fetch,
+    onEvent: () => undefined,
+  });
+  stream.start();
+  const url = await captured;
+  stream.stop();
+  return url;
+};
+
+describe("notification stream url", () => {
+  it.each([
+    ["http://api.test", "http://api.test"],
+    ["http://api.test/", "http://api.test"],
+    ["http://api.test///", "http://api.test"],
+    ["http://api.test/api/v1", "http://api.test"],
+    ["http://api.test/api/v1/", "http://api.test"],
+    ["http://api.test/api/v1///", "http://api.test"],
+  ])("normalizes %s", async (baseUrl, origin) => {
+    expect(await requestedUrl(baseUrl)).toBe(
+      `${origin}/api/v1/notifications/stream?role=client`,
+    );
+  });
+
+  it("adds the scope when given", async () => {
+    expect(await requestedUrl("http://api.test/api/v1/", "agency")).toBe(
+      "http://api.test/api/v1/notifications/stream?role=client&scope=agency",
+    );
+  });
+
+  it("finishes quickly on a base url with a very long run of slashes", async () => {
+    const baseUrl = "http://x" + "/".repeat(100000) + "a";
+    const started = performance.now();
+    await requestedUrl(baseUrl);
+    expect(performance.now() - started).toBeLessThan(1000);
+  });
+});

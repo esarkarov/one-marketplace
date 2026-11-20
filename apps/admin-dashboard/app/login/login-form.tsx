@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { AdminIcon } from "../_components/admin-icon";
 import { safeNextPath } from "../../lib/safe-next-path";
@@ -11,6 +12,7 @@ export function LoginForm({
   next: string;
   expired: boolean;
 }) {
+  const router = useRouter();
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -30,7 +32,8 @@ export function LoginForm({
       if (!response.ok || !result.success) {
         throw new Error(result.message || "Incorrect password.");
       }
-      window.location.href = safeNextPath(next);
+      router.replace(safeNextPath(next));
+      router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Incorrect password.");
       setSubmitting(false);

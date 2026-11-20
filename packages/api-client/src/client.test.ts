@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { createApiClient, type ApiClientOptions } from "./index";
+import {
+  createApiClient,
+  normalizeBaseUrl,
+  type ApiClientOptions,
+} from "./index";
 
 const ok = () =>
   new Response(JSON.stringify({ success: true, message: "OK", data: {} }), {
@@ -150,5 +154,28 @@ describe("base url", () => {
     await client.GET("/api/v1/health");
 
     expect(last().href).toBe("http://api.test/api/v1/health");
+  });
+});
+
+describe("normalizeBaseUrl", () => {
+  it.each([
+    ["http://api.test", "http://api.test"],
+    ["http://api.test/", "http://api.test"],
+    ["http://api.test///", "http://api.test"],
+    ["http://api.test/api/v1", "http://api.test"],
+    ["http://api.test/api/v1///", "http://api.test"],
+    ["http://api.test/api/v1/api/v1", "http://api.test/api/v1"],
+    ["http://api.test/api/v2", "http://api.test/api/v2"],
+    ["", ""],
+    ["///", ""],
+  ])("turns %j into %j", (input, expected) => {
+    expect(normalizeBaseUrl(input)).toBe(expected);
+  });
+
+  it("finishes quickly on a very long run of slashes", () => {
+    const input = "http://x" + "/".repeat(100000) + "a";
+    const started = performance.now();
+    expect(normalizeBaseUrl(input)).toBe(input);
+    expect(performance.now() - started).toBeLessThan(1000);
   });
 });

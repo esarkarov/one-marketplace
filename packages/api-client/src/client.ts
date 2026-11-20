@@ -17,8 +17,17 @@ export interface ApiClientOptions {
   fetch?: typeof fetch;
 }
 
-export const normalizeBaseUrl = (baseUrl: string): string =>
-  baseUrl.replace(/\/+$/, "").replace(/\/api\/v1$/, "");
+const API_PREFIX = "/api/v1";
+const SLASH = 47;
+
+export const normalizeBaseUrl = (baseUrl: string): string => {
+  let end = baseUrl.length;
+  while (end > 0 && baseUrl.charCodeAt(end - 1) === SLASH) end -= 1;
+  const trimmed = baseUrl.slice(0, end);
+  return trimmed.endsWith(API_PREFIX)
+    ? trimmed.slice(0, -API_PREFIX.length)
+    : trimmed;
+};
 
 const isAbort = (error: unknown): boolean =>
   typeof error === "object" &&
