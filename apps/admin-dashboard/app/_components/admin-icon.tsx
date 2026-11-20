@@ -1,4 +1,4 @@
-type IconName =
+export type IconName =
   | "grid"
   | "users"
   | "jobs"
@@ -14,7 +14,11 @@ type IconName =
   | "trend"
   | "shield"
   | "menu"
-  | "close";
+  | "close"
+  | "logs"
+  | "server"
+  | "chevron"
+  | "copy";
 
 const paths: Record<IconName, React.ReactNode> = {
   grid: (
@@ -106,6 +110,26 @@ const paths: Record<IconName, React.ReactNode> = {
   close: (
     <>
       <path d="m6 6 12 12M18 6 6 18" />
+    </>
+  ),
+  logs: (
+    <>
+      <path d="M4 6h16M4 12h10M4 18h16" />
+      <circle cx="19" cy="12" r="1.5" fill="currentColor" stroke="none" />
+    </>
+  ),
+  server: (
+    <>
+      <rect x="3" y="4" width="18" height="7" rx="2" />
+      <rect x="3" y="13" width="18" height="7" rx="2" />
+      <path d="M7 7.5h.01M7 16.5h.01" />
+    </>
+  ),
+  chevron: <path d="m6 9 6 6 6-6" />,
+  copy: (
+    <>
+      <rect x="9" y="9" width="12" height="12" rx="2" />
+      <path d="M5 15V5a2 2 0 0 1 2-2h10" />
     </>
   ),
 };
