@@ -118,6 +118,7 @@ const optionalFeatures = z.object({
   FREELANCER_DASHBOARD: dashboardUrl("FREELANCER_DASHBOARD"),
   AGENCY_DASHBOARD: dashboardUrl("AGENCY_DASHBOARD"),
   ADMIN_DASHBOARD: dashboardUrl("ADMIN_DASHBOARD"),
+  LANDING_PAGE: dashboardUrl("LANDING_PAGE"),
 });
 
 const describe = (issues: z.core.$ZodIssue[]): string[] =>
@@ -144,6 +145,7 @@ const dashboardOriginVariables = [
   "FREELANCER_DASHBOARD",
   "AGENCY_DASHBOARD",
   "ADMIN_DASHBOARD",
+  "LANDING_PAGE",
 ] as const;
 
 const MIN_ADMIN_SESSION_SECRET_LENGTH = 32;
@@ -251,6 +253,7 @@ export const parseEnv = (source: Source) => {
     clientDashboard: o.CLIENT_DASHBOARD,
     agencyDashboard: o.AGENCY_DASHBOARD,
     adminDashboard: o.ADMIN_DASHBOARD,
+    landingPage: o.LANDING_PAGE,
   } as const;
 };
 

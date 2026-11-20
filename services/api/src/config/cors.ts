@@ -25,6 +25,7 @@ export const allowedOrigins: string[] = [
   ),
   toOrigin("AGENCY_DASHBOARD", env.agencyDashboard, "http://localhost:3003"),
   toOrigin("ADMIN_DASHBOARD", env.adminDashboard, "http://localhost:3004"),
+  toOrigin("LANDING_PAGE", env.landingPage, "http://localhost:3000"),
 ].filter((origin): origin is string => origin !== undefined);
 
 const originCallback = (

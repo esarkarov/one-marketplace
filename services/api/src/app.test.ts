@@ -77,6 +77,7 @@ describe("authentication", () => {
 
 describe("cors", () => {
   it.each([
+    "http://localhost:3000",
     "http://localhost:3001",
     "http://localhost:3002",
     "http://localhost:3003",
@@ -102,7 +103,7 @@ describe("cors", () => {
     ).toBeUndefined();
   });
 
-  it.each(["http://localhost:3000", "http://evil.example"])(
+  it.each(["http://localhost:3005", "http://evil.example"])(
     "does not allow %s",
     async (origin) => {
       const response = await request(app)

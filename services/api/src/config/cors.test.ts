@@ -41,8 +41,21 @@ describe("cors", () => {
       "http://localhost:3002",
       "http://localhost:3003",
       "http://localhost:3004",
+      "http://localhost:3000",
     ]);
     expect(allows(corsOptions, "http://localhost:3001")).toBe(true);
+    expect(allows(corsOptions, "http://localhost:3000")).toBe(true);
+  });
+
+  it("allows the configured landing origin and rejects others", async () => {
+    const { allowedOrigins, corsOptions } = await load({
+      nodeEnv: "production",
+      landingPage: "https://www.example.com/start/",
+    });
+
+    expect(allowedOrigins).toEqual(["https://www.example.com"]);
+    expect(allows(corsOptions, "https://www.example.com")).toBe(true);
+    expect(allows(corsOptions, "https://evil.example.com")).toBe(false);
   });
 
   it("has no fallback origins in production", async () => {
@@ -121,7 +134,8 @@ describe("cors", () => {
         nodeEnv: parseEnv({ ...production, NODE_ENV: "development" }).nodeEnv,
       });
 
-      expect(allowedOrigins).toHaveLength(4);
+      expect(allowedOrigins).toHaveLength(5);
+      expect(allowedOrigins).toContain("http://localhost:3000");
     });
   });
 });

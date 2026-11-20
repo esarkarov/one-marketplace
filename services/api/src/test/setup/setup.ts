@@ -27,6 +27,7 @@ for (const name of [
   "FREELANCER_DASHBOARD",
   "AGENCY_DASHBOARD",
   "ADMIN_DASHBOARD",
+  "LANDING_PAGE",
   "TRUST_PROXY",
 ]) {
   delete process.env[name];

@@ -12,6 +12,7 @@ vi.mock("@/config/env.js", () => ({
     clerkSecretKey: "sk_test",
     clientDashboard: "https://client.example.test/",
     freelancerDashboard: "https://freelancer.example.test",
+    landingPage: "https://landing.example.test/",
   },
 }));
 
@@ -60,6 +61,20 @@ describe("authorizedParties", () => {
       secretKey: "sk_test",
       authorizedParties: allowedOrigins,
     });
+  });
+
+  it("authorizes the landing origin and no unknown origin", async () => {
+    await authenticateAccount("token", "client");
+
+    const options = mocks.verifyToken.mock.calls[0]?.[1] as {
+      authorizedParties: string[];
+    };
+
+    expect(allowedOrigins).toContain("https://landing.example.test");
+    expect(options.authorizedParties).toContain("https://landing.example.test");
+    expect(options.authorizedParties).not.toContain(
+      "https://evil.example.test",
+    );
   });
 
   it("passes the cors origins to verifyToken in isAuthenticated", async () => {

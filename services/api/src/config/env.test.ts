@@ -125,6 +125,29 @@ describe("parseEnv", () => {
     expect(env.clientDashboard).toBe("https://client.example.com");
   });
 
+  describe("LANDING_PAGE", () => {
+    it("is unset by default and treats empty as unset", () => {
+      expect(parseEnv(base).landingPage).toBeUndefined();
+      expect(
+        parseEnv({ ...base, LANDING_PAGE: "" }).landingPage,
+      ).toBeUndefined();
+    });
+
+    it("passes a valid URL through", () => {
+      expect(
+        parseEnv({ ...base, LANDING_PAGE: "https://www.example.com" })
+          .landingPage,
+      ).toBe("https://www.example.com");
+    });
+
+    it("rejects an invalid URL without echoing it", () => {
+      const message = errorOf({ ...base, LANDING_PAGE: "not a url zq9" });
+
+      expect(message).toContain("LANDING_PAGE must be a valid URL.");
+      expect(message).not.toContain("zq9");
+    });
+  });
+
   describe("PORT", () => {
     it("uses a valid port", () => {
       expect(parseEnv({ ...base, PORT: "8080" }).port).toBe(8080);
@@ -290,6 +313,31 @@ describe("parseEnv", () => {
         expect(message).toContain("CLIENT_DASHBOARD, FREELANCER_DASHBOARD");
         expect(message).toContain("dashboard origin is required in production");
       }
+    });
+
+    it("accepts the landing origin alone as the origin", () => {
+      const { CLIENT_DASHBOARD: _unused, ...withoutClient } = production;
+      const env = parseEnv({
+        ...withoutClient,
+        LANDING_PAGE: "https://www.example.com",
+      });
+
+      expect(env.landingPage).toBe("https://www.example.com");
+    });
+
+    it("rejects an invalid or non-http landing origin in production", () => {
+      expect(errorOf({ ...production, LANDING_PAGE: "not a url" })).toContain(
+        "LANDING_PAGE",
+      );
+      expect(
+        errorOf({ ...production, LANDING_PAGE: "ftp://www.example.com" }),
+      ).toContain("- LANDING_PAGE: must be a valid http(s) URL");
+    });
+
+    it("lists LANDING_PAGE when no origin is configured", () => {
+      expect(errorOf({ ...production, CLIENT_DASHBOARD: "" })).toContain(
+        "ADMIN_DASHBOARD, LANDING_PAGE: at least one",
+      );
     });
 
     it("accepts several valid dashboard origins", () => {
