@@ -18,10 +18,34 @@ export const contracts: Contract[] = [
     description:
       "Build production-ready collaboration features with resilient real-time updates, accessible interactions, and complete test coverage.",
     milestones: [
-      { id: 1, title: "Architecture and presence", amount: "$2,500", due: "June 30", status: "Paid" },
-      { id: 2, title: "Real-time document sync", amount: "$3,000", due: "July 18", status: "Paid" },
-      { id: 3, title: "Comments, mentions, and notifications", amount: "$4,000", due: "August 4", status: "In progress" },
-      { id: 4, title: "QA, documentation, and handoff", amount: "$2,500", due: "August 18", status: "Upcoming" },
+      {
+        id: 1,
+        title: "Architecture and presence",
+        amount: "$2,500",
+        due: "June 30",
+        status: "Paid",
+      },
+      {
+        id: 2,
+        title: "Real-time document sync",
+        amount: "$3,000",
+        due: "July 18",
+        status: "Paid",
+      },
+      {
+        id: 3,
+        title: "Comments, mentions, and notifications",
+        amount: "$4,000",
+        due: "August 4",
+        status: "In progress",
+      },
+      {
+        id: 4,
+        title: "QA, documentation, and handoff",
+        amount: "$2,500",
+        due: "August 18",
+        status: "Upcoming",
+      },
     ],
   },
   {
@@ -41,10 +65,34 @@ export const contracts: Contract[] = [
     description:
       "Create the core research workflow, citation pipeline, and evaluation tooling for an AI-assisted knowledge product.",
     milestones: [
-      { id: 1, title: "Product architecture and prototype", amount: "$3,500", due: "July 20", status: "Paid" },
-      { id: 2, title: "Core research and citation workflow", amount: "$7,000", due: "August 12", status: "In progress" },
-      { id: 3, title: "Evaluation and observability", amount: "$4,500", due: "September 2", status: "Upcoming" },
-      { id: 4, title: "Launch hardening", amount: "$3,500", due: "September 18", status: "Upcoming" },
+      {
+        id: 1,
+        title: "Product architecture and prototype",
+        amount: "$3,500",
+        due: "July 20",
+        status: "Paid",
+      },
+      {
+        id: 2,
+        title: "Core research and citation workflow",
+        amount: "$7,000",
+        due: "August 12",
+        status: "In progress",
+      },
+      {
+        id: 3,
+        title: "Evaluation and observability",
+        amount: "$4,500",
+        due: "September 2",
+        status: "Upcoming",
+      },
+      {
+        id: 4,
+        title: "Launch hardening",
+        amount: "$3,500",
+        due: "September 18",
+        status: "Upcoming",
+      },
     ],
   },
   {
@@ -64,9 +112,27 @@ export const contracts: Contract[] = [
     description:
       "Audit and remediate the application against WCAG 2.2 AA, then verify the experience with assistive technology.",
     milestones: [
-      { id: 1, title: "Accessibility audit", amount: "$1,200", due: "July 12", status: "Paid" },
-      { id: 2, title: "Priority remediation", amount: "$2,000", due: "July 23", status: "Paid" },
-      { id: 3, title: "Verification and final handoff", amount: "$600", due: "July 29", status: "In progress" },
+      {
+        id: 1,
+        title: "Accessibility audit",
+        amount: "$1,200",
+        due: "July 12",
+        status: "Paid",
+      },
+      {
+        id: 2,
+        title: "Priority remediation",
+        amount: "$2,000",
+        due: "July 23",
+        status: "Paid",
+      },
+      {
+        id: 3,
+        title: "Verification and final handoff",
+        amount: "$600",
+        due: "July 29",
+        status: "In progress",
+      },
     ],
   },
 ];

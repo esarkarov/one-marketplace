@@ -82,7 +82,9 @@ export function AgencyProfileView() {
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.message || "The agency profile could not be loaded.");
+        throw new Error(
+          result.message || "The agency profile could not be loaded.",
+        );
       }
 
       return result.data as AgencyProfile | null;
@@ -157,7 +159,10 @@ export function AgencyProfileView() {
                 label="Rating"
                 bordered
               />
-              <Stat value={String(agency.stats.completedJobs)} label="Projects" />
+              <Stat
+                value={String(agency.stats.completedJobs)}
+                label="Projects"
+              />
             </div>
           </section>
 
@@ -260,7 +265,10 @@ export function AgencyProfileView() {
                             className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#52784f] transition hover:text-[#365f34]"
                           >
                             View live project
-                            <Icon icon="solar:arrow-right-up-linear" width="15" />
+                            <Icon
+                              icon="solar:arrow-right-up-linear"
+                              width="15"
+                            />
                           </a>
                         ) : (
                           <span className="text-xs text-[#969b94]">

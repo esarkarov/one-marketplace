@@ -1,9 +1,6 @@
 export type AgencyMilestoneStatus = "Paid" | "In progress" | "Upcoming";
 export type AgencyContractStatus =
-  | "Pending"
-  | "Active"
-  | "Awaiting feedback"
-  | "Completed";
+  "Pending" | "Active" | "Awaiting feedback" | "Completed";
 
 export type AgencyMilestone = {
   id: string;

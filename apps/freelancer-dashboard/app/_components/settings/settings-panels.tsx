@@ -823,7 +823,10 @@ function AgencySetupForm({
       title="Create an agency"
       description="Set up the workspace clients will see when working with your team."
     >
-      <form onSubmit={(event) => void submit(event)} className="grid gap-5 p-5 sm:p-6">
+      <form
+        onSubmit={(event) => void submit(event)}
+        className="grid gap-5 p-5 sm:p-6"
+      >
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="text-xs font-semibold">
             Agency name

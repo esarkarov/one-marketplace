@@ -1020,7 +1020,7 @@ function FundContractModal({
               Fund the first milestone
             </h2>
             <p className="mt-2 text-sm leading-6 text-[#747a72]">
-              Fund the first milestone before sending the contract to {" "}
+              Fund the first milestone before sending the contract to{" "}
               {proposal.bidder}.
             </p>
           </div>

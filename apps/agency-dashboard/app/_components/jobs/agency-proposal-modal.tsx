@@ -69,7 +69,9 @@ export function AgencyProposalModal({
       return;
     }
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: agencyProposalMetadataQueryKey }),
+      queryClient.invalidateQueries({
+        queryKey: agencyProposalMetadataQueryKey,
+      }),
       queryClient.invalidateQueries({ queryKey: ["agency-connects"] }),
       queryClient.invalidateQueries({ queryKey: ["agency-proposals"] }),
     ]);

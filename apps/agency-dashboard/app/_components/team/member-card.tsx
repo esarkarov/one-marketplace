@@ -44,7 +44,9 @@ export function MemberCard({
             )}
           </div>
           <p className="mt-1 truncate text-xs text-[#6f756d]">
-            {pending ? row.email : `${row.completedProjects} completed projects`}
+            {pending
+              ? row.email
+              : `${row.completedProjects} completed projects`}
           </p>
         </div>
       </div>

@@ -1,4 +1,5 @@
-export type AgencyMemberRole = "Agency owner" | "Business manager" | "Agency member";
+export type AgencyMemberRole =
+  "Agency owner" | "Business manager" | "Agency member";
 
 export type ActiveTeamMember = {
   kind: "member";

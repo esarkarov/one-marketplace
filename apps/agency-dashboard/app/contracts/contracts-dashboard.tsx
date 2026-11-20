@@ -378,7 +378,11 @@ export function ContractsDashboard() {
           ))}
         {!isLoading && !visibleContracts.length && (
           <div className="rounded-2xl border border-dashed border-black/12 bg-white px-6 py-16 text-center">
-            <Icon name="contract" size={35} className="mx-auto text-[#858a82]" />
+            <Icon
+              name="contract"
+              size={35}
+              className="mx-auto text-[#858a82]"
+            />
             <h2 className="mt-4 font-semibold">No contracts found</h2>
             <p className="mt-2 text-sm text-[#7c8179]">
               Try another status or search term.

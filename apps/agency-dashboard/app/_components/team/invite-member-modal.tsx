@@ -18,9 +18,8 @@ export function InviteMemberModal({
   const [complete, setComplete] = useState(false);
   const [notifiedInApp, setNotifiedInApp] = useState(false);
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState<Exclude<AgencyMemberRole, "Agency owner">>(
-    "Agency member",
-  );
+  const [role, setRole] =
+    useState<Exclude<AgencyMemberRole, "Agency owner">>("Agency member");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -56,7 +55,9 @@ export function InviteMemberModal({
       setComplete(true);
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "The invitation could not be sent.",
+        err instanceof Error
+          ? err.message
+          : "The invitation could not be sent.",
       );
     } finally {
       setSubmitting(false);
@@ -123,8 +124,8 @@ export function InviteMemberModal({
           </button>
         </div>
         <p className="mt-4 text-sm leading-6 text-[#737870]">
-          Invited freelancers keep their personal accounts and choose whether
-          to join your agency.
+          Invited freelancers keep their personal accounts and choose whether to
+          join your agency.
         </p>
         <label className="mt-5 block text-xs font-semibold">
           Email address
@@ -142,7 +143,9 @@ export function InviteMemberModal({
           <select
             value={role}
             onChange={(event) =>
-              setRole(event.target.value as "Business manager" | "Agency member")
+              setRole(
+                event.target.value as "Business manager" | "Agency member",
+              )
             }
             className="mt-2 h-11 w-full rounded-xl border border-black/10 bg-white px-3 text-sm font-normal outline-none"
           >

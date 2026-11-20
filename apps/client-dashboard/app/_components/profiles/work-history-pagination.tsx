@@ -49,10 +49,7 @@ export function WorkHistoryPagination({
     }));
   const totalPages = Math.ceil(completedWork.length / itemsPerPage);
   const pageStart = (page - 1) * itemsPerPage;
-  const visibleWork = completedWork.slice(
-    pageStart,
-    pageStart + itemsPerPage,
-  );
+  const visibleWork = completedWork.slice(pageStart, pageStart + itemsPerPage);
 
   const openPage = (nextPage: number) => {
     setPage(Math.min(Math.max(nextPage, 1), totalPages));
@@ -69,9 +66,7 @@ export function WorkHistoryPagination({
             Completed work and reviews
           </h2>
         </div>
-        <p className="text-xs text-[#8a8f87]">
-          {averageRating} average rating
-        </p>
+        <p className="text-xs text-[#8a8f87]">{averageRating} average rating</p>
       </div>
 
       <div className="grid gap-4">
@@ -111,57 +106,59 @@ export function WorkHistoryPagination({
         )}
       </div>
 
-      {!!completedWork.length && <div className="mt-5 flex flex-col gap-3 border-t border-black/7 pt-5 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-xs text-[#838980]">
-          Showing {pageStart + 1}–
-          {Math.min(pageStart + itemsPerPage, completedWork.length)} of{" "}
-          {completedWork.length} completed projects
-        </p>
-        <nav
-          aria-label="Work history pagination"
-          className="flex items-center gap-2"
-        >
-          <button
-            type="button"
-            aria-label="Previous work history page"
-            disabled={page === 1}
-            onClick={() => openPage(page - 1)}
-            className="flex h-9 w-9 items-center justify-center rounded-lg border border-black/10 disabled:cursor-not-allowed disabled:opacity-35"
+      {!!completedWork.length && (
+        <div className="mt-5 flex flex-col gap-3 border-t border-black/7 pt-5 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs text-[#838980]">
+            Showing {pageStart + 1}–
+            {Math.min(pageStart + itemsPerPage, completedWork.length)} of{" "}
+            {completedWork.length} completed projects
+          </p>
+          <nav
+            aria-label="Work history pagination"
+            className="flex items-center gap-2"
           >
-            <Icon icon="solar:alt-arrow-left-linear" width="16" />
-          </button>
-          {Array.from({ length: totalPages }, (_, index) => {
-            const pageNumber = index + 1;
-            const active = pageNumber === page;
+            <button
+              type="button"
+              aria-label="Previous work history page"
+              disabled={page === 1}
+              onClick={() => openPage(page - 1)}
+              className="flex h-9 w-9 items-center justify-center rounded-lg border border-black/10 disabled:cursor-not-allowed disabled:opacity-35"
+            >
+              <Icon icon="solar:alt-arrow-left-linear" width="16" />
+            </button>
+            {Array.from({ length: totalPages }, (_, index) => {
+              const pageNumber = index + 1;
+              const active = pageNumber === page;
 
-            return (
-              <button
-                key={pageNumber}
-                type="button"
-                aria-label={`Open work history page ${pageNumber}`}
-                aria-current={active ? "page" : undefined}
-                onClick={() => openPage(pageNumber)}
-                className={`h-9 min-w-9 rounded-lg px-3 text-xs font-semibold ${
-                  active
-                    ? "bg-[#e9f1e6] text-[#4f794c]"
-                    : "border border-black/10 text-[#656b63]"
-                }`}
-              >
-                {pageNumber}
-              </button>
-            );
-          })}
-          <button
-            type="button"
-            aria-label="Next work history page"
-            disabled={page === totalPages}
-            onClick={() => openPage(page + 1)}
-            className="flex h-9 w-9 items-center justify-center rounded-lg border border-black/10 disabled:cursor-not-allowed disabled:opacity-35"
-          >
-            <Icon icon="solar:alt-arrow-right-linear" width="16" />
-          </button>
-        </nav>
-      </div>}
+              return (
+                <button
+                  key={pageNumber}
+                  type="button"
+                  aria-label={`Open work history page ${pageNumber}`}
+                  aria-current={active ? "page" : undefined}
+                  onClick={() => openPage(pageNumber)}
+                  className={`h-9 min-w-9 rounded-lg px-3 text-xs font-semibold ${
+                    active
+                      ? "bg-[#e9f1e6] text-[#4f794c]"
+                      : "border border-black/10 text-[#656b63]"
+                  }`}
+                >
+                  {pageNumber}
+                </button>
+              );
+            })}
+            <button
+              type="button"
+              aria-label="Next work history page"
+              disabled={page === totalPages}
+              onClick={() => openPage(page + 1)}
+              className="flex h-9 w-9 items-center justify-center rounded-lg border border-black/10 disabled:cursor-not-allowed disabled:opacity-35"
+            >
+              <Icon icon="solar:alt-arrow-right-linear" width="16" />
+            </button>
+          </nav>
+        </div>
+      )}
     </section>
   );
 }

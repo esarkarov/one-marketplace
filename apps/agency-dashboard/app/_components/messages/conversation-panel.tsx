@@ -64,7 +64,8 @@ export function ConversationPanel({
     await onLoadMore();
     requestAnimationFrame(() =>
       requestAnimationFrame(() => {
-        container.scrollTop = previousTop + container.scrollHeight - previousHeight;
+        container.scrollTop =
+          previousTop + container.scrollHeight - previousHeight;
         loadingOlderRef.current = false;
       }),
     );
@@ -489,8 +490,8 @@ function TransactionMessage({
                   The contract “{message.title}” was completed.
                 </p>
                 <p className="mt-1.5 text-xs leading-5 text-[#5e695c]">
-                  This contract has been completed. Feedback has been
-                  recorded and all remaining payments have been settled.
+                  This contract has been completed. Feedback has been recorded
+                  and all remaining payments have been settled.
                 </p>
               </div>
               <EventFooter

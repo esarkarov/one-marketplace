@@ -104,7 +104,10 @@ export function ContractDrawer({
                 ["In escrow", contract.escrow],
                 ["Started", contract.started],
               ].map(([label, value]) => (
-                <div key={label} className="rounded-xl border border-black/7 p-3">
+                <div
+                  key={label}
+                  className="rounded-xl border border-black/7 p-3"
+                >
                   <p className="text-[10px] text-[#858a82]">{label}</p>
                   <p className="mt-1.5 text-sm font-semibold">{value}</p>
                 </div>
@@ -138,7 +141,9 @@ export function ContractDrawer({
                     }`}
                   >
                     <Icon
-                      name={milestone.status === "Paid" ? "check-circle" : "clock"}
+                      name={
+                        milestone.status === "Paid" ? "check-circle" : "clock"
+                      }
                       size={18}
                     />
                   </span>

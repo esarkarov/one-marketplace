@@ -22,7 +22,10 @@ export function MemberDrawer({
 }: {
   row: TeamRow;
   onClose: () => void;
-  onUpdateRole: (row: TeamRow, role: "Business manager" | "Agency member") => void;
+  onUpdateRole: (
+    row: TeamRow,
+    role: "Business manager" | "Agency member",
+  ) => void;
   onRemove: (row: TeamRow) => void;
   onResend: (row: TeamRow) => void;
   onCancel: (row: TeamRow) => void;
@@ -103,7 +106,8 @@ export function MemberDrawer({
                   onChange={(event) =>
                     onUpdateRole(
                       row,
-                      event.target.value as "Business manager" | "Agency member",
+                      event.target.value as
+                        "Business manager" | "Agency member",
                     )
                   }
                   className="mt-3 h-11 w-full rounded-xl border border-black/10 bg-white px-3 text-sm outline-none"
@@ -139,7 +143,10 @@ export function MemberDrawer({
                 <h3 className="text-sm font-semibold">Public agency profile</h3>
                 <div className="mt-3 grid grid-cols-2 gap-3">
                   {[
-                    ["Rating", row.rating ? row.rating.toFixed(1) : "Not rated"],
+                    [
+                      "Rating",
+                      row.rating ? row.rating.toFixed(1) : "Not rated",
+                    ],
                     ["Job success", `${row.jobSuccessScore}%`],
                     ["Completed projects", String(row.completedProjects)],
                   ].map(([label, value]) => (
@@ -178,7 +185,8 @@ export function MemberDrawer({
                   onChange={(event) =>
                     onUpdateRole(
                       row,
-                      event.target.value as "Business manager" | "Agency member",
+                      event.target.value as
+                        "Business manager" | "Agency member",
                     )
                   }
                   className="mt-3 h-11 w-full rounded-xl border border-black/10 bg-white px-3 text-sm outline-none disabled:bg-[#f1f3ef] disabled:text-[#7b8078]"

@@ -16,7 +16,11 @@ const Card = ({
 
 export function AgencyProfileSkeleton() {
   return (
-    <div aria-label="Loading agency profile" aria-busy="true" className="animate-pulse">
+    <div
+      aria-label="Loading agency profile"
+      aria-busy="true"
+      className="animate-pulse"
+    >
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
           <Line className="h-3 w-40" />
@@ -77,7 +81,10 @@ export function AgencyProfileSkeleton() {
             </div>
             <div className="mt-5 grid gap-4 md:grid-cols-2">
               {[0, 1].map((item) => (
-                <div key={item} className="overflow-hidden rounded-xl border border-black/9">
+                <div
+                  key={item}
+                  className="overflow-hidden rounded-xl border border-black/9"
+                >
                   <div className="aspect-video bg-[#e4ead8]" />
                   <div className="space-y-3 p-5">
                     <Line className="h-3 w-24" />
@@ -99,7 +106,10 @@ export function AgencyProfileSkeleton() {
             </div>
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               {[0, 1].map((item) => (
-                <div key={item} className="rounded-xl border border-black/7 p-4">
+                <div
+                  key={item}
+                  className="rounded-xl border border-black/7 p-4"
+                >
                   <div className="flex items-center gap-4">
                     <div className="h-12 w-12 shrink-0 rounded-full bg-[#dce3d9]" />
                     <div className="flex-1">

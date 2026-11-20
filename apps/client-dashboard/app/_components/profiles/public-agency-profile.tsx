@@ -123,7 +123,10 @@ export function PublicAgencyProfile({
                 label="Rating"
                 bordered
               />
-              <Stat value={String(agency.stats.completedJobs)} label="Projects" />
+              <Stat
+                value={String(agency.stats.completedJobs)}
+                label="Projects"
+              />
             </div>
             <div className="mt-5 text-left">
               <Detail label="Team size" value={agency.size || NOT_AVAILABLE} />
@@ -231,7 +234,10 @@ export function PublicAgencyProfile({
                             className="inline-flex items-center gap-2 text-sm font-semibold text-[#52784f]"
                           >
                             View live project
-                            <Icon icon="solar:arrow-right-up-linear" width="18" />
+                            <Icon
+                              icon="solar:arrow-right-up-linear"
+                              width="18"
+                            />
                           </a>
                         </div>
                       )}

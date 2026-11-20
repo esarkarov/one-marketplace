@@ -163,7 +163,8 @@ export type FreelancerMessage =
       sender: "client" | "talent";
       title: string;
       amount: number;
-      status: "Added" | "Funded" | "Submitted" | "Changes requested" | "Approved";
+      status:
+        "Added" | "Funded" | "Submitted" | "Changes requested" | "Approved";
       href: string;
       time: string;
       note?: string;

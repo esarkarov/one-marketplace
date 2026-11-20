@@ -118,7 +118,9 @@ export function SettingsDashboard({
                   />
                 )}
                 {["security", "notifications"].includes(section) && (
-                  <AccountPanel kind={section as "security" | "notifications"} />
+                  <AccountPanel
+                    kind={section as "security" | "notifications"}
+                  />
                 )}
               </div>
             </div>
@@ -130,9 +132,7 @@ export function SettingsDashboard({
         <EarningsStatementModal onClose={() => setStatementOpen(false)} />
       )}
       {verificationOpen && (
-        <IdentityVerificationModal
-          onClose={() => setVerificationOpen(false)}
-        />
+        <IdentityVerificationModal onClose={() => setVerificationOpen(false)} />
       )}
     </div>
   );
@@ -162,7 +162,9 @@ function IdentityVerificationModal({ onClose }: { onClose: () => void }) {
       window.location.assign(result.data.url);
     } catch (error) {
       setError(
-        error instanceof Error ? error.message : "Verification could not start.",
+        error instanceof Error
+          ? error.message
+          : "Verification could not start.",
       );
       setRedirecting(false);
     }

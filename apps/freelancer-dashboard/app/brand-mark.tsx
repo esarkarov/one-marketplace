@@ -35,7 +35,14 @@ export function BrandMark() {
           fill="currentColor"
           opacity="0.65"
         />
-        <rect x="13" y="13" width="4" height="4" rx="1.25" fill="currentColor" />
+        <rect
+          x="13"
+          y="13"
+          width="4"
+          height="4"
+          rx="1.25"
+          fill="currentColor"
+        />
       </svg>
     </span>
   );

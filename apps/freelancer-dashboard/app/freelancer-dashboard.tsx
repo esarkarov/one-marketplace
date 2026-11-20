@@ -681,7 +681,10 @@ export function FreelancerDashboard() {
                   />
                 </div>
                 <p className="mt-3 text-3xl font-semibold tracking-[-0.04em]">
-                  ${Math.round(earningsSummary.currentMonthTotal).toLocaleString()}
+                  $
+                  {Math.round(
+                    earningsSummary.currentMonthTotal,
+                  ).toLocaleString()}
                 </p>
                 <p className="mt-1 text-xs text-[#aeb6ad]">
                   {earningsChange >= 0 ? "+" : "-"}$

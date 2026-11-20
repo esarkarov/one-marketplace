@@ -47,7 +47,8 @@ export async function GET() {
       );
     }
 
-    const agencyStatus = (await backendResponse.json()) as BackendAgencyResponse;
+    const agencyStatus =
+      (await backendResponse.json()) as BackendAgencyResponse;
 
     return Response.json({
       success: true,

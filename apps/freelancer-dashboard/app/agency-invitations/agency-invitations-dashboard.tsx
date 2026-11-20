@@ -102,8 +102,8 @@ export function AgencyInvitationsDashboard() {
               Agency invitations
             </h1>
             <p className="mt-2 text-sm text-[#72776f]">
-              Review invitations to join an agency team. You keep your
-              personal freelancer account either way.
+              Review invitations to join an agency team. You keep your personal
+              freelancer account either way.
             </p>
 
             {notice && (
@@ -121,9 +121,7 @@ export function AgencyInvitationsDashboard() {
                 </button>
               </div>
             )}
-            {error && (
-              <p className="mt-5 text-sm text-[#a65050]">{error}</p>
-            )}
+            {error && <p className="mt-5 text-sm text-[#a65050]">{error}</p>}
 
             <div className="mt-6 grid gap-4">
               {isLoading && (

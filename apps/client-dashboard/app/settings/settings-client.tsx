@@ -57,12 +57,42 @@ interface ClientProfileMetadata {
 }
 
 const navigation = [
-  { id: "overview", label: "Overview", description: "Account summary", icon: "solar:widget-2-linear" },
-  { id: "finances", label: "Finances", description: "Cards and billing details", icon: "solar:wallet-money-linear" },
-  { id: "company", label: "Company profile", description: "Business information", icon: "solar:buildings-2-linear" },
-  { id: "notifications", label: "Notifications", description: "Email and product alerts", icon: "solar:bell-linear" },
-  { id: "verifications", label: "Verification", description: "Secure identity check by Stripe", icon: "solar:verified-check-linear" },
-  { id: "account", label: "Password & security", description: "Password, 2FA, and devices", icon: "solar:shield-keyhole-linear" },
+  {
+    id: "overview",
+    label: "Overview",
+    description: "Account summary",
+    icon: "solar:widget-2-linear",
+  },
+  {
+    id: "finances",
+    label: "Finances",
+    description: "Cards and billing details",
+    icon: "solar:wallet-money-linear",
+  },
+  {
+    id: "company",
+    label: "Company profile",
+    description: "Business information",
+    icon: "solar:buildings-2-linear",
+  },
+  {
+    id: "notifications",
+    label: "Notifications",
+    description: "Email and product alerts",
+    icon: "solar:bell-linear",
+  },
+  {
+    id: "verifications",
+    label: "Verification",
+    description: "Secure identity check by Stripe",
+    icon: "solar:verified-check-linear",
+  },
+  {
+    id: "account",
+    label: "Password & security",
+    description: "Password, 2FA, and devices",
+    icon: "solar:shield-keyhole-linear",
+  },
 ];
 
 export function ClientSettings({
@@ -107,21 +137,47 @@ export function ClientSettings({
   return (
     <>
       <div>
-        <p className="text-xs font-semibold tracking-[.14em] text-[#62805f] uppercase">Client account</p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-[-.045em] sm:text-4xl">Settings</h1>
-        <p className="mt-2 text-sm text-[#72776f]">Manage how your company hires, pays, and works on OneMarketplace.io.</p>
+        <p className="text-xs font-semibold tracking-[.14em] text-[#62805f] uppercase">
+          Client account
+        </p>
+        <h1 className="mt-2 text-3xl font-semibold tracking-[-.045em] sm:text-4xl">
+          Settings
+        </h1>
+        <p className="mt-2 text-sm text-[#72776f]">
+          Manage how your company hires, pays, and works on OneMarketplace.io.
+        </p>
       </div>
 
-      {notice && <div role="status" className="mt-5 rounded-xl border border-[#cfe2ca] bg-[#edf5ea] px-4 py-3 text-xs font-semibold text-[#52784f]">{notice}</div>}
+      {notice && (
+        <div
+          role="status"
+          className="mt-5 rounded-xl border border-[#cfe2ca] bg-[#edf5ea] px-4 py-3 text-xs font-semibold text-[#52784f]"
+        >
+          {notice}
+        </div>
+      )}
 
       <div className="mt-8 grid items-start gap-5 lg:grid-cols-[280px_minmax(0,1fr)]">
         <nav className="rounded-2xl border border-black/8 bg-white p-2 lg:sticky lg:top-24">
           {navigation.map((item) => {
             const active = item.id === initialSection;
             return (
-              <Link key={item.id} href={`/settings?section=${item.id}`} className={`flex items-center gap-3 rounded-xl px-3 py-3 ${active ? "bg-[#edf4ea] text-[#4e774b]" : "hover:bg-[#f7f8f5]"}`}>
-                <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${active ? "bg-white" : "bg-[#f3f5f1]"}`}><Icon icon={item.icon} width="19" /></span>
-                <span className="min-w-0 flex-1"><strong className="block text-sm">{item.label}</strong><span className="mt-0.5 block truncate text-[10px] font-normal opacity-65">{item.description}</span></span>
+              <Link
+                key={item.id}
+                href={`/settings?section=${item.id}`}
+                className={`flex items-center gap-3 rounded-xl px-3 py-3 ${active ? "bg-[#edf4ea] text-[#4e774b]" : "hover:bg-[#f7f8f5]"}`}
+              >
+                <span
+                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${active ? "bg-white" : "bg-[#f3f5f1]"}`}
+                >
+                  <Icon icon={item.icon} width="19" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <strong className="block text-sm">{item.label}</strong>
+                  <span className="mt-0.5 block truncate text-[10px] font-normal opacity-65">
+                    {item.description}
+                  </span>
+                </span>
                 <Icon icon="solar:alt-arrow-right-linear" width="14" />
               </Link>
             );
@@ -142,7 +198,11 @@ export function ClientSettings({
               onSave={() => saveNotice("Company profile updated.")}
             />
           )}
-          {initialSection === "notifications" && <NotificationSettings onSave={() => saveNotice("Notification preferences saved.")} />}
+          {initialSection === "notifications" && (
+            <NotificationSettings
+              onSave={() => saveNotice("Notification preferences saved.")}
+            />
+          )}
           {initialSection === "verifications" && (
             <StripeVerification
               verified={profileMetaData?.identityVerified === true}
@@ -154,16 +214,30 @@ export function ClientSettings({
       </div>
 
       {verificationOpen && (
-        <IdentityVerificationModal
-          onClose={() => setVerificationOpen(false)}
-        />
+        <IdentityVerificationModal onClose={() => setVerificationOpen(false)} />
       )}
     </>
   );
 }
 
-function SectionCard({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
-  return <section className="rounded-2xl border border-black/8 bg-white p-5 sm:p-6"><h2 className="text-lg font-semibold">{title}</h2>{description && <p className="mt-1.5 text-sm text-[#777d75]">{description}</p>}<div className="mt-5">{children}</div></section>;
+function SectionCard({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-2xl border border-black/8 bg-white p-5 sm:p-6">
+      <h2 className="text-lg font-semibold">{title}</h2>
+      {description && (
+        <p className="mt-1.5 text-sm text-[#777d75]">{description}</p>
+      )}
+      <div className="mt-5">{children}</div>
+    </section>
+  );
 }
 
 function Overview({
@@ -174,12 +248,51 @@ function Overview({
   identityVerified: boolean;
 }) {
   const items = [
-    { label: "Payment methods", value: "Cards & billing, managed in Stripe", href: "finances", icon: "solar:card-linear" },
-    { label: "Company profile", value: companyName || "Not set yet", href: "company", icon: "solar:buildings-2-linear" },
-    { label: "Identity verification", value: identityVerified ? "Verified" : "Not verified", href: "verifications", icon: "solar:verified-check-linear" },
-    { label: "Password & security", value: "Password, 2FA, and devices", href: "account", icon: "solar:shield-keyhole-linear" },
+    {
+      label: "Payment methods",
+      value: "Cards & billing, managed in Stripe",
+      href: "finances",
+      icon: "solar:card-linear",
+    },
+    {
+      label: "Company profile",
+      value: companyName || "Not set yet",
+      href: "company",
+      icon: "solar:buildings-2-linear",
+    },
+    {
+      label: "Identity verification",
+      value: identityVerified ? "Verified" : "Not verified",
+      href: "verifications",
+      icon: "solar:verified-check-linear",
+    },
+    {
+      label: "Password & security",
+      value: "Password, 2FA, and devices",
+      href: "account",
+      icon: "solar:shield-keyhole-linear",
+    },
   ];
-  return <div className="grid gap-4 sm:grid-cols-2">{items.map((item) => <Link key={item.label} href={`/settings?section=${item.href}`} className="rounded-2xl border border-black/8 bg-white p-5 hover:bg-[#fafbf9]"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#edf4ea] text-[#52784f]"><Icon icon={item.icon} width="20" /></span><h2 className="mt-5 font-semibold">{item.label}</h2><p className="mt-1 text-xs text-[#777d75]">{item.value}</p><span className="mt-5 inline-flex items-center gap-1 text-xs font-semibold text-[#52784f]">Manage <Icon icon="solar:arrow-right-linear" width="13" /></span></Link>)}</div>;
+  return (
+    <div className="grid gap-4 sm:grid-cols-2">
+      {items.map((item) => (
+        <Link
+          key={item.label}
+          href={`/settings?section=${item.href}`}
+          className="rounded-2xl border border-black/8 bg-white p-5 hover:bg-[#fafbf9]"
+        >
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#edf4ea] text-[#52784f]">
+            <Icon icon={item.icon} width="20" />
+          </span>
+          <h2 className="mt-5 font-semibold">{item.label}</h2>
+          <p className="mt-1 text-xs text-[#777d75]">{item.value}</p>
+          <span className="mt-5 inline-flex items-center gap-1 text-xs font-semibold text-[#52784f]">
+            Manage <Icon icon="solar:arrow-right-linear" width="13" />
+          </span>
+        </Link>
+      ))}
+    </div>
+  );
 }
 
 function Finances({ onNotice }: { onNotice: (message: string) => void }) {
@@ -196,12 +309,16 @@ function Finances({ onNotice }: { onNotice: (message: string) => void }) {
       );
       const result = await response.json();
       if (!response.ok || !result.data?.url) {
-        throw new Error(result.message || "Stripe could not be opened right now.");
+        throw new Error(
+          result.message || "Stripe could not be opened right now.",
+        );
       }
       window.location.assign(result.data.url);
     } catch (error) {
       onNotice(
-        error instanceof Error ? error.message : "Stripe could not be opened right now.",
+        error instanceof Error
+          ? error.message
+          : "Stripe could not be opened right now.",
       );
       setRedirecting(false);
     }
@@ -219,7 +336,8 @@ function Finances({ onNotice }: { onNotice: (message: string) => void }) {
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold">Manage in Stripe</p>
           <p className="mt-1 text-[11px] text-[#7c8179]">
-            Update cards, billing details, and review every payment on your account.
+            Update cards, billing details, and review every payment on your
+            account.
           </p>
         </div>
         <button
@@ -361,7 +479,9 @@ function CompanySettings({
       );
       const result = await response.json();
       if (!response.ok) {
-        throw new Error(result.message || "The company profile could not be saved.");
+        throw new Error(
+          result.message || "The company profile could not be saved.",
+        );
       }
       queryClient.setQueryData(
         ["profile-metadata"],
@@ -373,7 +493,9 @@ function CompanySettings({
       onSave();
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "The company profile could not be saved.",
+        err instanceof Error
+          ? err.message
+          : "The company profile could not be saved.",
       );
     } finally {
       setSaving(false);
@@ -387,8 +509,16 @@ function CompanySettings({
     >
       <form onSubmit={(event) => void handleSubmit(event)}>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Company name" value={companyName} onChange={setCompanyName} />
-          <Field label="Website" value={companyWebsite} onChange={setCompanyWebsite} />
+          <Field
+            label="Company name"
+            value={companyName}
+            onChange={setCompanyName}
+          />
+          <Field
+            label="Website"
+            value={companyWebsite}
+            onChange={setCompanyWebsite}
+          />
           <label className="block">
             <span className="mb-2 block text-xs font-semibold">Industry</span>
             <select
@@ -402,7 +532,9 @@ function CompanySettings({
             </select>
           </label>
           <label className="block">
-            <span className="mb-2 block text-xs font-semibold">Company size</span>
+            <span className="mb-2 block text-xs font-semibold">
+              Company size
+            </span>
             <select
               value={companySize}
               onChange={(event) => setCompanySize(event.target.value)}
@@ -422,7 +554,9 @@ function CompanySettings({
           )}
         </div>
         <label className="mt-4 block">
-          <span className="mb-2 block text-xs font-semibold">Company description</span>
+          <span className="mb-2 block text-xs font-semibold">
+            Company description
+          </span>
           <textarea
             value={companyDescription}
             onChange={(event) => setCompanyDescription(event.target.value)}
@@ -444,7 +578,41 @@ function CompanySettings({
 }
 
 function NotificationSettings({ onSave }: { onSave: () => void }) {
-  return <SectionCard title="Notification preferences" description="Choose the marketplace activity that should reach your inbox."><div className="divide-y divide-black/7">{["New proposals on my jobs", "Messages from talent", "Contract and milestone updates", "Payment and billing activity", "Product news and recommendations"].map((label, index) => <label key={label} className="flex items-center justify-between gap-4 py-4 first:pt-0"><span className="text-sm">{label}</span><input type="checkbox" defaultChecked={index < 4} className="h-4 w-4 accent-[#5d8759]" /></label>)}</div><button type="button" onClick={onSave} className="mt-3 h-10 rounded-xl bg-[#252724] px-4 text-xs font-semibold text-white">Save preferences</button></SectionCard>;
+  return (
+    <SectionCard
+      title="Notification preferences"
+      description="Choose the marketplace activity that should reach your inbox."
+    >
+      <div className="divide-y divide-black/7">
+        {[
+          "New proposals on my jobs",
+          "Messages from talent",
+          "Contract and milestone updates",
+          "Payment and billing activity",
+          "Product news and recommendations",
+        ].map((label, index) => (
+          <label
+            key={label}
+            className="flex items-center justify-between gap-4 py-4 first:pt-0"
+          >
+            <span className="text-sm">{label}</span>
+            <input
+              type="checkbox"
+              defaultChecked={index < 4}
+              className="h-4 w-4 accent-[#5d8759]"
+            />
+          </label>
+        ))}
+      </div>
+      <button
+        type="button"
+        onClick={onSave}
+        className="mt-3 h-10 rounded-xl bg-[#252724] px-4 text-xs font-semibold text-white"
+      >
+        Save preferences
+      </button>
+    </SectionCard>
+  );
 }
 
 function StripeVerification({
@@ -454,18 +622,56 @@ function StripeVerification({
   verified: boolean;
   onStart: () => void;
 }) {
-  return <SectionCard title="Identity verification" description="Identity checks are securely completed and processed by Stripe Identity.">
-    <div className="flex flex-wrap items-center gap-4 rounded-xl border border-black/8 p-4">
-      <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#edf4ea] text-[#52784f]"><Icon icon="solar:user-id-linear" width="22" /></span>
-      <div className="min-w-0 flex-1"><p className="text-sm font-semibold">{verified ? "Identity verified" : "Verify your identity"}</p><p className="mt-1 text-[10px] leading-5 text-[#7c8179]">{verified ? "Your identity verification is complete." : "Required while managing an active contract."}</p></div>
-      {verified ? (
-        <span className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#edf4ea] px-4 text-xs font-semibold text-[#52784f]"><Icon icon="solar:verified-check-bold" width="17" />Verification done</span>
-      ) : (
-        <button type="button" data-stripe-identity-trigger onClick={onStart} className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#252724] px-4 text-xs font-semibold text-white"><Icon icon="solar:shield-check-linear" width="17" />Verify with Stripe</button>
-      )}
-    </div>
-    <div className="mt-5 flex gap-3 rounded-xl bg-[#f3f6f1] p-4 text-xs leading-5 text-[#667064]"><Icon icon="solar:lock-keyhole-linear" width="18" className="shrink-0 text-[#52784f]" /><p>OneMarketplace.io does not manually collect or review identity documents. Stripe securely handles the verification session and returns only its result.</p></div>
-  </SectionCard>;
+  return (
+    <SectionCard
+      title="Identity verification"
+      description="Identity checks are securely completed and processed by Stripe Identity."
+    >
+      <div className="flex flex-wrap items-center gap-4 rounded-xl border border-black/8 p-4">
+        <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#edf4ea] text-[#52784f]">
+          <Icon icon="solar:user-id-linear" width="22" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold">
+            {verified ? "Identity verified" : "Verify your identity"}
+          </p>
+          <p className="mt-1 text-[10px] leading-5 text-[#7c8179]">
+            {verified
+              ? "Your identity verification is complete."
+              : "Required while managing an active contract."}
+          </p>
+        </div>
+        {verified ? (
+          <span className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#edf4ea] px-4 text-xs font-semibold text-[#52784f]">
+            <Icon icon="solar:verified-check-bold" width="17" />
+            Verification done
+          </span>
+        ) : (
+          <button
+            type="button"
+            data-stripe-identity-trigger
+            onClick={onStart}
+            className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#252724] px-4 text-xs font-semibold text-white"
+          >
+            <Icon icon="solar:shield-check-linear" width="17" />
+            Verify with Stripe
+          </button>
+        )}
+      </div>
+      <div className="mt-5 flex gap-3 rounded-xl bg-[#f3f6f1] p-4 text-xs leading-5 text-[#667064]">
+        <Icon
+          icon="solar:lock-keyhole-linear"
+          width="18"
+          className="shrink-0 text-[#52784f]"
+        />
+        <p>
+          OneMarketplace.io does not manually collect or review identity
+          documents. Stripe securely handles the verification session and
+          returns only its result.
+        </p>
+      </div>
+    </SectionCard>
+  );
 }
 
 function IdentityVerificationModal({ onClose }: { onClose: () => void }) {
@@ -492,7 +698,9 @@ function IdentityVerificationModal({ onClose }: { onClose: () => void }) {
       window.location.assign(result.data.url);
     } catch (error) {
       setError(
-        error instanceof Error ? error.message : "Verification could not start.",
+        error instanceof Error
+          ? error.message
+          : "Verification could not start.",
       );
       setRedirecting(false);
     }
@@ -505,7 +713,12 @@ function IdentityVerificationModal({ onClose }: { onClose: () => void }) {
           <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#edf4ea] text-[#52784f]">
             <Icon icon="solar:user-id-linear" width="23" />
           </span>
-          <button type="button" onClick={onClose} disabled={redirecting} aria-label="Close verification modal">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={redirecting}
+            aria-label="Close verification modal"
+          >
             <Icon icon="solar:close-circle-linear" width="23" />
           </button>
         </div>
@@ -516,10 +729,20 @@ function IdentityVerificationModal({ onClose }: { onClose: () => void }) {
         </p>
         {error && <p className="mt-4 text-xs text-red-600">{error}</p>}
         <div className="mt-6 flex justify-end gap-2">
-          <button type="button" onClick={onClose} disabled={redirecting} className="h-10 rounded-xl border border-black/10 px-4 text-xs font-semibold disabled:opacity-40">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={redirecting}
+            className="h-10 rounded-xl border border-black/10 px-4 text-xs font-semibold disabled:opacity-40"
+          >
             Cancel
           </button>
-          <button type="button" onClick={() => void startVerification()} disabled={redirecting} className="h-10 rounded-xl bg-[#252724] px-4 text-xs font-semibold text-white disabled:opacity-50">
+          <button
+            type="button"
+            onClick={() => void startVerification()}
+            disabled={redirecting}
+            className="h-10 rounded-xl bg-[#252724] px-4 text-xs font-semibold text-white disabled:opacity-50"
+          >
             {redirecting ? "Redirecting..." : "Continue to verification"}
           </button>
         </div>

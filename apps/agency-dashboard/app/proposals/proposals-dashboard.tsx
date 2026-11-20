@@ -330,7 +330,11 @@ export function ProposalsDashboard() {
 
         {userLoaded && !isLoading && !filtered.length && (
           <div className="px-6 py-16 text-center">
-            <Icon name="proposal" size={34} className="mx-auto text-[#858a82]" />
+            <Icon
+              name="proposal"
+              size={34}
+              className="mx-auto text-[#858a82]"
+            />
             <h2 className="mt-4 font-semibold">No proposals found</h2>
             <p className="mt-2 text-sm text-[#7c8179]">
               Try another status or search term.

@@ -8,9 +8,17 @@ export const clientHeaderNavigation = [
 export const clientSidebarNavigation = [
   { href: "/", label: "Home", icon: "solar:home-2-linear" },
   { href: "/jobs", label: "Job posts", icon: "solar:document-add-linear" },
-  { href: "/proposals", label: "Proposals", icon: "solar:users-group-rounded-linear" },
+  {
+    href: "/proposals",
+    label: "Proposals",
+    icon: "solar:users-group-rounded-linear",
+  },
   { href: "/contracts", label: "Contracts", icon: "solar:case-round-linear" },
-  { href: "/messages", label: "Messages", icon: "solar:chat-round-dots-linear" },
+  {
+    href: "/messages",
+    label: "Messages",
+    icon: "solar:chat-round-dots-linear",
+  },
   {
     href: "/settings?section=overview",
     label: "Settings",

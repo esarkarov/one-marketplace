@@ -13,7 +13,11 @@ type SubmitWorkModalProps = {
   }) => Promise<void>;
 };
 
-export function SubmitWorkModal({ contract, onClose, onSubmit }: SubmitWorkModalProps) {
+export function SubmitWorkModal({
+  contract,
+  onClose,
+  onSubmit,
+}: SubmitWorkModalProps) {
   const [submitted, setSubmitted] = useState(false);
   const [comment, setComment] = useState("");
   const [commentError, setCommentError] = useState("");
@@ -49,32 +53,65 @@ export function SubmitWorkModal({ contract, onClose, onSubmit }: SubmitWorkModal
 
   if (submitted) {
     return (
-      <div role="dialog" aria-modal="true" className="fixed inset-0 z-60 grid place-items-center bg-[#172018]/45 p-5 backdrop-blur-[2px]">
+      <div
+        role="dialog"
+        aria-modal="true"
+        className="fixed inset-0 z-60 grid place-items-center bg-[#172018]/45 p-5 backdrop-blur-[2px]"
+      >
         <div className="w-full max-w-md rounded-2xl bg-white p-8 text-center shadow-2xl">
           <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#e6f2e3] text-[#4d784a]">
             <Icon icon="solar:check-circle-bold" width="30" />
           </span>
           <h2 className="mt-5 text-xl font-semibold">Work submitted</h2>
-          <p className="mt-2 text-sm leading-6 text-[#737870]">Your submission was sent to {contract.client} for review.</p>
-          <button type="button" onClick={onClose} className="mt-6 h-11 w-full cursor-pointer rounded-xl bg-[#252724] text-sm font-semibold text-white">Back to contracts</button>
+          <p className="mt-2 text-sm leading-6 text-[#737870]">
+            Your submission was sent to {contract.client} for review.
+          </p>
+          <button
+            type="button"
+            onClick={onClose}
+            className="mt-6 h-11 w-full cursor-pointer rounded-xl bg-[#252724] text-sm font-semibold text-white"
+          >
+            Back to contracts
+          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <div role="dialog" aria-modal="true" aria-labelledby="submit-work-title" className="fixed inset-0 z-60 grid place-items-center bg-[#172018]/45 p-5 backdrop-blur-[2px]">
-      <form onSubmit={submitWork} className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl sm:p-7">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="submit-work-title"
+      className="fixed inset-0 z-60 grid place-items-center bg-[#172018]/45 p-5 backdrop-blur-[2px]"
+    >
+      <form
+        onSubmit={submitWork}
+        className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl sm:p-7"
+      >
         <div className="flex items-start justify-between">
           <div>
-            <p className="text-xs font-semibold tracking-wide text-[#62805f] uppercase">Milestone submission</p>
-            <h2 id="submit-work-title" className="mt-2 text-xl font-semibold">Submit work for review</h2>
+            <p className="text-xs font-semibold tracking-wide text-[#62805f] uppercase">
+              Milestone submission
+            </p>
+            <h2 id="submit-work-title" className="mt-2 text-xl font-semibold">
+              Submit work for review
+            </h2>
           </div>
-          <button type="button" onClick={onClose} aria-label="Close" className="cursor-pointer"><Icon icon="solar:close-circle-linear" width="25" /></button>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="cursor-pointer"
+          >
+            <Icon icon="solar:close-circle-linear" width="25" />
+          </button>
         </div>
         <div className="mt-5 rounded-xl bg-[#f2f5f0] p-4">
           <p className="text-[11px] text-[#7b8078]">{contract.client}</p>
-          <p className="mt-1 text-sm font-semibold">{contract.currentMilestone}</p>
+          <p className="mt-1 text-sm font-semibold">
+            {contract.currentMilestone}
+          </p>
         </div>
         <label className="mt-5 block text-xs font-semibold">
           Comment to client <span className="text-[#a04d4d]">*</span>
@@ -104,12 +141,27 @@ export function SubmitWorkModal({ contract, onClose, onSubmit }: SubmitWorkModal
           Every milestone submission must include a clear review comment.
         </p>
         <label className="mt-4 block text-xs font-semibold">
-          Deliverable link <span className="font-normal text-[#8a8f87]">(optional)</span>
-          <input type="url" value={deliveryLink} onChange={(event) => setDeliveryLink(event.target.value)} placeholder="https://…" className="mt-2 h-11 w-full rounded-xl border border-black/10 px-3 text-sm font-normal outline-none focus:border-[#6e916a]" />
+          Deliverable link{" "}
+          <span className="font-normal text-[#8a8f87]">(optional)</span>
+          <input
+            type="url"
+            value={deliveryLink}
+            onChange={(event) => setDeliveryLink(event.target.value)}
+            placeholder="https://…"
+            className="mt-2 h-11 w-full rounded-xl border border-black/10 px-3 text-sm font-normal outline-none focus:border-[#6e916a]"
+          />
         </label>
-        {submitError && <p className="mt-3 text-xs text-[#a65050]">{submitError}</p>}
+        {submitError && (
+          <p className="mt-3 text-xs text-[#a65050]">{submitError}</p>
+        )}
         <div className="mt-6 flex justify-end gap-2">
-          <button type="button" onClick={onClose} className="h-11 cursor-pointer rounded-xl border border-black/10 px-5 text-sm font-semibold">Cancel</button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="h-11 cursor-pointer rounded-xl border border-black/10 px-5 text-sm font-semibold"
+          >
+            Cancel
+          </button>
           <button
             type="submit"
             disabled={!comment.trim() || submitting}

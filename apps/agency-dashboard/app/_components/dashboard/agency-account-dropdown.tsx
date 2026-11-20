@@ -57,7 +57,10 @@ export function AgencyAccountDropdown() {
       );
       const result = await response.json();
       if (!response.ok) throw new Error(result.message);
-      return result.data as { name: string; members: AgencyMineMember[] } | null;
+      return result.data as {
+        name: string;
+        members: AgencyMineMember[];
+      } | null;
     },
   });
 

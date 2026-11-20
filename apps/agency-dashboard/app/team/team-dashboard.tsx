@@ -97,7 +97,9 @@ export function TeamDashboard() {
         profileId: member.profileId,
         name: member.name,
         avatarUrl: member.avatarUrl,
-        role: member.isOwner ? "Agency owner" : (member.role as "Business manager" | "Agency member"),
+        role: member.isOwner
+          ? "Agency owner"
+          : (member.role as "Business manager" | "Agency member"),
         skills: member.skills,
         isOwner: member.isOwner,
         rating: member.rating,
@@ -254,7 +256,12 @@ export function TeamDashboard() {
 
       <section className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {[
-          ["Total members", members.length, "team", "bg-[#e7f2e4] text-[#4d784a]"],
+          [
+            "Total members",
+            members.length,
+            "team",
+            "bg-[#e7f2e4] text-[#4d784a]",
+          ],
           [
             "Business managers",
             members.filter((member) => member.role === "Business manager")
@@ -369,7 +376,11 @@ export function TeamDashboard() {
           ))}
         {!isLoading &&
           visibleRows.map((row) => (
-            <MemberCard key={`${row.kind}-${row.id}`} row={row} onView={setSelected} />
+            <MemberCard
+              key={`${row.kind}-${row.id}`}
+              row={row}
+              onView={setSelected}
+            />
           ))}
       </div>
 

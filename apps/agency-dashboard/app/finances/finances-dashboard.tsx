@@ -92,7 +92,9 @@ export function FinancesDashboard({
       );
       const result = await response.json();
       if (!response.ok) {
-        throw new Error(result.message || "Agency Connects could not be loaded.");
+        throw new Error(
+          result.message || "Agency Connects could not be loaded.",
+        );
       }
       return result.data as { connects: number };
     },
@@ -109,7 +111,9 @@ export function FinancesDashboard({
       );
       const result = await response.json();
       if (!response.ok) {
-        throw new Error(result.message || "Connects history could not be loaded.");
+        throw new Error(
+          result.message || "Connects history could not be loaded.",
+        );
       }
       return result.data as {
         id: string;
@@ -132,7 +136,9 @@ export function FinancesDashboard({
       );
       const result = await response.json();
       if (!response.ok) {
-        throw new Error(result.message || "Agency earnings could not be loaded.");
+        throw new Error(
+          result.message || "Agency earnings could not be loaded.",
+        );
       }
       return result.data as AgencyEarningsOverview;
     },
@@ -172,7 +178,9 @@ export function FinancesDashboard({
       const sameMonth =
         date.getMonth() === now.getMonth() &&
         date.getFullYear() === now.getFullYear();
-      return sameMonth && item.amount < 0 ? total + Math.abs(item.amount) : total;
+      return sameMonth && item.amount < 0
+        ? total + Math.abs(item.amount)
+        : total;
     }, 0);
   }, [connectsHistory]);
 
@@ -196,7 +204,9 @@ export function FinancesDashboard({
       );
       const result = await response.json();
       if (!response.ok || !result.data?.url) {
-        throw new Error(result.message || "Stripe could not be opened right now.");
+        throw new Error(
+          result.message || "Stripe could not be opened right now.",
+        );
       }
       window.location.assign(result.data.url);
     } catch (caughtError) {
@@ -249,7 +259,9 @@ export function FinancesDashboard({
                   <button
                     type="button"
                     onClick={() => void manageOnStripe()}
-                    disabled={redirecting || !overview || overview.available <= 0}
+                    disabled={
+                      redirecting || !overview || overview.available <= 0
+                    }
                     className="mt-5 h-10 w-full cursor-pointer rounded-xl bg-white text-xs font-semibold text-[#252724] disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {redirecting
@@ -304,7 +316,9 @@ export function FinancesDashboard({
                   <p className="mt-6 text-3xl font-semibold tracking-[-0.045em]">
                     {overview ? formatCurrency(overview.lifetime) : "..."}
                   </p>
-                  <p className="mt-1 text-xs text-[#7b8078]">Lifetime earnings</p>
+                  <p className="mt-1 text-xs text-[#7b8078]">
+                    Lifetime earnings
+                  </p>
                   <div className="mt-5 flex h-10 items-end gap-1.5">
                     {series.length ? (
                       series.map((item) => (
@@ -348,10 +362,15 @@ export function FinancesDashboard({
                   ["Pending", overview?.pending],
                   ["Lifetime", overview?.lifetime],
                 ].map(([label, value]) => (
-                  <div key={label as string} className="rounded-xl bg-[#f3f5f1] p-4">
+                  <div
+                    key={label as string}
+                    className="rounded-xl bg-[#f3f5f1] p-4"
+                  >
                     <p className="text-[11px] text-[#7b8078]">{label}</p>
                     <p className="mt-1 text-xl font-semibold">
-                      {typeof value === "number" ? formatCurrency(value) : "..."}
+                      {typeof value === "number"
+                        ? formatCurrency(value)
+                        : "..."}
                     </p>
                   </div>
                 ))}
@@ -410,9 +429,9 @@ export function FinancesDashboard({
                 <p className="rounded-xl bg-[#fbeceb] px-4 py-3 text-xs leading-5 text-[#a4453d]">
                   Payouts are currently only available for agencies whose owner
                   is based in the United States, United Kingdom, Canada,
-                  Switzerland, and the European Economic Area (EEA). Support
-                  for more countries is coming soon — earnings stay safely on
-                  the agency balance until then.
+                  Switzerland, and the European Economic Area (EEA). Support for
+                  more countries is coming soon — earnings stay safely on the
+                  agency balance until then.
                 </p>
               </div>
             </section>
@@ -475,7 +494,6 @@ export function FinancesDashboard({
               ))}
             </section>
           )}
-
         </div>
       </div>
 
@@ -533,7 +551,9 @@ function EarningsRows({ items }: { items: AgencyEarningItem[] }) {
             </p>
           </div>
           <div className="text-right">
-            <p className="text-sm font-semibold">{formatCurrency(item.amount)}</p>
+            <p className="text-sm font-semibold">
+              {formatCurrency(item.amount)}
+            </p>
             <p
               className={`mt-1 text-[10px] ${
                 item.status === "AVAILABLE"

@@ -40,11 +40,7 @@ export type AgencyChatMessage =
       title: string;
       amount: number;
       status:
-        | "Added"
-        | "Funded"
-        | "Submitted"
-        | "Changes requested"
-        | "Approved";
+        "Added" | "Funded" | "Submitted" | "Changes requested" | "Approved";
       href: string;
       time: string;
       note?: string;

@@ -290,7 +290,10 @@ export function MessagesDashboard({
   );
 
   const selectedBase = conversations.find(({ id }) => id === conversationId);
-  const contractStatuses = new Map<string, "Active" | "Declined" | "Completed">();
+  const contractStatuses = new Map<
+    string,
+    "Active" | "Declined" | "Completed"
+  >();
   const endedMeetingIds = new Set<string>();
   loadedMessages.forEach((message) => {
     if (
@@ -299,8 +302,9 @@ export function MessagesDashboard({
         message.eventType === "CONTRACT_DECLINED" ||
         message.eventType === "CONTRACT_COMPLETED")
     ) {
-      const contractId = (message.eventPayload as { contractId?: string } | null)
-        ?.contractId;
+      const contractId = (
+        message.eventPayload as { contractId?: string } | null
+      )?.contractId;
       if (contractId) {
         contractStatuses.set(
           contractId,
@@ -321,9 +325,7 @@ export function MessagesDashboard({
       if (meetingId) endedMeetingIds.add(meetingId);
     }
   });
-  const selectedMessages: FreelancerMessage[] = (
-    loadedMessages
-  )
+  const selectedMessages: FreelancerMessage[] = loadedMessages
     .filter(
       (message) =>
         !(
@@ -333,148 +335,149 @@ export function MessagesDashboard({
         ),
     )
     .map((message) => {
-    if (
-      message.messageType === "SYSTEM_EVENT" &&
-      message.eventType === "CONTRACT_COMPLETED"
-    ) {
-      const payload = message.eventPayload as {
-        contractId?: string;
-        title?: string;
-      } | null;
-      return {
-        id: message.id,
-        kind: "contract_completed",
-        sender: "system",
-        contractId: payload?.contractId,
-        title: payload?.title ?? "Contract completed",
-        href: payload?.contractId
-          ? `/contracts?contractId=${payload.contractId}`
-          : "/contracts",
-        time: format(message.createdAt),
-      };
-    }
+      if (
+        message.messageType === "SYSTEM_EVENT" &&
+        message.eventType === "CONTRACT_COMPLETED"
+      ) {
+        const payload = message.eventPayload as {
+          contractId?: string;
+          title?: string;
+        } | null;
+        return {
+          id: message.id,
+          kind: "contract_completed",
+          sender: "system",
+          contractId: payload?.contractId,
+          title: payload?.title ?? "Contract completed",
+          href: payload?.contractId
+            ? `/contracts?contractId=${payload.contractId}`
+            : "/contracts",
+          time: format(message.createdAt),
+        };
+      }
 
-    if (
-      message.messageType === "SYSTEM_EVENT" &&
-      message.eventType === "CONTRACT_OFFER"
-    ) {
-      const payload = message.eventPayload as {
-        contractId?: string;
-        title?: string;
-        firstMilestone?: { amount?: number };
-      } | null;
-      const contractId = payload?.contractId ?? "";
-      return {
-        id: message.id,
-        kind: "contract",
-        contractId,
-        sender: "client",
-        title: payload?.title ?? "Contract offer",
-        amount: Number(payload?.firstMilestone?.amount ?? 0),
-        status: contractStatuses.get(contractId) ?? "Awaiting acceptance",
-        href: payload?.contractId
-          ? `/contracts?contractId=${payload.contractId}`
-          : "/contracts",
-        time: format(message.createdAt),
-      };
-    }
+      if (
+        message.messageType === "SYSTEM_EVENT" &&
+        message.eventType === "CONTRACT_OFFER"
+      ) {
+        const payload = message.eventPayload as {
+          contractId?: string;
+          title?: string;
+          firstMilestone?: { amount?: number };
+        } | null;
+        const contractId = payload?.contractId ?? "";
+        return {
+          id: message.id,
+          kind: "contract",
+          contractId,
+          sender: "client",
+          title: payload?.title ?? "Contract offer",
+          amount: Number(payload?.firstMilestone?.amount ?? 0),
+          status: contractStatuses.get(contractId) ?? "Awaiting acceptance",
+          href: payload?.contractId
+            ? `/contracts?contractId=${payload.contractId}`
+            : "/contracts",
+          time: format(message.createdAt),
+        };
+      }
 
-    if (
-      message.messageType === "SYSTEM_EVENT" &&
-      (message.eventType === "MILESTONE_SUBMITTED" ||
-        message.eventType === "MILESTONE_ADDED" ||
-        message.eventType === "MILESTONE_FUNDED" ||
-        message.eventType === "MILESTONE_APPROVED" ||
-        message.eventType === "MILESTONE_CHANGES_REQUESTED")
-    ) {
-      const payload = message.eventPayload as {
-        contractId?: string;
-        milestoneTitle?: string;
-        amount?: number;
-        submissionMessage?: string;
-        submissionDeliveryLink?: string | null;
-        requirements?: string | null;
-        dueDate?: string;
-      } | null;
-      return {
-        id: message.id,
-        kind: "milestone",
-        sender:
-          message.eventType === "MILESTONE_SUBMITTED" ? "talent" : "client",
-        title: payload?.milestoneTitle ?? "Milestone update",
-        amount: Number(payload?.amount ?? 0),
-        status:
-          message.eventType === "MILESTONE_APPROVED"
-            ? "Approved"
-            : message.eventType === "MILESTONE_CHANGES_REQUESTED"
-              ? "Changes requested"
-              : message.eventType === "MILESTONE_ADDED"
-                ? "Added"
-              : message.eventType === "MILESTONE_FUNDED"
-                ? "Funded"
-                : "Submitted",
-        href: payload?.contractId
-          ? `/contracts?contractId=${payload.contractId}`
-          : "/contracts",
-        time: format(message.createdAt),
-        note: payload?.submissionMessage ?? payload?.requirements ?? undefined,
-        deliveryLink: payload?.submissionDeliveryLink ?? undefined,
-        dueDate: payload?.dueDate,
-      };
-    }
+      if (
+        message.messageType === "SYSTEM_EVENT" &&
+        (message.eventType === "MILESTONE_SUBMITTED" ||
+          message.eventType === "MILESTONE_ADDED" ||
+          message.eventType === "MILESTONE_FUNDED" ||
+          message.eventType === "MILESTONE_APPROVED" ||
+          message.eventType === "MILESTONE_CHANGES_REQUESTED")
+      ) {
+        const payload = message.eventPayload as {
+          contractId?: string;
+          milestoneTitle?: string;
+          amount?: number;
+          submissionMessage?: string;
+          submissionDeliveryLink?: string | null;
+          requirements?: string | null;
+          dueDate?: string;
+        } | null;
+        return {
+          id: message.id,
+          kind: "milestone",
+          sender:
+            message.eventType === "MILESTONE_SUBMITTED" ? "talent" : "client",
+          title: payload?.milestoneTitle ?? "Milestone update",
+          amount: Number(payload?.amount ?? 0),
+          status:
+            message.eventType === "MILESTONE_APPROVED"
+              ? "Approved"
+              : message.eventType === "MILESTONE_CHANGES_REQUESTED"
+                ? "Changes requested"
+                : message.eventType === "MILESTONE_ADDED"
+                  ? "Added"
+                  : message.eventType === "MILESTONE_FUNDED"
+                    ? "Funded"
+                    : "Submitted",
+          href: payload?.contractId
+            ? `/contracts?contractId=${payload.contractId}`
+            : "/contracts",
+          time: format(message.createdAt),
+          note:
+            payload?.submissionMessage ?? payload?.requirements ?? undefined,
+          deliveryLink: payload?.submissionDeliveryLink ?? undefined,
+          dueDate: payload?.dueDate,
+        };
+      }
 
-    if (
-      message.messageType === "SYSTEM_EVENT" &&
-      message.eventType === "MEETING_STARTED"
-    ) {
-      const payload = message.eventPayload as {
-        joinUrl?: string;
-        meetingId?: string;
-      } | null;
+      if (
+        message.messageType === "SYSTEM_EVENT" &&
+        message.eventType === "MEETING_STARTED"
+      ) {
+        const payload = message.eventPayload as {
+          joinUrl?: string;
+          meetingId?: string;
+        } | null;
+        return {
+          id: message.id,
+          kind: "meeting",
+          sender: message.senderId === userId ? "talent" : "client",
+          title: "Video meeting",
+          startsAt: `Started ${format(message.createdAt)}`,
+          meetUrl: payload?.joinUrl ?? "",
+          ended: payload?.meetingId
+            ? endedMeetingIds.has(payload.meetingId)
+            : false,
+          time: format(message.createdAt),
+        };
+      }
+
+      if (
+        message.messageType === "SYSTEM_EVENT" &&
+        message.eventType === "MEETING_ENDED"
+      ) {
+        const payload = message.eventPayload as {
+          durationMinutes?: number;
+        } | null;
+        return {
+          id: message.id,
+          kind: "meeting_ended",
+          durationMinutes: payload?.durationMinutes ?? 0,
+          time: format(message.createdAt),
+        };
+      }
+
       return {
         id: message.id,
-        kind: "meeting",
+        kind: "text",
         sender: message.senderId === userId ? "talent" : "client",
-        title: "Video meeting",
-        startsAt: `Started ${format(message.createdAt)}`,
-        meetUrl: payload?.joinUrl ?? "",
-        ended: payload?.meetingId
-          ? endedMeetingIds.has(payload.meetingId)
-          : false,
+        text: message.body ?? "Shared an attachment.",
         time: format(message.createdAt),
-      };
-    }
-
-    if (
-      message.messageType === "SYSTEM_EVENT" &&
-      message.eventType === "MEETING_ENDED"
-    ) {
-      const payload = message.eventPayload as {
-        durationMinutes?: number;
-      } | null;
-      return {
-        id: message.id,
-        kind: "meeting_ended",
-        durationMinutes: payload?.durationMinutes ?? 0,
-        time: format(message.createdAt),
-      };
-    }
-
-      return {
-      id: message.id,
-      kind: "text",
-      sender: message.senderId === userId ? "talent" : "client",
-      text: message.body ?? "Shared an attachment.",
-      time: format(message.createdAt),
-      replyToId: message.replyToMessageId ?? undefined,
-      attachment: message.attachments[0]
-        ? {
-            name: message.attachments[0].file_name,
-            size: `${(message.attachments[0].file_size / 1024 / 1024).toFixed(1)} MB`,
-            type: message.attachments[0].mime_type,
-            url: message.attachments[0].file_url,
-          }
-        : undefined,
+        replyToId: message.replyToMessageId ?? undefined,
+        attachment: message.attachments[0]
+          ? {
+              name: message.attachments[0].file_name,
+              size: `${(message.attachments[0].file_size / 1024 / 1024).toFixed(1)} MB`,
+              type: message.attachments[0].mime_type,
+              url: message.attachments[0].file_url,
+            }
+          : undefined,
       };
     });
   const selected = selectedBase
@@ -561,13 +564,20 @@ export function MessagesDashboard({
         },
       )
         .then(async (response) => {
-          if (!response.ok) throw new Error("Messages could not be marked read.");
+          if (!response.ok)
+            throw new Error("Messages could not be marked read.");
         })
         .catch(() => {
           if (markedReadRef.current === readKey) markedReadRef.current = null;
         }),
     );
-  }, [getToken, loadedMessages, queryClient, selectedConversation, socketReady]);
+  }, [
+    getToken,
+    loadedMessages,
+    queryClient,
+    selectedConversation,
+    socketReady,
+  ]);
 
   const selectConversation = (conversation: FreelancerConversation) =>
     router.push(`/messages?conversationId=${conversation.id}`);
@@ -725,7 +735,9 @@ export function MessagesDashboard({
       });
     } catch (error) {
       setFileError(
-        error instanceof Error ? error.message : "Meeting could not be created.",
+        error instanceof Error
+          ? error.message
+          : "Meeting could not be created.",
       );
     } finally {
       setCreatingMeeting(false);
@@ -987,15 +999,17 @@ export function MessagesDashboard({
                   <span className="h-5 w-5 animate-spin rounded-full border-2 border-black/10 border-t-[#638b60]" />
                 </div>
               )}
-              {!messagesLoading && !hasNextPage && selected.messages.length > 0 && (
-                <div className="flex items-center gap-3 py-1">
-                <span className="h-px flex-1 bg-black/7" />
-                <span className="text-[9px] font-medium text-[#969b94]">
-                  Project activity
-                </span>
-                <span className="h-px flex-1 bg-black/7" />
-                </div>
-              )}
+              {!messagesLoading &&
+                !hasNextPage &&
+                selected.messages.length > 0 && (
+                  <div className="flex items-center gap-3 py-1">
+                    <span className="h-px flex-1 bg-black/7" />
+                    <span className="text-[9px] font-medium text-[#969b94]">
+                      Project activity
+                    </span>
+                    <span className="h-px flex-1 bg-black/7" />
+                  </div>
+                )}
               {selected.messages.map((message) => (
                 <TransactionMessage
                   key={message.id}
@@ -1471,7 +1485,8 @@ function TransactionMessage({
                   The contract “{message.title}” was completed.
                 </p>
                 <p className="mt-1.5 text-xs leading-5 text-[#5e695c]">
-                  This contract has been completed. Feedback has been recorded and all remaining payments have been settled.
+                  This contract has been completed. Feedback has been recorded
+                  and all remaining payments have been settled.
                 </p>
               </div>
               <EventFooter
@@ -1499,16 +1514,17 @@ function TransactionMessage({
                       message.status === "Added"
                         ? "solar:add-circle-linear"
                         : message.status === "Approved"
-                        ? "solar:check-circle-bold"
-                        : message.status === "Funded"
-                          ? "solar:shield-check-bold"
-                        : message.status === "Changes requested"
-                          ? "solar:restart-circle-linear"
-                          : "solar:upload-minimalistic-linear"
+                          ? "solar:check-circle-bold"
+                          : message.status === "Funded"
+                            ? "solar:shield-check-bold"
+                            : message.status === "Changes requested"
+                              ? "solar:restart-circle-linear"
+                              : "solar:upload-minimalistic-linear"
                     }
                     width="18"
                     className={
-                      message.status === "Approved" || message.status === "Funded"
+                      message.status === "Approved" ||
+                      message.status === "Funded"
                         ? "text-[#52784f]"
                         : message.status === "Changes requested"
                           ? "text-[#8a6d30]"
@@ -1519,19 +1535,21 @@ function TransactionMessage({
                     {message.status === "Added"
                       ? "Client added a new milestone"
                       : message.status === "Approved"
-                      ? "Client accepted your submission"
-                      : message.status === "Funded"
-                        ? "Client funded and activated this milestone"
-                      : message.status === "Changes requested"
-                        ? "Client requested modifications"
-                        : "Work submitted for client review"}
+                        ? "Client accepted your submission"
+                        : message.status === "Funded"
+                          ? "Client funded and activated this milestone"
+                          : message.status === "Changes requested"
+                            ? "Client requested modifications"
+                            : "Work submitted for client review"}
                   </p>
                 </div>
-                {(message.status === "Submitted" || message.status === "Funded") && message.note && (
-                  <p className="mt-2 text-xs leading-5 text-[#697067]">
-                    {message.note}
-                  </p>
-                )}
+                {(message.status === "Submitted" ||
+                  message.status === "Funded") &&
+                  message.note && (
+                    <p className="mt-2 text-xs leading-5 text-[#697067]">
+                      {message.note}
+                    </p>
+                  )}
                 {message.status === "Added" && message.dueDate && (
                   <p className="mt-2 text-[10px] text-[#697067]">
                     Due {message.dueDate}

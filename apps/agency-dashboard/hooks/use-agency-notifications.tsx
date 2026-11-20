@@ -16,15 +16,12 @@ export type Notification = {
 };
 
 type NotificationCategory =
-  | "Payments"
-  | "Messages"
-  | "Proposals"
-  | "Contracts"
-  | "Account";
+  "Payments" | "Messages" | "Proposals" | "Contracts" | "Account";
 
 const categoryFor = (type: string): NotificationCategory => {
   const value = type.toLowerCase();
-  if (value.includes("payment") || value.includes("connects")) return "Payments";
+  if (value.includes("payment") || value.includes("connects"))
+    return "Payments";
   if (value.includes("message")) return "Messages";
   if (value.includes("proposal") || value.includes("interview"))
     return "Proposals";

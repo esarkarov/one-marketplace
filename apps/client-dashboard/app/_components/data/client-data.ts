@@ -68,12 +68,7 @@ export type ClientProposal = {
     freelancerHasReviewed: boolean;
   }>;
   status:
-    | "New"
-    | "Shortlisted"
-    | "Interview"
-    | "Offer sent"
-    | "Rejected"
-    | "Hired";
+    "New" | "Shortlisted" | "Interview" | "Offer sent" | "Rejected" | "Hired";
 };
 
 export type ClientContract = {
@@ -205,11 +200,7 @@ export type ClientMessage =
       title: string;
       amount: number;
       status:
-        | "Added"
-        | "Funded"
-        | "Submitted"
-        | "Changes requested"
-        | "Approved";
+        "Added" | "Funded" | "Submitted" | "Changes requested" | "Approved";
       href: string;
       time: string;
       contractId?: string;

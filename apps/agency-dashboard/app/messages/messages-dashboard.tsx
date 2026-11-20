@@ -16,7 +16,10 @@ import { markConversationLocallyRead } from "@/hooks/use-unread-messages";
 import { AgencyShell } from "../_components/dashboard/agency-shell";
 import { ConversationPanel } from "../_components/messages/conversation-panel";
 import { InboxList } from "../_components/messages/inbox-list";
-import type { AgencyConversation, AgencyChatMessage } from "../_components/messages/types";
+import type {
+  AgencyConversation,
+  AgencyChatMessage,
+} from "../_components/messages/types";
 import { Icon } from "../_components/ui/icon";
 
 type ApiConversation = {
@@ -92,9 +95,9 @@ export function MessagesDashboard({
   const { getToken, userId } = useAuth();
   const [search, setSearch] = useState("");
   const [sending, setSending] = useState(false);
-  const [acceptingContractId, setAcceptingContractId] = useState<
-    string | null
-  >(null);
+  const [acceptingContractId, setAcceptingContractId] = useState<string | null>(
+    null,
+  );
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
   const [typingUser, setTypingUser] = useState<{
     conversationId: string;
@@ -112,13 +115,18 @@ export function MessagesDashboard({
         auth: { token, role: "freelancer", scope: "agency" },
       });
       socketRef.current = socket;
-      socket.on(
-        "presence:snapshot",
-        ({ userIds }: { userIds: string[] }) => setOnlineUsers(new Set(userIds)),
+      socket.on("presence:snapshot", ({ userIds }: { userIds: string[] }) =>
+        setOnlineUsers(new Set(userIds)),
       );
       socket.on(
         "presence:update",
-        ({ userId: changedUserId, online }: { userId: string; online: boolean }) =>
+        ({
+          userId: changedUserId,
+          online,
+        }: {
+          userId: string;
+          online: boolean;
+        }) =>
           setOnlineUsers((current) => {
             const next = new Set(current);
             online ? next.add(changedUserId) : next.delete(changedUserId);
@@ -303,9 +311,8 @@ export function MessagesDashboard({
       message.messageType === "SYSTEM_EVENT" &&
       message.eventType === "MEETING_ENDED"
     ) {
-      const meetingId = (
-        message.eventPayload as { meetingId?: string } | null
-      )?.meetingId;
+      const meetingId = (message.eventPayload as { meetingId?: string } | null)
+        ?.meetingId;
       if (meetingId) endedMeetingIds.add(meetingId);
     }
     if (
@@ -423,7 +430,8 @@ export function MessagesDashboard({
             ? `/contracts?contractId=${payload.contractId}`
             : "/contracts",
           time: format(message.createdAt),
-          note: payload?.submissionMessage ?? payload?.requirements ?? undefined,
+          note:
+            payload?.submissionMessage ?? payload?.requirements ?? undefined,
           deliveryLink: payload?.submissionDeliveryLink ?? undefined,
           dueDate: payload?.dueDate,
         };
@@ -535,7 +543,8 @@ export function MessagesDashboard({
         },
       )
         .then(async (response) => {
-          if (!response.ok) throw new Error("Messages could not be marked read.");
+          if (!response.ok)
+            throw new Error("Messages could not be marked read.");
         })
         .catch(() => {
           if (markedReadRef.current === readKey) markedReadRef.current = null;
@@ -693,7 +702,9 @@ export function MessagesDashboard({
       });
     } catch (error) {
       setMeetingError(
-        error instanceof Error ? error.message : "Meeting could not be created.",
+        error instanceof Error
+          ? error.message
+          : "Meeting could not be created.",
       );
     } finally {
       setCreatingMeeting(false);
@@ -764,8 +775,8 @@ export function MessagesDashboard({
 
   const otherPartyTyping = Boolean(
     typingUser &&
-      typingUser.conversationId === conversationId &&
-      typingUser.userId !== userId,
+    typingUser.conversationId === conversationId &&
+    typingUser.userId !== userId,
   );
 
   return (
@@ -797,7 +808,9 @@ export function MessagesDashboard({
           />
         </div>
 
-        <div className={`min-h-0 min-w-0 ${selected ? "block" : "hidden lg:block"}`}>
+        <div
+          className={`min-h-0 min-w-0 ${selected ? "block" : "hidden lg:block"}`}
+        >
           {selected ? (
             <ConversationPanel
               conversation={selected}
@@ -834,7 +847,9 @@ export function MessagesDashboard({
                   <Icon name="message" size={31} />
                 </span>
                 <h2 className="mt-5 text-lg font-semibold">
-                  {inboxLoading ? "Loading conversation..." : "Conversation not found"}
+                  {inboxLoading
+                    ? "Loading conversation..."
+                    : "Conversation not found"}
                 </h2>
                 <p className="mx-auto mt-2 max-w-xs text-sm leading-6 text-[#7b8078]">
                   {inboxLoading
@@ -853,8 +868,8 @@ export function MessagesDashboard({
                   Select a conversation
                 </h2>
                 <p className="mx-auto mt-2 max-w-xs text-sm leading-6 text-[#7b8078]">
-                  Choose a client conversation to view messages, share files,
-                  or create a project meeting.
+                  Choose a client conversation to view messages, share files, or
+                  create a project meeting.
                 </p>
               </div>
             </section>

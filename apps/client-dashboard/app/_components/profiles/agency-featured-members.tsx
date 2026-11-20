@@ -108,7 +108,11 @@ export function AgencyFeaturedMembers({
 
               <div className="flex items-center gap-4 border-t border-black/6 pt-3 text-[10px] text-[#70766e]">
                 <span className="inline-flex items-center gap-1">
-                  <Icon icon="solar:star-bold" width="13" className="text-[#d4a934]" />
+                  <Icon
+                    icon="solar:star-bold"
+                    width="13"
+                    className="text-[#d4a934]"
+                  />
                   {member.rating.toFixed(1)} rating
                 </span>
                 <span>{member.jobSuccessScore}% JSS</span>
@@ -137,7 +141,9 @@ export function AgencyFeaturedMembers({
               }
               width="16"
             />
-            {expanded ? "Show fewer members" : `Show ${remainingCount} more members`}
+            {expanded
+              ? "Show fewer members"
+              : `Show ${remainingCount} more members`}
           </button>
         </div>
       )}

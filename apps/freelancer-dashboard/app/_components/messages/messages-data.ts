@@ -17,13 +17,21 @@ export const initialConversations: Conversation[] = [
         kind: "proposal",
         sender: "me",
         title: "Senior Next.js developer for a collaborative workspace",
-        coverLetter: "I’ll begin with the real-time event model, validate presence and conflict handling, then deliver the product in funded milestones.",
+        coverLetter:
+          "I’ll begin with the real-time event model, validate presence and conflict handling, then deliver the product in funded milestones.",
         bid: "$11,500",
         duration: "10 weeks",
         skills: ["Next.js", "TypeScript", "PostgreSQL", "WebSockets"],
         time: "July 25",
       },
-      { id: 2, kind: "text", sender: "client", text: "Your proposal looks like a strong match. I’d like to discuss the architecture with you. Please share your availability.", replyToId: 1, time: "July 25" },
+      {
+        id: 2,
+        kind: "text",
+        sender: "client",
+        text: "Your proposal looks like a strong match. I’d like to discuss the architecture with you. Please share your availability.",
+        replyToId: 1,
+        time: "July 25",
+      },
       {
         id: 3,
         kind: "contract",
@@ -68,7 +76,13 @@ export const initialConversations: Conversation[] = [
         status: "released",
         time: "8:36 AM",
       },
-      { id: 3, kind: "text", sender: "me", text: "Thank you. I’ll move into the research and citation workflow today.", time: "8:41 AM" },
+      {
+        id: 3,
+        kind: "text",
+        sender: "me",
+        text: "Thank you. I’ll move into the research and citation workflow today.",
+        time: "8:41 AM",
+      },
       {
         id: 4,
         kind: "milestone",
@@ -86,7 +100,8 @@ export const initialConversations: Conversation[] = [
         sender: "client",
         title: "Milestone funded in escrow",
         amount: "$4,500",
-        description: "Payment is protected in escrow and will be released after approval.",
+        description:
+          "Payment is protected in escrow and will be released after approval.",
         status: "escrowed",
         time: "8:45 AM",
       },
@@ -103,7 +118,13 @@ export const initialConversations: Conversation[] = [
     lastMessage: "We’ll have consolidated feedback tomorrow.",
     lastMessageTime: "1d",
     messages: [
-      { id: 1, kind: "text", sender: "me", text: "I’ve submitted the final verification report and assistive-technology results.", time: "Monday" },
+      {
+        id: 1,
+        kind: "text",
+        sender: "me",
+        text: "I’ve submitted the final verification report and assistive-technology results.",
+        time: "Monday",
+      },
       {
         id: 2,
         kind: "text",
@@ -123,7 +144,13 @@ export const initialConversations: Conversation[] = [
         note: "Final report, verification notes, and assistive-technology results submitted for review.",
         time: "Monday",
       },
-      { id: 4, kind: "text", sender: "client", text: "Thanks, Shahriar. We’ll have consolidated feedback tomorrow.", time: "Yesterday" },
+      {
+        id: 4,
+        kind: "text",
+        sender: "client",
+        text: "Thanks, Shahriar. We’ll have consolidated feedback tomorrow.",
+        time: "Yesterday",
+      },
     ],
   },
   {
@@ -142,13 +169,20 @@ export const initialConversations: Conversation[] = [
         kind: "proposal",
         sender: "me",
         title: "SaaS analytics dashboard",
-        coverLetter: "I can turn the approved designs into a responsive, accessible dashboard with reusable components.",
+        coverLetter:
+          "I can turn the approved designs into a responsive, accessible dashboard with reusable components.",
         bid: "$6,000",
         duration: "7 weeks",
         skills: ["React", "TypeScript", "Accessibility"],
         time: "July 23",
       },
-      { id: 2, kind: "text", sender: "client", text: "Thanks for taking the time to speak with us. We’ll be in touch after the final interview.", time: "July 24" },
+      {
+        id: 2,
+        kind: "text",
+        sender: "client",
+        text: "Thanks for taking the time to speak with us. We’ll be in touch after the final interview.",
+        time: "July 24",
+      },
     ],
   },
 ];

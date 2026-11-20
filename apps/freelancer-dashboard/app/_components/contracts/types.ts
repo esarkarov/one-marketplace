@@ -1,9 +1,6 @@
 export type MilestoneStatus = "Paid" | "In progress" | "Upcoming";
 export type ContractStatus =
-  | "Pending"
-  | "Active"
-  | "Awaiting feedback"
-  | "Completed";
+  "Pending" | "Active" | "Awaiting feedback" | "Completed";
 
 export type Milestone = {
   id: number | string;

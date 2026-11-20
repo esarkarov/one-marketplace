@@ -135,7 +135,9 @@ export function AgencyJobFeed() {
       );
       const result = await response.json();
       if (!response.ok) {
-        throw new Error(result.message || "Agency Connects could not be loaded.");
+        throw new Error(
+          result.message || "Agency Connects could not be loaded.",
+        );
       }
       return result.data as { connects: number };
     },
@@ -177,7 +179,8 @@ export function AgencyJobFeed() {
   );
 
   const appliedJobIds = useMemo(
-    () => new Set(proposalMetadata?.proposals.map((proposal) => proposal.jobId)),
+    () =>
+      new Set(proposalMetadata?.proposals.map((proposal) => proposal.jobId)),
     [proposalMetadata],
   );
 
@@ -341,7 +344,9 @@ export function AgencyJobFeed() {
                 <JobCardsSkeleton />
               ) : jobsError ? (
                 <div className="rounded-2xl border border-dashed border-black/12 bg-white px-6 py-16 text-center">
-                  <h2 className="font-semibold">Job posts could not be loaded</h2>
+                  <h2 className="font-semibold">
+                    Job posts could not be loaded
+                  </h2>
                   <p className="mt-2 text-sm text-[#777c74]">
                     Please try again in a moment.
                   </p>
@@ -436,7 +441,10 @@ export function AgencyJobFeed() {
                   <Icon name="chart" size={20} className="text-[#9fbb9c]" />
                 </div>
                 <p className="mt-3 text-3xl font-semibold">
-                  ${Math.round(earningsSummary.currentMonthTotal).toLocaleString()}
+                  $
+                  {Math.round(
+                    earningsSummary.currentMonthTotal,
+                  ).toLocaleString()}
                 </p>
                 <p className="mt-1 text-xs text-[#aeb6ad]">
                   {earningsChange >= 0 ? "+" : "-"}$

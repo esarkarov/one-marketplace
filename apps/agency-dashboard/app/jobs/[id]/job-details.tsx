@@ -425,7 +425,11 @@ const JobDetails = () => {
                     {job.clientRating && job.clientRating > 0 ? (
                       <>
                         <span>{job.clientRating.toFixed(1)}</span>
-                        <Icon name="star" size={14} className="text-[#d2a43a]" />
+                        <Icon
+                          name="star"
+                          size={14}
+                          className="text-[#d2a43a]"
+                        />
                         {job.clientReviewCount ? (
                           <span className="text-xs font-normal text-[#838880]">
                             ({job.clientReviewCount})

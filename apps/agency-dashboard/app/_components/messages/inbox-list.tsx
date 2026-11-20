@@ -36,7 +36,11 @@ export function InboxList({
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         {loading ? (
-          <div className="grid gap-3 p-4" aria-label="Loading conversations" aria-busy="true">
+          <div
+            className="grid gap-3 p-4"
+            aria-label="Loading conversations"
+            aria-busy="true"
+          >
             {[0, 1, 2, 3].map((item) => (
               <div key={item} className="flex animate-pulse gap-3">
                 <div className="h-11 w-11 shrink-0 rounded-full bg-[#e5e8e2]" />

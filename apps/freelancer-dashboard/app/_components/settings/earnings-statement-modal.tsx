@@ -88,9 +88,9 @@ export function EarningsStatementModal({
         </div>
 
         <p className="mt-4 text-sm leading-6 text-[#737870]">
-          Download a signed PDF certificate confirming your marketplace
-          earnings and professional freelance activity on OneMarketplace.io —
-          useful for visa, loan, or income verification purposes.
+          Download a signed PDF certificate confirming your marketplace earnings
+          and professional freelance activity on OneMarketplace.io — useful for
+          visa, loan, or income verification purposes.
         </p>
 
         <div className="mt-5 rounded-2xl border border-black/8 bg-[#f5f7f3] p-5">
@@ -108,10 +108,9 @@ export function EarningsStatementModal({
             </div>
           </div>
           <p className="mt-4 border-t border-black/7 pt-4 text-xs leading-5 text-[#7b8078]">
-            The certificate includes your name, title, location, when you
-            joined OneMarketplace.io, and payments received this month,
-            quarter, half-year, and year — generated fresh from your account
-            records.
+            The certificate includes your name, title, location, when you joined
+            OneMarketplace.io, and payments received this month, quarter,
+            half-year, and year — generated fresh from your account records.
           </p>
         </div>
 

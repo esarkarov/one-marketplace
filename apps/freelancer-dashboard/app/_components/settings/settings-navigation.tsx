@@ -8,7 +8,10 @@ type SettingsNavigationProps = {
   onChange: (section: SettingsSectionId) => void;
 };
 
-export function SettingsNavigation({ active, onChange }: SettingsNavigationProps) {
+export function SettingsNavigation({
+  active,
+  onChange,
+}: SettingsNavigationProps) {
   return (
     <nav className="rounded-2xl border border-black/8 bg-white p-2">
       {settingsSections.map((section) => (
@@ -22,7 +25,14 @@ export function SettingsNavigation({ active, onChange }: SettingsNavigationProps
               : "text-[#686d65] hover:bg-black/3"
           }`}
         >
-          <Icon icon={active === section.id ? section.icon.replace("-linear", "-bold") : section.icon} width="19" />
+          <Icon
+            icon={
+              active === section.id
+                ? section.icon.replace("-linear", "-bold")
+                : section.icon
+            }
+            width="19"
+          />
           {section.label}
         </button>
       ))}

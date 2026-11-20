@@ -21,7 +21,8 @@ export function OngoingProjects({ projects }: { projects: OngoingProject[] }) {
           <h2 className="mt-2 text-xl font-semibold">Ongoing projects</h2>
         </div>
         <p className="text-xs text-[#8a8f87]">
-          {projects.length} active {projects.length === 1 ? "project" : "projects"}
+          {projects.length} active{" "}
+          {projects.length === 1 ? "project" : "projects"}
         </p>
       </div>
 
@@ -43,10 +44,10 @@ export function OngoingProjects({ projects }: { projects: OngoingProject[] }) {
                 <p className="mt-1 text-xs text-[#7b8078]">
                   {project.client} · Started{" "}
                   {project.created_at
-                    ? new Date(project.created_at).toLocaleDateString(
-                        "en-US",
-                        { month: "long", year: "numeric" },
-                      )
+                    ? new Date(project.created_at).toLocaleDateString("en-US", {
+                        month: "long",
+                        year: "numeric",
+                      })
                     : "recently"}
                 </p>
               </div>

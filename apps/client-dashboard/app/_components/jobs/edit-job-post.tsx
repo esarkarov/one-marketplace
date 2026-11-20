@@ -67,7 +67,7 @@ export function EditJobPost({ jobId }: { jobId: string }) {
     screeningQuestions: job.screening_questions ?? [],
     attachments: job.attachments ?? [],
   };
-  
+
   const formKey = `${job.id}-${initialJob.attachments.map(({ fileId }) => fileId).join("-")}`;
 
   return (

@@ -336,14 +336,13 @@ export function MessagesDashboard({
       message.messageType === "SYSTEM_EVENT" &&
       message.eventType === "MEETING_ENDED"
     ) {
-      const meetingId = (
-        message.eventPayload as { meetingId?: string } | null
-      )?.meetingId;
+      const meetingId = (message.eventPayload as { meetingId?: string } | null)
+        ?.meetingId;
       if (meetingId) endedMeetingIds.add(meetingId);
     }
     if (
-      (message.eventType === "MILESTONE_APPROVED" ||
-        message.eventType === "MILESTONE_CHANGES_REQUESTED")
+      message.eventType === "MILESTONE_APPROVED" ||
+      message.eventType === "MILESTONE_CHANGES_REQUESTED"
     ) {
       const milestoneId = (
         message.eventPayload as { milestoneId?: string } | null
@@ -812,7 +811,9 @@ export function MessagesDashboard({
       });
     } catch (error) {
       setFileError(
-        error instanceof Error ? error.message : "Meeting could not be created.",
+        error instanceof Error
+          ? error.message
+          : "Meeting could not be created.",
       );
     } finally {
       setCreatingMeeting(false);
@@ -1406,275 +1407,278 @@ function TransactionMessage({
 
   return (
     <>
-    <article
-      className={`w-full rounded-2xl border border-black/8 bg-white p-5 ${
-        message.sender === "client" ? "ml-auto" : "mr-auto"
-      }`}
-    >
-      <div className="flex items-start gap-3">
-        <span
-          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${eventStyle.tone}`}
-        >
-          <Icon icon={eventStyle.icon} width="20" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-[9px] font-semibold tracking-wide text-[#798077] uppercase">
-              {eventStyle.eyebrow}
-            </p>
-            <span className="text-[9px] text-[#969b94]">{message.time}</span>
-          </div>
-          <h3 className="mt-2 text-sm font-semibold">{message.title}</h3>
-
-          {message.kind === "proposal" && (
-            <>
-              <p className="mt-3 text-xs leading-5 text-[#6c736a]">
-                {message.summary}
-              </p>
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {message.skills.slice(0, 4).map((skill) => (
-                  <span
-                    key={skill}
-                    className="rounded-lg bg-[#f0f3ed] px-2.5 py-1.5 text-[10px]"
-                  >
-                    {skill}
-                  </span>
-                ))}
-              </div>
-              <EventFooter
-                detail={`$${message.bid.toLocaleString()} · ${message.duration}`}
-                href={message.href}
-                action="View proposal"
-              />
-            </>
-          )}
-
-          {message.kind === "meeting" &&
-            (message.ended ? (
-              <p className="mt-3 border-t border-black/6 pt-3 text-[10px] font-semibold text-[#8a8f87]">
-                Meeting ended
-              </p>
-            ) : (
-              <EventFooter
-                detail={message.startsAt}
-                href={message.meetUrl}
-                action="Join meeting"
-                external
-              />
-            ))}
-
-          {message.kind === "contract" && (
-            <>
-              <div className="mt-3 rounded-xl bg-[#f7f5fa] p-3">
-                <p className="text-[9px] font-medium text-[#81758e]">
-                  First milestone funded
-                </p>
-                <p className="mt-1 text-lg font-semibold text-[#29252d]">
-                  ${message.amount.toLocaleString()}
-                </p>
-              </div>
-              <div
-                className={`mt-4 flex items-center justify-between gap-3 rounded-xl px-3 py-3 text-[10px] font-semibold ${
-                  message.status === "Completed"
-                    ? "bg-[#edf4ea] text-[#52784f]"
-                    : message.status === "Active"
-                      ? "bg-[#edf4ea] text-[#52784f]"
-                      : "bg-[#faf5e8] text-[#80672f]"
-                }`}
-              >
-                <span className="flex items-center gap-2">
-                  <Icon
-                    icon={
-                      message.status === "Completed" || message.status === "Active"
-                        ? "solar:check-circle-bold"
-                        : "solar:clock-circle-linear"
-                    }
-                    width="17"
-                  />
-                  {message.status === "Completed"
-                    ? "Contract completed"
-                    : message.status === "Active"
-                      ? "Offer accepted · Contract is now active"
-                      : "Waiting for the freelancer to accept"}
-                </span>
-                {(message.status === "Active" || message.status === "Completed") && (
-                  <Link href={message.href} className="shrink-0 underline">
-                    View contract
-                  </Link>
-                )}
-              </div>
-            </>
-          )}
-
-          {message.kind === "contract_completed" && (
-            <>
-              <div className="mt-3 rounded-xl border border-[#d2e4ce] bg-[#edf4ea]/70 p-4">
-                <p className="flex items-center gap-2 text-xs font-semibold text-[#486d45]">
-                  <Icon
-                    icon="solar:check-circle-bold"
-                    width="18"
-                    className="text-[#52784f]"
-                  />
-                  The contract “{message.title}” was completed.
-                </p>
-                <p className="mt-1.5 text-xs leading-5 text-[#5e695c]">
-                  This contract has been completed. Feedback has been recorded and all remaining payments have been settled.
-                </p>
-              </div>
-              <EventFooter
-                detail="Contract completed"
-                href={message.href}
-                action="View contract"
-              />
-            </>
-          )}
-
-          {message.kind === "milestone" && (
-            <>
-              <div className="mt-3 rounded-xl bg-[#f4f6f2] p-4">
-                <p className="flex items-center gap-2 text-[10px] font-semibold text-[#52784f]">
-                  <Icon
-                    icon={
-                      message.status === "Added"
-                        ? "solar:add-circle-linear"
-                        : message.status === "Funded"
-                          ? "solar:shield-check-bold"
-                          : "solar:upload-minimalistic-linear"
-                    }
-                    width="16"
-                  />
-                  {message.status === "Added"
-                    ? "New milestone added"
-                    : message.status === "Funded"
-                      ? "Milestone funded and activated"
-                      : "Work submitted for review"}
-                </p>
-                {message.submissionMessage && (
-                  <p className="mt-2 text-xs leading-5 text-[#697067]">
-                    {message.submissionMessage}
-                  </p>
-                )}
-                {message.submissionDeliveryLink && (
-                  <a
-                    href={message.submissionDeliveryLink}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mt-3 inline-flex items-center gap-1 text-[10px] font-semibold text-[#52784f] underline"
-                  >
-                    Open deliverable
-                    <Icon icon="solar:arrow-right-up-linear" width="12" />
-                  </a>
-                )}
-                {message.status === "Added" && message.dueDate && (
-                  <p className="mt-2 text-[10px] text-[#697067]">
-                    Due {message.dueDate}
-                  </p>
-                )}
-              </div>
-              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-black/6 pt-4">
-                <span className="text-[10px] font-semibold text-[#747b72]">
-                  ${message.amount.toLocaleString()} · {message.status}
-                </span>
-                {message.status === "Submitted" && (
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      disabled={Boolean(reviewing)}
-                      onClick={() => setReviewDialog("REQUEST_CHANGES")}
-                      className="h-9 rounded-lg border border-black/10 px-3 text-[10px] font-semibold disabled:opacity-50"
-                    >
-                      {reviewing === "REQUEST_CHANGES"
-                        ? "Requesting…"
-                        : "Request modification"}
-                    </button>
-                    <button
-                      type="button"
-                      disabled={Boolean(reviewing)}
-                      onClick={() => setReviewDialog("APPROVE")}
-                      className="h-9 rounded-lg bg-[#252724] px-3 text-[10px] font-semibold text-white disabled:opacity-50"
-                    >
-                      {reviewing === "APPROVE" ? "Accepting…" : "Accept work"}
-                    </button>
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-    </article>
-    {reviewDialog && message.kind === "milestone" && (
-      <div
-        className="fixed w-full h-screen inset-0 z-60 flex items-center justify-center bg-black/35 p-4"
-        onMouseDown={(event) => {
-          if (event.target === event.currentTarget && !reviewing)
-            setReviewDialog(null);
-        }}
+      <article
+        className={`w-full rounded-2xl border border-black/8 bg-white p-5 ${
+          message.sender === "client" ? "ml-auto" : "mr-auto"
+        }`}
       >
-        <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
-          <h3 className="text-lg font-semibold">
-            {reviewDialog === "APPROVE"
-              ? "Accept submitted work?"
-              : "Request modifications"}
-          </h3>
-          <p className="mt-2 text-sm leading-6 text-[#72776f]">
-            {reviewDialog === "APPROVE"
-              ? "Confirming will approve this milestone and release the funded amount to the freelancer."
-              : "Tell the freelancer exactly what needs to be changed."}
-          </p>
-          {reviewDialog === "REQUEST_CHANGES" && (
-            <textarea
-              autoFocus
-              value={modificationMessage}
-              onChange={(event) => setModificationMessage(event.target.value)}
-              placeholder="Describe the required modifications..."
-              className="mt-4 min-h-32 w-full resize-none rounded-xl border border-black/10 p-3 text-sm outline-none focus:border-[#638b60]"
-            />
-          )}
-          <div className="mt-5 flex justify-end gap-2">
-            <button
-              type="button"
-              disabled={Boolean(reviewing)}
-              onClick={() => setReviewDialog(null)}
-              className="h-10 rounded-xl border border-black/10 px-4 text-xs font-semibold disabled:opacity-50"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              disabled={
-                Boolean(reviewing) ||
-                (reviewDialog === "REQUEST_CHANGES" &&
-                  !modificationMessage.trim())
-              }
-              onClick={() => {
-                const action = reviewDialog;
-                setReviewing(action);
-                void onReviewMilestone(
-                  message,
-                  action,
-                  action === "REQUEST_CHANGES"
-                    ? modificationMessage.trim()
-                    : undefined,
-                )
-                  .then(() => {
-                    setReviewDialog(null);
-                    setModificationMessage("");
-                  })
-                  .finally(() => setReviewing(null));
-              }}
-              className="h-10 rounded-xl bg-[#252724] px-4 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {reviewing
-                ? "Processing…"
-                : reviewDialog === "APPROVE"
-                  ? "Accept and release funds"
-                  : "Send request"}
-            </button>
+        <div className="flex items-start gap-3">
+          <span
+            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${eventStyle.tone}`}
+          >
+            <Icon icon={eventStyle.icon} width="20" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-[9px] font-semibold tracking-wide text-[#798077] uppercase">
+                {eventStyle.eyebrow}
+              </p>
+              <span className="text-[9px] text-[#969b94]">{message.time}</span>
+            </div>
+            <h3 className="mt-2 text-sm font-semibold">{message.title}</h3>
+
+            {message.kind === "proposal" && (
+              <>
+                <p className="mt-3 text-xs leading-5 text-[#6c736a]">
+                  {message.summary}
+                </p>
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {message.skills.slice(0, 4).map((skill) => (
+                    <span
+                      key={skill}
+                      className="rounded-lg bg-[#f0f3ed] px-2.5 py-1.5 text-[10px]"
+                    >
+                      {skill}
+                    </span>
+                  ))}
+                </div>
+                <EventFooter
+                  detail={`$${message.bid.toLocaleString()} · ${message.duration}`}
+                  href={message.href}
+                  action="View proposal"
+                />
+              </>
+            )}
+
+            {message.kind === "meeting" &&
+              (message.ended ? (
+                <p className="mt-3 border-t border-black/6 pt-3 text-[10px] font-semibold text-[#8a8f87]">
+                  Meeting ended
+                </p>
+              ) : (
+                <EventFooter
+                  detail={message.startsAt}
+                  href={message.meetUrl}
+                  action="Join meeting"
+                  external
+                />
+              ))}
+
+            {message.kind === "contract" && (
+              <>
+                <div className="mt-3 rounded-xl bg-[#f7f5fa] p-3">
+                  <p className="text-[9px] font-medium text-[#81758e]">
+                    First milestone funded
+                  </p>
+                  <p className="mt-1 text-lg font-semibold text-[#29252d]">
+                    ${message.amount.toLocaleString()}
+                  </p>
+                </div>
+                <div
+                  className={`mt-4 flex items-center justify-between gap-3 rounded-xl px-3 py-3 text-[10px] font-semibold ${
+                    message.status === "Completed"
+                      ? "bg-[#edf4ea] text-[#52784f]"
+                      : message.status === "Active"
+                        ? "bg-[#edf4ea] text-[#52784f]"
+                        : "bg-[#faf5e8] text-[#80672f]"
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <Icon
+                      icon={
+                        message.status === "Completed" ||
+                        message.status === "Active"
+                          ? "solar:check-circle-bold"
+                          : "solar:clock-circle-linear"
+                      }
+                      width="17"
+                    />
+                    {message.status === "Completed"
+                      ? "Contract completed"
+                      : message.status === "Active"
+                        ? "Offer accepted · Contract is now active"
+                        : "Waiting for the freelancer to accept"}
+                  </span>
+                  {(message.status === "Active" ||
+                    message.status === "Completed") && (
+                    <Link href={message.href} className="shrink-0 underline">
+                      View contract
+                    </Link>
+                  )}
+                </div>
+              </>
+            )}
+
+            {message.kind === "contract_completed" && (
+              <>
+                <div className="mt-3 rounded-xl border border-[#d2e4ce] bg-[#edf4ea]/70 p-4">
+                  <p className="flex items-center gap-2 text-xs font-semibold text-[#486d45]">
+                    <Icon
+                      icon="solar:check-circle-bold"
+                      width="18"
+                      className="text-[#52784f]"
+                    />
+                    The contract “{message.title}” was completed.
+                  </p>
+                  <p className="mt-1.5 text-xs leading-5 text-[#5e695c]">
+                    This contract has been completed. Feedback has been recorded
+                    and all remaining payments have been settled.
+                  </p>
+                </div>
+                <EventFooter
+                  detail="Contract completed"
+                  href={message.href}
+                  action="View contract"
+                />
+              </>
+            )}
+
+            {message.kind === "milestone" && (
+              <>
+                <div className="mt-3 rounded-xl bg-[#f4f6f2] p-4">
+                  <p className="flex items-center gap-2 text-[10px] font-semibold text-[#52784f]">
+                    <Icon
+                      icon={
+                        message.status === "Added"
+                          ? "solar:add-circle-linear"
+                          : message.status === "Funded"
+                            ? "solar:shield-check-bold"
+                            : "solar:upload-minimalistic-linear"
+                      }
+                      width="16"
+                    />
+                    {message.status === "Added"
+                      ? "New milestone added"
+                      : message.status === "Funded"
+                        ? "Milestone funded and activated"
+                        : "Work submitted for review"}
+                  </p>
+                  {message.submissionMessage && (
+                    <p className="mt-2 text-xs leading-5 text-[#697067]">
+                      {message.submissionMessage}
+                    </p>
+                  )}
+                  {message.submissionDeliveryLink && (
+                    <a
+                      href={message.submissionDeliveryLink}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-3 inline-flex items-center gap-1 text-[10px] font-semibold text-[#52784f] underline"
+                    >
+                      Open deliverable
+                      <Icon icon="solar:arrow-right-up-linear" width="12" />
+                    </a>
+                  )}
+                  {message.status === "Added" && message.dueDate && (
+                    <p className="mt-2 text-[10px] text-[#697067]">
+                      Due {message.dueDate}
+                    </p>
+                  )}
+                </div>
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-black/6 pt-4">
+                  <span className="text-[10px] font-semibold text-[#747b72]">
+                    ${message.amount.toLocaleString()} · {message.status}
+                  </span>
+                  {message.status === "Submitted" && (
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        disabled={Boolean(reviewing)}
+                        onClick={() => setReviewDialog("REQUEST_CHANGES")}
+                        className="h-9 rounded-lg border border-black/10 px-3 text-[10px] font-semibold disabled:opacity-50"
+                      >
+                        {reviewing === "REQUEST_CHANGES"
+                          ? "Requesting…"
+                          : "Request modification"}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={Boolean(reviewing)}
+                        onClick={() => setReviewDialog("APPROVE")}
+                        className="h-9 rounded-lg bg-[#252724] px-3 text-[10px] font-semibold text-white disabled:opacity-50"
+                      >
+                        {reviewing === "APPROVE" ? "Accepting…" : "Accept work"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         </div>
-      </div>
-    )}
+      </article>
+      {reviewDialog && message.kind === "milestone" && (
+        <div
+          className="fixed w-full h-screen inset-0 z-60 flex items-center justify-center bg-black/35 p-4"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !reviewing)
+              setReviewDialog(null);
+          }}
+        >
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+            <h3 className="text-lg font-semibold">
+              {reviewDialog === "APPROVE"
+                ? "Accept submitted work?"
+                : "Request modifications"}
+            </h3>
+            <p className="mt-2 text-sm leading-6 text-[#72776f]">
+              {reviewDialog === "APPROVE"
+                ? "Confirming will approve this milestone and release the funded amount to the freelancer."
+                : "Tell the freelancer exactly what needs to be changed."}
+            </p>
+            {reviewDialog === "REQUEST_CHANGES" && (
+              <textarea
+                autoFocus
+                value={modificationMessage}
+                onChange={(event) => setModificationMessage(event.target.value)}
+                placeholder="Describe the required modifications..."
+                className="mt-4 min-h-32 w-full resize-none rounded-xl border border-black/10 p-3 text-sm outline-none focus:border-[#638b60]"
+              />
+            )}
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                disabled={Boolean(reviewing)}
+                onClick={() => setReviewDialog(null)}
+                className="h-10 rounded-xl border border-black/10 px-4 text-xs font-semibold disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={
+                  Boolean(reviewing) ||
+                  (reviewDialog === "REQUEST_CHANGES" &&
+                    !modificationMessage.trim())
+                }
+                onClick={() => {
+                  const action = reviewDialog;
+                  setReviewing(action);
+                  void onReviewMilestone(
+                    message,
+                    action,
+                    action === "REQUEST_CHANGES"
+                      ? modificationMessage.trim()
+                      : undefined,
+                  )
+                    .then(() => {
+                      setReviewDialog(null);
+                      setModificationMessage("");
+                    })
+                    .finally(() => setReviewing(null));
+                }}
+                className="h-10 rounded-xl bg-[#252724] px-4 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {reviewing
+                  ? "Processing…"
+                  : reviewDialog === "APPROVE"
+                    ? "Accept and release funds"
+                    : "Send request"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
