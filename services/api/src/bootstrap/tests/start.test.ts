@@ -10,6 +10,7 @@ const hoisted = vi.hoisted(() => ({
   initializeMessagingSocket: vi.fn(),
   startPayoutCron: vi.fn(),
   startRefundReconciliationCron: vi.fn(),
+  registerNotificationsPush: vi.fn(),
   handleFatalError: vi.fn(),
   exitWithFlush: vi.fn(),
   createServer: vi.fn(),
@@ -37,6 +38,12 @@ vi.mock("@/infrastructure/events/rabbitmq.client.js", () => ({
 vi.mock("@/modules/notifications/notifications.consumer.js", () => ({
   startNotificationConsumer: hoisted.startNotificationConsumer,
 }));
+vi.mock(
+  "@/modules/notifications/services/notifications.push.service.js",
+  () => ({
+    registerNotificationsPush: hoisted.registerNotificationsPush,
+  }),
+);
 vi.mock("@/modules/messaging/messaging.socket.js", () => ({
   initializeMessagingSocket: hoisted.initializeMessagingSocket,
 }));
@@ -92,6 +99,9 @@ describe("startup order and failures", () => {
     hoisted.startRefundReconciliationCron.mockReset().mockImplementation(() => {
       hoisted.order.push("refund-cron");
     });
+    hoisted.registerNotificationsPush.mockReset().mockImplementation(() => {
+      hoisted.order.push("push");
+    });
     hoisted.handleFatalError.mockReset().mockResolvedValue(undefined);
     hoisted.exitWithFlush.mockReset().mockResolvedValue(undefined);
   });
@@ -103,6 +113,7 @@ describe("startup order and failures", () => {
     expect(hoisted.pingDatabase).toHaveBeenCalledTimes(1);
     expect(hoisted.order).toEqual([
       "listen",
+      "push",
       "consumer",
       "socket",
       "cron",
@@ -111,6 +122,33 @@ describe("startup order and failures", () => {
     expect(hoisted.pingDatabase.mock.invocationCallOrder[0]!).toBeLessThan(
       hoisted.connectRedis.mock.invocationCallOrder[0]!,
     );
+  });
+
+  it("registers the notification pusher at startup when RabbitMQ is enabled", async () => {
+    hoisted.isRabbitEnabled.mockReturnValue(true);
+    const { start } = await load();
+    await start();
+
+    expect(hoisted.registerNotificationsPush).toHaveBeenCalledTimes(1);
+    expect(hoisted.startNotificationConsumer).toHaveBeenCalledTimes(1);
+  });
+
+  it("registers the notification pusher at startup when RabbitMQ is disabled, without the consumer", async () => {
+    hoisted.isRabbitEnabled.mockReturnValue(false);
+    const { start } = await load();
+    await start();
+
+    expect(hoisted.registerNotificationsPush).toHaveBeenCalledTimes(1);
+    expect(hoisted.startNotificationConsumer).not.toHaveBeenCalled();
+  });
+
+  it("registers no pusher when the database check fails", async () => {
+    hoisted.pingDatabase.mockRejectedValue(new Error("connection refused"));
+    const { start, handleStartupFailure } = await load();
+
+    await start().catch(handleStartupFailure);
+
+    expect(hoisted.registerNotificationsPush).not.toHaveBeenCalled();
   });
 
   it("fails before listening and starts nothing when the database check fails", async () => {

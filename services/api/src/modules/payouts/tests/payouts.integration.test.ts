@@ -17,6 +17,9 @@ const mocks = vi.hoisted(() => ({
   transfersList: vi.fn(),
   accountsRetrieve: vi.fn(),
   sendNotification: vi.fn(),
+  pushNotice: vi.fn(),
+  insertFailsFor: new Set<string>(),
+  failAfterInsertFor: new Set<string>(),
 }));
 
 vi.mock(
@@ -32,15 +35,50 @@ vi.mock(
   }),
 );
 
-vi.mock(
-  "@/infrastructure/events/notification.publisher.js",
-  async (importOriginal) => ({
-    ...(await importOriginal<
-      typeof import("@/infrastructure/events/notification.publisher.js")
-    >()),
-    sendNotification: mocks.sendNotification,
-  }),
-);
+vi.mock("@/modules/notification-store/index.js", async (importOriginal) => {
+  const original =
+    await importOriginal<
+      typeof import("@/modules/notification-store/index.js")
+    >();
+  return {
+    ...original,
+    insertNotification: async (
+      ...args: Parameters<typeof original.insertNotification>
+    ) => {
+      const eventId = args[1].eventId;
+      if (mocks.insertFailsFor.has(eventId)) throw new Error("injected insert");
+      const row = await original.insertNotification(...args);
+      if (mocks.failAfterInsertFor.has(eventId)) {
+        throw new Error("injected failure after insert");
+      }
+      return row;
+    },
+    pushStoredNotification: async (row: {
+      event_id: string;
+      recipient_id: string | null;
+      agency_id: string | null;
+      type: string;
+      title: string;
+      message: string;
+      link: string | null;
+      metadata: unknown;
+    }) => {
+      try {
+        await mocks.pushNotice({
+          ...(row.agency_id
+            ? { agencyId: row.agency_id }
+            : { recipientId: row.recipient_id }),
+          type: row.type,
+          title: row.title,
+          message: row.message,
+          link: row.link,
+          metadata: row.metadata,
+          eventId: row.event_id,
+        });
+      } catch {}
+    },
+  };
+});
 
 import { logger } from "@/config/logger.js";
 import { db, pool } from "@/database/client.js";
@@ -162,7 +200,7 @@ const retrieveCallsFor = (accountId: string) =>
   mocks.accountsRetrieve.mock.calls.filter(([id]) => id === accountId);
 
 const notificationsFor = (payoutId: string) =>
-  mocks.sendNotification.mock.calls.filter(
+  mocks.pushNotice.mock.calls.filter(
     ([input]) => input.eventId === uuidV5(payoutId),
   );
 
@@ -254,8 +292,11 @@ beforeEach(() => {
     return behaviour === "restricted" ? restrictedAccount : activeAccount;
   });
 
+  mocks.pushNotice.mockReset();
+  mocks.pushNotice.mockResolvedValue(undefined);
+  mocks.insertFailsFor.clear();
+  mocks.failAfterInsertFor.clear();
   mocks.sendNotification.mockReset();
-  mocks.sendNotification.mockResolvedValue("published");
 
   spies = (["debug", "info", "warn", "error"] as const).map((level) =>
     vi.spyOn(logger, level).mockImplementation((payload) => {
@@ -267,6 +308,7 @@ beforeEach(() => {
 
 afterEach(async () => {
   for (const spy of spies) spy.mockRestore();
+  await pool.query("delete from notifications where type = 'PAYOUT_COMPLETED'");
   await data.cleanup();
 });
 
@@ -917,7 +959,7 @@ describe("payout flow against real Postgres", () => {
     }
 
     const mine = new Set(payoutIds.map((id) => uuidV5(id)));
-    const sentIds = mocks.sendNotification.mock.calls
+    const sentIds = mocks.pushNotice.mock.calls
       .map(([input]) => input.eventId as string)
       .filter((eventId) => mine.has(eventId));
     expect(sentIds).toHaveLength(payoutIds.length);
@@ -969,8 +1011,87 @@ describe("payout flow against real Postgres", () => {
     expect((await readPayout(id))!.status).toBe("PENDING");
   });
 
-  describe("notification sweep", () => {
-    it("notifies a PAID row with notified_at NULL exactly once with the deterministic event id", async () => {
+  describe("payout notification", () => {
+    const storedFor = async (payoutId: string) =>
+      (
+        await pool.query("select * from notifications where event_id = $1", [
+          uuidV5(payoutId),
+        ])
+      ).rows;
+
+    it("writes the PAID state, the notice row and notified_at together, then pushes once", async () => {
+      const fixture = await data.createPayoutFixture();
+      const id = fixture.payoutId!;
+      const visibleAtPush: number[] = [];
+      mocks.pushNotice.mockImplementation(async () => {
+        visibleAtPush.push((await storedFor(id)).length);
+      });
+
+      await processDuePayouts();
+
+      const row = (await readPayout(id))!;
+      expect(row.status).toBe("PAID");
+      expect(row.notified_at).not.toBeNull();
+      const [stored] = await storedFor(id);
+      expect(stored).toMatchObject({
+        type: "PAYOUT_COMPLETED",
+        title: "Payment sent",
+        recipient_id: fixture.owner.freelancerId,
+        agency_id: null,
+        link: "/settings?section=earnings",
+        metadata: {
+          earningHistoryId: fixture.earningId,
+          amountCents: 10000,
+          stripeTransferId: row.stripe_transfer_id,
+        },
+      });
+      expect(visibleAtPush).toEqual([1]);
+      expect(notificationsFor(id)).toHaveLength(1);
+      expect(mocks.sendNotification).not.toHaveBeenCalled();
+    });
+
+    it("keeps the agency target and link for an agency payout", async () => {
+      const fixture = await data.createPayoutFixture({ owner: "agency" });
+      const id = fixture.payoutId!;
+
+      await processDuePayouts();
+
+      expect((await storedFor(id))[0]).toMatchObject({
+        recipient_id: null,
+        agency_id: fixture.owner.agencyId,
+        link: "/finances?section=withdrawals",
+      });
+    });
+
+    it("rolls back the PAID write when the insert fails after the row was written", async () => {
+      const fixture = await data.createPayoutFixture();
+      const id = fixture.payoutId!;
+      mocks.failAfterInsertFor.add(uuidV5(id));
+
+      await processDuePayouts();
+
+      expect(await storedFor(id)).toEqual([]);
+      expect(await readPayout(id)).toMatchObject({
+        status: "PROCESSING",
+        notified_at: null,
+        paid_at: null,
+      });
+      expect(mocks.pushNotice).not.toHaveBeenCalled();
+    });
+
+    it("does not fail the run or leave notified_at NULL when the push fails", async () => {
+      const fixture = await data.createPayoutFixture();
+      const id = fixture.payoutId!;
+      mocks.pushNotice.mockRejectedValue(new Error("sse down"));
+
+      await processDuePayouts();
+
+      expect(await readPayout(id)).toMatchObject({ status: "PAID" });
+      expect((await readPayout(id))!.notified_at).not.toBeNull();
+      expect(await storedFor(id)).toHaveLength(1);
+    });
+
+    it("delivers a legacy PAID row with notified_at NULL exactly once, and a second sweep sends nothing", async () => {
       const fixture = await data.createPayoutFixture({
         payout: { status: "PAID", attempts: 1 },
       });
@@ -979,111 +1100,38 @@ describe("payout flow against real Postgres", () => {
 
       await processDuePayouts();
 
-      const notifications = notificationsFor(id);
-      expect(notifications).toHaveLength(1);
-      expect(notifications[0]![0]).toMatchObject({
+      expect(notificationsFor(id)).toHaveLength(1);
+      expect(notificationsFor(id)[0]![0]).toMatchObject({
         type: "PAYOUT_COMPLETED",
         recipientId: fixture.owner.freelancerId,
         eventId: uuidV5(id),
       });
+      expect(await storedFor(id)).toHaveLength(1);
       expect((await readPayout(id))!.notified_at).not.toBeNull();
       expect(stripeCallCount(id)).toBe(0);
+      expect(mocks.sendNotification).not.toHaveBeenCalled();
 
       await processDuePayouts();
       expect(notificationsFor(id)).toHaveLength(1);
+      expect(await storedFor(id)).toHaveLength(1);
     });
 
-    it("keeps notified_at NULL while publishing fails and sets it once published", async () => {
-      const fixture = await data.createPayoutFixture({
-        owner: "agency",
-        payout: { status: "PAID", attempts: 1 },
-      });
-      const id = fixture.payoutId!;
-      mocks.sendNotification.mockResolvedValueOnce("failed");
-
-      await processDuePayouts();
-
-      expect(notificationsFor(id)).toHaveLength(1);
-      expect((await readPayout(id))!.notified_at).toBeNull();
-      expect(
-        eventsFor(id, "payment.payout.notification_failed")[0]?.level,
-      ).toBe("warn");
-
-      await processDuePayouts();
-
-      expect(notificationsFor(id)).toHaveLength(2);
-      expect(notificationsFor(id)[1]![0]).toMatchObject({
-        agencyId: fixture.owner.agencyId,
-        eventId: uuidV5(id),
-      });
-      expect((await readPayout(id))!.notified_at).not.toBeNull();
-
-      await processDuePayouts();
-      expect(notificationsFor(id)).toHaveLength(2);
-    });
-
-    it("leaves notified_at NULL after paying when the first publish fails, then publishes once from the sweep", async () => {
-      const fixture = await data.createPayoutFixture();
-      const id = fixture.payoutId!;
-      mocks.sendNotification.mockResolvedValueOnce("failed");
-
-      await processDuePayouts();
-
-      expect(await readPayout(id)).toMatchObject({
-        status: "PAID",
-        notified_at: null,
-      });
-      expect(notificationsFor(id)).toHaveLength(1);
-
-      await processDuePayouts();
-      await processDuePayouts();
-
-      expect(notificationsFor(id)).toHaveLength(2);
-      expect((await readPayout(id))!.notified_at).not.toBeNull();
-      expect(createCallsFor(id)).toHaveLength(1);
-    });
-
-    it("leaves notified_at NULL when RabbitMQ is disabled, then delivers and marks it once the broker is enabled", async () => {
+    it("marks a legacy row whose notice already exists notified without a second push", async () => {
       const fixture = await data.createPayoutFixture({
         payout: { status: "PAID", attempts: 1 },
       });
       const id = fixture.payoutId!;
-      mocks.sendNotification.mockResolvedValue("disabled");
+      await processDuePayouts();
+      await pool.query(
+        "update payout_history set notified_at = null where id = $1",
+        [id],
+      );
 
       await processDuePayouts();
-      await processDuePayouts();
 
-      expect(notificationsFor(id)).toHaveLength(2);
-      expect((await readPayout(id))!.notified_at).toBeNull();
-
-      mocks.sendNotification.mockResolvedValue("published");
-      await processDuePayouts();
-
-      expect(notificationsFor(id)).toHaveLength(3);
-      expect(notificationsFor(id)[2]![0]).toMatchObject({
-        eventId: uuidV5(id),
-      });
+      expect(await storedFor(id)).toHaveLength(1);
+      expect(notificationsFor(id)).toHaveLength(1);
       expect((await readPayout(id))!.notified_at).not.toBeNull();
-
-      await processDuePayouts();
-      expect(notificationsFor(id)).toHaveLength(3);
-    });
-
-    it("logs a disabled broker at debug level only, never warn or error", async () => {
-      const fixture = await data.createPayoutFixture({
-        payout: { status: "PAID", attempts: 1 },
-      });
-      const id = fixture.payoutId!;
-      mocks.sendNotification.mockResolvedValue("disabled");
-
-      await processDuePayouts();
-
-      expect(
-        eventsFor(id, "payment.payout.notification_skipped").map(
-          (entry) => entry.level,
-        ),
-      ).toEqual(["debug"]);
-      expect(eventsFor(id, "payment.payout.notification_failed")).toEqual([]);
     });
   });
 
@@ -1094,22 +1142,23 @@ describe("payout flow against real Postgres", () => {
         [id, minutesAgo],
       );
 
-    it("stamps notified_at only on the row whose publish succeeded", async () => {
+    it("stamps notified_at only on the row whose insert succeeded", async () => {
       const first = await data.createPayoutFixture({
         payout: { status: "PAID", attempts: 1 },
       });
       const second = await data.createPayoutFixture({
         payout: { status: "PAID", attempts: 1 },
       });
-      mocks.sendNotification.mockImplementation(
-        async (input: { eventId: string }) =>
-          input.eventId === uuidV5(second.payoutId!) ? "failed" : "published",
-      );
+      mocks.insertFailsFor.add(uuidV5(second.payoutId!));
 
       await processDuePayouts();
 
       expect((await readPayout(first.payoutId!))!.notified_at).not.toBeNull();
       expect((await readPayout(second.payoutId!))!.notified_at).toBeNull();
+      expect(
+        eventsFor(second.payoutId!, "payment.payout.notification_failed")[0]
+          ?.level,
+      ).toBe("error");
     });
 
     it("notifies every unnotified PAID row in one run", async () => {
@@ -1124,25 +1173,6 @@ describe("payout flow against real Postgres", () => {
 
       expect((await readPayout(first.payoutId!))!.notified_at).not.toBeNull();
       expect((await readPayout(second.payoutId!))!.notified_at).not.toBeNull();
-    });
-
-    it("does not overwrite a notified_at that was set while publishing", async () => {
-      const fixture = await data.createPayoutFixture({
-        payout: { status: "PAID", attempts: 1 },
-      });
-      const id = fixture.payoutId!;
-      const earlier = "2020-01-01T00:00:00.000Z";
-      mocks.sendNotification.mockImplementation(async () => {
-        await pool.query(
-          "update payout_history set notified_at = $2 where id = $1",
-          [id, earlier],
-        );
-        return "published";
-      });
-
-      await processDuePayouts();
-
-      expect((await readPayout(id))!.notified_at?.toISOString()).toBe(earlier);
     });
 
     it("sweeps the oldest paid_at first", async () => {
@@ -1165,7 +1195,7 @@ describe("payout flow against real Postgres", () => {
       await processDuePayouts();
 
       expect(
-        mocks.sendNotification.mock.calls.map(([input]) => input.eventId),
+        mocks.pushNotice.mock.calls.map(([input]) => input.eventId),
       ).toEqual([ids[2]!, ids[1]!, ids[0]!].map((id) => uuidV5(id)));
     });
   });

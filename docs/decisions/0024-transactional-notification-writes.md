@@ -1,6 +1,8 @@
 # 0024: Transactional notification writes
 
-Status: accepted (sub-batches 1 and 2 of 4 implemented)
+Status: accepted (sub-batches 1, 2 and 3 implemented; the must-not-lose set is complete, sub-batch 4 is documentation only)
+
+Status: complete for the must-not-lose set (2026-11-20). In the business transaction: CONTRACT_OFFER, MILESTONE_FUNDED, MILESTONE_SUBMITTED, MILESTONE_APPROVED, MILESTONE_CHANGES_REQUESTED, CONTRACT_DECLINED, CONTRACT_WITHDRAWN, PAYOUT_COMPLETED, PROPOSAL_INTERVIEWED, AGENCY_INVITATION. Still on RabbitMQ (nice-to-have, can be lost to a broker outage): CONTRACT_ACCEPTED, MILESTONE_ADDED, CONTRACT_COMPLETED, REVIEW_RECEIVED, PROPOSAL_RECEIVED, PROPOSAL_VIEWED, the answered-invitation notice and AGENCY_WELCOME_BONUS.
 
 ## Context
 
@@ -44,12 +46,12 @@ For a single instance, every must-not-lose effect can be written as a row in the
 
 1. Foundations (this ADR): the store, the deterministic id helper, the payout `"disabled"` fix, the move of the orphan payment detection test to the serial test project. No call site converted.
 2. Contracts: checkout, lifecycle and milestones notices, and the cancel notice written in the same transaction as the cancel and refund facts.
-3. Payout notice, proposal interview, agency invitation.
+3. Cancel notices (decline and withdraw), payout notice, proposal interview, agency invitation, and the push entry point at layer 0.
 4. Document refetch on reconnect in `docs/frontend-integration-notes.md`; decide whether the consumer path stays.
 
 ## Operator note
 
-Alert on the log name `queue.publish.skipped` (and `queue.publish.failed`): after sub-batch 3 only nice-to-have notices can be lost to a broker outage, but an outage is still visible only in logs. `payment.payout.notification_skipped` is a debug log: with RabbitMQ disabled a PAID payout stays unnotified and is retried hourly.
+Alert on the log name `queue.publish.skipped` (and `queue.publish.failed`): since sub-batch 3 only nice-to-have notices can be lost to a broker outage, but an outage is still visible only in logs. The `payment.payout.notification_skipped` debug log no longer exists; a failing payout notice sweep logs `payment.payout.notification_failed`.
 
 ## Consequences
 
@@ -61,8 +63,7 @@ Alert on the log name `queue.publish.skipped` (and `queue.publish.failed`): afte
 
 - SSE has no replay and no `Last-Event-ID`; clients refetch `GET /notifications` after a reconnect.
 - Realtime emits (`conversation:update`) can still fail after commit and sometimes fail the request; that is a separate parked item.
-- The refund reconciler's cancel notice still has the crash window of ADR 0023 until sub-batch 2.
-- Until a call site is converted, it behaves as before.
+- The refund reconciler's cancel notice had the crash window of ADR 0023 until sub-batch 3; it is closed for new refunds (see the sub-batch 3 note).
 
 ## Implementation: sub-batch 2, contract notices (2026-11-20)
 
@@ -84,3 +85,26 @@ Five flows now write the `notifications` row inside the business transaction wit
 - With RabbitMQ disabled the row is still written and pushed.
 - The push is folded into this batch, so sub-batch 4 is documentation only.
 - The consumer path is unchanged (store, ack, then push); the cancel notice (ADR 0023) is still on the old path.
+
+## Implementation: sub-batch 3, cancel, payout, interview and invitation notices (2026-11-20)
+
+### Push entry point at layer 0
+
+`notification-store` now owns the push entry point so every layer can call it: `pushStoredNotification(row)` (never throws; with no pusher registered it logs `notifications.push.no_pusher` at debug and returns) and `registerNotificationPusher(fn | null)`. The `notifications` module registers its SSE implementation (`registerNotificationsPush` in `services/notifications.push.service.ts`, which resolves the recipient's public account id and emits as the consumer does) in `bootstrap/start.ts` right after the server listens and always, whether or not `RABBITMQ_URL` is set, because a stored-row push does not need the broker. `bootstrap/shutdown.ts` clears it with `registerNotificationPusher(null)` once the HTTP server is closed. The push implementation is no longer exported from `notifications`: it had no other consumer, so `notifications/index.ts` was removed; `contracts` imports `pushStoredNotification` from the store. The direction is inverted without a cycle: the store imports no module, the notifications module imports the store.
+
+### Event ids and flows
+
+| Flow                          | Where                                                                     | Event id                                                                                                                                              |
+| ----------------------------- | ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| CONTRACT_DECLINED / WITHDRAWN | `recordRefundWithNotice` (`contracts.lifecycle.service.ts`)               | `uuidV5("contract-cancelled:" + contract id)`, unchanged                                                                                              |
+| PAYOUT_COMPLETED              | PAID write in `payouts.service.ts`, and `sweepUnnotified` for legacy rows | `uuidV5(payout_history.id)`, unchanged                                                                                                                |
+| PROPOSAL_INTERVIEWED          | `startProposalInterview` transaction                                      | `notificationEventId("PROPOSAL_INTERVIEWED", proposal id, "interviewed")`                                                                             |
+| AGENCY_INVITATION (create)    | `inviteAgencyMember` transaction                                          | `notificationEventId("AGENCY_INVITATION", invitation id, "invited")`                                                                                  |
+| AGENCY_INVITATION (resend)    | `resendAgencyInvitation` transaction                                      | `notificationEventId("AGENCY_INVITATION", invitation id, "resent-<updated_at in ms>")`; the resend touch sets `updated_at` and is at least 60 s apart |
+
+- Cancel: the guarded `refunded_at` update (`status = 'CANCELLED' AND refunded_at IS NULL`) and `insertNotification` run in one transaction. Only the winner inserts; a legacy row (`cancelled_by` NULL) records the refund and stores no notice. After commit `notifyCancellation` runs `emitConversationUpdate` first, as before, then the push; a failing emit therefore skips the push but never undoes the stored notice (the client sees it on refetch). The reconciler and the cancel path share this winner path.
+- Crash window: the old window between recording `refunded_at` and the notice is gone for refunds recorded from now on. A contract that already has `refunded_at` set and no row (a crash before this change) is not repaired: nothing re-sends it, by design.
+- Payout: the PAID transition, the notice row and `notified_at` are written in one transaction; the push follows the commit. If the insert fails, the PAID write rolls back, the row stays `PROCESSING` and the existing adopt-the-existing-transfer recovery pays it once. `sweepUnnotified` now covers only legacy PAID rows with `notified_at` NULL: one transaction per row inserts through the store (idempotent on the event id) and sets `notified_at`, then pushes. It no longer depends on RabbitMQ, `sendNotification` results or the `disabled` and `published` result handling, and the `payment.payout.notification_skipped` log is removed. Stripe transfer logic is untouched.
+- Interview: inserted after the guarded state change, the conversation and the connects refund, in the same transaction. PROPOSAL_VIEWED stays on RabbitMQ.
+- Invitation: the invitee lookup, the insert and the invitation write share the transaction; only the push keeps the try, catch and log (`task.agency.invitation_notify_failed`). A failed insert fails the request like any write. A recipient who is not a freelancer, is unknown or already belongs to an agency gets no notice, as before. The answered-invitation notice stays on RabbitMQ.
+- No migration, no registry or allowlist change, and `docs/api/openapi.json` is unchanged.

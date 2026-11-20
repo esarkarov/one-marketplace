@@ -133,7 +133,10 @@ export const touchPendingInvitationIfCooldownElapsed = async (
         sql`${agency_invitations.updated_at} <= now() - make_interval(secs => ${input.cooldownSeconds})`,
       ),
     )
-    .returning({ email: agency_invitations.email });
+    .returning({
+      email: agency_invitations.email,
+      updatedAt: agency_invitations.updated_at,
+    });
   return invitation;
 };
 

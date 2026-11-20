@@ -14,6 +14,8 @@ const mocks = vi.hoisted(() => ({
   verifyToken: vi.fn(),
   getUser: vi.fn(),
   sendNotification: vi.fn(),
+  pushNotice: vi.fn(),
+  failAfterInsert: false,
 }));
 
 vi.mock("@/config/env.js", async (importOriginal) => {
@@ -36,6 +38,47 @@ vi.mock(
   }),
 );
 
+vi.mock("@/modules/notification-store/index.js", async (importOriginal) => {
+  const original =
+    await importOriginal<
+      typeof import("@/modules/notification-store/index.js")
+    >();
+  return {
+    ...original,
+    insertNotification: async (
+      ...args: Parameters<typeof original.insertNotification>
+    ) => {
+      const row = await original.insertNotification(...args);
+      if (mocks.failAfterInsert) throw new Error("injected failure");
+      return row;
+    },
+    pushStoredNotification: async (row: {
+      event_id: string;
+      recipient_id: string | null;
+      agency_id: string | null;
+      type: string;
+      title: string;
+      message: string;
+      link: string | null;
+      metadata: unknown;
+    }) => {
+      try {
+        await mocks.pushNotice({
+          ...(row.agency_id
+            ? { agencyId: row.agency_id }
+            : { recipientId: row.recipient_id }),
+          type: row.type,
+          title: row.title,
+          message: row.message,
+          link: row.link,
+          metadata: row.metadata,
+          eventId: row.event_id,
+        });
+      } catch {}
+    },
+  };
+});
+
 vi.mock("@/modules/messaging/messaging.socket.js", async (importOriginal) => ({
   ...(await importOriginal<
     typeof import("@/modules/messaging/messaging.socket.js")
@@ -55,6 +98,7 @@ vi.mock("@/infrastructure/cache/redis.client.js", () => ({
 }));
 
 import { db, pool } from "@/database/client.js";
+import { notificationEventId } from "@/modules/notification-store/index.js";
 import {
   accounts,
   agency_members,
@@ -227,6 +271,7 @@ afterAll(async () => {
 });
 
 beforeEach(() => {
+  mocks.failAfterInsert = false;
   assertTestDatabase(process.env.DATABASE_URL, process.env.POSTGRES_DB);
   mocks.verifyToken.mockReset();
   mocks.getUser.mockReset();
@@ -316,11 +361,21 @@ describe("proposal viewed notification", () => {
   });
 });
 
+const interviewEventId = (proposalId: string) =>
+  notificationEventId("PROPOSAL_INTERVIEWED", proposalId, "interviewed");
+
+const storedInterviewNotices = async (proposalId: string) =>
+  (
+    await pool.query("select * from notifications where event_id = $1", [
+      interviewEventId(proposalId),
+    ])
+  ).rows;
+
 describe("proposal interview notification", () => {
   it("notifies a freelancer sender once, after the conversation is committed", async () => {
     const fixture = await seed("FREELANCER");
     const conversationAtCall: Array<string | undefined> = [];
-    mocks.sendNotification.mockImplementation(async () => {
+    mocks.pushNotice.mockImplementation(async () => {
       conversationAtCall.push(await conversationOf(fixture.proposalId));
     });
 
@@ -330,9 +385,10 @@ describe("proposal interview notification", () => {
     expect(response.body.message).toBe("Interview started.");
     const conversationId = await conversationOf(fixture.proposalId);
     expect(conversationId).toBeDefined();
-    expect(mocks.sendNotification).toHaveBeenCalledTimes(1);
-    expect(mocks.sendNotification).toHaveBeenCalledWith({
+    expect(mocks.pushNotice).toHaveBeenCalledTimes(1);
+    expect(mocks.pushNotice).toHaveBeenCalledWith({
       recipientId: fixture.freelancerId,
+      eventId: interviewEventId(fixture.proposalId),
       type: "PROPOSAL_INTERVIEWED",
       title: "You received an interview",
       message: "A client started an interview for “Effects job”.",
@@ -349,9 +405,10 @@ describe("proposal interview notification", () => {
 
     expect(response.status).toBe(201);
     const conversationId = await conversationOf(fixture.proposalId);
-    expect(mocks.sendNotification).toHaveBeenCalledTimes(1);
-    expect(mocks.sendNotification).toHaveBeenCalledWith({
+    expect(mocks.pushNotice).toHaveBeenCalledTimes(1);
+    expect(mocks.pushNotice).toHaveBeenCalledWith({
       agencyId: fixture.agencyId,
+      eventId: interviewEventId(fixture.proposalId),
       type: "PROPOSAL_INTERVIEWED",
       title: "You received an interview",
       message: "A client started an interview for “Effects job”.",
@@ -360,25 +417,84 @@ describe("proposal interview notification", () => {
     });
   });
 
-  it("propagates a rejected notification as a 500 and keeps the conversation", async () => {
+  it("does not fail the request when the push fails and keeps the stored notice", async () => {
     const fixture = await seed("FREELANCER");
-    mocks.sendNotification.mockRejectedValue(new Error("broker down"));
+    mocks.pushNotice.mockRejectedValue(new Error("sse down"));
+
+    const response = await interview(fixture.proposalId, fixture.clientId);
+
+    expect(response.status).toBe(201);
+    expect(await conversationOf(fixture.proposalId)).toBeDefined();
+    expect(await storedInterviewNotices(fixture.proposalId)).toHaveLength(1);
+  });
+
+  it("stores the exact row for a freelancer sender with the broker untouched", async () => {
+    const fixture = await seed("FREELANCER");
+
+    await interview(fixture.proposalId, fixture.clientId);
+
+    const conversationId = await conversationOf(fixture.proposalId);
+    const [row] = await storedInterviewNotices(fixture.proposalId);
+    expect(row).toMatchObject({
+      recipient_id: fixture.freelancerId,
+      agency_id: null,
+      type: "PROPOSAL_INTERVIEWED",
+      title: "You received an interview",
+      message: "A client started an interview for “Effects job”.",
+      link: `/messages?conversationId=${conversationId}`,
+      metadata: { proposalId: fixture.proposalId, conversationId },
+    });
+    expect(mocks.sendNotification).not.toHaveBeenCalled();
+  });
+
+  it("stores the agency row for an agency sender", async () => {
+    const fixture = await seed("AGENCY");
+
+    await interview(fixture.proposalId, fixture.clientId);
+
+    const [row] = await storedInterviewNotices(fixture.proposalId);
+    expect(row).toMatchObject({
+      recipient_id: null,
+      agency_id: fixture.agencyId,
+    });
+  });
+
+  it("leaves no notice and no state change when the transaction fails after the insert", async () => {
+    const fixture = await seed("FREELANCER");
+    mocks.failAfterInsert = true;
 
     const response = await interview(fixture.proposalId, fixture.clientId);
 
     expect(response.status).toBe(500);
-    expect(await conversationOf(fixture.proposalId)).toBeDefined();
+    expect(await conversationOf(fixture.proposalId)).toBeUndefined();
+    expect(await storedInterviewNotices(fixture.proposalId)).toEqual([]);
+    expect(mocks.pushNotice).not.toHaveBeenCalled();
+  });
+
+  it("creates one row and one push when two interview requests race", async () => {
+    const fixture = await seed("FREELANCER");
+
+    const responses = await Promise.all([
+      interview(fixture.proposalId, fixture.clientId),
+      interview(fixture.proposalId, fixture.clientId),
+    ]);
+
+    expect(responses.map((response) => response.status).sort()).toEqual([
+      201, 409,
+    ]);
+    expect(await storedInterviewNotices(fixture.proposalId)).toHaveLength(1);
+    expect(mocks.pushNotice).toHaveBeenCalledTimes(1);
   });
 
   it("answers 409 on a second interview without a second notification", async () => {
     const fixture = await seed("FREELANCER");
     await interview(fixture.proposalId, fixture.clientId);
-    mocks.sendNotification.mockClear();
+    mocks.pushNotice.mockClear();
 
     const again = await interview(fixture.proposalId, fixture.clientId);
 
     expect(again.status).toBe(409);
-    expect(mocks.sendNotification).not.toHaveBeenCalled();
+    expect(mocks.pushNotice).not.toHaveBeenCalled();
   });
 
   it("answers 403 for a freelancer without notifying", async () => {
@@ -390,6 +506,6 @@ describe("proposal interview notification", () => {
       .send({ role: "freelancer", message: "Hi" });
 
     expect(response.status).toBe(403);
-    expect(mocks.sendNotification).not.toHaveBeenCalled();
+    expect(mocks.pushNotice).not.toHaveBeenCalled();
   });
 });

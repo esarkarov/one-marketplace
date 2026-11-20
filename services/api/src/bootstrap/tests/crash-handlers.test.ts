@@ -31,6 +31,9 @@ vi.mock("@/modules/notifications/notifications.consumer.js", () => ({
 vi.mock("@/modules/messaging/messaging.socket.js", () => ({
   closeMessagingSocket: vi.fn(),
 }));
+vi.mock("@/modules/notification-store/index.js", () => ({
+  registerNotificationPusher: vi.fn(),
+}));
 vi.mock("@/modules/payouts/payouts.cron.js", () => ({
   stopPayoutCron: vi.fn(),
   waitForPayoutRun: hoisted.waitForPayoutRun,

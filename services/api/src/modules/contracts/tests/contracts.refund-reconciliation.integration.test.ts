@@ -12,6 +12,7 @@ import {
 const mocks = vi.hoisted(() => ({
   envState: { stripeSecretKey: "sk_stripe_test" as string | undefined },
   sendNotification: vi.fn(),
+  pushNotice: vi.fn(),
   emitConversationUpdate: vi.fn(),
   refundCreate: vi.fn(),
   intentsRetrieve: vi.fn(),
@@ -61,6 +62,40 @@ vi.mock(
     sendNotification: mocks.sendNotification,
   }),
 );
+
+vi.mock("@/modules/notification-store/index.js", async (importOriginal) => {
+  const original =
+    await importOriginal<
+      typeof import("@/modules/notification-store/index.js")
+    >();
+  return {
+    ...original,
+    pushStoredNotification: async (row: {
+      event_id: string;
+      recipient_id: string | null;
+      agency_id: string | null;
+      type: string;
+      title: string;
+      message: string;
+      link: string | null;
+      metadata: unknown;
+    }) => {
+      try {
+        await mocks.pushNotice({
+          ...(row.agency_id
+            ? { agencyId: row.agency_id }
+            : { recipientId: row.recipient_id }),
+          type: row.type,
+          title: row.title,
+          message: row.message,
+          link: row.link,
+          metadata: row.metadata,
+          eventId: row.event_id,
+        });
+      } catch {}
+    },
+  };
+});
 
 vi.mock("@/modules/messaging/messaging.socket.js", async (importOriginal) => ({
   ...(await importOriginal<
@@ -342,6 +377,7 @@ beforeEach(async () => {
   mocks.intentsRetrieve.mockImplementation(async () => intent(false));
   mocks.sessionsRetrieve.mockResolvedValue({ payment_intent: null });
   mocks.sendNotification.mockResolvedValue(undefined);
+  mocks.pushNotice.mockResolvedValue(undefined);
   mocks.emitConversationUpdate.mockResolvedValue(undefined);
   mocks.loggerInfo.mockResolvedValue(undefined);
   mocks.loggerWarn.mockResolvedValue(undefined);
@@ -365,7 +401,7 @@ describe("legacy and already refunded rows", () => {
       skipped: null,
     });
     expect(mocks.refundCreate).not.toHaveBeenCalled();
-    expect(mocks.sendNotification).not.toHaveBeenCalled();
+    expect(mocks.pushNotice).not.toHaveBeenCalled();
     expect(mocks.emitConversationUpdate).not.toHaveBeenCalled();
     const row = await rowOf(fixture.contractId);
     expect(row.refunded_at).toBeInstanceOf(Date);
@@ -382,7 +418,7 @@ describe("legacy and already refunded rows", () => {
 
     expect(summary.markedDone).toBe(1);
     expect(mocks.refundCreate).not.toHaveBeenCalled();
-    expect(mocks.sendNotification).toHaveBeenCalledTimes(1);
+    expect(mocks.pushNotice).toHaveBeenCalledTimes(1);
     expect(mocks.emitConversationUpdate).toHaveBeenCalledTimes(1);
     expect((await rowOf(fixture.contractId)).refund_id).toBeNull();
   });
@@ -531,7 +567,7 @@ describe("refund creation", () => {
       expect(row.refund_next_attempt_at?.getTime()).toBe(
         now.getTime() + 15 * MINUTE,
       );
-      expect(mocks.sendNotification).not.toHaveBeenCalled();
+      expect(mocks.pushNotice).not.toHaveBeenCalled();
     },
   );
 
@@ -594,8 +630,8 @@ describe("winner notifications", () => {
       fixture.conversationId,
       fixture.ownerId,
     );
-    expect(mocks.sendNotification).toHaveBeenCalledTimes(1);
-    expect(mocks.sendNotification).toHaveBeenCalledWith({
+    expect(mocks.pushNotice).toHaveBeenCalledTimes(1);
+    expect(mocks.pushNotice).toHaveBeenCalledWith({
       recipientId: fixture.clientId,
       type: "CONTRACT_DECLINED",
       title: "Contract offer declined",
@@ -615,8 +651,8 @@ describe("winner notifications", () => {
       fixture.conversationId,
       fixture.clientId,
     );
-    expect(mocks.sendNotification).toHaveBeenCalledTimes(1);
-    expect(mocks.sendNotification).toHaveBeenCalledWith({
+    expect(mocks.pushNotice).toHaveBeenCalledTimes(1);
+    expect(mocks.pushNotice).toHaveBeenCalledWith({
       recipientId: fixture.ownerId,
       type: "CONTRACT_WITHDRAWN",
       title: "Contract offer withdrawn",
@@ -632,8 +668,8 @@ describe("winner notifications", () => {
 
     await reconcileCancelledContractRefunds({ mode: "on" });
 
-    expect(mocks.sendNotification).toHaveBeenCalledTimes(1);
-    expect(mocks.sendNotification).toHaveBeenCalledWith(
+    expect(mocks.pushNotice).toHaveBeenCalledTimes(1);
+    expect(mocks.pushNotice).toHaveBeenCalledWith(
       expect.objectContaining({
         agencyId: fixture.agencyId,
         type: "CONTRACT_WITHDRAWN",
@@ -647,18 +683,23 @@ describe("winner notifications", () => {
     await reconcileCancelledContractRefunds({ mode: "on" });
     const second = await reconcileCancelledContractRefunds({ mode: "on" });
     expect(second.scanned).toBe(0);
-    expect(mocks.sendNotification).toHaveBeenCalledTimes(1);
+    expect(mocks.pushNotice).toHaveBeenCalledTimes(1);
     expect(mocks.emitConversationUpdate).toHaveBeenCalledTimes(1);
   });
 
   it("keeps the recorded refund when the notice fails", async () => {
     const fixture = await seed();
-    mocks.sendNotification.mockRejectedValue(new Error("broker down"));
+    mocks.emitConversationUpdate.mockRejectedValue(new Error("socket down"));
 
     const summary = await reconcileCancelledContractRefunds({ mode: "on" });
 
     expect(summary.refunded).toBe(1);
     expect((await rowOf(fixture.contractId)).refunded_at).toBeInstanceOf(Date);
+    const stored = await pool.query(
+      "select 1 from notifications where event_id = $1",
+      [uuidV5(`contract-cancelled:${fixture.contractId}`)],
+    );
+    expect(stored.rows).toHaveLength(1);
     expect(mocks.loggerError).toHaveBeenCalledWith(
       expect.objectContaining({ eventName: "refund.reconcile.notify_failed" }),
     );
@@ -677,12 +718,12 @@ describe("races with the cancel path", () => {
     const reconciler = reconcileCancelledContractRefunds({ mode: "on" });
     await vi.waitFor(() => expect(mocks.intentsRetrieve).toHaveBeenCalled());
     await withdrawOffer(fixture.clientId, fixture.contractId);
-    expect(mocks.sendNotification).toHaveBeenCalledTimes(1);
+    expect(mocks.pushNotice).toHaveBeenCalledTimes(1);
 
     gate.resolve();
     await reconciler;
 
-    expect(mocks.sendNotification).toHaveBeenCalledTimes(1);
+    expect(mocks.pushNotice).toHaveBeenCalledTimes(1);
     expect(mocks.emitConversationUpdate).toHaveBeenCalledTimes(1);
     expect((await rowOf(fixture.contractId)).refunded_at).toBeInstanceOf(Date);
   });
@@ -700,12 +741,12 @@ describe("races with the cancel path", () => {
     await vi.waitFor(() => expect(mocks.refundCreate).toHaveBeenCalled());
     const summary = await reconcileCancelledContractRefunds({ mode: "on" });
     expect(summary.markedDone).toBe(1);
-    expect(mocks.sendNotification).toHaveBeenCalledTimes(1);
+    expect(mocks.pushNotice).toHaveBeenCalledTimes(1);
 
     gate.resolve();
     await cancelPath;
 
-    expect(mocks.sendNotification).toHaveBeenCalledTimes(1);
+    expect(mocks.pushNotice).toHaveBeenCalledTimes(1);
     expect(mocks.emitConversationUpdate).toHaveBeenCalledTimes(1);
     expect((await rowOf(fixture.contractId)).refund_id).toBeNull();
   });
@@ -1062,7 +1103,7 @@ describe("lease", () => {
       (call) => call[0].payment_intent,
     );
     expect(new Set(intents).size).toBe(8);
-    expect(mocks.sendNotification).toHaveBeenCalledTimes(8);
+    expect(mocks.pushNotice).toHaveBeenCalledTimes(8);
   });
 
   it("splits rows between concurrent runs with a small limit", async () => {
@@ -1109,7 +1150,7 @@ describe("detect mode", () => {
     });
     expect(await snapshot()).toBe(before);
     expect(mocks.refundCreate).not.toHaveBeenCalled();
-    expect(mocks.sendNotification).not.toHaveBeenCalled();
+    expect(mocks.pushNotice).not.toHaveBeenCalled();
     expect(mocks.emitConversationUpdate).not.toHaveBeenCalled();
     const detected = mocks.loggerWarn.mock.calls.filter(
       ([entry]) => entry.eventName === "refund.reconcile.detected",

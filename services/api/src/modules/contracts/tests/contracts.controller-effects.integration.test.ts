@@ -77,9 +77,11 @@ vi.mock(
   }),
 );
 
-vi.mock("@/modules/notifications/index.js", async (importOriginal) => {
+vi.mock("@/modules/notification-store/index.js", async (importOriginal) => {
   const original =
-    await importOriginal<typeof import("@/modules/notifications/index.js")>();
+    await importOriginal<
+      typeof import("@/modules/notification-store/index.js")
+    >();
   return {
     ...original,
     pushStoredNotification: async (row: Parameters<typeof mocks.push>[0]) => {
@@ -111,6 +113,10 @@ import {
 import { assertTestDatabase } from "@/test/setup/assert-test-database.js";
 
 const { app } = await import("@/app.js");
+
+(
+  await import("@/modules/notifications/services/notifications.push.service.js")
+).registerNotificationsPush();
 
 const PREFIX = "contracts-effects-it-";
 const API = "/api/v1/contracts";

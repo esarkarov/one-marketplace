@@ -22,6 +22,11 @@ import {
 } from "@/modules/connects/index.js";
 import { redis } from "@/infrastructure/cache/redis.client.js";
 import { sendNotification } from "@/infrastructure/events/notification.publisher.js";
+import {
+  insertNotification,
+  notificationEventId,
+  pushStoredNotification,
+} from "@/modules/notification-store/index.js";
 import { getAgencyOwnerId } from "@/modules/agency/index.js";
 import {
   emitConversationUpdate,
@@ -143,7 +148,24 @@ export const startProposalInterview = async (
       amount: PROPOSAL_CONNECTS,
     });
 
+    const notice = await insertNotification(transaction, {
+      eventId: notificationEventId(
+        "PROPOSAL_INTERVIEWED",
+        proposal.id,
+        "interviewed",
+      ),
+      recipientId: isAgency ? null : accountId,
+      agencyId: isAgency ? proposal.freelancerId : null,
+      type: "PROPOSAL_INTERVIEWED",
+      title: "You received an interview",
+      message: `A client started an interview for “${proposal.jobTitle}”.`,
+      link: `/messages?conversationId=${conversationId}`,
+      metadata: { proposalId: proposal.id, conversationId },
+      createdAt: new Date(),
+    });
+
     return {
+      notice,
       conversationId,
       proposalId: proposal.id,
       senderType: proposal.senderType,
@@ -212,37 +234,13 @@ export const startInterview = async (
   clientId: string,
   openingMessage: string,
 ) => {
-  const result = await startProposalInterview(
+  const { notice, ...result } = await startProposalInterview(
     proposalId,
     clientId,
     openingMessage,
   );
 
-  await sendNotification(
-    result.senderType === "AGENCY" && result.agencyId
-      ? {
-          agencyId: result.agencyId,
-          type: "PROPOSAL_INTERVIEWED",
-          title: "You received an interview",
-          message: `A client started an interview for “${result.jobTitle}”.`,
-          link: `/messages?conversationId=${result.conversationId}`,
-          metadata: {
-            proposalId: result.proposalId,
-            conversationId: result.conversationId,
-          },
-        }
-      : {
-          recipientId: result.freelancerId,
-          type: "PROPOSAL_INTERVIEWED",
-          title: "You received an interview",
-          message: `A client started an interview for “${result.jobTitle}”.`,
-          link: `/messages?conversationId=${result.conversationId}`,
-          metadata: {
-            proposalId: result.proposalId,
-            conversationId: result.conversationId,
-          },
-        },
-  );
+  if (notice) await pushStoredNotification(notice);
 
   return result;
 };

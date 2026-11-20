@@ -16,6 +16,8 @@ const mocks = vi.hoisted(() => ({
   verifyToken: vi.fn(),
   getUser: vi.fn(),
   sendNotification: vi.fn(),
+  pushNotice: vi.fn(),
+  failAfterInsert: false,
   emitConversationUpdate: vi.fn(),
   refundCreate: vi.fn(),
   customersCreate: vi.fn(),
@@ -101,6 +103,47 @@ vi.mock(
   }),
 );
 
+vi.mock("@/modules/notification-store/index.js", async (importOriginal) => {
+  const original =
+    await importOriginal<
+      typeof import("@/modules/notification-store/index.js")
+    >();
+  return {
+    ...original,
+    insertNotification: async (
+      ...args: Parameters<typeof original.insertNotification>
+    ) => {
+      const row = await original.insertNotification(...args);
+      if (mocks.failAfterInsert) throw new Error("injected failure");
+      return row;
+    },
+    pushStoredNotification: async (row: {
+      event_id: string;
+      recipient_id: string | null;
+      agency_id: string | null;
+      type: string;
+      title: string;
+      message: string;
+      link: string | null;
+      metadata: unknown;
+    }) => {
+      try {
+        await mocks.pushNotice({
+          ...(row.agency_id
+            ? { agencyId: row.agency_id }
+            : { recipientId: row.recipient_id }),
+          type: row.type,
+          title: row.title,
+          message: row.message,
+          link: row.link,
+          metadata: row.metadata,
+          eventId: row.event_id,
+        });
+      } catch {}
+    },
+  };
+});
+
 vi.mock("@/modules/messaging/messaging.socket.js", async (importOriginal) => ({
   ...(await importOriginal<
     typeof import("@/modules/messaging/messaging.socket.js")
@@ -131,6 +174,7 @@ import {
   cancelPendingContract,
   finishContractWithReview,
 } from "@/modules/contracts/services/contracts.lifecycle.service.js";
+import { recordRefundWithNotice } from "@/modules/contracts/services/contracts.lifecycle.service.js";
 import { markContractCancelledIfPending } from "@/modules/contracts/repositories/contracts.state.repository.js";
 
 const { app } = await import("@/app.js");
@@ -322,6 +366,14 @@ const purge = async () => {
 const rows = async (text: string, params: unknown[]) =>
   (await pool.query(text, params)).rows;
 
+const noticeEventId = (fixture: Fixture) =>
+  uuidV5(`contract-cancelled:${fixture.contractId}`);
+
+const storedNotices = (fixture: Fixture) =>
+  rows("select * from notifications where event_id = $1", [
+    noticeEventId(fixture),
+  ]);
+
 const state = async (fixture: Fixture) => {
   const [contract] = await rows("select status from contracts where id = $1", [
     fixture.contractId,
@@ -402,6 +454,7 @@ beforeEach(() => {
   mocks.customersCreate.mockResolvedValue({ id: "cus_new" });
   mocks.sessionsCreate.mockResolvedValue({ url: "https://stripe.test/pay" });
   mocks.sendNotification.mockResolvedValue(undefined);
+  mocks.pushNotice.mockResolvedValue(undefined);
 });
 
 describe("PATCH /contracts/:contractId/decline", () => {
@@ -437,8 +490,8 @@ describe("PATCH /contracts/:contractId/decline", () => {
       funded: true,
     });
     expect(await counters(fixture)).toBe(before);
-    expect(mocks.sendNotification).toHaveBeenCalledTimes(1);
-    expect(mocks.sendNotification).toHaveBeenCalledWith(
+    expect(mocks.pushNotice).toHaveBeenCalledTimes(1);
+    expect(mocks.pushNotice).toHaveBeenCalledWith(
       expect.objectContaining({
         recipientId: fixture.clientId,
         type: "CONTRACT_DECLINED",
@@ -460,7 +513,7 @@ describe("PATCH /contracts/:contractId/decline", () => {
     expect(mocks.refundCreate.mock.calls[1]).toEqual(
       mocks.refundCreate.mock.calls[0],
     );
-    expect(mocks.sendNotification).toHaveBeenCalledTimes(1);
+    expect(mocks.pushNotice).toHaveBeenCalledTimes(1);
     expect(mocks.emitConversationUpdate).toHaveBeenCalledTimes(1);
     expect((await state(fixture)).contract).toBe("CANCELLED");
   });
@@ -539,7 +592,7 @@ describe("PATCH /contracts/:contractId/decline", () => {
     );
     expect(allowed.status).toBe(200);
     expect((await state(fixture)).contract).toBe("CANCELLED");
-    expect(mocks.sendNotification).toHaveBeenCalledWith(
+    expect(mocks.pushNotice).toHaveBeenCalledWith(
       expect.objectContaining({
         recipientId: fixture.clientId,
         type: "CONTRACT_DECLINED",
@@ -577,7 +630,7 @@ describe("PATCH /contracts/:contractId/withdraw", () => {
       funded: true,
     });
     expect(await counters(fixture)).toBe(before);
-    expect(mocks.sendNotification).toHaveBeenCalledWith(
+    expect(mocks.pushNotice).toHaveBeenCalledWith(
       expect.objectContaining({
         recipientId: fixture.ownerId,
         type: "CONTRACT_WITHDRAWN",
@@ -589,7 +642,7 @@ describe("PATCH /contracts/:contractId/withdraw", () => {
     const fixture = await seed({ agency: true });
     const response = await withdraw(fixture.contractId, fixture.clientId);
     expect(response.status).toBe(200);
-    expect(mocks.sendNotification).toHaveBeenCalledWith(
+    expect(mocks.pushNotice).toHaveBeenCalledWith(
       expect.objectContaining({
         agencyId: fixture.agencyId,
         type: "CONTRACT_WITHDRAWN",
@@ -604,17 +657,17 @@ describe("PATCH /contracts/:contractId/withdraw", () => {
     expect(again.status).toBe(200);
     expect(again.body.message).toBe("Contract cancelled.");
     expect(mocks.refundCreate).toHaveBeenCalledTimes(2);
-    expect(mocks.sendNotification).toHaveBeenCalledTimes(1);
+    expect(mocks.pushNotice).toHaveBeenCalledTimes(1);
 
     mocks.refundCreate.mockClear();
-    mocks.sendNotification.mockClear();
+    mocks.pushNotice.mockClear();
     const other = await seed();
     await decline(other.contractId, other.ownerId);
     const afterDecline = await withdraw(other.contractId, other.clientId);
     expect(afterDecline.status).toBe(200);
     expect(afterDecline.body.message).toBe("Contract cancelled.");
     expect(mocks.refundCreate).toHaveBeenCalledTimes(2);
-    expect(mocks.sendNotification).toHaveBeenCalledTimes(1);
+    expect(mocks.pushNotice).toHaveBeenCalledTimes(1);
   });
 
   it("answers 409 CONTRACT_NOT_PENDING for active and completed contracts", async () => {
@@ -716,7 +769,7 @@ describe("refund handling", () => {
     expect(mocks.loggerError).toHaveBeenCalledWith(
       expect.objectContaining({ eventName: "payment.refund.failed" }),
     );
-    expect(mocks.sendNotification).not.toHaveBeenCalled();
+    expect(mocks.pushNotice).not.toHaveBeenCalled();
     expect(mocks.emitConversationUpdate).not.toHaveBeenCalled();
   });
 
@@ -736,8 +789,8 @@ describe("refund handling", () => {
     expect(mocks.refundCreate.mock.calls[1]![1]).toEqual({
       idempotencyKey: `refund:${fixture.paymentIntent}:requested_by_customer`,
     });
-    expect(mocks.sendNotification).toHaveBeenCalledTimes(1);
-    expect(mocks.sendNotification).toHaveBeenCalledWith(
+    expect(mocks.pushNotice).toHaveBeenCalledTimes(1);
+    expect(mocks.pushNotice).toHaveBeenCalledWith(
       expect.objectContaining({
         recipientId: fixture.clientId,
         type: "CONTRACT_DECLINED",
@@ -757,16 +810,16 @@ describe("refund handling", () => {
     const response = await decline(first.contractId, first.ownerId);
     expect(response.status).toBe(200);
     expect(await state(first)).toMatchObject(cancelledState);
-    expect(mocks.sendNotification).toHaveBeenCalledTimes(1);
+    expect(mocks.pushNotice).toHaveBeenCalledTimes(1);
 
-    mocks.sendNotification.mockClear();
+    mocks.pushNotice.mockClear();
     const second = await seed();
     mocks.refundCreate.mockRejectedValueOnce(new Error("stripe down"));
     await withdraw(second.contractId, second.clientId);
     mocks.refundCreate.mockRejectedValueOnce(alreadyRefunded());
     const retry = await withdraw(second.contractId, second.clientId);
     expect(retry.status).toBe(200);
-    expect(mocks.sendNotification).toHaveBeenCalledTimes(1);
+    expect(mocks.pushNotice).toHaveBeenCalledTimes(1);
   });
 
   it("derives the payment intent from the stored session", async () => {
@@ -800,7 +853,7 @@ describe("refund handling", () => {
     expect(mocks.loggerError).toHaveBeenCalledWith(
       expect.objectContaining({ eventName: "payment.refund.unavailable" }),
     );
-    expect(mocks.sendNotification).not.toHaveBeenCalled();
+    expect(mocks.pushNotice).not.toHaveBeenCalled();
     expect(await state(fixture)).toMatchObject(cancelledState);
 
     mocks.sessionsRetrieve.mockResolvedValueOnce({
@@ -814,12 +867,12 @@ describe("refund handling", () => {
 
   it("does not fail the response when the notification cannot be published", async () => {
     const fixture = await seed();
-    mocks.sendNotification.mockResolvedValue("failed");
+    mocks.pushNotice.mockResolvedValue("failed");
 
     const response = await decline(fixture.contractId, fixture.ownerId);
 
     expect(response.status).toBe(200);
-    expect(mocks.sendNotification).toHaveBeenCalledTimes(1);
+    expect(mocks.pushNotice).toHaveBeenCalledTimes(1);
     expect(await state(fixture)).toMatchObject(cancelledState);
   });
 });
@@ -1051,7 +1104,7 @@ describe("decline and withdraw effects", () => {
     mocks.emitConversationUpdate.mockImplementation(async () => {
       seen.push(`emit:${(await state(fixture)).contract}`);
     });
-    mocks.sendNotification.mockImplementation(async () => {
+    mocks.pushNotice.mockImplementation(async () => {
       seen.push(`notify:${(await state(fixture)).contract}`);
     });
     return seen;
@@ -1071,8 +1124,8 @@ describe("decline and withdraw effects", () => {
       conversationId,
       fixture.ownerId,
     );
-    expect(mocks.sendNotification).toHaveBeenCalledTimes(1);
-    expect(mocks.sendNotification).toHaveBeenCalledWith({
+    expect(mocks.pushNotice).toHaveBeenCalledTimes(1);
+    expect(mocks.pushNotice).toHaveBeenCalledWith({
       recipientId: fixture.clientId,
       type: "CONTRACT_DECLINED",
       title: "Contract offer declined",
@@ -1086,19 +1139,20 @@ describe("decline and withdraw effects", () => {
     );
     expect(
       mocks.emitConversationUpdate.mock.invocationCallOrder[0],
-    ).toBeLessThan(mocks.sendNotification.mock.invocationCallOrder[0]!);
+    ).toBeLessThan(mocks.pushNotice.mock.invocationCallOrder[0]!);
     expect(seen).toEqual(["emit:CANCELLED", "notify:CANCELLED"]);
   });
 
-  it("decline: propagates a rejected notification as a 500 and keeps the cancellation and refund", async () => {
+  it("decline: a failing push does not fail the request and keeps the cancellation, refund and stored notice", async () => {
     const fixture = await seed();
-    mocks.sendNotification.mockRejectedValue(new Error("broker down"));
+    mocks.pushNotice.mockRejectedValue(new Error("broker down"));
 
     const response = await decline(fixture.contractId, fixture.ownerId);
 
-    expect(response.status).toBe(500);
+    expect(response.status).toBe(200);
     expect((await state(fixture)).contract).toBe("CANCELLED");
     expect(mocks.refundCreate).toHaveBeenCalledTimes(1);
+    expect(await storedNotices(fixture)).toHaveLength(1);
   });
 
   it("decline: propagates a rejected emit as a 500 before any notification", async () => {
@@ -1108,7 +1162,7 @@ describe("decline and withdraw effects", () => {
     const response = await decline(fixture.contractId, fixture.ownerId);
 
     expect(response.status).toBe(500);
-    expect(mocks.sendNotification).not.toHaveBeenCalled();
+    expect(mocks.pushNotice).not.toHaveBeenCalled();
     expect((await state(fixture)).contract).toBe("CANCELLED");
   });
 
@@ -1126,8 +1180,8 @@ describe("decline and withdraw effects", () => {
       conversationId,
       fixture.clientId,
     );
-    expect(mocks.sendNotification).toHaveBeenCalledTimes(1);
-    expect(mocks.sendNotification).toHaveBeenCalledWith({
+    expect(mocks.pushNotice).toHaveBeenCalledTimes(1);
+    expect(mocks.pushNotice).toHaveBeenCalledWith({
       recipientId: fixture.ownerId,
       type: "CONTRACT_WITHDRAWN",
       title: "Contract offer withdrawn",
@@ -1138,7 +1192,7 @@ describe("decline and withdraw effects", () => {
     });
     expect(
       mocks.emitConversationUpdate.mock.invocationCallOrder[0],
-    ).toBeLessThan(mocks.sendNotification.mock.invocationCallOrder[0]!);
+    ).toBeLessThan(mocks.pushNotice.mock.invocationCallOrder[0]!);
     expect(seen).toEqual(["emit:CANCELLED", "notify:CANCELLED"]);
   });
 
@@ -1149,8 +1203,8 @@ describe("decline and withdraw effects", () => {
     const response = await withdraw(fixture.contractId, fixture.clientId);
 
     expect(response.status).toBe(200);
-    expect(mocks.sendNotification).toHaveBeenCalledTimes(1);
-    expect(mocks.sendNotification).toHaveBeenCalledWith({
+    expect(mocks.pushNotice).toHaveBeenCalledTimes(1);
+    expect(mocks.pushNotice).toHaveBeenCalledWith({
       agencyId: fixture.agencyId,
       type: "CONTRACT_WITHDRAWN",
       title: "Contract offer withdrawn",
@@ -1161,14 +1215,15 @@ describe("decline and withdraw effects", () => {
     });
   });
 
-  it("withdraw: propagates a rejected notification as a 500 and keeps the cancellation", async () => {
+  it("withdraw: a failing push does not fail the request and keeps the cancellation and stored notice", async () => {
     const fixture = await seed();
-    mocks.sendNotification.mockRejectedValue(new Error("broker down"));
+    mocks.pushNotice.mockRejectedValue(new Error("broker down"));
 
     const response = await withdraw(fixture.contractId, fixture.clientId);
 
-    expect(response.status).toBe(500);
+    expect(response.status).toBe(200);
     expect((await state(fixture)).contract).toBe("CANCELLED");
+    expect(await storedNotices(fixture)).toHaveLength(1);
   });
 });
 
@@ -1235,7 +1290,7 @@ describe("persisted cancel and refund facts", () => {
 
     expect(response.status).toBe(200);
     expect((await facts(fixture)).cancelledBy).toBe("TALENT");
-    expect(mocks.sendNotification).toHaveBeenCalledWith(
+    expect(mocks.pushNotice).toHaveBeenCalledWith(
       expect.objectContaining({
         recipientId: fixture.clientId,
         type: "CONTRACT_DECLINED",
@@ -1268,7 +1323,7 @@ describe("persisted cancel and refund facts", () => {
     await withdraw(fixture.contractId, fixture.clientId);
 
     expect(await facts(fixture)).toEqual(first);
-    expect(mocks.sendNotification).toHaveBeenCalledTimes(1);
+    expect(mocks.pushNotice).toHaveBeenCalledTimes(1);
   });
 
   it("counts charge_already_refunded as done and stores no refund id", async () => {
@@ -1281,7 +1336,7 @@ describe("persisted cancel and refund facts", () => {
     const recorded = await facts(fixture);
     expect(recorded.refundedAt).not.toBeNull();
     expect(recorded.refundId).toBeNull();
-    expect(mocks.sendNotification).toHaveBeenCalledTimes(1);
+    expect(mocks.pushNotice).toHaveBeenCalledTimes(1);
   });
 
   it("counts a pending refund as done", async () => {
@@ -1297,7 +1352,7 @@ describe("persisted cancel and refund facts", () => {
     const recorded = await facts(fixture);
     expect(recorded.refundId).toBe("re_pending");
     expect(recorded.refundedAt).not.toBeNull();
-    expect(mocks.sendNotification).toHaveBeenCalledTimes(1);
+    expect(mocks.pushNotice).toHaveBeenCalledTimes(1);
   });
 
   it.each(["failed", "canceled"])(
@@ -1319,14 +1374,14 @@ describe("persisted cancel and refund facts", () => {
       expect(afterFailure.cancelledBy).toBe("TALENT");
       expect(afterFailure.refundedAt).toBeNull();
       expect(afterFailure.refundId).toBeNull();
-      expect(mocks.sendNotification).not.toHaveBeenCalled();
+      expect(mocks.pushNotice).not.toHaveBeenCalled();
       expect(mocks.emitConversationUpdate).not.toHaveBeenCalled();
 
       const retry = await decline(fixture.contractId, fixture.ownerId);
 
       expect(retry.status).toBe(200);
       expect((await facts(fixture)).refundedAt).not.toBeNull();
-      expect(mocks.sendNotification).toHaveBeenCalledTimes(1);
+      expect(mocks.pushNotice).toHaveBeenCalledTimes(1);
     },
   );
 
@@ -1342,26 +1397,26 @@ describe("persisted cancel and refund facts", () => {
     expect(recorded.refundId).toBe("re_test");
     expect(recorded.cancelledBy).toBeNull();
     expect(recorded.cancelledAt).toBeNull();
-    expect(mocks.sendNotification).not.toHaveBeenCalled();
+    expect(mocks.pushNotice).not.toHaveBeenCalled();
     expect(mocks.emitConversationUpdate).not.toHaveBeenCalled();
 
     const again = await withdraw(fixture.contractId, fixture.clientId);
     expect(again.status).toBe(200);
-    expect(mocks.sendNotification).not.toHaveBeenCalled();
+    expect(mocks.pushNotice).not.toHaveBeenCalled();
   });
 
   it("sends nothing on a repeat after a fully successful first call", async () => {
     const fixture = await seed();
     await withdraw(fixture.contractId, fixture.clientId);
     const first = await facts(fixture);
-    mocks.sendNotification.mockClear();
+    mocks.pushNotice.mockClear();
     mocks.emitConversationUpdate.mockClear();
 
     const repeat = await withdraw(fixture.contractId, fixture.clientId);
 
     expect(repeat.status).toBe(200);
     expect(await facts(fixture)).toEqual(first);
-    expect(mocks.sendNotification).not.toHaveBeenCalled();
+    expect(mocks.pushNotice).not.toHaveBeenCalled();
     expect(mocks.emitConversationUpdate).not.toHaveBeenCalled();
   });
 
@@ -1392,7 +1447,7 @@ describe("persisted cancel and refund facts", () => {
 
     expect(results.map((result) => result.status)).toEqual([200, 200]);
     expect(mocks.refundCreate).toHaveBeenCalledTimes(2);
-    expect(mocks.sendNotification).toHaveBeenCalledTimes(1);
+    expect(mocks.pushNotice).toHaveBeenCalledTimes(1);
     expect(mocks.emitConversationUpdate).toHaveBeenCalledTimes(1);
     expect((await facts(fixture)).refundId).toBe("re_race");
   });
@@ -1416,8 +1471,8 @@ describe("persisted cancel and refund facts", () => {
     const recorded = await facts(fixture);
     expect(recorded.refundedAt).not.toBeNull();
     expect(recorded.refundId).toBeNull();
-    expect(mocks.sendNotification).toHaveBeenCalledTimes(1);
-    expect(mocks.sendNotification).toHaveBeenCalledWith(
+    expect(mocks.pushNotice).toHaveBeenCalledTimes(1);
+    expect(mocks.pushNotice).toHaveBeenCalledWith(
       expect.objectContaining({
         recipientId: fixture.clientId,
         type: "CONTRACT_DECLINED",
@@ -1490,5 +1545,170 @@ describe("contracts cancel and refund checks", () => {
         ),
       ).toBeUndefined();
     }
+  });
+});
+
+describe("cancel notices stored in the refund transaction", () => {
+  const alreadyRefunded = () =>
+    Object.assign(new Error("already refunded"), {
+      code: "charge_already_refunded",
+    });
+
+  beforeEach(() => {
+    mocks.emitConversationUpdate.mockReset().mockResolvedValue(undefined);
+    mocks.pushNotice.mockReset().mockResolvedValue(undefined);
+    mocks.failAfterInsert = false;
+  });
+
+  const cancelDirectly = async (
+    fixture: Fixture,
+    cancelledBy: string | null,
+    refundedAt = false,
+  ) => {
+    await pool.query(
+      `update contracts set status = 'CANCELLED', cancelled_at = now(), cancelled_by = $2,
+         refunded_at = ${refundedAt ? "now()" : "null"} where id = $1`,
+      [fixture.contractId, cancelledBy],
+    );
+  };
+
+  const subject = (fixture: Fixture) => ({
+    id: fixture.contractId,
+    title: "Cancel job",
+    conversationId: randomUUID(),
+    clientId: fixture.clientId,
+    freelancerId: fixture.ownerId,
+    agencyId: null,
+  });
+
+  const refundedAt = async (fixture: Fixture) =>
+    (
+      await rows("select refunded_at from contracts where id = $1", [
+        fixture.contractId,
+      ])
+    )[0].refunded_at as Date | null;
+
+  it("decline stores the exact CONTRACT_DECLINED row, visible at push time, pushed once, with RabbitMQ untouched", async () => {
+    const fixture = await seed();
+    const visible: number[] = [];
+    mocks.pushNotice.mockImplementation(async () => {
+      visible.push((await storedNotices(fixture)).length);
+    });
+
+    const response = await decline(fixture.contractId, fixture.ownerId);
+
+    expect(response.status).toBe(200);
+    const [row] = await storedNotices(fixture);
+    expect(row).toMatchObject({
+      recipient_id: fixture.clientId,
+      agency_id: null,
+      type: "CONTRACT_DECLINED",
+      title: "Contract offer declined",
+      link: `/contracts?contractId=${fixture.contractId}`,
+      metadata: { contractId: fixture.contractId },
+    });
+    expect(visible).toEqual([1]);
+    expect(mocks.pushNotice).toHaveBeenCalledTimes(1);
+    expect(mocks.sendNotification).not.toHaveBeenCalled();
+  });
+
+  it("a failure after the insert rolls back the notice and refunded_at", async () => {
+    const fixture = await seed();
+    await cancelDirectly(fixture, "TALENT");
+    await pool.query(
+      `create or replace function cancel_it_fail() returns trigger as $$ begin raise exception 'cancel_it_fail'; end; $$ language plpgsql`,
+    );
+    await pool.query(
+      `create constraint trigger cancel_it_fail_trg after insert on notifications
+         deferrable initially deferred for each row
+         when (new.event_id = '${noticeEventId(fixture)}') execute function cancel_it_fail()`,
+    );
+    try {
+      await expect(
+        recordRefundWithNotice(subject(fixture), "re_1", new Date()),
+      ).rejects.toThrow();
+    } finally {
+      await pool.query(
+        "drop trigger if exists cancel_it_fail_trg on notifications",
+      );
+      await pool.query("drop function if exists cancel_it_fail()");
+    }
+
+    expect(await storedNotices(fixture)).toHaveLength(0);
+    expect(await refundedAt(fixture)).toBeNull();
+  });
+
+  it("a failure right after the insert rolls back the notice and refunded_at", async () => {
+    const fixture = await seed();
+    await cancelDirectly(fixture, "TALENT");
+    mocks.failAfterInsert = true;
+
+    await expect(
+      recordRefundWithNotice(subject(fixture), "re_2", new Date()),
+    ).rejects.toThrow("injected failure");
+
+    expect(await storedNotices(fixture)).toHaveLength(0);
+    expect(await refundedAt(fixture)).toBeNull();
+  });
+
+  it("two concurrent winners produce one row and one winner", async () => {
+    const fixture = await seed();
+    await cancelDirectly(fixture, "TALENT");
+
+    const results = await Promise.all([
+      recordRefundWithNotice(subject(fixture), "re_a", new Date()),
+      recordRefundWithNotice(subject(fixture), "re_b", new Date()),
+    ]);
+
+    expect(results.filter((result) => result.notifyFor)).toHaveLength(1);
+    expect(results.filter((result) => result.notice)).toHaveLength(1);
+    expect(await storedNotices(fixture)).toHaveLength(1);
+  });
+
+  it("a legacy row (cancelled_by NULL) records the refund and stores no notice", async () => {
+    const fixture = await seed({ contractStatus: "CANCELLED" });
+
+    const result = await recordRefundWithNotice(
+      subject(fixture),
+      "re_l",
+      new Date(),
+    );
+
+    expect(result).toEqual({ notifyFor: null, notice: null });
+    expect(await refundedAt(fixture)).not.toBeNull();
+    expect(await storedNotices(fixture)).toHaveLength(0);
+  });
+
+  it("legacy crash window: refunded_at set without a row is not re-sent", async () => {
+    const fixture = await seed();
+    await cancelDirectly(fixture, "TALENT", true);
+    mocks.refundCreate.mockRejectedValue(alreadyRefunded());
+
+    const response = await decline(fixture.contractId, fixture.ownerId);
+
+    expect(response.status).toBe(200);
+    expect(await storedNotices(fixture)).toHaveLength(0);
+    expect(mocks.pushNotice).not.toHaveBeenCalled();
+  });
+
+  it("an emit that throws after the commit leaves the stored notice and refunded_at", async () => {
+    const fixture = await seed();
+    mocks.emitConversationUpdate.mockRejectedValue(new Error("socket down"));
+
+    const response = await decline(fixture.contractId, fixture.ownerId);
+
+    expect(response.status).toBe(500);
+    expect(await storedNotices(fixture)).toHaveLength(1);
+    expect(await refundedAt(fixture)).not.toBeNull();
+  });
+
+  it("a replay of the same decline keeps one row and one push", async () => {
+    const fixture = await seed();
+
+    await decline(fixture.contractId, fixture.ownerId);
+    await decline(fixture.contractId, fixture.ownerId);
+
+    expect(await storedNotices(fixture)).toHaveLength(1);
+    expect(mocks.pushNotice).toHaveBeenCalledTimes(1);
   });
 });

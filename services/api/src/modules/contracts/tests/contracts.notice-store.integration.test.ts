@@ -64,6 +64,17 @@ vi.mock("@/modules/notification-store/index.js", async (importOriginal) => {
       if (mocks.failAfterInsert) throw new Error("injected failure");
       return row;
     },
+    pushStoredNotification: async (row: { event_id: string }) => {
+      const visible = await pool.query(
+        "select count(*)::int as c from notifications where event_id = $1",
+        [row.event_id],
+      );
+      mocks.visibleAtPush.push(visible.rows[0].c);
+      mocks.push(row);
+      await original.pushStoredNotification(
+        row as Parameters<typeof original.pushStoredNotification>[0],
+      );
+    },
   };
 });
 
@@ -104,24 +115,9 @@ import { assertTestDatabase } from "@/test/setup/assert-test-database.js";
 import { isRabbitEnabled } from "@/infrastructure/events/rabbitmq.client.js";
 import { notificationEventId } from "@/modules/notification-store/index.js";
 
-vi.mock("@/modules/notifications/index.js", async (importOriginal) => {
-  const original =
-    await importOriginal<typeof import("@/modules/notifications/index.js")>();
-  return {
-    ...original,
-    pushStoredNotification: async (row: { event_id: string }) => {
-      const visible = await pool.query(
-        "select count(*)::int as c from notifications where event_id = $1",
-        [row.event_id],
-      );
-      mocks.visibleAtPush.push(visible.rows[0].c);
-      mocks.push(row);
-      await original.pushStoredNotification(
-        row as Parameters<typeof original.pushStoredNotification>[0],
-      );
-    },
-  };
-});
+(
+  await import("@/modules/notifications/services/notifications.push.service.js")
+).registerNotificationsPush();
 
 const { createContractFromPayment } =
   await import("@/modules/contracts/services/contracts.lifecycle.service.js");
@@ -130,7 +126,7 @@ const { fundContractMilestoneFromPayment } =
 const { submitMilestone, reviewMilestone } =
   await import("@/modules/contracts/services/contracts.milestones.service.js");
 const { pushStoredNotification } =
-  await import("@/modules/notifications/index.js");
+  await import("@/modules/notification-store/index.js");
 
 const PREFIX = "contracts-notice-it-";
 const AMOUNT = 20000;

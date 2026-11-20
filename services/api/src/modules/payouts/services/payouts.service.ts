@@ -1,7 +1,11 @@
 import { EARNINGS_HOLD_PERIOD_MS } from "@/modules/payouts/constants/payouts.constants.js";
 import { stripe } from "@/infrastructure/payments/stripe.client.js";
 import { db } from "@/database/client.js";
-import { sendNotification } from "@/infrastructure/events/notification.publisher.js";
+import {
+  insertNotification,
+  pushStoredNotification,
+  type NotificationRow,
+} from "@/modules/notification-store/index.js";
 import { logger } from "@/config/logger.js";
 import { formatUsd } from "@/shared/money/money.js";
 import { uuidV5 } from "@/shared/ids/uuid-v5.js";
@@ -73,7 +77,7 @@ const errorIdentity = (error: unknown) => {
   };
 };
 
-const notifyPaid = async (row: PayoutRecord): Promise<void> => {
+const payoutNoticeInput = (row: PayoutRecord) => {
   const base = {
     type: "PAYOUT_COMPLETED",
     title: "Payment sent",
@@ -84,49 +88,33 @@ const notifyPaid = async (row: PayoutRecord): Promise<void> => {
       stripeTransferId: row.stripe_transfer_id,
     },
     eventId: uuidV5(row.id),
+    createdAt: new Date(),
   };
-
-  const result = await sendNotification(
-    row.freelancer_id
-      ? {
-          ...base,
-          recipientId: row.freelancer_id,
-          link: "/settings?section=earnings",
-        }
-      : {
-          ...base,
-          agencyId: row.agency_id!,
-          link: "/finances?section=withdrawals",
-        },
-  );
-
-  if (result === "disabled") {
-    await logger.debug({
-      message: "Payout notification skipped: RabbitMQ is disabled",
-      eventName: "payment.payout.notification_skipped",
-      attributes: payoutAttributes(row),
-    });
-    return;
-  }
-
-  if (result !== "published") {
-    await logger.warn({
-      message: "Payout notification not published, will retry",
-      eventName: "payment.payout.notification_failed",
-      attributes: payoutAttributes(row),
-    });
-    return;
-  }
-
-  await markPayoutNotifiedIfUnnotified(db, row.id);
+  return row.freelancer_id
+    ? {
+        ...base,
+        recipientId: row.freelancer_id,
+        agencyId: null,
+        link: "/settings?section=earnings",
+      }
+    : {
+        ...base,
+        recipientId: null,
+        agencyId: row.agency_id!,
+        link: "/finances?section=withdrawals",
+      };
 };
 
-const notifySafely = async (row: PayoutRecord): Promise<void> => {
+const pushPayoutNotice = async (
+  row: PayoutRecord,
+  notice: NotificationRow | null,
+): Promise<void> => {
+  if (!notice) return;
   try {
-    await notifyPaid(row);
+    await pushStoredNotification(notice);
   } catch (error) {
-    await logger.error({
-      message: "Payout notification failed",
+    await logger.warn({
+      message: "Payout notification push failed",
       eventName: "payment.payout.notification_failed",
       attributes: { ...payoutAttributes(row), ...errorIdentity(error) },
     });
@@ -137,7 +125,23 @@ const sweepUnnotified = async (): Promise<void> => {
   const rows = await findUnnotifiedPaidPayouts(db);
 
   for (const row of rows) {
-    await notifySafely(row);
+    try {
+      const notice = await db.transaction(async (transaction) => {
+        const inserted = await insertNotification(
+          transaction,
+          payoutNoticeInput(row),
+        );
+        await markPayoutNotifiedIfUnnotified(transaction, row.id);
+        return inserted;
+      });
+      await pushPayoutNotice(row, notice);
+    } catch (error) {
+      await logger.error({
+        message: "Payout notification failed",
+        eventName: "payment.payout.notification_failed",
+        attributes: { ...payoutAttributes(row), ...errorIdentity(error) },
+      });
+    }
   }
 };
 
@@ -411,10 +415,19 @@ const processCandidate = async (candidate: Candidate): Promise<Outcome> => {
     }
   }
 
-  const paid = await markProcessingPayoutPaidIfAttemptsMatch(db, {
-    id: claimed.id,
-    attempts: claimed.attempts,
-    transferId,
+  const { paid, notice } = await db.transaction(async (transaction) => {
+    const written = await markProcessingPayoutPaidIfAttemptsMatch(transaction, {
+      id: claimed.id,
+      attempts: claimed.attempts,
+      transferId,
+    });
+    if (!written) return { paid: undefined, notice: null };
+    const inserted = await insertNotification(
+      transaction,
+      payoutNoticeInput(written),
+    );
+    await markPayoutNotifiedIfUnnotified(transaction, written.id);
+    return { paid: written, notice: inserted };
   });
 
   if (!paid) {
@@ -446,7 +459,7 @@ const processCandidate = async (candidate: Candidate): Promise<Outcome> => {
     },
   });
 
-  await notifySafely(paid);
+  await pushPayoutNotice(paid, notice);
   return "paid";
 };
 

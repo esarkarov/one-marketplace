@@ -44,9 +44,11 @@ vi.mock(
   }),
 );
 
-vi.mock("@/modules/notifications/index.js", async (importOriginal) => {
+vi.mock("@/modules/notification-store/index.js", async (importOriginal) => {
   const original =
-    await importOriginal<typeof import("@/modules/notifications/index.js")>();
+    await importOriginal<
+      typeof import("@/modules/notification-store/index.js")
+    >();
   return {
     ...original,
     pushStoredNotification: async (row: Parameters<typeof mocks.push>[0]) => {

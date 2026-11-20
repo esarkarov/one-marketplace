@@ -58,3 +58,7 @@ Only `refund_attempts = 0` is required; clearing the other two makes the row due
 - Because the default is `detect`, a deploy never moves money until an operator sets `on`.
 - Two new bootstrap steps (`refund reconciliation cron` and the combined `background runs` drain) share the existing shutdown bound, so shutdown time does not grow with the number of jobs.
 - No migration, route or response shape changes in this step; `docs/api/openapi.json` is unchanged.
+
+## Update (2026-11-20): notice in the recording transaction
+
+ADR 0024 (sub-batch 3) writes the CONTRACT_DECLINED and CONTRACT_WITHDRAWN row in the same transaction as the guarded `refunded_at` update (`recordRefundWithNotice`), so the crash window in the consequences above is closed for refunds recorded from now on. A contract that already has `refunded_at` and no notice row is not re-sent. The emit, the push and the `refund.reconcile.notify_failed` log run after commit; a failing emit no longer matters for the stored notice.

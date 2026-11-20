@@ -12,6 +12,12 @@ import { logger } from "@/config/logger.js";
 import { errorLogAttributes } from "@/shared/logging/sanitize-log.js";
 import { sendNotification } from "@/infrastructure/events/notification.publisher.js";
 import {
+  insertNotification,
+  notificationEventId,
+  pushStoredNotification,
+  type NotificationRow,
+} from "@/modules/notification-store/index.js";
+import {
   AGENCY_MEMBER_UNIQUE,
   alreadyInAgencyError,
   ALREADY_IN_AGENCY_MESSAGE,
@@ -71,25 +77,42 @@ export const getAgencyInvitations = async (
 
 const INVITATION_RESEND_COOLDOWN_SECONDS = 60;
 
-const notifyInvitee = async (
-  email: string,
-  agencyId: string,
-  agencyName: string,
+const insertInviteeNotice = async (
+  executor: DbExecutor,
+  input: {
+    email: string;
+    agencyId: string;
+    agencyName: string;
+    transition: string;
+    invitationId: string;
+  },
 ) => {
-  const account = await findAccountByEmail(db, email);
+  const account = await findAccountByEmail(executor, input.email);
 
-  if (!account || account.role !== "FREELANCER") return;
-  if (await getAgencyIdForMember(account.authId)) return;
+  if (!account || account.role !== "FREELANCER") return null;
+  if (await getAgencyIdForMember(account.authId)) return null;
 
+  return insertNotification(executor, {
+    eventId: notificationEventId(
+      "AGENCY_INVITATION",
+      input.invitationId,
+      input.transition,
+    ),
+    recipientId: account.authId,
+    agencyId: null,
+    type: "AGENCY_INVITATION",
+    title: "You've been invited to join an agency",
+    message: `${input.agencyName} invited you to join their agency team.`,
+    link: "/agency-invitations",
+    metadata: { agencyId: input.agencyId },
+    createdAt: new Date(),
+  });
+};
+
+const pushInviteeNotice = async (notice: NotificationRow | null) => {
+  if (!notice) return;
   try {
-    await sendNotification({
-      recipientId: account.authId,
-      type: "AGENCY_INVITATION",
-      title: "You've been invited to join an agency",
-      message: `${agencyName} invited you to join their agency team.`,
-      link: "/agency-invitations",
-      metadata: { agencyId },
-    });
+    await pushStoredNotification(notice);
   } catch (error) {
     await logger
       .warn({
@@ -131,16 +154,27 @@ export const inviteAgencyMember = async (
     );
   }
 
-  const invitation = await insertInvitation(db, {
-    agencyId,
-    email,
-    role: input.role,
-    invitedBy,
+  const { invitation, notice } = await db.transaction(async (transaction) => {
+    const created = await insertInvitation(transaction, {
+      agencyId,
+      email,
+      role: input.role,
+      invitedBy,
+    });
+    if (!created) return { invitation: undefined, notice: null };
+    const inserted = await insertInviteeNotice(transaction, {
+      email,
+      agencyId,
+      agencyName,
+      transition: "invited",
+      invitationId: created.id,
+    });
+    return { invitation: created, notice: inserted };
   });
 
   if (!invitation) throw new ApiError(500, "The invitation could not be sent.");
 
-  await notifyInvitee(email, agencyId, agencyName);
+  await pushInviteeNotice(notice);
 
   return {
     ...invitation,
@@ -163,10 +197,21 @@ export const resendAgencyInvitation = async (
   invitationId: string,
   agencyName: string,
 ) => {
-  const invitation = await touchPendingInvitationIfCooldownElapsed(db, {
-    agencyId,
-    invitationId,
-    cooldownSeconds: INVITATION_RESEND_COOLDOWN_SECONDS,
+  const { invitation, notice } = await db.transaction(async (transaction) => {
+    const touched = await touchPendingInvitationIfCooldownElapsed(transaction, {
+      agencyId,
+      invitationId,
+      cooldownSeconds: INVITATION_RESEND_COOLDOWN_SECONDS,
+    });
+    if (!touched) return { invitation: undefined, notice: null };
+    const inserted = await insertInviteeNotice(transaction, {
+      email: touched.email,
+      agencyId,
+      agencyName,
+      transition: `resent-${touched.updatedAt.getTime()}`,
+      invitationId,
+    });
+    return { invitation: touched, notice: inserted };
   });
 
   if (!invitation) {
@@ -179,7 +224,7 @@ export const resendAgencyInvitation = async (
     );
   }
 
-  await notifyInvitee(invitation.email, agencyId, agencyName);
+  await pushInviteeNotice(notice);
 };
 
 export const updateAgencyInvitationRole = async (

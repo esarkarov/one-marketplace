@@ -1,12 +1,14 @@
 import type Stripe from "stripe";
 import { db } from "@/database/client.js";
 import { isUniqueViolation } from "@/database/pg-errors.js";
+import { insertNotification } from "@/modules/notification-store/index.js";
 import { markPaymentMethodVerified } from "@/modules/auth/index.js";
 import { ApiError } from "@/shared/errors/api-error.js";
 import { sendNotification } from "@/infrastructure/events/notification.publisher.js";
 import {
   insertContractNotice,
   pushContractNotice,
+  type ContractNotice,
 } from "@/modules/contracts/utils/contracts.notices.js";
 import {
   appendConversationMessages,
@@ -351,21 +353,20 @@ export const cancelPendingContract = async (
     actor.kind === "client" ? "contract_withdrawn" : "contract_declined",
   );
 
-  const [recorded] = await markContractRefundedIfUnrecorded(db, contract.id, {
+  const { notifyFor, notice } = await recordRefundWithNotice(
+    contract,
     refundId,
-    now: new Date(),
-  });
+    new Date(),
+  );
 
   return {
     ...contract,
     status: "CANCELLED" as const,
     alreadyCancelled: !transitioned,
-    notifyFor: recorded?.cancelledBy ?? null,
+    notifyFor,
+    notice,
   };
 };
-
-const contractCancelledEventId = (contractId: string) =>
-  uuidV5(`contract-cancelled:${contractId}`);
 
 export const createContractFromPayment = async (
   session: Stripe.Checkout.Session,
@@ -597,7 +598,63 @@ export interface CancellationNotice {
   freelancerId: string | null;
   agencyId: string | null;
   notifyFor: ContractCancelledBy | null;
+  notice?: ContractNotice;
 }
+
+const contractCancelledEventId = (contractId: string) =>
+  uuidV5(`contract-cancelled:${contractId}`);
+
+const cancellationNoticeInput = (
+  contract: Omit<CancellationNotice, "notifyFor" | "notice">,
+  notifyFor: ContractCancelledBy,
+  createdAt: Date,
+) => {
+  const base = {
+    eventId: contractCancelledEventId(contract.id),
+    createdAt,
+    metadata: { contractId: contract.id },
+  };
+  if (notifyFor === "TALENT") {
+    return {
+      ...base,
+      type: "CONTRACT_DECLINED",
+      recipientId: contract.clientId,
+      agencyId: null,
+      title: "Contract offer declined",
+      message: `Your offer for “${contract.title}” was declined and your payment is being refunded.`,
+      link: `/contracts?contractId=${contract.id}`,
+    };
+  }
+  const recipientId = contract.agencyId ? null : contract.freelancerId;
+  if (!contract.agencyId && !recipientId) return null;
+  return {
+    ...base,
+    type: "CONTRACT_WITHDRAWN",
+    recipientId,
+    agencyId: contract.agencyId,
+    title: "Contract offer withdrawn",
+    message: `The client withdrew the offer for “${contract.title}”.`,
+    link: `/messages?conversationId=${contract.conversationId}`,
+  };
+};
+
+export const recordRefundWithNotice = (
+  contract: Omit<CancellationNotice, "notifyFor" | "notice">,
+  refundId: string | null,
+  now: Date,
+) =>
+  db.transaction(async (transaction) => {
+    const [recorded] = await markContractRefundedIfUnrecorded(
+      transaction,
+      contract.id,
+      { refundId, now },
+    );
+    const notifyFor = recorded?.cancelledBy ?? null;
+    if (!notifyFor) return { notifyFor: null, notice: null };
+    const input = cancellationNoticeInput(contract, notifyFor, now);
+    const notice = input ? await insertNotification(transaction, input) : null;
+    return { notifyFor, notice };
+  });
 
 export const notifyCancellation = async (
   contract: CancellationNotice,
@@ -605,34 +662,7 @@ export const notifyCancellation = async (
 ) => {
   if (!contract.notifyFor) return;
   await emitConversationUpdate(contract.conversationId, actorId);
-  const eventId = contractCancelledEventId(contract.id);
-
-  if (contract.notifyFor === "TALENT") {
-    await sendNotification({
-      recipientId: contract.clientId,
-      type: "CONTRACT_DECLINED",
-      title: "Contract offer declined",
-      message: `Your offer for “${contract.title}” was declined and your payment is being refunded.`,
-      link: `/contracts?contractId=${contract.id}`,
-      metadata: { contractId: contract.id },
-      eventId,
-    });
-    return;
-  }
-
-  const content = {
-    type: "CONTRACT_WITHDRAWN",
-    title: "Contract offer withdrawn",
-    message: `The client withdrew the offer for “${contract.title}”.`,
-    link: `/messages?conversationId=${contract.conversationId}`,
-    metadata: { contractId: contract.id },
-    eventId,
-  };
-  if (contract.agencyId) {
-    await sendNotification({ agencyId: contract.agencyId, ...content });
-  } else if (contract.freelancerId) {
-    await sendNotification({ recipientId: contract.freelancerId, ...content });
-  }
+  await pushContractNotice(contract.notice ?? null);
 };
 
 export const declineOffer = async (

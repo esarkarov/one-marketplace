@@ -10,7 +10,6 @@ import {
   recordRefundFailure,
   releaseRefundLeases,
 } from "@/modules/contracts/repositories/contracts.refund-reconciliation.repository.js";
-import { markContractRefundedIfUnrecorded } from "@/modules/contracts/repositories/contracts.state.repository.js";
 import {
   isPermanentRefundCode,
   isStripeUnavailable,
@@ -20,7 +19,10 @@ import {
   refundContractFirstPayment,
   resolveContractPaymentIntentId,
 } from "./contracts.checkout.service.js";
-import { notifyCancellation } from "./contracts.lifecycle.service.js";
+import {
+  notifyCancellation,
+  recordRefundWithNotice,
+} from "./contracts.lifecycle.service.js";
 
 export type RefundReconciliationMode = "detect" | "on";
 
@@ -107,11 +109,19 @@ const settleRefund = async (
   refundId: string | null,
   now: Date,
 ) => {
-  const [winner] = await markContractRefundedIfUnrecorded(db, candidate.id, {
+  const { notifyFor, notice } = await recordRefundWithNotice(
+    {
+      id: target.id,
+      title: target.title,
+      conversationId: target.conversationId,
+      clientId: target.clientId,
+      freelancerId: target.freelancerId,
+      agencyId: target.agencyId,
+    },
     refundId,
     now,
-  });
-  if (!winner?.cancelledBy) return;
+  );
+  if (!notifyFor) return;
   try {
     await notifyCancellation(
       {
@@ -121,9 +131,10 @@ const settleRefund = async (
         clientId: target.clientId,
         freelancerId: target.freelancerId,
         agencyId: target.agencyId,
-        notifyFor: winner.cancelledBy,
+        notifyFor,
+        notice,
       },
-      winner.cancelledBy === "CLIENT"
+      notifyFor === "CLIENT"
         ? target.clientId
         : (target.freelancerId ?? undefined),
     );

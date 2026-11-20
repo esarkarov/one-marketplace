@@ -1,6 +1,9 @@
 import { logger } from "@/config/logger.js";
 import { db } from "@/database/client.js";
-import type { NotificationRow } from "@/modules/notification-store/index.js";
+import {
+  registerNotificationPusher,
+  type NotificationRow,
+} from "@/modules/notification-store/index.js";
 import { findAccountIdByAuthId } from "@/modules/notifications/repositories/notifications.repository.js";
 import {
   emitAgencyNotification,
@@ -25,9 +28,7 @@ export const pushNotification = (
   }
 };
 
-export const pushStoredNotification = async (
-  notification: NotificationRow,
-): Promise<void> => {
+const pushStoredRow = async (notification: NotificationRow): Promise<void> => {
   try {
     const recipientAccountId = notification.recipient_id
       ? await findAccountIdByAuthId(db, notification.recipient_id)
@@ -47,3 +48,6 @@ export const pushStoredNotification = async (
     } catch {}
   }
 };
+
+export const registerNotificationsPush = (): void =>
+  registerNotificationPusher(pushStoredRow);

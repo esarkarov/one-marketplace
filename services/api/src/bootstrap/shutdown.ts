@@ -8,6 +8,7 @@ import {
   waitForOrphanPaymentDetectionRun,
   waitForRefundReconciliationRun,
 } from "@/modules/contracts/index.js";
+import { registerNotificationPusher } from "@/modules/notification-store/index.js";
 import { stopNotificationConsumer } from "@/modules/notifications/notifications.consumer.js";
 import { closeMessagingSocket } from "@/modules/messaging/messaging.socket.js";
 import {
@@ -199,6 +200,7 @@ export const shutdown = async (reason: ShutdownReason): Promise<void> => {
     ]).then(() => undefined),
   );
   await runStep("http server", closeHttpServer);
+  registerNotificationPusher(null);
   await runStep("notification consumer", () =>
     stopNotificationConsumer(CONNECTION_GRACE_MS),
   );

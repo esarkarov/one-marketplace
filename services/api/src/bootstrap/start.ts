@@ -13,6 +13,7 @@ import {
   isRabbitEnabled,
 } from "@/infrastructure/events/rabbitmq.client.js";
 import { pingDatabase } from "@/modules/health/index.js";
+import { registerNotificationsPush } from "@/modules/notifications/services/notifications.push.service.js";
 import { startNotificationConsumer } from "@/modules/notifications/notifications.consumer.js";
 import { initializeMessagingSocket } from "@/modules/messaging/messaging.socket.js";
 import {
@@ -49,6 +50,7 @@ export const start = async (): Promise<void> => {
   setHttpServer(server);
   await listen(server);
 
+  registerNotificationsPush();
   if (isRabbitEnabled()) {
     await startNotificationConsumer();
   }

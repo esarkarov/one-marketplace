@@ -2,8 +2,8 @@ import type { DbExecutor } from "@/database/database.types.js";
 import {
   insertNotification,
   notificationEventId,
+  pushStoredNotification,
 } from "@/modules/notification-store/index.js";
-import { pushStoredNotification } from "@/modules/notifications/index.js";
 
 interface ContractNoticeInput {
   type: string;

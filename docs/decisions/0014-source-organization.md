@@ -130,3 +130,7 @@ A public function that another module calls with its own transaction is an owner
 - `app-middleware` is added to the infrastructure directories of the boundary test when the folder is created.
 - Splitting `schema.ts` and removing `shared/utils` change import paths in many files; the typecheck and the boundary test are the safety net.
 - Findings outside the layout (Daily request timeout, `getAccountContracts` batching of Clerk lookups, whether RabbitMQ publishes happen inside or after the commit) are separate stages.
+
+## Update (2026-11-20): SSE push ownership
+
+Section 7 describes the consumer's push. Rows written in the business transaction (ADR 0024) are pushed after commit through `pushStoredNotification` in the layer-0 `notification-store`; the `notifications` module registers its SSE implementation at startup and shutdown clears it. That push is at-most-once as well: a failed or skipped push leaves the row readable through `GET /notifications`.
