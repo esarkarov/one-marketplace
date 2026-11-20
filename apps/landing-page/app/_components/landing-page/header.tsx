@@ -1,6 +1,7 @@
 "use client";
 
 import { Icon } from "@iconify/react";
+import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -11,6 +12,16 @@ export function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [activeHash, setActiveHash] = useState("");
   const pathname = usePathname();
+  const { user, isLoaded } = useUser();
+
+  const role = user?.unsafeMetadata?.role;
+  const dashboardUrl =
+    role === "client"
+      ? process.env.NEXT_PUBLIC_CLIENT_DASHBOARD
+      : role === "freelancer"
+        ? process.env.NEXT_PUBLIC_FREELANCER_DASHBOARD
+        : undefined;
+  const isSignedIn = isLoaded && Boolean(user);
 
   useEffect(() => {
     const updateHeaderPosition = () => {
@@ -105,18 +116,29 @@ export function Header() {
         </nav>
 
         <div className="hidden items-center gap-3 sm:flex">
-          <Link
-            href="/login"
-            className="rounded-lg px-3 py-2 text-sm font-medium text-[#4f534e] transition hover:bg-black/4"
-          >
-            Log in
-          </Link>
-          <Link
-            href="/signup"
-            className="rounded-lg bg-[#242622] px-4 py-2.5 text-sm font-medium text-white! shadow-sm transition hover:bg-[#3c403a]"
-          >
-            Get started
-          </Link>
+          {isSignedIn ? (
+            <Link
+              href={dashboardUrl ?? "/login"}
+              className="rounded-lg bg-[#242622] px-4 py-2.5 text-sm font-medium text-white! shadow-sm transition hover:bg-[#3c403a]"
+            >
+              Go to dashboard
+            </Link>
+          ) : (
+            <>
+              <Link
+                href="/login"
+                className="rounded-lg px-3 py-2 text-sm font-medium text-[#4f534e] transition hover:bg-black/4"
+              >
+                Log in
+              </Link>
+              <Link
+                href="/signup"
+                className="rounded-lg bg-[#242622] px-4 py-2.5 text-sm font-medium text-white! shadow-sm transition hover:bg-[#3c403a]"
+              >
+                Get started
+              </Link>
+            </>
+          )}
         </div>
 
         <button
@@ -190,20 +212,32 @@ export function Header() {
             How it works
           </Link>
           <div className="mt-3 flex gap-3 border-t border-black/[0.07] pt-4">
-            <Link
-              href="/login"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="flex-1 rounded-lg border border-black/10 px-4 py-2.5 text-center text-sm font-medium"
-            >
-              Log in
-            </Link>
-            <Link
-              href="/signup"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="flex-1 rounded-lg bg-[#242622] px-4 py-2.5 text-center text-sm font-medium text-white!"
-            >
-              Get started
-            </Link>
+            {isSignedIn ? (
+              <Link
+                href={dashboardUrl ?? "/login"}
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="flex-1 rounded-lg bg-[#242622] px-4 py-2.5 text-center text-sm font-medium text-white!"
+              >
+                Go to dashboard
+              </Link>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="flex-1 rounded-lg border border-black/10 px-4 py-2.5 text-center text-sm font-medium"
+                >
+                  Log in
+                </Link>
+                <Link
+                  href="/signup"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="flex-1 rounded-lg bg-[#242622] px-4 py-2.5 text-center text-sm font-medium text-white!"
+                >
+                  Get started
+                </Link>
+              </>
+            )}
           </div>
         </nav>
       </div>

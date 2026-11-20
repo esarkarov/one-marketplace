@@ -13,3 +13,29 @@
   line-height: 1.25;
   letter-spacing: -0.025em;
 }
+
+.shimmer {
+  position: relative;
+  overflow: hidden;
+  background: #eef0ec;
+}
+
+.shimmer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.65),
+    transparent
+  );
+  animation: shimmer-sweep 1.6s ease-in-out infinite;
+}
+
+@keyframes shimmer-sweep {
+  100% {
+    transform: translateX(100%);
+  }
+}

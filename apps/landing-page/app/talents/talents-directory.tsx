@@ -1,18 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import styles from "./talents.module.css";
-
-type Category =
-  "Design" | "Development" | "Marketing" | "Writing" | "Data & AI";
+import Image from "next/image";
 
 interface Talent {
-  id: number;
+  id: string;
   name: string;
-  initials: string;
+  avatarUrl: string | null;
   title: string;
-  category: Category;
   verified: boolean;
   active: boolean;
   jobSuccess: number;
@@ -23,177 +20,44 @@ interface Talent {
   location: string;
   skills: string[];
   summary: string;
-  background: string;
 }
 
-const talents: Talent[] = [
-  {
-    id: 1,
-    name: "Amelia Morgan",
-    initials: "AM",
-    title: "Senior Product Designer",
-    category: "Design",
-    verified: true,
-    active: true,
-    jobSuccess: 98,
-    completedProjects: 84,
-    rating: 4.9,
-    reviews: 72,
-    hourlyRate: 120,
-    location: "London, UK",
-    skills: ["Product design", "Figma", "Design systems"],
-    summary:
-      "I turn complex product ideas into clear, thoughtful experiences that customers enjoy using.",
-    background: "linear-gradient(135deg, #925f46, #c58c6e)",
-  },
-  {
-    id: 2,
-    name: "Daniel Cho",
-    initials: "DC",
-    title: "Full-Stack TypeScript Engineer",
-    category: "Development",
-    verified: true,
-    active: true,
-    jobSuccess: 100,
-    completedProjects: 63,
-    rating: 5,
-    reviews: 58,
-    hourlyRate: 145,
-    location: "Toronto, Canada",
-    skills: ["Next.js", "Node.js", "PostgreSQL"],
-    summary:
-      "I build reliable web products from first prototype through production, with a focus on speed and maintainability.",
-    background: "linear-gradient(135deg, #466b72, #73a2a8)",
-  },
-  {
-    id: 3,
-    name: "Sofia Mendes",
-    initials: "SM",
-    title: "Brand Strategist & Creative Director",
-    category: "Marketing",
-    verified: true,
-    active: false,
-    jobSuccess: 96,
-    completedProjects: 109,
-    rating: 4.9,
-    reviews: 94,
-    hourlyRate: 110,
-    location: "Lisbon, Portugal",
-    skills: ["Brand strategy", "Positioning", "Campaigns"],
-    summary:
-      "I help ambitious teams find a distinct point of view and express it consistently across every customer touchpoint.",
-    background: "linear-gradient(135deg, #6f668e, #a095bd)",
-  },
-  {
-    id: 4,
-    name: "Jon Bell",
-    initials: "JB",
-    title: "Conversion Copywriter",
-    category: "Writing",
-    verified: false,
-    active: true,
-    jobSuccess: 94,
-    completedProjects: 51,
-    rating: 4.8,
-    reviews: 45,
-    hourlyRate: 90,
-    location: "Austin, USA",
-    skills: ["Web copy", "SaaS", "Email strategy"],
-    summary:
-      "I write clear, persuasive copy for technology companies that want to sound human and convert more customers.",
-    background: "linear-gradient(135deg, #8b6f48, #bea071)",
-  },
-  {
-    id: 5,
-    name: "Maya Robinson",
-    initials: "MR",
-    title: "Machine Learning Engineer",
-    category: "Data & AI",
-    verified: true,
-    active: true,
-    jobSuccess: 99,
-    completedProjects: 47,
-    rating: 5,
-    reviews: 42,
-    hourlyRate: 165,
-    location: "New York, USA",
-    skills: ["Python", "LLM systems", "MLOps"],
-    summary:
-      "I design practical AI systems that move from experimentation to dependable, measurable production outcomes.",
-    background: "linear-gradient(135deg, #46634b, #7ca181)",
-  },
-  {
-    id: 6,
-    name: "Noah Williams",
-    initials: "NW",
-    title: "Growth Marketing Lead",
-    category: "Marketing",
-    verified: true,
-    active: true,
-    jobSuccess: 97,
-    completedProjects: 76,
-    rating: 4.9,
-    reviews: 69,
-    hourlyRate: 105,
-    location: "Melbourne, Australia",
-    skills: ["Growth strategy", "Paid media", "Analytics"],
-    summary:
-      "I build sustainable acquisition programs by combining sharp positioning, rapid experiments, and useful analytics.",
-    background: "linear-gradient(135deg, #566f8c, #87a5c4)",
-  },
-  {
-    id: 7,
-    name: "Aisha Rahman",
-    initials: "AR",
-    title: "UX Researcher",
-    category: "Design",
-    verified: true,
-    active: false,
-    jobSuccess: 95,
-    completedProjects: 58,
-    rating: 4.8,
-    reviews: 52,
-    hourlyRate: 100,
-    location: "Singapore",
-    skills: ["User research", "Usability testing", "Insights"],
-    summary:
-      "I uncover the customer evidence teams need to make confident product and service decisions.",
-    background: "linear-gradient(135deg, #8c5366, #bd8094)",
-  },
-  {
-    id: 8,
-    name: "Leo Martins",
-    initials: "LM",
-    title: "Mobile Application Developer",
-    category: "Development",
-    verified: false,
-    active: true,
-    jobSuccess: 92,
-    completedProjects: 39,
-    rating: 4.7,
-    reviews: 34,
-    hourlyRate: 95,
-    location: "São Paulo, Brazil",
-    skills: ["React Native", "iOS", "Android"],
-    summary:
-      "I create polished cross-platform mobile apps with native-quality interactions and maintainable architecture.",
-    background: "linear-gradient(135deg, #5b6d91, #8d9dc0)",
-  },
+type Sort = "recommended" | "rating" | "success" | "projects" | "rate-low";
+
+const SEARCH_DEBOUNCE_MS = 700;
+
+const AVATAR_BACKGROUNDS = [
+  "linear-gradient(135deg, #925f46, #c58c6e)",
+  "linear-gradient(135deg, #466b72, #73a2a8)",
+  "linear-gradient(135deg, #6f668e, #a095bd)",
+  "linear-gradient(135deg, #8b6f48, #bea071)",
+  "linear-gradient(135deg, #46634b, #7ca181)",
+  "linear-gradient(135deg, #566f8c, #87a5c4)",
+  "linear-gradient(135deg, #8c5366, #bd8094)",
+  "linear-gradient(135deg, #5b6d91, #8d9dc0)",
 ];
 
-const categories: Array<"All" | Category> = [
-  "All",
-  "Design",
-  "Development",
-  "Marketing",
-  "Writing",
-  "Data & AI",
-];
+function backgroundFor(id: string) {
+  let hash = 0;
+  for (let index = 0; index < id.length; index += 1) {
+    hash = (hash * 31 + id.charCodeAt(index)) >>> 0;
+  }
+  return AVATAR_BACKGROUNDS[hash % AVATAR_BACKGROUNDS.length];
+}
+
+function initialsFor(name: string) {
+  return (
+    name
+      .split(" ")
+      .filter(Boolean)
+      .map((part) => part[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase() || "?"
+  );
+}
 
 interface FilterControlsProps {
-  prefix: string;
-  category: string;
-  setCategory: (category: string) => void;
   verifiedOnly: boolean;
   setVerifiedOnly: (checked: boolean) => void;
   activeOnly: boolean;
@@ -210,9 +74,6 @@ interface FilterControlsProps {
 }
 
 function FilterControls({
-  prefix,
-  category,
-  setCategory,
   verifiedOnly,
   setVerifiedOnly,
   activeOnly,
@@ -230,28 +91,6 @@ function FilterControls({
   return (
     <div className="space-y-7">
       <div>
-        <p className="text-sm font-semibold">Category</p>
-        <div className="mt-3 grid gap-2">
-          {categories.map((item) => (
-            <label
-              key={item}
-              className="flex cursor-pointer items-center gap-3 text-sm text-[#62665f]"
-            >
-              <input
-                type="radio"
-                name={`${prefix}-category`}
-                value={item}
-                checked={category === item}
-                onChange={() => setCategory(item)}
-                className="h-4 w-4 accent-[#456f42]"
-              />
-              {item}
-            </label>
-          ))}
-        </div>
-      </div>
-
-      <div className="border-t border-black/7 pt-6">
         <p className="text-sm font-semibold">Talent status</p>
         <div className="mt-3 grid gap-3">
           <label className="flex cursor-pointer items-center gap-3 text-sm text-[#62665f]">
@@ -386,44 +225,66 @@ function VerifiedBadge() {
 }
 
 function TalentCard({ talent }: { talent: Talent }) {
+  const initials = useMemo(() => initialsFor(talent.name), [talent.name]);
+
   return (
-    <article className="rounded-2xl border border-black/8 bg-white p-5 transition hover:-translate-y-0.5 hover:border-black/12 hover:shadow-xl hover:shadow-black/4 sm:p-6">
-      <div className="flex items-start gap-4">
-        <div
-          className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-sm font-bold text-white"
-          style={{ background: talent.background }}
-        >
-          {talent.initials}
-        </div>
+    <article className="rounded-2xl border border-black/8 bg-white p-5 transition hover:border-black/12 sm:p-6">
+      <div className="flex flex-wrap items-start gap-4">
+        {talent.avatarUrl ? (
+          <Image
+            src={talent.avatarUrl}
+            alt=""
+            width={40}
+            height={40}
+            className="h-14 w-14 shrink-0 rounded-full object-cover"
+          />
+        ) : (
+          <div
+            className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
+            style={{ background: backgroundFor(talent.id) }}
+          >
+            {initials}
+          </div>
+        )}
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h2 className={`${styles.uiHeading} truncate text-base sm:text-lg`}>
-              {talent.name}
-            </h2>
-            {talent.verified && <VerifiedBadge />}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <h2
+                className={`${styles.uiHeading} truncate text-base sm:text-lg`}
+              >
+                {talent.name}
+              </h2>
+              {talent.verified && <VerifiedBadge />}
+            </div>
+            <p className="shrink-0 text-sm font-semibold">
+              ${talent.hourlyRate}
+              <span className="font-normal text-[#83877f]">/hr</span>
+            </p>
           </div>
           <p className="mt-1 truncate text-sm text-[#686c65]">{talent.title}</p>
-          <div className="mt-2 flex items-center gap-2 text-xs text-[#777b74]">
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-[#777b74]">
             <span
               className={`h-2 w-2 rounded-full ${
                 talent.active ? "bg-[#5a9b59]" : "bg-[#b5b8b2]"
               }`}
             ></span>
             {talent.active ? "Available now" : "Currently busy"}
-            <span aria-hidden="true">·</span>
-            {talent.location}
+            {talent.location && (
+              <>
+                <span aria-hidden="true">·</span>
+                {talent.location}
+              </>
+            )}
           </div>
         </div>
-        <p className="shrink-0 text-sm font-semibold">
-          ${talent.hourlyRate}
-          <span className="font-normal text-[#83877f]">/hr</span>
-        </p>
       </div>
 
-      <p className="mt-5 text-sm leading-6 text-[#656962]">{talent.summary}</p>
+      <p className="mt-5 line-clamp-3 text-sm leading-6 text-[#656962]">
+        {talent.summary}
+      </p>
 
       <div className="mt-5 flex flex-wrap gap-2">
-        {talent.skills.map((skill) => (
+        {talent.skills.slice(0, 6).map((skill) => (
           <span
             key={skill}
             className="rounded-lg bg-[#f1f4ef] px-2.5 py-1.5 text-xs font-medium text-[#596057]"
@@ -477,67 +338,201 @@ function TalentCard({ talent }: { talent: Talent }) {
   );
 }
 
+function TalentCardSkeleton() {
+  return (
+    <article className="rounded-2xl border border-black/8 bg-white p-5 sm:p-6">
+      <div className="flex items-start gap-4">
+        <div className={`h-14 w-14 shrink-0 rounded-full ${styles.shimmer}`} />
+        <div className="min-w-0 flex-1 space-y-2.5">
+          <div className={`h-4 w-2/5 rounded-md ${styles.shimmer}`} />
+          <div className={`h-3 w-1/3 rounded-md ${styles.shimmer}`} />
+          <div className={`h-3 w-3/5 rounded-md ${styles.shimmer}`} />
+        </div>
+      </div>
+
+      <div className="mt-5 space-y-2">
+        <div className={`h-3 w-full rounded-md ${styles.shimmer}`} />
+        <div className={`h-3 w-11/12 rounded-md ${styles.shimmer}`} />
+        <div className={`h-3 w-2/3 rounded-md ${styles.shimmer}`} />
+      </div>
+
+      <div className="mt-5 flex flex-wrap gap-2">
+        {[16, 20, 14].map((width, index) => (
+          <div
+            key={index}
+            className={`h-7 rounded-lg ${styles.shimmer}`}
+            style={{ width: `${width * 0.25}rem` }}
+          />
+        ))}
+      </div>
+
+      <div className="mt-6 grid grid-cols-3 gap-2 border-y border-black/7 py-4">
+        {Array.from({ length: 3 }).map((_, index) => (
+          <div key={index} className="flex flex-col items-center gap-2">
+            <div className={`h-4 w-10 rounded-md ${styles.shimmer}`} />
+            <div className={`h-2.5 w-14 rounded-md ${styles.shimmer}`} />
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-5 flex gap-3">
+        <div className={`h-10 flex-1 rounded-xl ${styles.shimmer}`} />
+        <div className={`h-10 flex-1 rounded-xl ${styles.shimmer}`} />
+      </div>
+    </article>
+  );
+}
+
 export function TalentsDirectory() {
   const [search, setSearch] = useState("");
-  const [category, setCategory] = useState("All");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [verifiedOnly, setVerifiedOnly] = useState(false);
   const [activeOnly, setActiveOnly] = useState(false);
   const [minRating, setMinRating] = useState(0);
   const [minSuccess, setMinSuccess] = useState(0);
   const [minHourlyRate, setMinHourlyRate] = useState(0);
   const [maxHourlyRate, setMaxHourlyRate] = useState(0);
-  const [sort, setSort] = useState("recommended");
+  const [sort, setSort] = useState<Sort>("recommended");
 
-  const filteredTalents = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    const results = talents.filter((talent) => {
-      const searchableText = [
-        talent.name,
-        talent.title,
-        talent.category,
-        talent.location,
-        ...talent.skills,
-      ]
-        .join(" ")
-        .toLowerCase();
+  const [resultsState, setResultsState] = useState<{
+    key: string;
+    talents: Talent[];
+    hasMore: boolean;
+  } | null>(null);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
 
-      return (
-        (!query || searchableText.includes(query)) &&
-        (category === "All" || talent.category === category) &&
-        (!verifiedOnly || talent.verified) &&
-        (!activeOnly || talent.active) &&
-        talent.rating >= minRating &&
-        talent.jobSuccess >= minSuccess &&
-        talent.hourlyRate >= minHourlyRate &&
-        (!maxHourlyRate || talent.hourlyRate <= maxHourlyRate)
+  useEffect(() => {
+    const timeout = setTimeout(
+      () => setDebouncedSearch(search.trim()),
+      SEARCH_DEBOUNCE_MS,
+    );
+    return () => clearTimeout(timeout);
+  }, [search]);
+
+  const filterKey = useMemo(
+    () =>
+      JSON.stringify({
+        debouncedSearch,
+        verifiedOnly,
+        activeOnly,
+        minRating,
+        minSuccess,
+        minHourlyRate,
+        maxHourlyRate,
+        sort,
+      }),
+    [
+      debouncedSearch,
+      verifiedOnly,
+      activeOnly,
+      minRating,
+      minSuccess,
+      minHourlyRate,
+      maxHourlyRate,
+      sort,
+    ],
+  );
+
+  const fetchPage = useCallback(
+    async (offset: number) => {
+      const params = new URLSearchParams({
+        query: debouncedSearch,
+        sort,
+        offset: String(offset),
+      });
+      if (verifiedOnly) params.set("verifiedOnly", "true");
+      if (activeOnly) params.set("availableOnly", "true");
+      if (minRating) params.set("minRating", String(minRating));
+      if (minSuccess) params.set("minSuccess", String(minSuccess));
+      if (minHourlyRate) params.set("minRate", String(minHourlyRate));
+      if (maxHourlyRate) params.set("maxRate", String(maxHourlyRate));
+
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_SERVER_URI}/freelancer/search?${params.toString()}`,
+        { cache: "no-store" },
       );
-    });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.message || "Talent search failed.");
+      }
+      return result.data as { results: Talent[]; hasMore: boolean };
+    },
+    [
+      debouncedSearch,
+      sort,
+      verifiedOnly,
+      activeOnly,
+      minRating,
+      minSuccess,
+      minHourlyRate,
+      maxHourlyRate,
+    ],
+  );
 
-    return [...results].sort((first, second) => {
-      if (sort === "rating") return second.rating - first.rating;
-      if (sort === "success") return second.jobSuccess - first.jobSuccess;
-      if (sort === "projects")
-        return second.completedProjects - first.completedProjects;
-      if (sort === "rate-low") return first.hourlyRate - second.hourlyRate;
-      return (
-        second.rating * second.jobSuccess - first.rating * first.jobSuccess
-      );
-    });
-  }, [
-    activeOnly,
-    category,
-    minRating,
-    minSuccess,
-    minHourlyRate,
-    maxHourlyRate,
-    search,
-    sort,
-    verifiedOnly,
-  ]);
+  useEffect(() => {
+    let cancelled = false;
+    fetchPage(0)
+      .then((page) => {
+        if (cancelled) return;
+        setResultsState({
+          key: filterKey,
+          talents: page.results,
+          hasMore: page.hasMore,
+        });
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setResultsState({ key: filterKey, talents: [], hasMore: false });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [filterKey, fetchPage]);
+
+  const isLoading = resultsState === null || resultsState.key !== filterKey;
+  const talents = isLoading ? [] : resultsState.talents;
+  const hasMore = isLoading ? false : resultsState.hasMore;
+
+  const loadMore = useCallback(() => {
+    if (isLoading || isFetchingMore || !hasMore) return;
+    setIsFetchingMore(true);
+    fetchPage(talents.length)
+      .then((page) => {
+        setResultsState((current) =>
+          current
+            ? {
+                key: current.key,
+                talents: [...current.talents, ...page.results],
+                hasMore: page.hasMore,
+              }
+            : current,
+        );
+      })
+      .catch(() => {
+        setResultsState((current) =>
+          current ? { ...current, hasMore: false } : current,
+        );
+      })
+      .finally(() => setIsFetchingMore(false));
+  }, [fetchPage, hasMore, isFetchingMore, isLoading, talents.length]);
+
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const node = sentinelRef.current;
+    if (!node) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) loadMore();
+      },
+      { rootMargin: "200px" },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [loadMore]);
 
   function resetFilters() {
     setSearch("");
-    setCategory("All");
     setVerifiedOnly(false);
     setActiveOnly(false);
     setMinRating(0);
@@ -548,8 +543,6 @@ export function TalentsDirectory() {
   }
 
   const filterProps = {
-    category,
-    setCategory,
     verifiedOnly,
     setVerifiedOnly,
     activeOnly,
@@ -628,7 +621,7 @@ export function TalentsDirectory() {
             Filters
           </summary>
           <div className="mt-6">
-            <FilterControls prefix="mobile" {...filterProps} />
+            <FilterControls {...filterProps} />
           </div>
         </details>
 
@@ -637,22 +630,26 @@ export function TalentsDirectory() {
             <div className="mb-6 flex items-center justify-between">
               <h2 className={`${styles.uiHeading} text-base`}>Filters</h2>
             </div>
-            <FilterControls prefix="desktop" {...filterProps} />
+            <FilterControls {...filterProps} />
           </aside>
 
           <section>
             <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-sm text-[#6d716a]" aria-live="polite">
-                <strong className="text-[#272a26]">
-                  {filteredTalents.length}
-                </strong>{" "}
-                talented professionals
+                {isLoading ? (
+                  "Searching…"
+                ) : (
+                  <>
+                    <strong className="text-[#272a26]">{talents.length}</strong>{" "}
+                    talented professionals
+                  </>
+                )}
               </p>
               <label className="flex items-center gap-3 text-sm text-[#6d716a]">
                 Sort by
                 <select
                   value={sort}
-                  onChange={(event) => setSort(event.target.value)}
+                  onChange={(event) => setSort(event.target.value as Sort)}
                   className="h-10 rounded-xl border border-black/10 bg-white px-3 font-medium text-[#3d413c] outline-none focus:border-[#668c63]"
                 >
                   <option value="recommended">Recommended</option>
@@ -664,12 +661,26 @@ export function TalentsDirectory() {
               </label>
             </div>
 
-            {filteredTalents.length > 0 ? (
+            {isLoading ? (
               <div className="grid gap-5 xl:grid-cols-2">
-                {filteredTalents.map((talent) => (
-                  <TalentCard key={talent.id} talent={talent} />
+                {Array.from({ length: 4 }).map((_, index) => (
+                  <TalentCardSkeleton key={index} />
                 ))}
               </div>
+            ) : talents.length > 0 ? (
+              <>
+                <div className="grid gap-5 xl:grid-cols-2">
+                  {talents.map((talent) => (
+                    <TalentCard key={talent.id} talent={talent} />
+                  ))}
+                </div>
+                <div ref={sentinelRef} className="h-1" />
+                {isFetchingMore && (
+                  <p className="mt-6 text-center text-sm text-[#777b74]">
+                    Loading more professionals…
+                  </p>
+                )}
+              </>
             ) : (
               <div className="rounded-2xl border border-dashed border-black/15 bg-white px-6 py-16 text-center">
                 <p className="text-lg font-semibold">

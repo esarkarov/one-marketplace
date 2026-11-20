@@ -1,21 +1,198 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useState } from "react";
+import { SubmitEvent, useEffect, useState } from "react";
 import styles from "../signup/signup.module.css";
+import { useAuth, useSignIn, useUser } from "@clerk/nextjs";
+import { useSignIn as useLegacySignIn } from "@clerk/nextjs/legacy";
 
 export function LoginForm() {
+  const { signIn, fetchStatus } = useSignIn();
+  const { signIn: redirectSignIn } = useLegacySignIn();
+  const { getToken } = useAuth();
+  const { user } = useUser();
+
   const [showPassword, setShowPassword] = useState(false);
   const [status, setStatus] = useState("");
+  const [isError, setIsError] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [verificationCode, setVerificationCode] = useState("");
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setStatus("Login is ready to activate when Clerk is connected.");
+  const isLoading = fetchStatus === "fetching";
+
+  function goToBackendSync(sessionRole: unknown, token: string | null) {
+    if (typeof sessionRole !== "string") {
+      window.location.assign("/error?reason=account_not_registered");
+      return;
+    }
+    if (!token) {
+      window.location.assign("/error?reason=invalid_or_expired_token");
+      return;
+    }
+    window.location.assign(
+      `/api/sign-up?token=${encodeURIComponent(token)}&role=${encodeURIComponent(sessionRole)}`,
+    );
   }
 
-  function handleSocialLogin(provider: "Google" | "GitHub") {
-    setStatus(
-      `${provider} login is ready to activate when Clerk is connected.`,
+  async function finalizeSignIn() {
+    const { error } = await signIn!.finalize({
+      navigate: async ({ session }) => {
+        const token = await session.getToken();
+        goToBackendSync(session?.user?.unsafeMetadata?.role, token);
+      },
+    });
+    if (error) throw error;
+  }
+
+  useEffect(() => {
+    if (!user) return;
+    void (async () => {
+      goToBackendSync(user.unsafeMetadata.role, await getToken());
+    })();
+  }, [getToken, user]);
+
+  async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setStatus("");
+    setIsError(false);
+
+    if (!signIn) {
+      setIsError(true);
+      setStatus("Authentication is still loading.");
+      return;
+    }
+
+    const formData = new FormData(event.currentTarget);
+
+    try {
+      const { error } = await signIn.password({
+        emailAddress: String(formData.get("email") ?? "").trim(),
+        password: String(formData.get("password") ?? ""),
+      });
+
+      if (error) throw error;
+      if (signIn.status === "complete") {
+        await finalizeSignIn();
+        return;
+      }
+
+      const canVerifyByEmail = signIn.supportedSecondFactors.some(
+        (factor) => factor.strategy === "email_code",
+      );
+
+      if (
+        signIn.status === "needs_second_factor" ||
+        (signIn.status === "needs_client_trust" && canVerifyByEmail)
+      ) {
+        const { error: codeError } = await signIn.mfa.sendEmailCode();
+        if (codeError) throw codeError;
+        setIsVerifying(true);
+        setStatus("We sent a verification code to your email.");
+        return;
+      }
+      throw new Error(
+        "This account requires a verification method that is not available here.",
+      );
+    } catch (error) {
+      setIsError(true);
+      setStatus(
+        error instanceof Error
+          ? error.message
+          : "We could not log you in. Please check your credentials.",
+      );
+    }
+  }
+
+  async function handleSocialLogin(provider: "Google" | "GitHub") {
+    setStatus("");
+    setIsError(false);
+    const socialSignIn = redirectSignIn;
+    if (!socialSignIn) {
+      setIsError(true);
+      setStatus("Authentication is still loading. Please try again.");
+      return;
+    }
+
+    try {
+      await socialSignIn.authenticateWithRedirect({
+        strategy: provider === "Google" ? "oauth_google" : "oauth_github",
+        redirectUrl: "/sso-callback",
+        redirectUrlComplete: "/login",
+      });
+    } catch (error) {
+      setIsError(true);
+      setStatus(
+        error instanceof Error
+          ? error.message
+          : error && typeof error === "object" && "message" in error
+            ? String(error.message)
+            : `${provider} login could not be started.`,
+      );
+    }
+  }
+
+  async function handleVerification(event: SubmitEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setStatus("");
+    setIsError(false);
+
+    try {
+      const { error } = await signIn!.mfa.verifyEmailCode({
+        code: verificationCode,
+      });
+      if (error) throw error;
+      if (signIn!.status !== "complete") {
+        throw new Error("The verification could not be completed.");
+      }
+      await finalizeSignIn();
+    } catch (error) {
+      setIsError(true);
+      setStatus(
+        error instanceof Error ? error.message : "Invalid verification code.",
+      );
+    }
+  }
+
+  if (isVerifying) {
+    return (
+      <div className="w-full max-w-md text-left">
+        <div className="text-center">
+          <span className="inline-flex rounded-full bg-[#e9f4e6] px-3 py-1.5 text-xs font-semibold text-[#4f754d]">
+            Security check
+          </span>
+          <h1 className={`${styles.formTitle} mt-4 text-[#171916]`}>
+            Verify your login
+          </h1>
+          <p className="mt-3 text-sm text-[#72766f]">
+            Enter the code sent to your email.
+          </p>
+        </div>
+        <form onSubmit={handleVerification} className="mt-8 space-y-5">
+          <input
+            value={verificationCode}
+            onChange={(event) => setVerificationCode(event.target.value)}
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            required
+            className="h-12 w-full rounded-xl border border-black/13 bg-white px-4 text-center text-lg tracking-[0.3em] outline-none focus:border-[#5d8b59]"
+            placeholder="000000"
+          />
+          <button
+            disabled={isLoading}
+            className="h-12 w-full cursor-pointer rounded-xl bg-[#252724] text-sm font-semibold text-white disabled:opacity-60"
+          >
+            {isLoading ? "Verifying..." : "Verify and log in"}
+          </button>
+          {status && (
+            <p
+              role="status"
+              className={`rounded-xl px-4 py-3 text-center text-xs font-medium ${isError ? "bg-[#fff0ee] text-[#914d45]" : "bg-[#edf5eb] text-[#3e704b]"}`}
+            >
+              {status}
+            </p>
+          )}
+        </form>
+      </div>
     );
   }
 
@@ -141,14 +318,22 @@ export function LoginForm() {
 
         <button
           type="submit"
+          disabled={isLoading}
           className="h-12 w-full cursor-pointer rounded-xl bg-[#252724] text-sm font-semibold text-white shadow-sm transition hover:bg-[#3b3e39] focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-[#4c7849]"
         >
-          Log in
+          {isLoading ? "Logging in..." : "Log in"}
         </button>
 
         {status && (
           <p
-            className="rounded-xl bg-[#edf5eb] px-4 py-3 text-center text-xs font-medium text-[#4e704b]"
+            className={`rounded-xl bg-[#edf5eb] px-4 py-3 text-center text-xs font-medium text-[#4e704b]
+              
+              ${
+                isError
+                  ? "bg-[#fff0ee] text-[#914d45]"
+                  : "bg-[#edf5eb] text-[#3e704b]"
+              }
+              `}
             role="status"
           >
             {status}
