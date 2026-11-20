@@ -1,41 +1,560 @@
 "use client";
 
 import { Icon } from "@iconify/react";
-import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useAuth } from "@clerk/nextjs";
 import {
-  clientConversations,
-  clientJobs,
-  clientProposals,
+  type InfiniteData,
+  useInfiniteQuery,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+import { formatDistanceToNow } from "date-fns";
+import Image from "next/image";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { io, type Socket } from "socket.io-client";
+import { playIncomingMessageSound } from "../../hooks/message-sound";
+import { markConversationLocallyRead } from "../../hooks/use-unread-messages";
+import {
   type ClientConversation,
   type ClientMessage,
-  type ClientProposal,
 } from "../data/client-data";
 
+type ApiConversation = {
+  id: string;
+  jobId: string | null;
+  contractId: string | null;
+  contractStatus: string | null;
+  unreadCount: number;
+  jobTitle: string | null;
+  lastMessageAt: string | null;
+  lastAttachmentName: string | null;
+  lastMessage: { body: string | null; eventType: string | null } | null;
+  participants: Array<{
+    accountId: string | null;
+    agencyId: string | null;
+    participantType: string;
+    name: string;
+    avatarUrl: string | null;
+  }>;
+  activeMeeting: { id: string; joinUrl: string; startedAt: string } | null;
+};
+
+type ApiMessage = {
+  id: string;
+  senderId: string | null;
+  messageType: string;
+  body: string | null;
+  eventType: string | null;
+  eventPayload: Record<string, unknown> | null;
+  createdAt: string;
+  replyToMessageId: string | null;
+  attachments: Array<{
+    file_name: string;
+    file_url: string;
+    file_size: number;
+    mime_type: string;
+  }>;
+};
+
+type MessagePage = { messages: ApiMessage[]; nextCursor: string | null };
+
+const updateLatestMessages = (
+  current: InfiniteData<MessagePage> | undefined,
+  update: (messages: ApiMessage[]) => ApiMessage[],
+): InfiniteData<MessagePage> =>
+  current
+    ? {
+        ...current,
+        pages: current.pages.map((page, index) =>
+          index === 0 ? { ...page, messages: update(page.messages) } : page,
+        ),
+      }
+    : {
+        pages: [{ messages: update([]), nextCursor: null }],
+        pageParams: [undefined],
+      };
+
+const readFile = (file: File) =>
+  new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error("File could not be read."));
+    reader.readAsDataURL(file);
+  });
+
 export function MessagesDashboard({
-  initialPerson,
-  initialAction,
+  conversationId,
 }: {
-  initialPerson?: string;
-  initialAction?: string;
+  conversationId?: string;
 }) {
-  const seededConversations = useMemo(
-    () => seedTransactionConversation(initialPerson, initialAction),
-    [initialAction, initialPerson],
-  );
-  const [conversations, setConversations] = useState(seededConversations);
-  const [selectedId, setSelectedId] = useState<number | null>(
-    seededConversations.find(
-      (conversation) => conversation.person === initialPerson,
-    )?.id ?? null,
-  );
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const { getToken, userId } = useAuth();
   const [search, setSearch] = useState("");
   const [draft, setDraft] = useState("");
   const [attachmentOpen, setAttachmentOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState("");
+  const [sending, setSending] = useState(false);
+  const [socketReady, setSocketReady] = useState(false);
+  const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
+  const [typingUser, setTypingUser] = useState<{
+    conversationId: string;
+    userId: string;
+  } | null>(null);
+  const socketRef = useRef<Socket | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const loadingOlderRef = useRef(false);
+  const userScrolledMessagesRef = useRef(false);
+  const markedReadRef = useRef<string | null>(null);
 
-  const selected = conversations.find((item) => item.id === selectedId);
+  useEffect(() => {
+    if (!userId) return;
+    let active = true;
+    void getToken().then((token) => {
+      if (!active || !token) return;
+      const socket = io(new URL(process.env.NEXT_PUBLIC_SERVER_URI!).origin, {
+        auth: { token, role: "client" },
+      });
+      socketRef.current = socket;
+      socket.on("connect", () => setSocketReady(true));
+      socket.on("disconnect", () => setSocketReady(false));
+      socket.on("presence:snapshot", ({ userIds }: { userIds: string[] }) =>
+        setOnlineUsers(new Set(userIds)),
+      );
+      socket.on(
+        "presence:update",
+        ({
+          userId: changedUserId,
+          online,
+        }: {
+          userId: string;
+          online: boolean;
+        }) =>
+          setOnlineUsers((current) => {
+            const next = new Set(current);
+            online ? next.add(changedUserId) : next.delete(changedUserId);
+            return next;
+          }),
+      );
+      socket.on(
+        "conversation:update",
+        ({
+          conversationId: changedConversationId,
+          messagesChanged,
+          senderId,
+        }: {
+          conversationId: string;
+          messagesChanged?: boolean;
+          senderId?: string | null;
+        }) => {
+          if (senderId !== userId) playIncomingMessageSound();
+          void queryClient.invalidateQueries({
+            queryKey: ["client-conversations"],
+          });
+          if (messagesChanged !== false)
+            void queryClient.invalidateQueries({
+              queryKey: ["conversation-messages", changedConversationId],
+            });
+        },
+      );
+      socket.on(
+        "typing:update",
+        ({
+          conversationId,
+          userId,
+          isTyping,
+        }: {
+          conversationId: string;
+          userId: string;
+          isTyping: boolean;
+        }) => setTypingUser(isTyping ? { conversationId, userId } : null),
+      );
+    });
+    return () => {
+      active = false;
+      socketRef.current?.disconnect();
+      socketRef.current = null;
+      setSocketReady(false);
+    };
+  }, [conversationId, getToken, queryClient, userId]);
+
+  const { data: inbox, isLoading: inboxLoading } = useQuery<{
+    conversations: ApiConversation[];
+    totalUnread: number;
+  }>({
+    queryKey: ["client-conversations"],
+    queryFn: async () => {
+      const token = await getToken();
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_SERVER_URI}/conversations?role=client`,
+        { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" },
+      );
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message);
+      return result.data;
+    },
+  });
+
+  const selectedConversation = inbox?.conversations.find(
+    ({ id }) => id === conversationId,
+  );
+  const {
+    data: messageData,
+    isLoading: messagesLoading,
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+  } = useInfiniteQuery<MessagePage>({
+    queryKey: ["conversation-messages", conversationId],
+    enabled: Boolean(selectedConversation),
+    initialPageParam: undefined,
+    getNextPageParam: (page) => page.nextCursor ?? undefined,
+    queryFn: async ({ pageParam }) => {
+      const token = await getToken();
+      const cursor =
+        typeof pageParam === "string"
+          ? `&cursor=${encodeURIComponent(pageParam)}`
+          : "";
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_SERVER_URI}/conversations/${conversationId}/messages?role=client${cursor}`,
+        { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" },
+      );
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message);
+      return result.data;
+    },
+  });
+  const loadedMessages = useMemo(
+    () =>
+      (messageData?.pages ?? [])
+        .slice()
+        .reverse()
+        .flatMap((page) => page.messages),
+    [messageData?.pages],
+  );
+
+  const conversations: ClientConversation[] = useMemo(
+    () =>
+      (inbox?.conversations ?? []).map((conversation) => {
+        const person = conversation.participants.find(
+          ({ accountId }) => accountId !== userId,
+        );
+        return {
+          id: conversation.id,
+          person: person?.name ?? "Freelancer",
+          avatarUrl: person?.avatarUrl,
+          initials: (person?.name ?? "Freelancer")
+            .split(" ")
+            .map((part) => part[0])
+            .join("")
+            .slice(0, 2),
+          accountType:
+            person?.participantType === "AGENCY" ? "Agency" : "Freelancer",
+          context: conversation.jobTitle ?? "Direct conversation",
+          contextHref:
+            conversation.contractStatus === "ACTIVE" && conversation.contractId
+              ? `/contracts?contractId=${conversation.contractId}`
+              : conversation.jobId
+                ? `/proposals/${conversation.jobId}`
+                : "/proposals",
+          contextLabel:
+            conversation.contractStatus === "ACTIVE"
+              ? "View contract details"
+              : "View project details",
+          online: person
+            ? onlineUsers.has(person.agencyId ?? person.accountId ?? "")
+            : false,
+          unread:
+            conversation.id === conversationId ? 0 : conversation.unreadCount,
+          lastMessage:
+            conversation.lastMessage?.body ??
+            conversation.lastMessage?.eventType ??
+            (conversation.lastAttachmentName
+              ? `Attachment – ${conversation.lastAttachmentName}`
+              : null) ??
+            "Conversation started",
+          time: conversation.lastMessageAt
+            ? formatDistanceToNow(new Date(conversation.lastMessageAt), {
+                addSuffix: true,
+              })
+            : "New",
+          messages: [],
+          activeMeeting: conversation.activeMeeting,
+        };
+      }),
+    [conversationId, inbox, onlineUsers, userId],
+  );
+
+  const selectedBase = conversations.find(({ id }) => id === conversationId);
+  const activeContractIds = new Set<string>();
+  const completedContractIds = new Set<string>();
+  const endedMeetingIds = new Set<string>();
+  const activeMilestoneSubmissions = new Map<string, string>();
+  const milestoneSubmissionStatuses = new Map<
+    string,
+    "Submitted" | "Approved" | "Changes requested"
+  >();
+  loadedMessages.forEach((message) => {
+    if (
+      message.messageType === "SYSTEM_EVENT" &&
+      message.eventType === "MILESTONE_SUBMITTED"
+    ) {
+      const milestoneId = (
+        message.eventPayload as { milestoneId?: string } | null
+      )?.milestoneId;
+      if (milestoneId) {
+        activeMilestoneSubmissions.set(milestoneId, message.id);
+        milestoneSubmissionStatuses.set(message.id, "Submitted");
+      }
+    }
+    if (
+      message.messageType === "SYSTEM_EVENT" &&
+      message.eventType === "CONTRACT_ACCEPTED"
+    ) {
+      const contractId = (
+        message.eventPayload as { contractId?: string } | null
+      )?.contractId;
+      if (contractId) activeContractIds.add(contractId);
+    }
+    if (
+      message.messageType === "SYSTEM_EVENT" &&
+      message.eventType === "CONTRACT_COMPLETED"
+    ) {
+      const contractId = (
+        message.eventPayload as { contractId?: string } | null
+      )?.contractId;
+      if (contractId) {
+        completedContractIds.add(contractId);
+        activeContractIds.delete(contractId);
+      }
+    }
+    if (
+      message.messageType === "SYSTEM_EVENT" &&
+      message.eventType === "MEETING_ENDED"
+    ) {
+      const meetingId = (
+        message.eventPayload as { meetingId?: string } | null
+      )?.meetingId;
+      if (meetingId) endedMeetingIds.add(meetingId);
+    }
+    if (
+      (message.eventType === "MILESTONE_APPROVED" ||
+        message.eventType === "MILESTONE_CHANGES_REQUESTED")
+    ) {
+      const milestoneId = (
+        message.eventPayload as { milestoneId?: string } | null
+      )?.milestoneId;
+      if (milestoneId) {
+        const submissionId = activeMilestoneSubmissions.get(milestoneId);
+        if (submissionId) {
+          milestoneSubmissionStatuses.set(
+            submissionId,
+            message.eventType === "MILESTONE_APPROVED"
+              ? "Approved"
+              : "Changes requested",
+          );
+        }
+      }
+    }
+  });
+  const selectedMessages: ClientMessage[] = loadedMessages
+    .filter(
+      (message) =>
+        !(
+          message.messageType === "SYSTEM_EVENT" &&
+          (message.eventType === "CONTRACT_ACCEPTED" ||
+            message.eventType === "MILESTONE_APPROVED" ||
+            message.eventType === "MILESTONE_CHANGES_REQUESTED")
+        ),
+    )
+    .map((message) => {
+      if (
+        message.messageType === "SYSTEM_EVENT" &&
+        message.eventType === "CONTRACT_COMPLETED"
+      ) {
+        const payload = message.eventPayload as {
+          contractId?: string;
+          title?: string;
+        } | null;
+        return {
+          id: message.id,
+          kind: "contract_completed",
+          sender: "system",
+          contractId: payload?.contractId,
+          title: payload?.title ?? "Contract completed",
+          href: payload?.contractId
+            ? `/contracts?contractId=${payload.contractId}`
+            : "/contracts",
+          time: formatDistanceToNow(new Date(message.createdAt), {
+            addSuffix: true,
+          }),
+        };
+      }
+
+      if (
+        message.messageType === "SYSTEM_EVENT" &&
+        message.eventType === "CONTRACT_OFFER"
+      ) {
+        const payload = message.eventPayload as {
+          contractId?: string;
+          title?: string;
+          firstMilestone?: { amount?: number };
+        } | null;
+        const contractId = payload?.contractId ?? "";
+        return {
+          id: message.id,
+          kind: "contract",
+          sender: "client",
+          title: payload?.title ?? "Contract offer",
+          amount: Number(payload?.firstMilestone?.amount ?? 0),
+          status: completedContractIds.has(contractId)
+            ? "Completed"
+            : activeContractIds.has(contractId)
+              ? "Active"
+              : "Awaiting acceptance",
+          href: payload?.contractId
+            ? `/contracts?contractId=${payload.contractId}`
+            : "/contracts",
+          time: formatDistanceToNow(new Date(message.createdAt), {
+            addSuffix: true,
+          }),
+        };
+      }
+
+      if (
+        message.messageType === "SYSTEM_EVENT" &&
+        (message.eventType === "MILESTONE_SUBMITTED" ||
+          message.eventType === "MILESTONE_FUNDED" ||
+          message.eventType === "MILESTONE_ADDED")
+      ) {
+        const payload = message.eventPayload as {
+          contractId?: string;
+          milestoneId?: string;
+          milestoneTitle?: string;
+          amount?: number;
+          submissionMessage?: string;
+          submissionDeliveryLink?: string | null;
+          requirements?: string | null;
+          dueDate?: string;
+        } | null;
+        return {
+          id: message.id,
+          kind: "milestone",
+          sender:
+            message.eventType === "MILESTONE_SUBMITTED" ? "talent" : "client",
+          title: payload?.milestoneTitle ?? "Milestone submitted",
+          amount: Number(payload?.amount ?? 0),
+          status:
+            message.eventType === "MILESTONE_ADDED"
+              ? "Added"
+              : message.eventType === "MILESTONE_FUNDED"
+                ? "Funded"
+                : (milestoneSubmissionStatuses.get(message.id) ?? "Submitted"),
+          href: payload?.contractId
+            ? `/contracts?contractId=${payload.contractId}`
+            : "/contracts",
+          time: formatDistanceToNow(new Date(message.createdAt), {
+            addSuffix: true,
+          }),
+          contractId: payload?.contractId,
+          milestoneId: payload?.milestoneId,
+          submissionMessage:
+            payload?.submissionMessage ?? payload?.requirements ?? undefined,
+          submissionDeliveryLink: payload?.submissionDeliveryLink ?? undefined,
+          dueDate: payload?.dueDate,
+        };
+      }
+
+      if (
+        message.messageType === "SYSTEM_EVENT" &&
+        message.eventType === "MEETING_STARTED"
+      ) {
+        const payload = message.eventPayload as {
+          joinUrl?: string;
+          meetingId?: string;
+        } | null;
+        return {
+          id: message.id,
+          kind: "meeting",
+          sender: message.senderId === userId ? "client" : "talent",
+          title: "Video meeting",
+          startsAt: `Started ${formatDistanceToNow(new Date(message.createdAt), { addSuffix: true })}`,
+          meetUrl: payload?.joinUrl ?? "",
+          ended: payload?.meetingId
+            ? endedMeetingIds.has(payload.meetingId)
+            : false,
+          time: formatDistanceToNow(new Date(message.createdAt), {
+            addSuffix: true,
+          }),
+        };
+      }
+
+      if (
+        message.messageType === "SYSTEM_EVENT" &&
+        message.eventType === "MEETING_ENDED"
+      ) {
+        const payload = message.eventPayload as {
+          durationMinutes?: number;
+        } | null;
+        return {
+          id: message.id,
+          kind: "meeting_ended",
+          durationMinutes: payload?.durationMinutes ?? 0,
+          time: formatDistanceToNow(new Date(message.createdAt), {
+            addSuffix: true,
+          }),
+        };
+      }
+
+      return {
+        id: message.id,
+        kind: "text",
+        sender: message.senderId === userId ? "client" : "talent",
+        text: message.body ?? "Shared an attachment.",
+        time: formatDistanceToNow(new Date(message.createdAt), {
+          addSuffix: true,
+        }),
+        replyToId: message.replyToMessageId ?? undefined,
+        attachment: message.attachments[0]
+          ? {
+              name: message.attachments[0].file_name,
+              size: `${(message.attachments[0].file_size / 1024 / 1024).toFixed(1)} MB`,
+              type: message.attachments[0].mime_type,
+              url: message.attachments[0].file_url,
+            }
+          : undefined,
+      };
+    });
+  const selected = selectedBase
+    ? { ...selectedBase, messages: selectedMessages }
+    : undefined;
+
+  useEffect(() => {
+    userScrolledMessagesRef.current = false;
+    if (loadingOlderRef.current) return;
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [conversationId, selectedMessages.length]);
+
+  const loadOlderMessages = async () => {
+    const container = messagesContainerRef.current;
+    if (!container || !hasNextPage || isFetchingNextPage) return;
+    const previousHeight = container.scrollHeight;
+    const previousTop = container.scrollTop;
+    loadingOlderRef.current = true;
+    await fetchNextPage();
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        container.scrollTop =
+          previousTop + container.scrollHeight - previousHeight;
+        loadingOlderRef.current = false;
+      }),
+    );
+  };
+
   const filtered = useMemo(
     () =>
       conversations.filter((item) =>
@@ -46,68 +565,258 @@ export function MessagesDashboard({
     [conversations, search],
   );
 
-  const selectConversation = (conversation: ClientConversation) => {
-    setSelectedId(conversation.id);
-    setConversations((current) =>
-      current.map((item) =>
-        item.id === conversation.id ? { ...item, unread: 0 } : item,
-      ),
+  useEffect(() => {
+    const lastMessage = loadedMessages.findLast(
+      ({ id }) => !id.startsWith("optimistic-"),
     );
-  };
-
-  const appendMessage = (
-    conversationId: number,
-    message: ClientMessage,
-    preview: string,
-  ) => {
-    setConversations((current) =>
-      current.map((item) =>
-        item.id === conversationId
-          ? {
-              ...item,
-              lastMessage: preview,
-              time: "Now",
-              messages: [...item.messages, message],
-            }
-          : item,
-      ),
+    if (!selectedConversation || !lastMessage) return;
+    const readKey = `${selectedConversation.id}:${lastMessage.id}`;
+    if (markedReadRef.current === readKey) return;
+    markedReadRef.current = readKey;
+    markConversationLocallyRead(selectedConversation.id);
+    queryClient.setQueryData<{
+      conversations: ApiConversation[];
+      totalUnread: number;
+    }>(["client-conversations"], (current) =>
+      current
+        ? {
+            ...current,
+            totalUnread: Math.max(
+              0,
+              current.totalUnread - selectedConversation.unreadCount,
+            ),
+            conversations: current.conversations.map((conversation) =>
+              conversation.id === selectedConversation.id
+                ? { ...conversation, unreadCount: 0 }
+                : conversation,
+            ),
+          }
+        : current,
     );
-  };
+    if (socketRef.current?.connected) {
+      socketRef.current.emit("conversation:read", {
+        conversationId: selectedConversation.id,
+        messageId: lastMessage.id,
+      });
+      return;
+    }
+    void getToken().then((token) =>
+      fetch(
+        `${process.env.NEXT_PUBLIC_SERVER_URI}/conversations/${selectedConversation.id}/read?role=client`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ lastReadMessageId: lastMessage.id }),
+        },
+      )
+        .then(async (response) => {
+          if (!response.ok)
+            throw new Error("Messages could not be marked read.");
+        })
+        .catch(() => {
+          if (markedReadRef.current === readKey) markedReadRef.current = null;
+        }),
+    );
+  }, [
+    getToken,
+    loadedMessages,
+    queryClient,
+    selectedConversation,
+    socketReady,
+  ]);
 
-  const sendMessage = () => {
+  const selectConversation = (conversation: ClientConversation) =>
+    router.push(`/messages?conversationId=${conversation.id}`);
+
+  const sendMessage = async (file?: File) => {
     const text = draft.trim();
-    if (!text || selectedId === null) return;
-    appendMessage(
-      selectedId,
-      {
-        id: Date.now(),
-        kind: "text",
-        sender: "client",
-        text,
-        time: "Now",
-      },
-      text,
-    );
+    if ((!text && !file) || !selected || sending || selected.activeMeeting)
+      return;
+    const optimisticId = `optimistic-${Date.now()}`;
+    setSending(true);
     setDraft("");
+    queryClient.setQueryData<{
+      conversations: ApiConversation[];
+      totalUnread: number;
+    }>(["client-conversations"], (current) =>
+      current
+        ? {
+            ...current,
+            conversations: current.conversations.map((conversation) =>
+              conversation.id === selected.id
+                ? {
+                    ...conversation,
+                    lastMessage: { body: text || null, eventType: null },
+                    lastAttachmentName: file?.name ?? null,
+                    lastMessageAt: new Date().toISOString(),
+                  }
+                : conversation,
+            ),
+          }
+        : current,
+    );
+    queryClient.setQueryData<InfiniteData<MessagePage>>(
+      ["conversation-messages", selected.id],
+      (current) =>
+        updateLatestMessages(current, (messages) => [
+          ...messages,
+          {
+            id: optimisticId,
+            senderId: userId ?? null,
+            messageType: "USER",
+            body: text || null,
+            eventType: null,
+            eventPayload: null,
+            createdAt: new Date().toISOString(),
+            replyToMessageId: null,
+            attachments: file
+              ? [
+                  {
+                    file_name: file.name,
+                    file_url: "",
+                    file_size: file.size,
+                    mime_type: file.type,
+                  },
+                ]
+              : [],
+          },
+        ]),
+    );
+
+    try {
+      const token = await getToken();
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_SERVER_URI}/conversations/${selected.id}/messages?role=client`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            body: text || undefined,
+            attachments: file
+              ? [
+                  {
+                    fileUrl: await readFile(file),
+                    fileName: file.name,
+                    fileSize: file.size,
+                    mimeType: file.type,
+                  },
+                ]
+              : [],
+          }),
+        },
+      );
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message);
+      queryClient.setQueryData<InfiniteData<MessagePage>>(
+        ["conversation-messages", selected.id],
+        (current) =>
+          updateLatestMessages(current, (messages) =>
+            messages.map((message) =>
+              message.id === optimisticId ? result.data : message,
+            ),
+          ),
+      );
+    } catch (error) {
+      queryClient.setQueryData<InfiniteData<MessagePage>>(
+        ["conversation-messages", selected.id],
+        (current) =>
+          updateLatestMessages(current, (messages) =>
+            messages.filter(({ id }) => id !== optimisticId),
+          ),
+      );
+      setDraft(text);
+      setFileError(
+        error instanceof Error ? error.message : "Message could not be sent.",
+      );
+      void queryClient.invalidateQueries({
+        queryKey: ["client-conversations"],
+      });
+      setSending(false);
+      return;
+    }
+
+    setSending(false);
+    socketRef.current?.emit("typing:set", {
+      conversationId: selected.id,
+      isTyping: false,
+    });
+    setSelectedFile(null);
+    setAttachmentOpen(false);
   };
 
-  const createMeeting = () => {
-    if (!selected) return;
-    const meetUrl = "https://meet.google.com/new";
-    appendMessage(
-      selected.id,
+  const reviewMilestone = async (
+    message: Extract<ClientMessage, { kind: "milestone" }>,
+    action: "APPROVE" | "REQUEST_CHANGES",
+    feedback?: string,
+  ) => {
+    if (!message.contractId || !message.milestoneId) return;
+    const token = await getToken();
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_SERVER_URI}/contracts/${message.contractId}/milestones/${message.milestoneId}/review?role=client`,
       {
-        id: Date.now(),
-        kind: "meeting",
-        sender: "client",
-        title: `${selected.context} meeting`,
-        startsAt: "Meeting room ready",
-        meetUrl,
-        time: "Now",
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ action, feedback }),
       },
-      "Meeting room created — join when ready.",
     );
-    window.open(meetUrl, "_blank", "noopener,noreferrer");
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.message);
+    await Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: ["conversation-messages", conversationId],
+      }),
+      queryClient.invalidateQueries({ queryKey: ["client-contracts"] }),
+    ]);
+  };
+
+  const [creatingMeeting, setCreatingMeeting] = useState(false);
+
+  const createMeeting = async () => {
+    if (!selected) return;
+    if (selected.activeMeeting) {
+      window.open(
+        selected.activeMeeting.joinUrl,
+        "_blank",
+        "noopener,noreferrer",
+      );
+      return;
+    }
+    if (creatingMeeting) return;
+    setCreatingMeeting(true);
+    try {
+      const token = await getToken();
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_SERVER_URI}/conversations/${selected.id}/meetings?role=client`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message);
+      window.open(result.data.joinUrl, "_blank", "noopener,noreferrer");
+      await queryClient.invalidateQueries({
+        queryKey: ["client-conversations"],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["conversation-messages", selected.id],
+      });
+    } catch (error) {
+      setFileError(
+        error instanceof Error ? error.message : "Meeting could not be created.",
+      );
+    } finally {
+      setCreatingMeeting(false);
+    }
   };
 
   const chooseFile = (file?: File) => {
@@ -132,28 +841,7 @@ export function MessagesDashboard({
     setSelectedFile(file);
   };
 
-  const attachFile = () => {
-    if (!selectedFile || selectedId === null) return;
-    appendMessage(
-      selectedId,
-      {
-        id: Date.now(),
-        kind: "text",
-        sender: "client",
-        text: draft.trim() || "Shared an attachment.",
-        time: "Now",
-        attachment: {
-          name: selectedFile.name,
-          size: `${(selectedFile.size / 1024 / 1024).toFixed(1)} MB`,
-          type: selectedFile.type,
-        },
-      },
-      `Attachment: ${selectedFile.name}`,
-    );
-    setDraft("");
-    setSelectedFile(null);
-    setAttachmentOpen(false);
-  };
+  const attachFile = () => selectedFile && void sendMessage(selectedFile);
 
   return (
     <>
@@ -198,13 +886,22 @@ export function MessagesDashboard({
                 type="button"
                 onClick={() => selectConversation(conversation)}
                 className={`flex w-full gap-3 border-b border-black/6 p-4 text-left ${
-                  selectedId === conversation.id
+                  conversationId === conversation.id
                     ? "bg-[#edf4ea]"
                     : "hover:bg-[#f8f9f6]"
                 }`}
               >
                 <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#527a73] text-xs font-semibold text-white">
-                  {conversation.initials}
+                  {conversation.avatarUrl ? (
+                    <Image
+                      src={conversation.avatarUrl}
+                      alt={conversation.person}
+                      fill
+                      className="rounded-full object-cover"
+                    />
+                  ) : (
+                    conversation.initials
+                  )}
                   {conversation.online && (
                     <span className="absolute right-0 bottom-0 h-3 w-3 rounded-full border-2 border-white bg-[#5ca568]" />
                   )}
@@ -244,25 +941,52 @@ export function MessagesDashboard({
           <section className="flex min-h-0 flex-col">
             <header className="flex shrink-0 items-center justify-between gap-4 border-b border-black/7 p-4 sm:p-5">
               <div className="flex items-center gap-3">
-                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#527a73] text-xs font-semibold text-white">
-                  {selected.initials}
+                <span className="relative flex h-10 w-10 items-center justify-center rounded-full bg-[#527a73] text-xs font-semibold text-white">
+                  {selected.avatarUrl ? (
+                    <Image
+                      src={selected.avatarUrl}
+                      alt={selected.person}
+                      fill
+                      className="rounded-full object-cover"
+                    />
+                  ) : (
+                    selected.initials
+                  )}
                 </span>
                 <div>
                   <h2 className="text-sm font-semibold">{selected.person}</h2>
                   <p className="mt-1 text-[10px] text-[#7b8078]">
-                    {selected.accountType} · Project thread
+                    {typingUser?.conversationId === selected.id
+                      ? "Typing..."
+                      : `${selected.accountType} · ${selected.online ? "Online" : "Offline"}`}
                   </p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={createMeeting}
-                className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-xl border border-black/10 px-3 text-xs font-semibold"
+                disabled={creatingMeeting}
+                className={`inline-flex h-10 cursor-pointer items-center gap-2 rounded-xl border px-3 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-60 ${
+                  selected.activeMeeting
+                    ? "border-[#9dbc99] bg-[#e9f3e6] text-[#477344]"
+                    : "border-black/10"
+                }`}
               >
                 <Icon icon="solar:videocamera-record-linear" width="18" />
-                Create meeting
+                {creatingMeeting
+                  ? "Starting…"
+                  : selected.activeMeeting
+                    ? "Join meeting"
+                    : "Create meeting"}
               </button>
             </header>
+
+            {selected.activeMeeting && (
+              <div className="flex shrink-0 items-center gap-2 border-b border-black/7 bg-[#f2f7ef] px-5 py-2.5 text-xs font-medium text-[#52784f]">
+                <Icon icon="solar:videocamera-record-linear" width="15" />
+                Meeting in progress — chat is paused until it ends.
+              </div>
+            )}
 
             <div className="flex shrink-0 items-center justify-between border-b border-black/7 bg-[#fafbf9] px-5 py-3 text-xs">
               <span className="truncate">{selected.context}</span>
@@ -270,30 +994,62 @@ export function MessagesDashboard({
                 href={selected.contextHref}
                 className="shrink-0 font-semibold text-[#52784f]"
               >
-                View project details
+                {selected.contextLabel}
               </Link>
             </div>
 
-            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto bg-[#fbfcfa] p-5">
-              <div className="flex items-center gap-3 py-1">
-                <span className="h-px flex-1 bg-black/7" />
-                <span className="text-[9px] font-medium text-[#969b94]">
-                  Project activity
-                </span>
-                <span className="h-px flex-1 bg-black/7" />
-              </div>
+            <div
+              ref={messagesContainerRef}
+              onWheel={() => {
+                userScrolledMessagesRef.current = true;
+              }}
+              onTouchStart={() => {
+                userScrolledMessagesRef.current = true;
+              }}
+              onScroll={(event) => {
+                if (
+                  userScrolledMessagesRef.current &&
+                  event.currentTarget.scrollTop <= 40
+                )
+                  void loadOlderMessages();
+              }}
+              className="min-h-0 flex-1 space-y-4 overflow-y-auto bg-[#fbfcfa] p-5"
+            >
+              {isFetchingNextPage && (
+                <div className="flex justify-center py-2">
+                  <span className="h-5 w-5 animate-spin rounded-full border-2 border-black/10 border-t-[#638b60]" />
+                </div>
+              )}
+              {!messagesLoading &&
+                !hasNextPage &&
+                selected.messages.length > 0 && (
+                  <div className="flex items-center gap-3 py-1">
+                    <span className="h-px flex-1 bg-black/7" />
+                    <span className="text-[9px] font-medium text-[#969b94]">
+                      Project activity
+                    </span>
+                    <span className="h-px flex-1 bg-black/7" />
+                  </div>
+                )}
               {selected.messages.map((message) => (
                 <TransactionMessage
                   key={message.id}
                   message={message}
                   messages={selected.messages}
+                  onReviewMilestone={reviewMilestone}
                 />
               ))}
-              {!selected.messages.length && (
+              {messagesLoading && (
+                <div className="flex justify-center py-12">
+                  <span className="h-6 w-6 animate-spin rounded-full border-2 border-black/10 border-t-[#638b60]" />
+                </div>
+              )}
+              {!messagesLoading && !selected.messages.length && (
                 <p className="py-12 text-center text-xs text-[#858a82]">
                   This project thread is ready. Send the first message.
                 </p>
               )}
+              <div ref={messagesEndRef} />
             </div>
 
             <div className="shrink-0 border-t border-black/7 bg-white p-4">
@@ -302,28 +1058,47 @@ export function MessagesDashboard({
                   type="button"
                   aria-label="Attach file"
                   onClick={() => setAttachmentOpen(true)}
-                  className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-lg hover:bg-black/4"
+                  disabled={Boolean(selected.activeMeeting)}
+                  className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-lg hover:bg-black/4 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   <Icon icon="solar:paperclip-linear" width="20" />
                 </button>
                 <textarea
                   value={draft}
-                  onChange={(event) => setDraft(event.target.value)}
+                  onChange={(event) => {
+                    setDraft(event.target.value);
+                    socketRef.current?.emit("typing:set", {
+                      conversationId: selected.id,
+                      isTyping: Boolean(event.target.value.trim()),
+                    });
+                  }}
+                  onBlur={() =>
+                    socketRef.current?.emit("typing:set", {
+                      conversationId: selected.id,
+                      isTyping: false,
+                    })
+                  }
                   onKeyDown={(event) => {
                     if (event.key === "Enter" && !event.shiftKey) {
                       event.preventDefault();
-                      sendMessage();
+                      void sendMessage();
                     }
                   }}
                   rows={1}
-                  placeholder="Reply in this project thread…"
-                  className="min-h-10 flex-1 resize-none py-2 text-sm outline-none"
+                  disabled={Boolean(selected.activeMeeting)}
+                  placeholder={
+                    selected.activeMeeting
+                      ? "Chat is paused during the meeting…"
+                      : "Reply in this project thread…"
+                  }
+                  className="min-h-10 flex-1 resize-none py-2 text-sm outline-none disabled:cursor-not-allowed disabled:text-[#9a9e97]"
                 />
                 <button
                   type="button"
-                  onClick={sendMessage}
+                  onClick={() => void sendMessage()}
+                  disabled={sending || Boolean(selected.activeMeeting)}
                   aria-label="Send message"
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#252724] text-white"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#252724] text-white disabled:opacity-50"
                 >
                   <Icon icon="solar:plain-2-bold" width="18" />
                 </button>
@@ -336,10 +1111,15 @@ export function MessagesDashboard({
               <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-[#edf4ea] text-[#52784f]">
                 <Icon icon="solar:chat-round-dots-linear" width="30" />
               </span>
-              <h2 className="mt-5 font-semibold">Select a project thread</h2>
+              <h2 className="mt-5 font-semibold">
+                {inboxLoading
+                  ? "Loading conversation..."
+                  : "Conversation does not exist"}
+              </h2>
               <p className="mt-2 max-w-sm text-sm leading-6 text-[#7b8078]">
-                Review proposals, interviews, meetings, contract offers,
-                milestones, and payments in one place.
+                {inboxLoading
+                  ? "Please wait while the conversation is loaded."
+                  : "The conversation ID is missing or you do not have access to it."}
               </p>
             </div>
           </section>
@@ -349,6 +1129,7 @@ export function MessagesDashboard({
         <AttachmentModal
           file={selectedFile}
           error={fileError}
+          uploading={sending}
           onChoose={chooseFile}
           onClose={() => {
             setAttachmentOpen(false);
@@ -365,12 +1146,14 @@ export function MessagesDashboard({
 function AttachmentModal({
   file,
   error,
+  uploading,
   onChoose,
   onClose,
   onAttach,
 }: {
   file: File | null;
   error: string;
+  uploading: boolean;
   onChoose: (file?: File) => void;
   onClose: () => void;
   onAttach: () => void;
@@ -444,10 +1227,10 @@ function AttachmentModal({
           <button
             type="button"
             onClick={onAttach}
-            disabled={!file}
+            disabled={!file || uploading}
             className="h-10 rounded-xl bg-[#252724] px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-35"
           >
-            Attach file
+            {uploading ? "Uploading…" : "Attach file"}
           </button>
         </div>
       </div>
@@ -458,10 +1241,34 @@ function AttachmentModal({
 function TransactionMessage({
   message,
   messages,
+  onReviewMilestone,
 }: {
   message: ClientMessage;
   messages: ClientMessage[];
+  onReviewMilestone: (
+    message: Extract<ClientMessage, { kind: "milestone" }>,
+    action: "APPROVE" | "REQUEST_CHANGES",
+    feedback?: string,
+  ) => Promise<void>;
 }) {
+  const [reviewing, setReviewing] = useState<
+    "APPROVE" | "REQUEST_CHANGES" | null
+  >(null);
+  const [reviewDialog, setReviewDialog] = useState<
+    "APPROVE" | "REQUEST_CHANGES" | null
+  >(null);
+  const [modificationMessage, setModificationMessage] = useState("");
+  useEffect(() => {
+    if (!reviewDialog) return;
+    const previousHtmlOverflow = document.documentElement.style.overflow;
+    const previousOverflow = document.body.style.overflow;
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.documentElement.style.overflow = previousHtmlOverflow;
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [reviewDialog]);
   if (message.kind === "text") {
     const repliedMessage = message.replyToId
       ? messages.find((item) => item.id === message.replyToId)
@@ -503,7 +1310,7 @@ function TransactionMessage({
               </p>
             </div>
           )}
-          <p>{message.text}</p>
+          <p className="whitespace-pre-wrap">{message.text}</p>
           {message.attachment && (
             <div
               className={`mt-3 flex items-center gap-3 rounded-xl p-3 ${message.sender === "client" ? "bg-white/10" : "bg-white"}`}
@@ -517,7 +1324,16 @@ function TransactionMessage({
                   {message.attachment.size}
                 </span>
               </span>
-              <Icon icon="solar:download-minimalistic-linear" width="17" />
+              {message.attachment.url && (
+                <a
+                  href={message.attachment.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label={`Download ${message.attachment.name}`}
+                >
+                  <Icon icon="solar:download-minimalistic-linear" width="17" />
+                </a>
+              )}
             </div>
           )}
           <p
@@ -528,6 +1344,15 @@ function TransactionMessage({
             {message.time}
           </p>
         </div>
+      </div>
+    );
+  }
+
+  if (message.kind === "meeting_ended") {
+    return (
+      <div className="mx-auto flex items-center gap-2 text-[10px] font-medium text-[#8a8f87]">
+        <Icon icon="solar:videocamera-record-linear" width="14" />
+        Meeting ended · {message.durationMinutes} min
       </div>
     );
   }
@@ -567,6 +1392,11 @@ function TransactionMessage({
       eyebrow: "Contract offer",
       tone: "bg-[#eeeaf5] text-[#6b5d82]",
     },
+    contract_completed: {
+      icon: "solar:check-circle-bold",
+      eyebrow: "Contract completed",
+      tone: "bg-[#edf4ea] text-[#52784f]",
+    },
     milestone: {
       icon: "solar:flag-linear",
       eyebrow: "Milestone update",
@@ -575,6 +1405,7 @@ function TransactionMessage({
   }[message.kind];
 
   return (
+    <>
     <article
       className={`w-full rounded-2xl border border-black/8 bg-white p-5 ${
         message.sender === "client" ? "ml-auto" : "mr-auto"
@@ -618,44 +1449,233 @@ function TransactionMessage({
             </>
           )}
 
-          {message.kind === "meeting" && (
-            <EventFooter
-              detail={message.startsAt}
-              href={message.meetUrl}
-              action="Join meeting"
-              external
-            />
-          )}
+          {message.kind === "meeting" &&
+            (message.ended ? (
+              <p className="mt-3 border-t border-black/6 pt-3 text-[10px] font-semibold text-[#8a8f87]">
+                Meeting ended
+              </p>
+            ) : (
+              <EventFooter
+                detail={message.startsAt}
+                href={message.meetUrl}
+                action="Join meeting"
+                external
+              />
+            ))}
 
           {message.kind === "contract" && (
             <>
-              <p className="mt-2 text-[10px] text-[#6c736a]">
-                ${message.amount.toLocaleString()} · {message.status}
-              </p>
-              {message.status === "Awaiting acceptance" && (
-                <p className="mt-2 text-[9px] leading-4 text-[#858b83]">
-                  The contract becomes active only after the talent accepts the
-                  offer.
+              <div className="mt-3 rounded-xl bg-[#f7f5fa] p-3">
+                <p className="text-[9px] font-medium text-[#81758e]">
+                  First milestone funded
                 </p>
-              )}
+                <p className="mt-1 text-lg font-semibold text-[#29252d]">
+                  ${message.amount.toLocaleString()}
+                </p>
+              </div>
+              <div
+                className={`mt-4 flex items-center justify-between gap-3 rounded-xl px-3 py-3 text-[10px] font-semibold ${
+                  message.status === "Completed"
+                    ? "bg-[#edf4ea] text-[#52784f]"
+                    : message.status === "Active"
+                      ? "bg-[#edf4ea] text-[#52784f]"
+                      : "bg-[#faf5e8] text-[#80672f]"
+                }`}
+              >
+                <span className="flex items-center gap-2">
+                  <Icon
+                    icon={
+                      message.status === "Completed" || message.status === "Active"
+                        ? "solar:check-circle-bold"
+                        : "solar:clock-circle-linear"
+                    }
+                    width="17"
+                  />
+                  {message.status === "Completed"
+                    ? "Contract completed"
+                    : message.status === "Active"
+                      ? "Offer accepted · Contract is now active"
+                      : "Waiting for the freelancer to accept"}
+                </span>
+                {(message.status === "Active" || message.status === "Completed") && (
+                  <Link href={message.href} className="shrink-0 underline">
+                    View contract
+                  </Link>
+                )}
+              </div>
+            </>
+          )}
+
+          {message.kind === "contract_completed" && (
+            <>
+              <div className="mt-3 rounded-xl border border-[#d2e4ce] bg-[#edf4ea]/70 p-4">
+                <p className="flex items-center gap-2 text-xs font-semibold text-[#486d45]">
+                  <Icon
+                    icon="solar:check-circle-bold"
+                    width="18"
+                    className="text-[#52784f]"
+                  />
+                  The contract “{message.title}” was completed.
+                </p>
+                <p className="mt-1.5 text-xs leading-5 text-[#5e695c]">
+                  This contract has been completed. Feedback has been recorded and all remaining payments have been settled.
+                </p>
+              </div>
               <EventFooter
-                detail={message.status}
+                detail="Contract completed"
                 href={message.href}
-                action="View offer"
+                action="View contract"
               />
             </>
           )}
 
           {message.kind === "milestone" && (
-            <EventFooter
-              detail={`$${message.amount.toLocaleString()} · ${message.status}`}
-              href={message.href}
-              action="View milestone"
-            />
+            <>
+              <div className="mt-3 rounded-xl bg-[#f4f6f2] p-4">
+                <p className="flex items-center gap-2 text-[10px] font-semibold text-[#52784f]">
+                  <Icon
+                    icon={
+                      message.status === "Added"
+                        ? "solar:add-circle-linear"
+                        : message.status === "Funded"
+                          ? "solar:shield-check-bold"
+                          : "solar:upload-minimalistic-linear"
+                    }
+                    width="16"
+                  />
+                  {message.status === "Added"
+                    ? "New milestone added"
+                    : message.status === "Funded"
+                      ? "Milestone funded and activated"
+                      : "Work submitted for review"}
+                </p>
+                {message.submissionMessage && (
+                  <p className="mt-2 text-xs leading-5 text-[#697067]">
+                    {message.submissionMessage}
+                  </p>
+                )}
+                {message.submissionDeliveryLink && (
+                  <a
+                    href={message.submissionDeliveryLink}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-3 inline-flex items-center gap-1 text-[10px] font-semibold text-[#52784f] underline"
+                  >
+                    Open deliverable
+                    <Icon icon="solar:arrow-right-up-linear" width="12" />
+                  </a>
+                )}
+                {message.status === "Added" && message.dueDate && (
+                  <p className="mt-2 text-[10px] text-[#697067]">
+                    Due {message.dueDate}
+                  </p>
+                )}
+              </div>
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-black/6 pt-4">
+                <span className="text-[10px] font-semibold text-[#747b72]">
+                  ${message.amount.toLocaleString()} · {message.status}
+                </span>
+                {message.status === "Submitted" && (
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      disabled={Boolean(reviewing)}
+                      onClick={() => setReviewDialog("REQUEST_CHANGES")}
+                      className="h-9 rounded-lg border border-black/10 px-3 text-[10px] font-semibold disabled:opacity-50"
+                    >
+                      {reviewing === "REQUEST_CHANGES"
+                        ? "Requesting…"
+                        : "Request modification"}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={Boolean(reviewing)}
+                      onClick={() => setReviewDialog("APPROVE")}
+                      className="h-9 rounded-lg bg-[#252724] px-3 text-[10px] font-semibold text-white disabled:opacity-50"
+                    >
+                      {reviewing === "APPROVE" ? "Accepting…" : "Accept work"}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </>
           )}
         </div>
       </div>
     </article>
+    {reviewDialog && message.kind === "milestone" && (
+      <div
+        className="fixed w-full h-screen inset-0 z-60 flex items-center justify-center bg-black/35 p-4"
+        onMouseDown={(event) => {
+          if (event.target === event.currentTarget && !reviewing)
+            setReviewDialog(null);
+        }}
+      >
+        <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+          <h3 className="text-lg font-semibold">
+            {reviewDialog === "APPROVE"
+              ? "Accept submitted work?"
+              : "Request modifications"}
+          </h3>
+          <p className="mt-2 text-sm leading-6 text-[#72776f]">
+            {reviewDialog === "APPROVE"
+              ? "Confirming will approve this milestone and release the funded amount to the freelancer."
+              : "Tell the freelancer exactly what needs to be changed."}
+          </p>
+          {reviewDialog === "REQUEST_CHANGES" && (
+            <textarea
+              autoFocus
+              value={modificationMessage}
+              onChange={(event) => setModificationMessage(event.target.value)}
+              placeholder="Describe the required modifications..."
+              className="mt-4 min-h-32 w-full resize-none rounded-xl border border-black/10 p-3 text-sm outline-none focus:border-[#638b60]"
+            />
+          )}
+          <div className="mt-5 flex justify-end gap-2">
+            <button
+              type="button"
+              disabled={Boolean(reviewing)}
+              onClick={() => setReviewDialog(null)}
+              className="h-10 rounded-xl border border-black/10 px-4 text-xs font-semibold disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={
+                Boolean(reviewing) ||
+                (reviewDialog === "REQUEST_CHANGES" &&
+                  !modificationMessage.trim())
+              }
+              onClick={() => {
+                const action = reviewDialog;
+                setReviewing(action);
+                void onReviewMilestone(
+                  message,
+                  action,
+                  action === "REQUEST_CHANGES"
+                    ? modificationMessage.trim()
+                    : undefined,
+                )
+                  .then(() => {
+                    setReviewDialog(null);
+                    setModificationMessage("");
+                  })
+                  .finally(() => setReviewing(null));
+              }}
+              className="h-10 rounded-xl bg-[#252724] px-4 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {reviewing
+                ? "Processing…"
+                : reviewDialog === "APPROVE"
+                  ? "Accept and release funds"
+                  : "Send request"}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
 
@@ -686,115 +1706,4 @@ function EventFooter({
       </a>
     </div>
   );
-}
-
-function seedTransactionConversation(
-  person?: string,
-  action?: string,
-): ClientConversation[] {
-  if (!person) return clientConversations;
-
-  const proposal = clientProposals.find((item) => item.bidder === person);
-  const job = proposal
-    ? clientJobs.find((item) => item.id === proposal.jobId)
-    : undefined;
-  const actionMessages = proposal
-    ? buildActionMessages(proposal, job?.title, action)
-    : [];
-  const existing = clientConversations.find(
-    (conversation) => conversation.person === person,
-  );
-
-  if (existing) {
-    if (!actionMessages.length) return clientConversations;
-    return clientConversations.map((conversation) =>
-      conversation.id === existing.id
-        ? {
-            ...conversation,
-            context: `${job?.title ?? conversation.context} proposal`,
-            contextHref: `/proposals?job=${proposal?.jobId ?? 1}`,
-            lastMessage:
-              action === "contract-offer"
-                ? "Contract offer sent — awaiting acceptance."
-                : "Interview started — continue the conversation.",
-            time: "Now",
-            messages: [...conversation.messages, ...actionMessages],
-          }
-        : conversation,
-    );
-  }
-
-  if (!proposal) return clientConversations;
-  return [
-    ...clientConversations,
-    {
-      id: 1000 + proposal.id,
-      person: proposal.bidder,
-      initials: proposal.initials,
-      accountType: proposal.accountType,
-      context: `${job?.title ?? "Job"} proposal`,
-      contextHref: `/proposals?job=${proposal.jobId}`,
-      online: proposal.online,
-      unread: 0,
-      lastMessage:
-        action === "contract-offer"
-          ? "Contract offer sent — awaiting acceptance."
-          : "Interview started — continue the conversation.",
-      time: "Now",
-      messages: actionMessages,
-    },
-  ];
-}
-
-function buildActionMessages(
-  proposal: ClientProposal,
-  jobTitle?: string,
-  action?: string,
-): ClientMessage[] {
-  if (!action) return [];
-  const timestamp = Date.now();
-  const proposalMessage: ClientMessage = {
-    id: timestamp,
-    kind: "proposal",
-    sender: "talent",
-    title: jobTitle ?? "Project proposal",
-    bid: proposal.bid,
-    duration: proposal.duration,
-    summary: proposal.coverLetter,
-    skills: proposal.skills,
-    href: `/proposals?job=${proposal.jobId}`,
-    time: "Now",
-  };
-
-  if (action === "contract-offer") {
-    return [
-      proposalMessage,
-      {
-        id: timestamp + 1,
-        kind: "contract",
-        sender: "client",
-        title: jobTitle ?? "Project contract",
-        amount: proposal.bid,
-        status: "Awaiting acceptance",
-        href: "/contracts",
-        time: "Now",
-      },
-    ];
-  }
-
-  if (action === "interview") {
-    return [
-      proposalMessage,
-      {
-        id: timestamp + 1,
-        kind: "text",
-        sender: "client",
-        text: "We reviewed your proposal and would like to start an interview. Please share your availability and any questions before we meet.",
-        time: "Now",
-        replyToId: timestamp,
-      },
-    ];
-  }
-
-  return [];
 }

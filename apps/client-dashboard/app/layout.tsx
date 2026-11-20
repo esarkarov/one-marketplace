@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { DM_Sans } from "next/font/google";
 import "./globals.css";
+import { ClerkProvider } from "@clerk/nextjs";
+import { Provider } from "./provider";
+import { Toaster } from "sonner";
 
 const dmSans = DM_Sans({
   variable: "--font-dm-sans",
@@ -21,7 +24,12 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className={`${dmSans.variable} antialiased`}>
-      <body>{children}</body>
+      <body>
+        <ClerkProvider>
+          <Provider>{children}</Provider>
+          <Toaster />
+        </ClerkProvider>
+      </body>
     </html>
   );
 }

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ClientShell } from "../_components/dashboard/client-shell";
 import { ProposalsDashboard } from "../_components/proposals/proposals-dashboard";
+import { Suspense } from "react";
 
 export const metadata: Metadata = {
   title: "Proposals",
@@ -8,19 +9,12 @@ export const metadata: Metadata = {
     "Review, shortlist, interview, and hire freelancers or agencies.",
 };
 
-export default async function ProposalsPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ job?: string }>;
-}) {
-  const { job } = await searchParams;
-  const initialJobId = job ? Number(job) : null;
-
+export default async function ProposalsPage() {
   return (
-    <ClientShell>
-      <ProposalsDashboard
-        initialJobId={Number.isFinite(initialJobId) ? initialJobId : null}
-      />
-    </ClientShell>
+    <Suspense>
+      <ClientShell>
+        <ProposalsDashboard />
+      </ClientShell>
+    </Suspense>
   );
 }

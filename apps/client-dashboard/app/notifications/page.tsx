@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ClientShell } from "../_components/dashboard/client-shell";
 import { ClientNotifications } from "./client-notifications";
+import { Suspense } from "react";
 
 export const metadata: Metadata = {
   title: "Notifications | OneMarketplace.io",
@@ -10,8 +11,10 @@ export const metadata: Metadata = {
 
 export default function ClientNotificationsPage() {
   return (
-    <ClientShell>
-      <ClientNotifications />
-    </ClientShell>
+    <Suspense>
+      <ClientShell>
+        <ClientNotifications />
+      </ClientShell>
+    </Suspense>
   );
 }

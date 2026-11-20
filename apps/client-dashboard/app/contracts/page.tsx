@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ClientShell } from "../_components/dashboard/client-shell";
 import { ContractsDashboard } from "../_components/contracts/contracts-dashboard";
+import { Suspense } from "react";
 
 export const metadata: Metadata = {
   title: "Contracts",
@@ -10,8 +11,10 @@ export const metadata: Metadata = {
 
 export default function ContractsPage() {
   return (
-    <ClientShell>
-      <ContractsDashboard />
-    </ClientShell>
+    <Suspense>
+      <ClientShell>
+        <ContractsDashboard />
+      </ClientShell>
+    </Suspense>
   );
 }

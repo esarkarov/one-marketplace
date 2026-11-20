@@ -21,16 +21,19 @@ const sections = [
 export default async function ClientSettingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ section?: string }>;
+  searchParams: Promise<{ section?: string; active?: string }>;
 }) {
-  const { section } = await searchParams;
+  const { section, active } = await searchParams;
   if (!section || !sections.includes(section)) {
     redirect("/settings?section=overview");
   }
 
   return (
     <ClientShell>
-      <ClientSettings initialSection={section} />
+      <ClientSettings
+        initialSection={section}
+        verificationActive={active === "true"}
+      />
     </ClientShell>
   );
 }

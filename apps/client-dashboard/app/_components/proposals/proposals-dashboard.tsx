@@ -1,35 +1,168 @@
 "use client";
 
 import { Icon } from "@iconify/react";
+import { useAuth } from "@clerk/nextjs";
+import { useQuery } from "@tanstack/react-query";
+import { formatDistanceToNow } from "date-fns";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import {
-  clientJobs,
-  clientProposals,
-  type ClientJob,
-  type ClientProposal,
-} from "../data/client-data";
+import { type ClientJob, type ClientProposal } from "../data/client-data";
+import { countries } from "@/utils/countries";
+import Image from "next/image";
 
 const proposalsPerPage = 2;
+const emptyProposalData: any[] = [];
+const emptyJobsData: any[] = [];
 
 export function ProposalsDashboard({
   initialJobId = null,
 }: {
-  initialJobId?: number | null;
+  initialJobId?: string | null;
 }) {
   const router = useRouter();
-  const [selectedJobId, setSelectedJobId] = useState<number | null>(
-    initialJobId,
-  );
+  const { getToken } = useAuth();
+  const selectedJobId = initialJobId;
   const [filter, setFilter] = useState("All");
-  const [proposals, setProposals] = useState(clientProposals);
+  const [proposals, setProposals] = useState<ClientProposal[]>([]);
   const [selectedProposal, setSelectedProposal] =
+    useState<ClientProposal | null>(null);
+  const [interviewProposal, setInterviewProposal] =
+    useState<ClientProposal | null>(null);
+  const [contractProposal, setContractProposal] =
     useState<ClientProposal | null>(null);
   const [notice, setNotice] = useState("");
   const [page, setPage] = useState(1);
 
-  const selectedJob = clientJobs.find((job) => job.id === selectedJobId);
+  const { data: jobs = emptyJobsData, isLoading: jobsLoading } = useQuery<
+    ClientJob[]
+  >({
+    queryKey: ["client-proposals-job-posts"],
+    queryFn: async () => {
+      const token = await getToken();
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_SERVER_URI}/jobs?role=client`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message);
+      return result.data.map((job: any) => ({
+        id: job.id,
+        title: job.title,
+        status:
+          job.status === "PUBLISHED"
+            ? "Open"
+            : job.status === "DRAFT"
+              ? "Draft"
+              : "Closed",
+        posted: job.created_at
+          ? `${formatDistanceToNow(new Date(job.created_at))} ago`
+          : "Recently",
+        budget: Number(job.total_budget),
+        level: job.expertise_level,
+        duration: job.expected_duration,
+        description: job.description,
+        skills: job.skills,
+        proposals: job.proposalCount ?? 0,
+        shortlisted: job.shortlistCount ?? 0,
+        hires: job.hireCount ?? 0,
+        visibility: "Marketplace",
+        screeningQuestions: job.screening_questions ?? [],
+        milestones: (job.milestones ?? []).map((milestone: any) => ({
+          id: milestone.id,
+          title: milestone.title,
+          amount: Number(milestone.budget),
+          due: milestone.dueDate,
+        })),
+      }));
+    },
+  });
+  const {
+    data: proposalData = emptyProposalData,
+    isLoading: proposalsLoading,
+  } = useQuery<any[]>({
+    queryKey: ["client-proposals", selectedJobId],
+    enabled: Boolean(selectedJobId),
+    queryFn: async () => {
+      const token = await getToken();
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_SERVER_URI}/proposals?role=client&jobId=${selectedJobId}`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message);
+      return result.data;
+    },
+  });
+  useEffect(() => {
+    const job = jobs.find((item) => String(item.id) === selectedJobId);
+
+    setProposals(
+      proposalData.map((proposal) => ({
+        id: proposal.id,
+        contractId: proposal.contractId ?? null,
+        backendStatus: proposal.status,
+        conversationId: proposal.conversationId,
+        jobId: selectedJobId!,
+        freelancerId: proposal.freelancerId,
+        senderId: proposal.senderId,
+        memberCount: proposal.memberCount,
+        bidder:
+          proposal.senderName ??
+          (proposal.senderType === "AGENCY" ? "Agency" : "Freelancer"),
+        avatarUrl: proposal.avatar,
+        initials: (
+          proposal.senderName ??
+          (proposal.senderType === "AGENCY" ? "Agency" : "Freelancer")
+        )
+          .split(" ")
+          .map((part: string) => part[0])
+          .join("")
+          .slice(0, 2),
+        accountType: proposal.senderType === "AGENCY" ? "Agency" : "Freelancer",
+        title:
+          proposal.senderType === "AGENCY"
+            ? `Agency · ${proposal.memberCount ?? 0} member${proposal.memberCount === 1 ? "" : "s"}`
+            : (proposal.professionalTitle ?? "Freelancer"),
+        location:
+          [
+            proposal.city,
+            countries.find((country) => country.code === proposal.country)
+              ?.name ?? proposal.country,
+          ]
+            .filter(Boolean)
+            .join(", ") || "Location unavailable",
+        verified: proposal.verified ?? false,
+        online: false,
+        rating: Number(proposal.rating ?? 0),
+        jobSuccess: Number(proposal.jobSuccessScore ?? 0),
+        completedProjects: Number(proposal.completedJobs ?? 0),
+        bid: Number(proposal.bidAmount),
+        duration: proposal.duration,
+        submitted: proposal.submittedAt
+          ? `${formatDistanceToNow(new Date(proposal.submittedAt))} ago`
+          : "recently",
+        coverLetter: proposal.coverLetter,
+        skills: proposal.skills ?? [],
+        milestonePlan:
+          job?.milestones?.map((milestone: any) => ({
+            title: milestone.title,
+            amount: milestone.amount,
+            duration: milestone.due,
+          })) ?? [],
+        screeningAnswers: proposal.screeningAnswers ?? [],
+        status: proposal.isShortlisted
+          ? "Shortlisted"
+          : proposal.status === "VIEWED"
+            ? "New"
+            : proposal.status === "INTERVIEWED"
+              ? "Interview"
+              : "New",
+      })),
+    );
+  }, [jobs, proposalData, selectedJobId]);
+
+  const selectedJob = jobs.find((job) => String(job.id) === selectedJobId);
   const filteredProposals = proposals.filter(
     (proposal) =>
       proposal.jobId === selectedJobId &&
@@ -53,7 +186,7 @@ export function ProposalsDashboard({
   }, [notice]);
 
   const updateStatus = (
-    proposalId: number,
+    proposalId: number | string,
     status: ClientProposal["status"],
   ) => {
     setProposals((current) =>
@@ -68,36 +201,139 @@ export function ProposalsDashboard({
   };
 
   const startInterview = (proposal: ClientProposal) => {
-    updateStatus(proposal.id, "Interview");
+    if (proposal.backendStatus === "INTERVIEWED") {
+      if (proposal.conversationId) {
+        router.push(`/messages?conversationId=${proposal.conversationId}`);
+      }
+      return;
+    }
     setSelectedProposal(null);
-    router.push(
-      `/messages?person=${encodeURIComponent(proposal.bidder)}&action=interview`,
-    );
+    setInterviewProposal(proposal);
   };
 
   const hireProposal = (proposal: ClientProposal) => {
-    updateStatus(proposal.id, "Offer sent");
     setSelectedProposal(null);
-    router.push(
-      `/messages?person=${encodeURIComponent(proposal.bidder)}&action=contract-offer`,
+    setContractProposal(proposal);
+  };
+
+  const startContractCheckout = async (proposal: ClientProposal) => {
+    const token = await getToken();
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_SERVER_URI}/contracts/checkout?role=client`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ proposalId: proposal.id }),
+      },
     );
+    const result = await response.json();
+    if (!response.ok || !result.data?.url) {
+      throw new Error(result.message || "Checkout could not be started.");
+    }
+    window.location.assign(result.data.url);
+  };
+
+  const handleProposalUpdateStatus = async (proposal: ClientProposal) => {
+    setSelectedProposal(proposal);
+
+    try {
+      const token = await getToken();
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_SERVER_URI}/proposals/${proposal.id}/status?role=client`,
+        {
+          method: "PATCH",
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+
+      if (!response.ok) {
+        const result = await response.json();
+        throw new Error(
+          result.message || "Proposal status could not be updated.",
+        );
+      }
+    } catch (error) {
+      console.error("Proposal view status update failed.", error);
+    }
+  };
+
+  const handleShortList = async (proposal: ClientProposal) => {
+    const previousStatus = proposal.status;
+    updateStatus(proposal.id, "Shortlisted");
+
+    try {
+      const token = await getToken();
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_SERVER_URI}/proposals/${proposal.id}/status?role=client`,
+        {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ isShortlisted: true }),
+        },
+      );
+      if (!response.ok) {
+        const result = await response.json();
+        throw new Error(result.message || "Proposal could not be shortlisted.");
+      }
+    } catch (error) {
+      updateStatus(proposal.id, previousStatus);
+      setNotice(
+        error instanceof Error
+          ? error.message
+          : "Proposal could not be shortlisted.",
+      );
+    }
+  };
+
+  const submitInterview = async (message: string) => {
+    if (!interviewProposal) return;
+    const token = await getToken();
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_SERVER_URI}/proposals/${interviewProposal.id}/interview?role=client`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ message }),
+      },
+    );
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(result.message || "Interview could not be started.");
+    }
+    updateStatus(interviewProposal.id, "Interview");
+    setInterviewProposal(null);
+    router.push(`/messages?conversationId=${result.data.conversationId}`);
   };
 
   if (!selectedJob) {
+    if (jobsLoading)
+      return (
+        <div className="mt-8 animate-pulse rounded-2xl border border-black/8 bg-white p-6">
+          <div className="h-3 w-20 rounded bg-[#e8ebe6]" />
+          <div className="mt-4 h-5 w-72 max-w-full rounded bg-[#dde2db]" />
+          <div className="mt-3 h-3 w-48 rounded bg-[#ecefeb]" />
+          <div className="mt-6 h-3 w-full rounded bg-[#e8ebe6]" />
+          <div className="mt-3 h-3 w-3/4 rounded bg-[#eef0ec]" />
+        </div>
+      );
     return (
       <>
         <PageHeading />
         <section className="mt-8 grid gap-4">
-          {clientJobs.map((job) => (
+          {jobs.map((job) => (
             <JobProposalCard
               key={job.id}
               job={job}
-              onView={() => {
-                setSelectedJobId(job.id);
-                setFilter("All");
-                setPage(1);
-                setNotice("");
-              }}
+              onView={() => router.push(`/proposals/${job.id}`)}
             />
           ))}
         </section>
@@ -107,18 +343,13 @@ export function ProposalsDashboard({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => {
-          setSelectedJobId(null);
-          setPage(1);
-          setNotice("");
-        }}
+      <Link
+        href="/proposals"
         className="inline-flex cursor-pointer items-center gap-1.5 text-xs font-semibold text-[#52784f]"
       >
         <Icon icon="solar:arrow-left-linear" width="15" />
         Back to job posts
-      </button>
+      </Link>
 
       <div className="mt-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
@@ -155,17 +386,23 @@ export function ProposalsDashboard({
         <div className="grid gap-4 sm:grid-cols-4">
           <JobMetric
             label="Fixed budget"
-            value={`$${selectedJob.budget.toLocaleString()}`}
+            value={`$${selectedJob?.budget?.toLocaleString()}`}
           />
           <JobMetric label="Proposals" value={String(selectedJob.proposals)} />
           <JobMetric
             label="Shortlisted"
-            value={String(selectedJob.shortlisted)}
+            value={String(
+              proposals.filter(
+                (proposal) =>
+                  proposal.jobId === selectedJob.id &&
+                  proposal.status === "Shortlisted",
+              ).length,
+            )}
           />
           <JobMetric label="Hires" value={String(selectedJob.hires)} />
         </div>
         <div className="mt-5 flex flex-wrap gap-2 border-t border-black/7 pt-5">
-          {selectedJob.skills.map((skill) => (
+          {selectedJob.skills.map((skill: any) => (
             <span
               key={skill}
               className="rounded-lg bg-[#f0f3ee] px-2.5 py-1.5 text-[10px] text-[#657062]"
@@ -237,15 +474,18 @@ export function ProposalsDashboard({
       </div>
 
       <div className="mt-5 grid gap-4">
-        {visibleProposals.map((proposal) => (
-          <ProposalCard
-            key={proposal.id}
-            proposal={proposal}
-            onView={() => setSelectedProposal(proposal)}
-            onShortlist={() => updateStatus(proposal.id, "Shortlisted")}
-          />
-        ))}
-        {!visibleProposals.length && (
+        {proposalsLoading ? (
+          <ProposalSkeleton />
+        ) : visibleProposals.length ? (
+          visibleProposals.map((proposal) => (
+            <ProposalCard
+              key={proposal.id}
+              proposal={proposal}
+              onView={() => handleProposalUpdateStatus(proposal)}
+              onShortlist={() => handleShortList(proposal)}
+            />
+          ))
+        ) : (
           <div className="rounded-2xl border border-dashed border-black/10 bg-white p-12 text-center">
             <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#edf4ea] text-[#52784f]">
               <Icon icon="solar:users-group-rounded-linear" width="26" />
@@ -274,12 +514,24 @@ export function ProposalsDashboard({
         <ProposalDrawer
           proposal={selectedProposal}
           onClose={() => setSelectedProposal(null)}
-          onDecline={() => {
-            updateStatus(selectedProposal.id, "Rejected");
-            setSelectedProposal(null);
-          }}
           onInterview={() => startInterview(selectedProposal)}
           onHire={() => hireProposal(selectedProposal)}
+        />
+      )}
+
+      {interviewProposal && (
+        <StartInterviewModal
+          proposal={interviewProposal}
+          onClose={() => setInterviewProposal(null)}
+          onSubmit={submitInterview}
+        />
+      )}
+
+      {contractProposal && (
+        <FundContractModal
+          proposal={contractProposal}
+          onClose={() => setContractProposal(null)}
+          onPay={() => startContractCheckout(contractProposal)}
         />
       )}
     </>
@@ -406,7 +658,7 @@ function JobProposalCard({
             </div>
             <h2 className="mt-3 text-lg font-semibold">{job.title}</h2>
             <p className="mt-2 text-xs text-[#757b73]">
-              Fixed price · ${job.budget.toLocaleString()} · {job.level} ·{" "}
+              Fixed price · ${job?.budget?.toLocaleString()} · {job.level} ·{" "}
               {job.duration}
             </p>
             <p className="mt-4 line-clamp-2 max-w-4xl text-sm leading-6 text-[#6f756d]">
@@ -464,8 +716,17 @@ function ProposalCard({
     <article className="rounded-2xl border border-black/8 bg-white p-5 sm:p-6">
       <div className="flex flex-col gap-5 lg:flex-row">
         <div className="flex min-w-0 flex-1 gap-4">
-          <span className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#527a73] text-sm font-semibold text-white">
-            {proposal.initials}
+          <span className="relative flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-[#527a73] text-sm font-semibold text-white">
+            {proposal.avatarUrl ? (
+              <Image
+                src={proposal.avatarUrl}
+                alt={proposal.bidder}
+                fill
+                className="rounded-full object-cover"
+              />
+            ) : (
+              proposal.initials
+            )}
             {proposal.online && (
               <span className="absolute right-0 bottom-0 h-3.5 w-3.5 rounded-full border-2 border-white bg-[#5ca568]" />
             )}
@@ -530,12 +791,6 @@ function ProposalCard({
           >
             View proposal
           </button>
-          <Link
-            href="/messages"
-            className="h-10 rounded-xl border border-black/10 px-4 py-3 text-xs font-semibold"
-          >
-            Message
-          </Link>
           {proposal.status !== "Shortlisted" && (
             <button
               type="button"
@@ -572,19 +827,14 @@ function Mini({ label, value }: { label: string; value: string }) {
 function ProposalDrawer({
   proposal,
   onClose,
-  onDecline,
   onInterview,
   onHire,
 }: {
   proposal: ClientProposal;
   onClose: () => void;
-  onDecline: () => void;
   onInterview: () => void;
   onHire: () => void;
 }) {
-  const [confirmDecline, setConfirmDecline] = useState(false);
-  const [declineNote, setDeclineNote] = useState("");
-
   return (
     <div
       className="fixed inset-0 z-50 bg-black/25"
@@ -617,7 +867,7 @@ function ProposalDrawer({
         </div>
         <section className="mt-6">
           <h3 className="text-sm font-semibold">Cover letter</h3>
-          <p className="mt-3 text-sm leading-7 text-[#686e66]">
+          <p className="mt-3 text-sm leading-7 whitespace-pre-wrap text-[#686e66]">
             {proposal.coverLetter}
           </p>
         </section>
@@ -639,6 +889,25 @@ function ProposalDrawer({
             ))}
           </div>
         </section>
+
+        {!!proposal.screeningAnswers?.length && (
+          <section className="mt-6">
+            <h3 className="text-sm font-semibold">Screening answers</h3>
+            <div className="mt-3 grid gap-3">
+              {proposal.screeningAnswers.map((item) => (
+                <div
+                  key={item.question}
+                  className="rounded-xl border border-black/7 p-4"
+                >
+                  <p className="text-xs font-semibold">{item.question}</p>
+                  <p className="mt-2 text-sm leading-6 text-[#686e66]">
+                    {item.answer}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
         <a
           href={getProfileHref(proposal)}
           target="_blank"
@@ -659,106 +928,269 @@ function ProposalDrawer({
         <div className="mt-7 flex flex-wrap justify-end gap-2">
           <button
             type="button"
-            onClick={() => setConfirmDecline(true)}
-            className="h-11 rounded-xl border border-[#d8b8b8] px-4 text-xs font-semibold text-[#8b5656]"
-          >
-            Decline
-          </button>
-          <button
-            type="button"
             onClick={onInterview}
             className="h-11 rounded-xl border border-black/10 px-4 text-xs font-semibold"
           >
-            Start interview
+            {proposal.backendStatus === "INTERVIEWED"
+              ? "Go to interview"
+              : "Start interview"}
           </button>
-          <button
-            type="button"
-            onClick={onHire}
-            className="h-11 rounded-xl bg-[#252724] px-5 text-xs font-semibold text-white"
-          >
-            Send contract offer
-          </button>
+          {proposal.contractId ? (
+            <Link
+              href={`/contracts?contractId=${proposal.contractId}`}
+              className="inline-flex h-11 items-center rounded-xl bg-[#252724] px-5 text-xs font-semibold text-white"
+            >
+              See contract
+            </Link>
+          ) : (
+            <button
+              type="button"
+              onClick={onHire}
+              className="h-11 rounded-xl bg-[#252724] px-5 text-xs font-semibold text-white"
+            >
+              Send contract offer
+            </button>
+          )}
         </div>
       </aside>
-      {confirmDecline && (
-        <div
-          className="fixed inset-0 z-60 grid place-items-center bg-[#172018]/50 p-5 backdrop-blur-[3px]"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) {
-              setConfirmDecline(false);
-            }
-          }}
-        >
-          <section
-            role="alertdialog"
-            aria-modal="true"
-            aria-labelledby="decline-proposal-title"
-            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl sm:p-7"
-          >
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-[10px] font-semibold tracking-[.12em] text-[#9a5a5a] uppercase">
-                  Decline proposal
-                </p>
-                <h2
-                  id="decline-proposal-title"
-                  className="mt-2 text-xl font-semibold"
-                >
-                  Decline {proposal.bidder}?
-                </h2>
-              </div>
-              <button
-                type="button"
-                onClick={() => setConfirmDecline(false)}
-                aria-label="Close decline confirmation"
-                className="cursor-pointer text-[#697067]"
-              >
-                <Icon icon="solar:close-circle-linear" width="24" />
-              </button>
-            </div>
+    </div>
+  );
+}
 
-            <p className="mt-4 text-xs leading-6 text-[#70766e]">
-              This proposal will move to Rejected and will no longer appear in
-              your active review pipeline.
-            </p>
-
-            <label className="mt-5 block text-xs font-semibold">
-              Note to {proposal.accountType.toLowerCase()}{" "}
-              <span className="font-normal text-[#8a8f87]">(optional)</span>
-              <textarea
-                value={declineNote}
-                onChange={(event) => setDeclineNote(event.target.value)}
-                rows={4}
-                placeholder="Share a brief reason or helpful feedback…"
-                className="mt-2 w-full resize-none rounded-xl border border-black/10 p-3 text-sm font-normal outline-none focus:border-[#a87979]"
-              />
-            </label>
-
-            <div className="mt-6 grid gap-2 sm:grid-cols-2">
-              <button
-                type="button"
-                onClick={() => setConfirmDecline(false)}
-                className="h-11 cursor-pointer rounded-xl border border-black/10 px-4 text-xs font-semibold"
-              >
-                Keep reviewing
-              </button>
-              <button
-                type="button"
-                onClick={onDecline}
-                className="h-11 cursor-pointer rounded-xl bg-[#8b5656] px-4 text-xs font-semibold text-white"
-              >
-                Yes, decline proposal
-              </button>
-            </div>
-          </section>
+function ProposalSkeleton() {
+  return (
+    <div className="animate-pulse rounded-2xl border border-black/8 bg-white p-6">
+      <div className="flex gap-4">
+        <div className="h-14 w-14 rounded-2xl bg-[#e5e9e3]" />
+        <div className="flex-1">
+          <div className="h-4 w-40 rounded bg-[#dde2db]" />
+          <div className="mt-3 h-3 w-56 rounded bg-[#ecefeb]" />
         </div>
-      )}
+      </div>
+      <div className="mt-6 h-3 w-full rounded bg-[#e8ebe6]" />
+      <div className="mt-3 h-3 w-3/4 rounded bg-[#eef0ec]" />
     </div>
   );
 }
 
 function getProfileHref(proposal: ClientProposal) {
   return proposal.accountType === "Agency"
-    ? `/agency/${proposal.id}`
-    : `/talent/${proposal.id}`;
+    ? `/agency/${proposal.senderId}`
+    : `/talent/${proposal.freelancerId}`;
+}
+
+function FundContractModal({
+  proposal,
+  onClose,
+  onPay,
+}: {
+  proposal: ClientProposal;
+  onClose: () => void;
+  onPay: () => Promise<void>;
+}) {
+  const milestone = proposal.milestonePlan[0];
+  const [isPaying, setIsPaying] = useState(false);
+  const [error, setError] = useState("");
+
+  const handlePay = async () => {
+    setIsPaying(true);
+    setError("");
+    try {
+      await onPay();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Checkout failed.");
+      setIsPaying(false);
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-60 grid place-items-center bg-[#172018]/50 p-5 backdrop-blur-[3px]"
+      onMouseDown={(event) =>
+        !isPaying && event.target === event.currentTarget && onClose()
+      }
+    >
+      <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl sm:p-7">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-[10px] font-semibold tracking-[.12em] text-[#62805f] uppercase">
+              Send contract offer
+            </p>
+            <h2 className="mt-2 text-xl font-semibold">
+              Fund the first milestone
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-[#747a72]">
+              Fund the first milestone before sending the contract to {" "}
+              {proposal.bidder}.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isPaying}
+            aria-label="Close"
+          >
+            <Icon icon="solar:close-circle-linear" width="24" />
+          </button>
+        </div>
+
+        {milestone ? (
+          <>
+            <div className="mt-6 rounded-2xl border border-black/8 bg-[#f7f8f5] p-5">
+              <div className="flex items-start justify-between gap-5">
+                <div>
+                  <p className="text-[10px] font-semibold tracking-[.1em] text-[#6f756d] uppercase">
+                    Milestone 1
+                  </p>
+                  <h3 className="mt-2 text-sm font-semibold">
+                    {milestone.title}
+                  </h3>
+                  <p className="mt-1 text-xs text-[#7c827a]">
+                    Due {milestone.duration}
+                  </p>
+                </div>
+                <strong className="text-lg">
+                  ${milestone.amount.toLocaleString()}
+                </strong>
+              </div>
+            </div>
+
+            <div className="mt-5 grid gap-3 border-y border-black/7 py-4 text-sm">
+              <div className="flex items-center justify-between text-[#6d736b]">
+                <span>Milestone funding</span>
+                <span>${milestone.amount.toLocaleString()}</span>
+              </div>
+              <div className="flex items-center justify-between font-semibold">
+                <span>Amount due today</span>
+                <span>${milestone.amount.toLocaleString()}</span>
+              </div>
+            </div>
+
+            <div className="mt-5 flex gap-3 rounded-xl bg-[#edf4ea] p-4">
+              <Icon
+                icon="solar:shield-check-linear"
+                width="20"
+                className="shrink-0 text-[#52784f]"
+              />
+              <p className="text-xs leading-5 text-[#657063]">
+                The milestone payment will be secured until the work is
+                completed and approved.
+              </p>
+            </div>
+          </>
+        ) : (
+          <p className="mt-6 rounded-xl bg-[#fff4e8] p-4 text-sm text-[#8a643f]">
+            This job does not have a milestone to fund.
+          </p>
+        )}
+
+        {error && <p className="mt-4 text-xs text-red-600">{error}</p>}
+
+        <div className="mt-6 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isPaying}
+            className="h-11 rounded-xl border border-black/10 px-4 text-xs font-semibold"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handlePay}
+            disabled={!milestone || isPaying}
+            className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#252724] px-5 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Icon icon="solar:card-2-linear" width="17" />
+            {isPaying ? "Redirecting..." : "Pay Now"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StartInterviewModal({
+  proposal,
+  onClose,
+  onSubmit,
+}: {
+  proposal: ClientProposal;
+  onClose: () => void;
+  onSubmit: (message: string) => Promise<void>;
+}) {
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  return (
+    <div
+      className="fixed inset-0 z-60 grid place-items-center bg-[#172018]/50 p-5 backdrop-blur-[3px]"
+      onMouseDown={(event) => event.target === event.currentTarget && onClose()}
+    >
+      <form
+        className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl sm:p-7"
+        onSubmit={async (event) => {
+          event.preventDefault();
+          if (!message.trim() || isSubmitting) return;
+          setError("");
+          setIsSubmitting(true);
+          try {
+            await onSubmit(message.trim());
+          } catch (submitError) {
+            setError(
+              submitError instanceof Error
+                ? submitError.message
+                : "Interview could not be started.",
+            );
+            setIsSubmitting(false);
+          }
+        }}
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-[10px] font-semibold tracking-[.12em] text-[#62805f] uppercase">
+              Start interview
+            </p>
+            <h2 className="mt-2 text-xl font-semibold">
+              Message {proposal.bidder}
+            </h2>
+            <p className="mt-2 text-sm text-[#747a72]">
+              Introduce yourself and explain the next step in the interview.
+            </p>
+          </div>
+          <button type="button" onClick={onClose} disabled={isSubmitting}>
+            <Icon icon="solar:close-circle-linear" width="24" />
+          </button>
+        </div>
+        <textarea
+          autoFocus
+          required
+          maxLength={5000}
+          value={message}
+          onChange={(event) => setMessage(event.target.value)}
+          placeholder="Hi, I reviewed your proposal and would like to discuss..."
+          className="mt-5 min-h-36 w-full resize-y rounded-xl border border-black/10 p-4 text-sm outline-none focus:border-[#62805f]"
+        />
+        {error && <p className="mt-2 text-xs text-[#9a5a5a]">{error}</p>}
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isSubmitting}
+            className="h-11 rounded-xl border border-black/10 px-4 text-xs font-semibold disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={!message.trim() || isSubmitting}
+            className="h-11 rounded-xl bg-[#252724] px-5 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isSubmitting ? "Starting..." : "Start interview"}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
 }
