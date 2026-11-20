@@ -4,7 +4,7 @@ Status key: **exists** is in the repository today, **migrating** is code not yet
 
 ## Overview
 
-- Frontend (exists): five Next.js apps in `apps/*`, one per audience. Data is mock and hardcoded; no app calls the API yet.
+- Frontend (exists): five Next.js apps in `apps/*`, one per audience. The apps call the API directly from the browser with Clerk Bearer tokens and TanStack Query (admin goes through same-origin route handlers). Their data layer still uses the old shapes (bare arrays, snake_case fields, dollars) and the migration to the API contract is in progress (`docs/frontend-migration-plan.md`).
 - Backend (exists): one Express 5 service, `services/api`, built as a modular monolith. The tutorial code has been moved into it and `services/` holds nothing else (ADR 0003).
 - Database (exists): PostgreSQL with Drizzle ORM through `pg`. Schema, migrations and `drizzle.config.ts` live in `services/api`.
 - Events (exists): RabbitMQ notifications: envelope, topology and publisher (`notification.*.ts`) in `services/api/src/infrastructure/events`, consumer in `src/modules/notifications/notifications.consumer.ts` (ADR 0004). RabbitMQ is optional for the API to start, but today it is the only path that writes a notification row, so without it no notice is stored (ADR 0004, correction 2026-11-19); ADR 0024 moves the must-not-lose notices (contract offer, milestone, cancel, payout, interview and invitation notices) into the business transaction through `notification-store`, which also owns the SSE push entry point; only the nice-to-have notices still depend on the broker. The envelope is version 2 (`metadata.amountCents`) and version 1 is rejected (ADR 0006).
@@ -98,7 +98,7 @@ Read by `services/api/src/config/env.ts`. `.env.example` is owned by the reposit
 | `DAILY_API_KEY`, `DAILY_WEBHOOK_SECRET`                                                                          | production                                | Daily meetings and webhook verification                                                       |
 | `IMAGEKIT_PRIVATE_KEY`                                                                                           | production                                | ImageKit uploads                                                                              |
 | `ADMIN_DASHBOARD_PASSWORD`, `ADMIN_SESSION_SECRET`                                                               | production                                | Admin sign-in; the session secret must be at least 32 characters                              |
-| `CLIENT_DASHBOARD`, `FREELANCER_DASHBOARD`, `AGENCY_DASHBOARD`, `ADMIN_DASHBOARD`                                | production: at least one                  | Allowed browser origins; every one set must be an http(s) URL; there is no localhost fallback |
+| `CLIENT_DASHBOARD`, `FREELANCER_DASHBOARD`, `AGENCY_DASHBOARD`, `ADMIN_DASHBOARD`, `LANDING_PAGE`                | production: at least one                  | Allowed browser origins; every one set must be an http(s) URL; there is no localhost fallback |
 
 In production none of the "production" values may contain `change-me`, and startup fails with the list of problems otherwise. Outside production they are optional and the matching feature fails when used. Only the compose stack reads `POSTGRES_*`, `REDIS_PASSWORD`, `RABBITMQ_USER`, `RABBITMQ_PASSWORD`, the `*_PORT` variables and `SWAGGER_PORT`; the API reads `DATABASE_URL` and `REDIS_URL`.
 

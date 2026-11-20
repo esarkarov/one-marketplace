@@ -1,6 +1,6 @@
 # Frontend integration notes
 
-Checklist for the five Next.js apps, which use mock data today and do not call the API yet. Every item was checked against [`api/openapi.json`](api/openapi.json) and the code; the OpenAPI document is the contract for shapes, this file lists what is easy to get wrong. Rules for API authors are in [`../services/api/AGENTS.md`](../services/api/AGENTS.md).
+Checklist for the five Next.js apps. They already call the API from the browser (Clerk Bearer tokens, TanStack Query; admin through same-origin route handlers), but their data layer still uses the old shapes (bare arrays, snake_case, dollars) and the migration is in progress; the plan and batch order are in [`frontend-migration-plan.md`](frontend-migration-plan.md). Every item was checked against [`api/openapi.json`](api/openapi.json) and the code; the OpenAPI document is the contract for shapes, this file lists what is easy to get wrong. Rules for API authors are in [`../services/api/AGENTS.md`](../services/api/AGENTS.md).
 
 ## Base, auth and limits
 
@@ -9,7 +9,7 @@ Checklist for the five Next.js apps, which use mock data today and do not call t
 - Every Clerk-authenticated operation except `POST /auth/sign-up` takes a required query parameter `role=client|freelancer`. Add `scope=agency` (default `default`) on the nine operations that list it (`GET /contracts/freelancer`, contract accept, decline, finish and milestone submit, `GET /conversations`, `GET /notifications`, `PATCH /notifications/read-all`, `GET /notifications/stream`) to act as the agency.
 - Admin: `POST /admin/auth/login` returns `{ token, expiresAt }` (session lasts 2 hours); send it as `Authorization: Bearer <token>`. `GET /admin/logs/stream` also accepts `?token=`.
 - Rate limits: 300 requests per 15 minutes globally (health, ready and webhooks exempt), 60 per minute on `GET /freelancer/search` and `GET /agency/search`, 10 sign-ups per hour, 20 failed admin logins per 15 minutes. The standard `RateLimit` headers are sent. An exceeded limit answers 429 with code `RATE_LIMITED`; back off and retry.
-- Browser origins must be allowed by the API (`CLIENT_DASHBOARD`, `FREELANCER_DASHBOARD`, `AGENCY_DASHBOARD`, `ADMIN_DASHBOARD`); without them the local ports 3001 to 3004 are allowed outside production.
+- Browser origins must be allowed by the API (`CLIENT_DASHBOARD`, `FREELANCER_DASHBOARD`, `AGENCY_DASHBOARD`, `ADMIN_DASHBOARD`, `LANDING_PAGE`); without them the local ports 3000 (landing) to 3004 are allowed outside production. The same list is the Clerk `azp` allowlist, so the landing sign-up needs it.
 - Notifications stream (`GET /notifications/stream`, server-sent events) authenticates with the bearer header only; there is no token query parameter, so a native `EventSource` cannot call it. Use a fetch-based reader.
 - Messaging uses Socket.IO. The handshake `auth` is `{ token, role, scope? }`; `scope: "agency"` joins the agency room.
 
@@ -42,7 +42,7 @@ Checklist for the five Next.js apps, which use mock data today and do not call t
 
 ## Code to align before wiring
 
-- Job fields: the API returns camelCase (`expertiseLevel`, `expectedDuration`, `totalBudgetCents`, `publishedAt`, `clientId`, ...). No app uses snake_case job fields today, so new job types should follow the OpenAPI schemas (`JobsPost`, `FreelancerJobFeedItem`).
+- Job fields: the API returns camelCase (`expertiseLevel`, `expectedDuration`, `totalBudgetCents`, `publishedAt`, `clientId`, ...). Several apps still use snake_case job fields (`expertise_level`, `expected_duration`, `total_budget`, `published_at`; for example client `job-posts-list.tsx` and `job-post-form.tsx`, freelancer and agency job details and feeds), so replace them and make new job types follow the OpenAPI schemas (`JobsPost`, `FreelancerJobFeedItem`).
 - [`apps/freelancer-dashboard/app/my-profile/profile-editor.tsx`](../apps/freelancer-dashboard/app/my-profile/profile-editor.tsx) has local snake_case types. `PUT /freelancer/profile` takes `{ freelancerMetadata: { professionalTitle, professionalDescription, hourlyRateCents, weeklyAvailability, availabilityStatus, experienceLevel, country, city, languages, skills }, freelancerPortfolios: [{ title, category, description, liveUrl, coverImage }] }`. So `hourly_rate` (dollars) becomes `hourlyRateCents` (500 to 100000), `client_id` on portfolios is not a field, `live_url` and `cover_image` become `liveUrl` and `coverImage`, `firstName` and `lastName` are not accepted, and `skills` needs 3 to 15 items of at most 20 characters.
 
 ## Notifications and reconnects

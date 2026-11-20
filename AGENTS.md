@@ -13,7 +13,8 @@ pnpm monorepo for a freelancing marketplace.
 
 - `docs/product.md`: roles and flows as the apps show them. Read it for product work.
 - `docs/design-system.md`: tokens and component conventions. Read it for UI work.
-- `docs/frontend-integration-notes.md`: what the apps must change before they call the API. Read it for frontend work.
+- `docs/frontend-integration-notes.md`: what the apps must change to match the API contract (they already call it, with the old shapes). Read it for frontend work.
+- `docs/frontend-migration-plan.md`: audit findings, decisions and the batch plan for aligning the apps with the API. Read it for frontend work.
 - `docs/decisions/`: architecture decision records. They record the state at their date; paths in older ones predate ADR 0016, 0017 and 0020.
 - Nested `AGENTS.md` files in `services/api` and `infra` add folder-specific rules.
 

@@ -2,7 +2,7 @@
 
 OneMarketplace is a freelancing marketplace built as a pnpm monorepo. Clients post jobs, freelancers and agencies apply, and the API handles proposals, contracts, milestones and payments.
 
-The five Next.js apps currently use mock data and do not call the API yet; they use none of Clerk, Stripe, Daily or ImageKit. The API in `services/api` is built and tested on its own. What the apps must change before they can call it is in [`docs/frontend-integration-notes.md`](docs/frontend-integration-notes.md).
+The five Next.js apps call the API from the browser with Clerk Bearer tokens and TanStack Query (admin through same-origin route handlers); their data layer still uses the old shapes and the migration is in progress ([`docs/frontend-migration-plan.md`](docs/frontend-migration-plan.md)). The API in `services/api` is built and tested on its own. What the apps must change before they can call it is in [`docs/frontend-integration-notes.md`](docs/frontend-integration-notes.md).
 
 ## Modules
 
@@ -150,23 +150,23 @@ Docker Compose fails if its credentials are unset.
 
 Optional. The API starts without them, and the matching feature fails only when it is used:
 
-| Variable                                                                                    | Purpose                                                               |
-| ------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| `PORT`                                                                                      | API port, default 4000                                                |
-| `NODE_ENV`                                                                                  | Defaults to `development`                                             |
-| `TRUST_PROXY`                                                                               | Proxy hop count or subnet list; `true` is rejected                    |
-| `REFUND_RECONCILIATION_MODE`                                                                | `off`, `detect` (default) or `on` (ADR 0023)                          |
-| `ORPHAN_PAYMENT_DETECTION_MODE`                                                             | `off` or `detect` (default) (ADR 0008)                                |
-| `RABBITMQ_URL`                                                                              | Enables notification events; without it they are not stored or pushed |
-| `CLERK_SECRET_KEY`                                                                          | Clerk authentication                                                  |
-| `STRIPE_SECRET_KEY`                                                                         | Stripe API                                                            |
-| `STRIPE_WEBHOOK_SECRET`, `STRIPE_CONNECTS_WEBHOOK_SECRET`, `STRIPE_IDENTITY_WEBHOOK_SECRET` | Stripe webhook signing secrets                                        |
-| `IMAGEKIT_PRIVATE_KEY`                                                                      | ImageKit uploads                                                      |
-| `DAILY_API_KEY`, `DAILY_WEBHOOK_SECRET`                                                     | Daily meetings and webhook verification                               |
-| `ADMIN_DASHBOARD_PASSWORD`, `ADMIN_SESSION_SECRET`                                          | Admin sign-in and session signing                                     |
-| `CLIENT_DASHBOARD`, `FREELANCER_DASHBOARD`, `AGENCY_DASHBOARD`, `ADMIN_DASHBOARD`           | Allowed browser origins; default to the local dev ports               |
-| `TEST_DATABASE_URL`, `CREATE_TEST_DB_ADMIN_URL`                                             | Test database settings (see Testing)                                  |
-| `SWAGGER_PORT`                                                                              | Swagger UI port, default 8081                                         |
+| Variable                                                                                          | Purpose                                                                |
+| ------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `PORT`                                                                                            | API port, default 4000                                                 |
+| `NODE_ENV`                                                                                        | Defaults to `development`                                              |
+| `TRUST_PROXY`                                                                                     | Proxy hop count or subnet list; `true` is rejected                     |
+| `REFUND_RECONCILIATION_MODE`                                                                      | `off`, `detect` (default) or `on` (ADR 0023)                           |
+| `ORPHAN_PAYMENT_DETECTION_MODE`                                                                   | `off` or `detect` (default) (ADR 0008)                                 |
+| `RABBITMQ_URL`                                                                                    | Enables notification events; without it they are not stored or pushed  |
+| `CLERK_SECRET_KEY`                                                                                | Clerk authentication                                                   |
+| `STRIPE_SECRET_KEY`                                                                               | Stripe API                                                             |
+| `STRIPE_WEBHOOK_SECRET`, `STRIPE_CONNECTS_WEBHOOK_SECRET`, `STRIPE_IDENTITY_WEBHOOK_SECRET`       | Stripe webhook signing secrets                                         |
+| `IMAGEKIT_PRIVATE_KEY`                                                                            | ImageKit uploads                                                       |
+| `DAILY_API_KEY`, `DAILY_WEBHOOK_SECRET`                                                           | Daily meetings and webhook verification                                |
+| `ADMIN_DASHBOARD_PASSWORD`, `ADMIN_SESSION_SECRET`                                                | Admin sign-in and session signing                                      |
+| `CLIENT_DASHBOARD`, `FREELANCER_DASHBOARD`, `AGENCY_DASHBOARD`, `ADMIN_DASHBOARD`, `LANDING_PAGE` | Allowed browser origins; default to the local dev ports (landing 3000) |
+| `TEST_DATABASE_URL`, `CREATE_TEST_DB_ADMIN_URL`                                                   | Test database settings (see Testing)                                   |
+| `SWAGGER_PORT`                                                                                    | Swagger UI port, default 8081                                          |
 
 `REFUND_RECONCILIATION_MODE` controls the job that retries refunds left over after a decline or withdraw: `off` schedules nothing, `detect` (default, every environment) only logs the stuck refunds, `on` also refunds them and notifies ([ADR 0023](docs/decisions/0023-refund-reconciliation.md)).
 
