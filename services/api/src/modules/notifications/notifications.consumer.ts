@@ -1,4 +1,3 @@
-import { toNotificationResponse } from "./utils/notifications.mappers.js";
 import type { ChannelWrapper } from "amqp-connection-manager";
 import type { ConsumeMessage } from "amqplib";
 import { getRabbitConsumerChannel } from "@/infrastructure/events/rabbitmq.client.js";
@@ -6,10 +5,7 @@ import { logger } from "@/config/logger.js";
 import { db } from "@/database/client.js";
 import { pingDatabase } from "@/modules/health/index.js";
 import { insertNotificationIfNew } from "./repositories/notifications.repository.js";
-import {
-  emitAgencyNotification,
-  emitNotification,
-} from "./services/notifications.sse.js";
+import { pushNotification } from "./services/notifications.push.service.js";
 import {
   errorCodeForLog,
   errorLogAttributes,
@@ -196,16 +192,7 @@ export const createNotificationConsumer = (options: {
     await settle(() => channel.ack(message));
     try {
       for (const { notification, recipientAccountId } of inserted) {
-        const payload = toNotificationResponse(
-          notification,
-          recipientAccountId,
-          "notifications_stream",
-        );
-        if (notification.agency_id) {
-          emitAgencyNotification(notification.agency_id, payload);
-        } else {
-          emitNotification(notification.recipient_id!, payload);
-        }
+        pushNotification(notification, recipientAccountId);
       }
     } catch (error) {
       await logFailure("Notification push failed", "queue.push.failed", error);

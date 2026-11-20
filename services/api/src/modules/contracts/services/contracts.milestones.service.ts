@@ -6,6 +6,10 @@ import { ApiError } from "@/shared/errors/api-error.js";
 import { splitFee } from "@/shared/money/money.js";
 import { sendNotification } from "@/infrastructure/events/notification.publisher.js";
 import {
+  insertContractNotice,
+  pushContractNotice,
+} from "@/modules/contracts/utils/contracts.notices.js";
+import {
   appendConversationMessages,
   emitConversationUpdate,
 } from "@/modules/messaging/index.js";
@@ -42,7 +46,7 @@ const milestoneNotSubmittable = () =>
     "MILESTONE_NOT_SUBMITTABLE",
   );
 
-export const submitContractMilestone = async (
+export const submitContractMilestoneWithNotice = async (
   contractId: string,
   milestoneId: string,
   freelancerId: string,
@@ -62,7 +66,7 @@ export const submitContractMilestone = async (
   if (milestone.contractStatus !== "ACTIVE") throw milestoneNotSubmittable();
 
   const now = new Date();
-  await db.transaction(async (transaction) => {
+  const notice = await db.transaction(async (transaction) => {
     const [submitted] = await markMilestoneSubmittedIfActiveAndFunded(
       transaction,
       {
@@ -98,10 +102,29 @@ export const submitContractMilestone = async (
     });
     if (!message)
       throw new ApiError(500, "Milestone submission could not be sent.");
+    return insertContractNotice(transaction, {
+      type: "MILESTONE_SUBMITTED",
+      entityId: milestone.milestoneId,
+      transition: `submitted-${message.id}`,
+      recipientId: milestone.clientId,
+      agencyId: null,
+      title: "Milestone submitted for review",
+      message: `Work was submitted for “${milestone.milestoneTitle}”.`,
+      link: `/messages?conversationId=${milestone.conversationId}`,
+      metadata: {
+        contractId: milestone.contractId,
+        milestoneId: milestone.milestoneId,
+      },
+      createdAt: now,
+    });
   });
 
-  return milestone;
+  return { milestone, notice };
 };
+
+export const submitContractMilestone = async (
+  ...args: Parameters<typeof submitContractMilestoneWithNotice>
+) => (await submitContractMilestoneWithNotice(...args)).milestone;
 
 const notAwaitingReview = () =>
   new ApiError(409, "This milestone is not awaiting review.");
@@ -111,7 +134,7 @@ const EARNING_MILESTONE_UNIQUE = "earning_history_milestone_id_unique";
 const isEarningMilestoneConflict = (error: unknown): boolean =>
   isUniqueViolation(error, EARNING_MILESTONE_UNIQUE);
 
-export const reviewContractMilestone = async (
+export const reviewContractMilestoneWithNotice = async (
   contractId: string,
   milestoneId: string,
   clientId: string,
@@ -141,7 +164,7 @@ export const reviewContractMilestone = async (
   const grossCents = milestone.milestoneAmountCents;
   const { feeCents, netCents } = splitFee(grossCents);
 
-  await db
+  const notice = await db
     .transaction(async (transaction) => {
       const [transitioned] = await markMilestoneReviewedIfAwaitingReview(
         transaction,
@@ -224,8 +247,26 @@ export const reviewContractMilestone = async (
         updatedAt: now,
         unread: { account: freelancerAccountId, agency: milestone.agencyId },
       });
-      if (insertedMessages.length === 0)
+      const [reviewMessage] = insertedMessages;
+      if (!reviewMessage)
         throw new ApiError(500, "Milestone review could not be sent.");
+      return insertContractNotice(transaction, {
+        type: approved ? "MILESTONE_APPROVED" : "MILESTONE_CHANGES_REQUESTED",
+        entityId: milestone.milestoneId,
+        transition: `${approved ? "approved" : "changes-requested"}-${reviewMessage.id}`,
+        recipientId: freelancerAccountId,
+        agencyId: milestone.agencyId,
+        title: approved ? "Milestone accepted" : "Modifications requested",
+        message: approved
+          ? `Your work for “${milestone.milestoneTitle}” was accepted.`
+          : `The client requested modifications for “${milestone.milestoneTitle}”.`,
+        link: `/messages?conversationId=${milestone.conversationId}`,
+        metadata: {
+          contractId: milestone.contractId,
+          milestoneId: milestone.milestoneId,
+        },
+        createdAt: now,
+      });
     })
     .catch(async (error: unknown) => {
       if (!isEarningMilestoneConflict(error)) throw error;
@@ -242,8 +283,15 @@ export const reviewContractMilestone = async (
       throw notAwaitingReview();
     });
 
-  return { ...milestone, approved, freelancerId: freelancerAccountId };
+  return {
+    milestone: { ...milestone, approved, freelancerId: freelancerAccountId },
+    notice,
+  };
 };
+
+export const reviewContractMilestone = async (
+  ...args: Parameters<typeof reviewContractMilestoneWithNotice>
+) => (await reviewContractMilestoneWithNotice(...args)).milestone;
 
 export const addContractMilestone = async (
   contractId: string,
@@ -385,7 +433,7 @@ export const submitMilestone = async (
     }
   }
 
-  const milestone = await submitContractMilestone(
+  const { milestone, notice } = await submitContractMilestoneWithNotice(
     contractId,
     milestoneId,
     userId,
@@ -395,17 +443,7 @@ export const submitMilestone = async (
   );
 
   await emitConversationUpdate(milestone.conversationId, userId);
-  await sendNotification({
-    recipientId: milestone.clientId,
-    type: "MILESTONE_SUBMITTED",
-    title: "Milestone submitted for review",
-    message: `Work was submitted for “${milestone.milestoneTitle}”.`,
-    link: `/messages?conversationId=${milestone.conversationId}`,
-    metadata: {
-      contractId: milestone.contractId,
-      milestoneId: milestone.milestoneId,
-    },
-  });
+  await pushContractNotice(notice);
 
   return milestone;
 };
@@ -421,7 +459,7 @@ export const reviewMilestone = async (
   if (action === "REQUEST_CHANGES" && !feedback) {
     throw new ApiError(400, "Modification message is required.");
   }
-  const milestone = await reviewContractMilestone(
+  const { milestone, notice } = await reviewContractMilestoneWithNotice(
     contractId,
     milestoneId,
     userId,
@@ -430,43 +468,7 @@ export const reviewMilestone = async (
   );
 
   await emitConversationUpdate(milestone.conversationId, userId);
-  await sendNotification(
-    milestone.agencyId
-      ? {
-          agencyId: milestone.agencyId,
-          type: milestone.approved
-            ? "MILESTONE_APPROVED"
-            : "MILESTONE_CHANGES_REQUESTED",
-          title: milestone.approved
-            ? "Milestone accepted"
-            : "Modifications requested",
-          message: milestone.approved
-            ? `Your work for “${milestone.milestoneTitle}” was accepted.`
-            : `The client requested modifications for “${milestone.milestoneTitle}”.`,
-          link: `/messages?conversationId=${milestone.conversationId}`,
-          metadata: {
-            contractId: milestone.contractId,
-            milestoneId: milestone.milestoneId,
-          },
-        }
-      : {
-          recipientId: milestone.freelancerId,
-          type: milestone.approved
-            ? "MILESTONE_APPROVED"
-            : "MILESTONE_CHANGES_REQUESTED",
-          title: milestone.approved
-            ? "Milestone accepted"
-            : "Modifications requested",
-          message: milestone.approved
-            ? `Your work for “${milestone.milestoneTitle}” was accepted.`
-            : `The client requested modifications for “${milestone.milestoneTitle}”.`,
-          link: `/messages?conversationId=${milestone.conversationId}`,
-          metadata: {
-            contractId: milestone.contractId,
-            milestoneId: milestone.milestoneId,
-          },
-        },
-  );
+  await pushContractNotice(notice);
 
   return milestone;
 };

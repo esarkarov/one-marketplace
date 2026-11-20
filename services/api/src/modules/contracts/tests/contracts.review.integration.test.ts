@@ -16,6 +16,7 @@ import {
 
 const mocks = vi.hoisted(() => ({
   sendNotification: vi.fn(),
+  push: vi.fn(),
   emitConversationUpdate: vi.fn(),
   loggerWarn: vi.fn(),
   refundCreate: vi.fn(),
@@ -43,6 +44,18 @@ vi.mock(
   }),
 );
 
+vi.mock("@/modules/notifications/index.js", async (importOriginal) => {
+  const original =
+    await importOriginal<typeof import("@/modules/notifications/index.js")>();
+  return {
+    ...original,
+    pushStoredNotification: async (row: Parameters<typeof mocks.push>[0]) => {
+      await mocks.push(row);
+      await original.pushStoredNotification(row);
+    },
+  };
+});
+
 vi.mock("@/modules/messaging/messaging.socket.js", async (importOriginal) => ({
   ...(await importOriginal<
     typeof import("@/modules/messaging/messaging.socket.js")
@@ -63,6 +76,7 @@ import {
   conversation_participants,
   conversations,
   messages,
+  notifications,
   job_posts,
   proposals,
 } from "@/test/support/tables.js";
@@ -111,8 +125,19 @@ const purgeLeftovers = async () => {
   await pool.query("delete from agency_metadata where owner_id like $1", [
     like,
   ]);
+  await pool.query("delete from notifications where recipient_id like $1", [
+    like,
+  ]);
   await pool.query("delete from accounts where auth_id like $1", [like]);
 };
+
+const storedMilestoneNotices = async (milestoneId: string) =>
+  (
+    await pool.query(
+      "select type from notifications where metadata->>'milestoneId' = $1",
+      [milestoneId],
+    )
+  ).rows;
 
 const countLeftovers = async () => {
   const like = `${PREFIX}%`;
@@ -355,6 +380,7 @@ beforeEach(() => {
   assertTestDatabase(process.env.DATABASE_URL, process.env.POSTGRES_DB);
   mocks.sendNotification.mockReset();
   mocks.sendNotification.mockResolvedValue(undefined);
+  mocks.push.mockReset();
   mocks.emitConversationUpdate.mockReset();
   mocks.emitConversationUpdate.mockResolvedValue(undefined);
   mocks.loggerWarn.mockReset();
@@ -390,6 +416,9 @@ afterEach(async () => {
       .where(inArray(agency_metadata.id, agencyIds));
   }
   if (accountIds.length > 0) {
+    await db
+      .delete(notifications)
+      .where(inArray(notifications.recipient_id, accountIds));
     await db.delete(accounts).where(inArray(accounts.auth_id, accountIds));
   }
 });
@@ -1037,7 +1066,9 @@ describe("review controller on a lost race", () => {
       code: "CONFLICT",
       requestId: expect.any(String),
     });
-    expect(mocks.sendNotification).toHaveBeenCalledTimes(1);
+    expect(mocks.sendNotification).not.toHaveBeenCalled();
+    expect(mocks.push).toHaveBeenCalledTimes(1);
+    expect(await storedMilestoneNotices(fixture.milestoneId)).toHaveLength(1);
     expect(mocks.emitConversationUpdate).toHaveBeenCalledTimes(1);
   });
 
@@ -1051,7 +1082,9 @@ describe("review controller on a lost race", () => {
 
     expect(responses.map((r) => r.status).sort()).toEqual([200, 409]);
     expect(mocks.loggerWarn).not.toHaveBeenCalled();
-    expect(mocks.sendNotification).toHaveBeenCalledTimes(1);
+    expect(mocks.sendNotification).not.toHaveBeenCalled();
+    expect(mocks.push).toHaveBeenCalledTimes(1);
+    expect(await storedMilestoneNotices(fixture.milestoneId)).toHaveLength(1);
     expect(mocks.emitConversationUpdate).toHaveBeenCalledTimes(1);
     const state = await readState(fixture);
     expect(state.earnings).toHaveLength(1);

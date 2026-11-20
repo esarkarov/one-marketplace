@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
   verifyToken: vi.fn(),
   getUser: vi.fn(),
   sendNotification: vi.fn(),
+  push: vi.fn(),
   emitConversationUpdate: vi.fn(),
 }));
 
@@ -75,6 +76,18 @@ vi.mock(
     sendNotification: mocks.sendNotification,
   }),
 );
+
+vi.mock("@/modules/notifications/index.js", async (importOriginal) => {
+  const original =
+    await importOriginal<typeof import("@/modules/notifications/index.js")>();
+  return {
+    ...original,
+    pushStoredNotification: async (row: Parameters<typeof mocks.push>[0]) => {
+      await mocks.push(row);
+      await original.pushStoredNotification(row);
+    },
+  };
+});
 
 vi.mock("@/modules/messaging/messaging.socket.js", async (importOriginal) => ({
   ...(await importOriginal<
@@ -285,8 +298,27 @@ const purge = async () => {
   await pool.query("delete from agency_metadata where owner_id like $1", [
     like,
   ]);
+  await pool.query("delete from notifications where recipient_id like $1", [
+    like,
+  ]);
   await pool.query("delete from accounts where auth_id like $1", [like]);
 };
+
+const storedNotices = async (fixture: Fixture, type: string) =>
+  (
+    await pool.query(
+      "select recipient_id, agency_id, type, title, message, link, metadata from notifications where type = $1 and metadata->>'contractId' = $2",
+      [type, fixture.contractId],
+    )
+  ).rows as {
+    recipient_id: string | null;
+    agency_id: string | null;
+    type: string;
+    title: string;
+    message: string;
+    link: string;
+    metadata: Record<string, string>;
+  }[];
 
 const rowState = async (fixture: Fixture) => {
   const contract = await pool.query(
@@ -311,12 +343,18 @@ const watchCommit = (fixture: Fixture) => {
   mocks.sendNotification.mockImplementation(async () => {
     seen.push(`notify:${await rowState(fixture)}`);
   });
+  mocks.push.mockImplementation(async () => {
+    seen.push(`notify:${await rowState(fixture)}`);
+  });
   return seen;
 };
 
 const callOrder = () => ({
   emit: mocks.emitConversationUpdate.mock.invocationCallOrder,
-  notify: mocks.sendNotification.mock.invocationCallOrder,
+  notify: [
+    ...mocks.sendNotification.mock.invocationCallOrder,
+    ...mocks.push.mock.invocationCallOrder,
+  ],
 });
 
 const expectEmitBeforeEveryNotification = () => {
@@ -397,6 +435,7 @@ beforeEach(() => {
   mocks.verifyToken.mockReset();
   mocks.getUser.mockReset();
   mocks.sendNotification.mockReset();
+  mocks.push.mockReset();
   mocks.emitConversationUpdate.mockReset();
   mocks.verifyToken.mockImplementation(async (token: string) => ({
     sub: token,
@@ -547,18 +586,22 @@ describe("submit milestone effects", () => {
       fixture.conversationId,
       fixture.ownerId,
     );
-    expect(mocks.sendNotification).toHaveBeenCalledTimes(1);
-    expect(mocks.sendNotification).toHaveBeenCalledWith({
-      recipientId: fixture.clientId,
-      type: "MILESTONE_SUBMITTED",
-      title: "Milestone submitted for review",
-      message: "Work was submitted for “Milestone 1”.",
-      link: `/messages?conversationId=${fixture.conversationId}`,
-      metadata: {
-        contractId: fixture.contractId,
-        milestoneId: fixture.milestoneIds[0],
+    expect(mocks.sendNotification).not.toHaveBeenCalled();
+    expect(mocks.push).toHaveBeenCalledTimes(1);
+    expect(await storedNotices(fixture, "MILESTONE_SUBMITTED")).toEqual([
+      {
+        recipient_id: fixture.clientId,
+        agency_id: null,
+        type: "MILESTONE_SUBMITTED",
+        title: "Milestone submitted for review",
+        message: "Work was submitted for “Milestone 1”.",
+        link: `/messages?conversationId=${fixture.conversationId}`,
+        metadata: {
+          contractId: fixture.contractId,
+          milestoneId: fixture.milestoneIds[0],
+        },
       },
-    });
+    ]);
     expectEmitBeforeEveryNotification();
     expect(seen).toHaveLength(2);
     for (const entry of seen) expect(entry).toContain('"requested":true');
@@ -570,13 +613,13 @@ describe("submit milestone effects", () => {
     const response = await submit(fixture, fixture.ownerId, {}, "agency");
 
     expect(response.status).toBe(200);
-    expect(mocks.sendNotification).toHaveBeenCalledTimes(1);
-    expect(mocks.sendNotification).toHaveBeenCalledWith(
+    expect(mocks.sendNotification).not.toHaveBeenCalled();
+    expect(await storedNotices(fixture, "MILESTONE_SUBMITTED")).toEqual([
       expect.objectContaining({
-        recipientId: fixture.clientId,
+        recipient_id: fixture.clientId,
         type: "MILESTONE_SUBMITTED",
       }),
-    );
+    ]);
   });
 
   it("accepts an empty delivery link and an omitted one", async () => {
@@ -660,13 +703,15 @@ describe("submit milestone effects", () => {
     expect(response.body.message).toBe("Submission delivery link is invalid.");
   });
 
-  it("propagates a rejected notification as a 500 and keeps the commit", async () => {
+  it("is not affected by a rejected broker publish and keeps the commit", async () => {
     const fixture = await active();
     mocks.sendNotification.mockRejectedValue(new Error("broker down"));
 
     const response = await submit(fixture, fixture.ownerId);
 
-    expect(response.status).toBe(500);
+    expect(response.status).toBe(200);
+    expect(mocks.sendNotification).not.toHaveBeenCalled();
+    expect(await storedNotices(fixture, "MILESTONE_SUBMITTED")).toHaveLength(1);
     expect(JSON.parse(await rowState(fixture)).milestones[0].requested).toBe(
       true,
     );
@@ -690,15 +735,14 @@ describe("review milestone effects", () => {
       milestones: [{ status: "ACTIVE", funded: true, requested: true }],
     });
 
-  const payload = (
+  const stored = (
     fixture: Fixture,
     type: string,
     title: string,
     message: string,
   ) => ({
-    ...(fixture.agencyId
-      ? { agencyId: fixture.agencyId }
-      : { recipientId: fixture.ownerId }),
+    recipient_id: fixture.agencyId ? null : fixture.ownerId,
+    agency_id: fixture.agencyId,
     type,
     title,
     message,
@@ -728,15 +772,16 @@ describe("review milestone effects", () => {
         fixture.conversationId,
         fixture.clientId,
       );
-      expect(mocks.sendNotification).toHaveBeenCalledTimes(1);
-      expect(mocks.sendNotification).toHaveBeenCalledWith(
-        payload(
+      expect(mocks.sendNotification).not.toHaveBeenCalled();
+      expect(mocks.push).toHaveBeenCalledTimes(1);
+      expect(await storedNotices(fixture, "MILESTONE_APPROVED")).toEqual([
+        stored(
           fixture,
           "MILESTONE_APPROVED",
           "Milestone accepted",
           "Your work for “Milestone 1” was accepted.",
         ),
-      );
+      ]);
       expectEmitBeforeEveryNotification();
       for (const entry of seen) {
         expect(entry).toContain('"status":"COMPLETED"');
@@ -762,15 +807,17 @@ describe("review milestone effects", () => {
         message: "Modifications requested.",
         data: { milestoneId: fixture.milestoneIds[0] },
       });
-      expect(mocks.sendNotification).toHaveBeenCalledTimes(1);
-      expect(mocks.sendNotification).toHaveBeenCalledWith(
-        payload(
+      expect(mocks.sendNotification).not.toHaveBeenCalled();
+      expect(
+        await storedNotices(fixture, "MILESTONE_CHANGES_REQUESTED"),
+      ).toEqual([
+        stored(
           fixture,
           "MILESTONE_CHANGES_REQUESTED",
           "Modifications requested",
           "The client requested modifications for “Milestone 1”.",
         ),
-      );
+      ]);
       expectEmitBeforeEveryNotification();
     },
   );
@@ -788,13 +835,15 @@ describe("review milestone effects", () => {
     expect(await rowState(fixture)).toBe(before);
   });
 
-  it("propagates a rejected notification as a 500 and keeps the commit", async () => {
+  it("is not affected by a rejected broker publish and keeps the commit", async () => {
     const fixture = await underReview();
     mocks.sendNotification.mockRejectedValue(new Error("broker down"));
 
     const response = await review(fixture, "APPROVE");
 
-    expect(response.status).toBe(500);
+    expect(response.status).toBe(200);
+    expect(mocks.sendNotification).not.toHaveBeenCalled();
+    expect(await storedNotices(fixture, "MILESTONE_APPROVED")).toHaveLength(1);
     expect(JSON.parse(await rowState(fixture)).milestones[0].status).toBe(
       "COMPLETED",
     );

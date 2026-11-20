@@ -5,7 +5,6 @@ import { db } from "@/database/client.js";
 import { logger } from "@/config/logger.js";
 import { setStripeCustomerId } from "@/modules/auth/index.js";
 import { ApiError } from "@/shared/errors/api-error.js";
-import { sendNotification } from "@/infrastructure/events/notification.publisher.js";
 import {
   appendConversationMessages,
   emitConversationUpdate,
@@ -24,6 +23,10 @@ import {
   isPermanentRefundCode,
   stripeErrorFields,
 } from "@/modules/contracts/utils/contracts.stripe-errors.js";
+import {
+  insertContractNotice,
+  pushContractNotice,
+} from "@/modules/contracts/utils/contracts.notices.js";
 import { currentWebhookEventId } from "@/modules/contracts/utils/contracts.webhook-context.js";
 
 const CHECKOUT_SESSION_TTL_SECONDS = 35 * 60;
@@ -493,7 +496,7 @@ export const fundContractMilestoneFromPayment = async (
       paymentIntentId,
       now,
     });
-    if (!updated) return false;
+    if (!updated) return null;
 
     const [message] = await appendConversationMessages(transaction, {
       conversationId: milestone.conversationId,
@@ -516,37 +519,28 @@ export const fundContractMilestoneFromPayment = async (
       unread: { account: recipientId, agency: milestone.agencyId },
     });
     if (!message) throw new ApiError(500, "Milestone funding message failed.");
-    return true;
+    const notice = await insertContractNotice(transaction, {
+      type: "MILESTONE_FUNDED",
+      entityId: milestone.milestoneId,
+      transition: "funded",
+      recipientId,
+      agencyId: milestone.agencyId,
+      title: "Milestone funded",
+      message: `The client funded “${milestone.milestoneTitle}”. You can start work now.`,
+      link: `/contracts?contractId=${milestone.contractId}`,
+      metadata: {
+        contractId: milestone.contractId,
+        milestoneId: milestone.milestoneId,
+      },
+      createdAt: now,
+    });
+    return { notice };
   });
 
   if (!funded) {
     await refundUnrecordedPayment(session, "duplicate_session");
     return;
   }
-  await sendNotification(
-    milestone.agencyId
-      ? {
-          agencyId: milestone.agencyId,
-          type: "MILESTONE_FUNDED",
-          title: "Milestone funded",
-          message: `The client funded “${milestone.milestoneTitle}”. You can start work now.`,
-          link: `/contracts?contractId=${milestone.contractId}`,
-          metadata: {
-            contractId: milestone.contractId,
-            milestoneId: milestone.milestoneId,
-          },
-        }
-      : {
-          recipientId,
-          type: "MILESTONE_FUNDED",
-          title: "Milestone funded",
-          message: `The client funded “${milestone.milestoneTitle}”. You can start work now.`,
-          link: `/contracts?contractId=${milestone.contractId}`,
-          metadata: {
-            contractId: milestone.contractId,
-            milestoneId: milestone.milestoneId,
-          },
-        },
-  );
+  await pushContractNotice(funded.notice);
   await emitConversationUpdate(milestone.conversationId);
 };

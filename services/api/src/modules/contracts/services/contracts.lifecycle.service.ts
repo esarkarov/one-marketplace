@@ -5,6 +5,10 @@ import { markPaymentMethodVerified } from "@/modules/auth/index.js";
 import { ApiError } from "@/shared/errors/api-error.js";
 import { sendNotification } from "@/infrastructure/events/notification.publisher.js";
 import {
+  insertContractNotice,
+  pushContractNotice,
+} from "@/modules/contracts/utils/contracts.notices.js";
+import {
   appendConversationMessages,
   emitConversationUpdate,
 } from "@/modules/messaging/index.js";
@@ -498,7 +502,23 @@ export const createContractFromPayment = async (
       if (!message)
         throw new ApiError(500, "Contract message could not be sent.");
 
-      return { kind: "created" as const, contractId: contract.id };
+      const notice = await insertContractNotice(transaction, {
+        type: "CONTRACT_OFFER",
+        entityId: contract.id,
+        transition: "offer",
+        recipientId: isAgency ? null : offer.proposal.sender_id,
+        agencyId: isAgency ? offer.proposal.sender_id : null,
+        title: "New contract offer",
+        message: `A client sent you a contract offer for “${offer.job.title}”.`,
+        link: `/messages?conversationId=${offer.conversationId}`,
+        metadata: {
+          contractId: contract.id,
+          proposalId: offer.proposal.id,
+        },
+        createdAt: new Date(),
+      });
+
+      return { kind: "created" as const, contractId: contract.id, notice };
     })
     .catch((error: unknown) => {
       if (error instanceof JobAlreadyHired)
@@ -515,31 +535,7 @@ export const createContractFromPayment = async (
     return;
   }
 
-  await sendNotification(
-    isAgency
-      ? {
-          agencyId: offer.proposal.sender_id,
-          type: "CONTRACT_OFFER",
-          title: "New contract offer",
-          message: `A client sent you a contract offer for “${offer.job.title}”.`,
-          link: `/messages?conversationId=${offer.conversationId}`,
-          metadata: {
-            contractId: result.contractId,
-            proposalId: offer.proposal.id,
-          },
-        }
-      : {
-          recipientId: offer.proposal.sender_id,
-          type: "CONTRACT_OFFER",
-          title: "New contract offer",
-          message: `A client sent you a contract offer for “${offer.job.title}”.`,
-          link: `/messages?conversationId=${offer.conversationId}`,
-          metadata: {
-            contractId: result.contractId,
-            proposalId: offer.proposal.id,
-          },
-        },
-  );
+  await pushContractNotice(result.notice);
 
   await emitConversationUpdate(offer.conversationId, clientId);
 };

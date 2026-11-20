@@ -1,6 +1,6 @@
 # 0024: Transactional notification writes
 
-Status: accepted (sub-batch 1 of 4 implemented: foundations only)
+Status: accepted (sub-batches 1 and 2 of 4 implemented)
 
 ## Context
 
@@ -63,3 +63,24 @@ Alert on the log name `queue.publish.skipped` (and `queue.publish.failed`): afte
 - Realtime emits (`conversation:update`) can still fail after commit and sometimes fail the request; that is a separate parked item.
 - The refund reconciler's cancel notice still has the crash window of ADR 0023 until sub-batch 2.
 - Until a call site is converted, it behaves as before.
+
+## Implementation: sub-batch 2, contract notices (2026-11-20)
+
+Five flows now write the `notifications` row inside the business transaction with `insertNotification(tx, ...)`, after the guarded state change and the system message succeeded, and no longer call `sendNotification`. The recipient, type, title, message, link and metadata are the ones the old call built; the content is built once, in the transaction. Nothing else changed in the contracts module: the nice-to-have notices (accepted, milestone added, completed, review received) and the decline, withdraw and cancel notices still use `sendNotification`.
+
+| Flow                        | Function                           | Event id: `notificationEventId(kind, entityId, transition)`                                                 |
+| --------------------------- | ---------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| CONTRACT_OFFER              | `createContractFromPayment`        | `CONTRACT_OFFER`, contract id, `offer`                                                                      |
+| MILESTONE_FUNDED            | `fundContractMilestoneFromPayment` | `MILESTONE_FUNDED`, milestone id, `funded`                                                                  |
+| MILESTONE_SUBMITTED         | `submitContractMilestone`          | `MILESTONE_SUBMITTED`, milestone id, `submitted-<id of the system message written in the same transaction>` |
+| MILESTONE_APPROVED          | `reviewContractMilestone`          | `MILESTONE_APPROVED`, milestone id, `approved-<id of the review system message>`                            |
+| MILESTONE_CHANGES_REQUESTED | `reviewContractMilestone`          | `MILESTONE_CHANGES_REQUESTED`, milestone id, `changes-requested-<id of the review system message>`          |
+
+- Offer and funded transition once (a guarded insert and a guarded `PENDING` to `ACTIVE` update), so a fixed transition is enough. A milestone can be submitted and sent back for changes many times, so those ids carry the id of the system message the same transaction inserts: a new round gets a new id, and the two ids cannot collide with each other because the kind differs.
+- A repeated `submit` while the milestone still awaits review is accepted by the existing guard (`ACTIVE` and funded) and writes a new submission message; it therefore also writes a new notice. This is the behavior before this batch (it also sent a second notice) and is not changed here.
+- The write goes through the `insertNotification` call of `notification-store`; `contracts` imports it through that module's `index.ts`. The recipient is the Clerk id the flow already had (the contract's freelancer id, the client id, or the agency owner id for the agency case, where the agency id is the target); no lookup and no new table access was needed.
+- The push is `pushStoredNotification(row)` in `notifications/index.ts` (`services/notifications.push.service.ts`). It resolves the recipient's public account id and emits over SSE with the same code as the consumer: the consumer's emit is now `pushNotification(row, recipientAccountId)` in the same file, so there is one push implementation. `pushStoredNotification` never throws; on failure it logs `notifications.push.failed` at warn with the error name and code only. `contracts` (layer 6) imports `notifications` (layer 5) through `index.ts`.
+- Contracts calls the push after the commit, outside the transaction and with no lock held, and only when `insertNotification` returned a row (null means the row existed). The push sits where `sendNotification` sat, so the order against `emitConversationUpdate` is unchanged, and the failure semantics of the emits are unchanged. A failed push never fails the request.
+- With RabbitMQ disabled the row is still written and pushed.
+- The push is folded into this batch, so sub-batch 4 is documentation only.
+- The consumer path is unchanged (store, ack, then push); the cancel notice (ADR 0023) is still on the old path.

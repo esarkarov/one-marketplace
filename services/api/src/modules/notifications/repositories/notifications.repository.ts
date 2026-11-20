@@ -29,6 +29,18 @@ export const findLatestNotifications = (
     .limit(page.limit)
     .offset(page.offset);
 
+export const findAccountIdByAuthId = async (
+  executor: DbExecutor,
+  authId: string,
+) => {
+  const [account] = await executor
+    .select({ id: accounts.id })
+    .from(accounts)
+    .where(eq(accounts.auth_id, authId))
+    .limit(1);
+  return account?.id ?? null;
+};
+
 export const insertNotificationIfNew = async (
   executor: DbExecutor,
   input: NotificationInsertInput,
@@ -41,13 +53,12 @@ export const insertNotificationIfNew = async (
       recipientAccountId: null,
     }));
   }
-  const [account] = await executor
-    .select({ id: accounts.id })
-    .from(accounts)
-    .where(eq(accounts.auth_id, input.recipientId))
-    .limit(1);
+  const recipientAccountId = await findAccountIdByAuthId(
+    executor,
+    input.recipientId,
+  );
   return inserted.map((notification) => ({
     notification,
-    recipientAccountId: account?.id ?? null,
+    recipientAccountId,
   }));
 };
