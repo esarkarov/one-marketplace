@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { SavedJobsDashboard } from "./saved-jobs-dashboard";
+import { Suspense } from "react";
 
 export const metadata: Metadata = {
   title: "Saved Jobs | OneMarketplace.io",
@@ -7,5 +8,9 @@ export const metadata: Metadata = {
 };
 
 export default function SavedJobsPage() {
-  return <SavedJobsDashboard />;
+  return (
+    <Suspense>
+      <SavedJobsDashboard />
+    </Suspense>
+  );
 }

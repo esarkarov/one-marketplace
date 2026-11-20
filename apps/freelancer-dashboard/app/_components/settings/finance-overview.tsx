@@ -1,19 +1,129 @@
 "use client";
 
 import { Icon } from "@iconify/react";
+import { useQuery } from "@tanstack/react-query";
+import { useAuth, useUser } from "@clerk/nextjs";
 import type { SettingsSectionId } from "./settings-data";
 
 type FinanceOverviewProps = {
   onOpenSection: (section: SettingsSectionId) => void;
   onBuyConnects: () => void;
   onWithdraw: () => void;
+  onDownloadStatement: () => void;
 };
+
+const formatCurrency = (value: number) =>
+  `$${value.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
 
 export function FinanceOverview({
   onOpenSection,
   onBuyConnects,
   onWithdraw,
+  onDownloadStatement,
 }: FinanceOverviewProps) {
+  const { user } = useUser();
+  const { getToken } = useAuth();
+
+  const { data: profile } = useQuery({
+    queryKey: ["profile-metadata"],
+    enabled: Boolean(user),
+    queryFn: async () => {
+      const token = await getToken();
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_SERVER_URI}/freelancer/profile?role=freelancer`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: "no-store",
+        },
+      );
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.message || "Your profile could not be loaded.");
+      }
+      return result.data;
+    },
+  });
+
+  const { data: connectsMetadata } = useQuery({
+    queryKey: ["connects"],
+    enabled: Boolean(user),
+    queryFn: async () => {
+      const token = await getToken();
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_SERVER_URI}/connects?role=freelancer`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: "no-store",
+        },
+      );
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(
+          result.message || "Your Connects balance could not be loaded.",
+        );
+      }
+      return result.data;
+    },
+  });
+
+  const { data: earnings } = useQuery({
+    queryKey: ["freelancer-earnings-overview"],
+    enabled: Boolean(user),
+    queryFn: async () => {
+      const token = await getToken();
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_SERVER_URI}/freelancer/earnings/overview?role=freelancer`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: "no-store",
+        },
+      );
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.message || "Your earnings could not be loaded.");
+      }
+      return result.data as {
+        available: number;
+        pending: number;
+        lifetime: number;
+      };
+    },
+  });
+
+  const { data: earningsSummary } = useQuery({
+    queryKey: ["freelancer-earnings-summary"],
+    enabled: Boolean(user),
+    queryFn: async () => {
+      const token = await getToken();
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_SERVER_URI}/freelancer/earnings/summary?role=freelancer`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: "no-store",
+        },
+      );
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(
+          result.message || "Your earnings summary could not be loaded.",
+        );
+      }
+      return result.data as {
+        hasEarnings: boolean;
+        currentMonthTotal: number;
+        previousMonthTotal: number;
+        series: Array<{ month: string; total: number }>;
+      };
+    },
+  });
+
+  const series = earningsSummary?.series ?? [];
+  const chartMax = Math.max(...series.map((item) => item.total), 1);
+  const identityVerified = Boolean(profile?.identityVerified);
+
   return (
     <div className="grid gap-5">
       <section className="grid gap-4 md:grid-cols-3">
@@ -25,9 +135,13 @@ export function FinanceOverview({
             <span className="text-[11px] text-white/55">Available</span>
           </div>
           <p className="mt-6 text-3xl font-semibold tracking-[-0.045em]">
-            $4,850.00
+            {earnings ? formatCurrency(earnings.available) : "..."}
           </p>
-          <p className="mt-1 text-xs text-white/60">$3,500 pending clearance</p>
+          <p className="mt-1 text-xs text-white/60">
+            {earnings
+              ? `${formatCurrency(earnings.pending)} pending clearance`
+              : "Loading..."}
+          </p>
           <button
             type="button"
             onClick={onWithdraw}
@@ -50,7 +164,9 @@ export function FinanceOverview({
               View history
             </button>
           </div>
-          <p className="mt-6 text-3xl font-semibold tracking-[-0.045em]">64</p>
+          <p className="mt-6 text-3xl font-semibold tracking-[-0.045em]">
+            {connectsMetadata?.connects ?? "..."}
+          </p>
           <p className="mt-1 text-xs text-[#7b8078]">Connects available</p>
           <button
             type="button"
@@ -75,78 +191,93 @@ export function FinanceOverview({
             </button>
           </div>
           <p className="mt-6 text-3xl font-semibold tracking-[-0.045em]">
-            $12,200
+            {earnings ? formatCurrency(earnings.lifetime) : "..."}
           </p>
-          <p className="mt-1 text-xs text-[#7b8078]">
-            Earned across active contracts
-          </p>
+          <p className="mt-1 text-xs text-[#7b8078]">Lifetime earnings</p>
           <div className="mt-5 flex h-10 items-end gap-1.5">
-            {[35, 52, 43, 68, 59, 82, 95].map((height, index) => (
-              <span
-                key={index}
-                className="flex-1 rounded-t bg-[#8ba487]"
-                style={{ height: `${height}%` }}
-              />
-            ))}
+            {series.length ? (
+              series.map((item) => (
+                <span
+                  key={item.month}
+                  className="flex-1 rounded-t bg-[#8ba487]"
+                  style={{
+                    height: `${Math.max(4, Math.round((item.total / chartMax) * 100))}%`,
+                  }}
+                />
+              ))
+            ) : (
+              <span className="w-full text-center text-[11px] text-[#a3a89e]">
+                No earnings yet
+              </span>
+            )}
           </div>
         </article>
       </section>
 
       <section className="rounded-2xl border border-black/8 bg-white p-5 sm:p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="font-semibold">Account readiness</h2>
-            <p className="mt-1 text-xs text-[#7b8078]">
-              Complete these items to keep payments and contracts running
-              smoothly.
-            </p>
-          </div>
-          <strong className="text-sm text-[#52784f]">82%</strong>
-        </div>
-        <div className="mt-4 h-2 overflow-hidden rounded-full bg-[#e5e9e2]">
-          <div className="h-full w-[82%] rounded-full bg-[#638b60]" />
+        <div>
+          <h2 className="font-semibold">Quick actions</h2>
+          <p className="mt-1 text-xs text-[#7b8078]">
+            Jump straight to the things you manage most.
+          </p>
         </div>
         <div className="mt-5 grid gap-3 sm:grid-cols-3">
-          {[
-            [
-              "Identity verification",
-              "Manage verification",
-              "solar:user-id-linear",
-              "verification",
-            ],
-            [
-              "Withdrawal method",
-              "Payoneer •••• 4821",
-              "solar:card-transfer-linear",
-              "withdrawal",
-            ],
-            [
-              "Tax information",
-              "Action required",
-              "solar:document-text-linear",
-              "tax",
-            ],
-          ].map(([title, detail, icon, section]) => (
+          <button
+            type="button"
+            onClick={() => onOpenSection("verification")}
+            className="flex cursor-pointer items-center gap-3 rounded-xl border border-black/7 p-4 text-left hover:bg-[#f8f9f6]"
+          >
+            <Icon
+              icon="solar:user-id-linear"
+              width="20"
+              className="shrink-0 text-[#597b56]"
+            />
+            <span className="min-w-0 flex-1">
+              <strong className="block text-xs">Identity verification</strong>
+              <span className="mt-1 block truncate text-[11px] text-[#858a82]">
+                {identityVerified ? "Verified" : "Not verified yet"}
+              </span>
+            </span>
+            <Icon icon="solar:alt-arrow-right-linear" width="15" />
+          </button>
+          <button
+            type="button"
+            onClick={() => onOpenSection("withdrawal")}
+            className="flex cursor-pointer items-center gap-3 rounded-xl border border-black/7 p-4 text-left hover:bg-[#f8f9f6]"
+          >
+            <Icon
+              icon="solar:card-transfer-linear"
+              width="20"
+              className="shrink-0 text-[#597b56]"
+            />
+            <span className="min-w-0 flex-1">
+              <strong className="block text-xs">Withdrawal methods</strong>
+              <span className="mt-1 block truncate text-[11px] text-[#858a82]">
+                Manage payouts on Stripe
+              </span>
+            </span>
+            <Icon icon="solar:alt-arrow-right-linear" width="15" />
+          </button>
+          {!!earnings?.lifetime && (
             <button
-              key={title}
               type="button"
-              onClick={() => onOpenSection(section as SettingsSectionId)}
+              onClick={onDownloadStatement}
               className="flex cursor-pointer items-center gap-3 rounded-xl border border-black/7 p-4 text-left hover:bg-[#f8f9f6]"
             >
               <Icon
-                icon={icon}
+                icon="solar:document-text-linear"
                 width="20"
                 className="shrink-0 text-[#597b56]"
               />
               <span className="min-w-0 flex-1">
-                <strong className="block text-xs">{title}</strong>
+                <strong className="block text-xs">Earnings certificate</strong>
                 <span className="mt-1 block truncate text-[11px] text-[#858a82]">
-                  {detail}
+                  Download a signed PDF
                 </span>
               </span>
               <Icon icon="solar:alt-arrow-right-linear" width="15" />
             </button>
-          ))}
+          )}
         </div>
       </section>
     </div>

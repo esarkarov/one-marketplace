@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { ProfileEditor } from "./profile-editor";
+import { Suspense } from "react";
 
 export const metadata: Metadata = {
   title: "My Profile | OneMarketplace.io",
@@ -8,5 +9,9 @@ export const metadata: Metadata = {
 };
 
 export default function MyProfilePage() {
-  return <ProfileEditor />;
+  return (
+    <Suspense>
+      <ProfileEditor />
+    </Suspense>
+  );
 }

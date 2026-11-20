@@ -2,15 +2,17 @@
 
 import { Icon } from "@iconify/react";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { DashboardHeader } from "../_components/dashboard/dashboard-header";
 import { WorkspaceSidebar } from "../_components/dashboard/workspace-sidebar";
+import { useQuery } from "@tanstack/react-query";
+import { getToken, useUser } from "@clerk/nextjs";
 
-type Status = "Interview" | "Viewed" | "Submitted" | "Archived" | "Withdrawn";
+type Status = "Interview" | "Viewed" | "Submitted" | "Archived";
 
 type Proposal = {
-  id: number;
-  jobId: number;
+  id: string;
+  jobId: string;
   title: string;
   company: string;
   status: Status;
@@ -26,113 +28,101 @@ type Proposal = {
   skills: string[];
 };
 
-const initialProposals: Proposal[] = [
-  {
-    id: 1,
-    jobId: 1,
-    title: "Senior Next.js developer for a collaborative workspace",
-    company: "Northstar Labs",
-    status: "Interview",
-    submitted: "July 25, 2026",
-    budget: "$12,000 fixed",
-    bid: "$11,500",
-    duration: "10 weeks",
-    connects: 8,
-    clientRating: "4.9",
-    clientSpent: "$184K+ spent",
-    activity: "Client sent a message 2 hours ago",
-    coverLetter:
-      "I’ve built real-time collaboration features across several production Next.js products, including presence, threaded comments, optimistic updates, and resilient WebSocket flows. I can begin with an architecture review and deliver the work in clear, testable milestones.",
-    skills: ["Next.js", "TypeScript", "WebSockets"],
-  },
-  {
-    id: 2,
-    jobId: 2,
-    title: "Design and build a polished SaaS analytics dashboard",
-    company: "Aster Technologies",
-    status: "Viewed",
-    submitted: "July 24, 2026",
-    budget: "$6,000 fixed",
-    bid: "$5,800",
-    duration: "7 weeks",
-    connects: 6,
-    clientRating: "4.8",
-    clientSpent: "$92K+ spent",
-    activity: "Viewed by client yesterday",
-    coverLetter:
-      "Your project is closely aligned with my recent analytics work. I can translate the approved Figma system into accessible, reusable React components and handle responsive behavior, chart states, documentation, and final QA.",
-    skills: ["React", "Tailwind CSS", "Data visualization"],
-  },
-  {
-    id: 3,
-    jobId: 3,
-    title: "Full-stack developer for AI-assisted research platform",
-    company: "Lumen Research",
-    status: "Submitted",
-    submitted: "July 23, 2026",
-    budget: "$18,500 fixed",
-    bid: "$18,000",
-    duration: "14 weeks",
-    connects: 12,
-    clientRating: "5.0",
-    clientSpent: "$310K+ spent",
-    activity: "Awaiting client review",
-    coverLetter:
-      "I combine strong TypeScript product engineering with hands-on LLM workflow experience. My proposed approach starts with an end-to-end evaluation-ready prototype, then moves into production ingestion, citations, observability, and launch.",
-    skills: ["TypeScript", "OpenAI", "PostgreSQL"],
-  },
-  {
-    id: 4,
-    jobId: 4,
-    title: "Frontend accessibility audit and implementation",
-    company: "Commonfolk Studio",
-    status: "Archived",
-    submitted: "July 18, 2026",
-    budget: "$3,800 fixed",
-    bid: "$3,800",
-    duration: "4 weeks",
-    connects: 6,
-    clientRating: "4.9",
-    clientSpent: "$76K+ spent",
-    activity: "Client hired another freelancer",
-    coverLetter:
-      "I can provide both the manual WCAG 2.2 AA audit and hands-on React remediation. Deliverables would include prioritized findings, component fixes, assistive-technology verification, regression coverage, and a maintenance checklist.",
-    skills: ["Accessibility", "React", "WCAG"],
-  },
-  {
-    id: 5,
-    jobId: 2,
-    title: "React component system for a fintech product",
-    company: "Vanta Finance",
-    status: "Withdrawn",
-    submitted: "July 12, 2026",
-    budget: "$7,500 fixed",
-    bid: "$7,200",
-    duration: "8 weeks",
-    connects: 8,
-    clientRating: "4.7",
-    clientSpent: "$58K+ spent",
-    activity: "Withdrawn on July 14",
-    coverLetter:
-      "I proposed a token-driven component architecture with accessibility, testing, and documentation built into each milestone.",
-    skills: ["React", "Design systems", "Storybook"],
-  },
-];
+type ApiProposal = {
+  id: string;
+  jobId: string;
+  title: string;
+  company: string | null;
+  status: string;
+  submittedAt: string | null;
+  budget: string;
+  bidAmount: string;
+  duration: string;
+  coverLetter: string;
+  skills: string[];
+};
+
+const presentStatus = (status: string): Status => {
+  const normalized = status.toUpperCase();
+  if (normalized === "INTERVIEWED") return "Interview";
+  if (normalized === "VIEWED") return "Viewed";
+  if (normalized === "ARCHIVED" || normalized === "REJECTED") return "Archived";
+  return "Submitted";
+};
 
 const statusStyles: Record<Status, string> = {
   Interview: "bg-[#e6f2e3] text-[#477344]",
   Viewed: "bg-[#e7eef4] text-[#496c86]",
   Submitted: "bg-[#f1f0e7] text-[#766f47]",
   Archived: "bg-[#f0f1ee] text-[#747971]",
-  Withdrawn: "bg-[#f4ebeb] text-[#875e5e]",
 };
 
+const activityFor = (status: Status) =>
+  ({
+    Interview: "The client invited you to interview",
+    Viewed: "Viewed by client",
+    Submitted: "Awaiting client review",
+    Archived: "This opportunity is no longer active",
+  })[status];
+
+const presentProposal = (proposal: ApiProposal): Proposal => {
+  const status = presentStatus(proposal.status);
+  return {
+    id: proposal.id,
+    jobId: proposal.jobId,
+    title: proposal.title,
+    company: proposal.company ?? "Client",
+    status,
+    submitted: proposal.submittedAt
+      ? new Date(proposal.submittedAt).toLocaleDateString(undefined, {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        })
+      : "recently",
+    budget: `$${Number(proposal.budget).toLocaleString()} fixed`,
+    bid: `$${Number(proposal.bidAmount).toLocaleString()}`,
+    duration: proposal.duration,
+    connects: 6,
+    clientRating: "Not rated",
+    clientSpent: "Spend unavailable",
+    activity: activityFor(status),
+    coverLetter: proposal.coverLetter,
+    skills: proposal.skills,
+  };
+};
+
+const emptyProposals: any = [];
+
 export function ProposalsDashboard() {
-  const [proposals, setProposals] = useState(initialProposals);
+  const { user, isLoaded: userLoaded } = useUser();
   const [activeTab, setActiveTab] = useState("All");
+  const [proposals, setProposals] = useState<Proposal[]>([]);
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Proposal | null>(null);
   const [withdrawTarget, setWithdrawTarget] = useState<Proposal | null>(null);
+
+  const { data: proposalData = emptyProposals, isLoading } = useQuery<
+    ApiProposal[]
+  >({
+    queryKey: ["freelancer-proposals"],
+    enabled: Boolean(user),
+    queryFn: async () => {
+      const token = await getToken();
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_SERVER_URI}/proposals?role=freelancer`,
+        { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" },
+      );
+      const result = await response.json();
+      if (!response.ok)
+        throw new Error(result.message || "Proposals could not be loaded.");
+      return result.data;
+    },
+  });
+
+  useEffect(() => {
+    setProposals(proposalData.map(presentProposal));
+  }, [proposalData]);
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -148,23 +138,6 @@ export function ProposalsDashboard() {
 
   const count = (status: Status) =>
     proposals.filter((proposal) => proposal.status === status).length;
-
-  const withdraw = () => {
-    if (!withdrawTarget) return;
-    setProposals((current) =>
-      current.map((proposal) =>
-        proposal.id === withdrawTarget.id
-          ? { ...proposal, status: "Withdrawn", activity: "Withdrawn just now" }
-          : proposal,
-      ),
-    );
-    setSelected((current) =>
-      current?.id === withdrawTarget.id
-        ? { ...current, status: "Withdrawn", activity: "Withdrawn just now" }
-        : current,
-    );
-    setWithdrawTarget(null);
-  };
 
   return (
     <div className="min-h-svh bg-[#f4f6f2] font-(family-name:--font-dm-sans) text-[#242724]">
@@ -216,9 +189,7 @@ export function ProposalsDashboard() {
                 ],
                 [
                   "Connects used",
-                  proposals
-                    .filter((p) => p.status !== "Withdrawn")
-                    .reduce((sum, p) => sum + p.connects, 0),
+                  6,
                   "solar:bolt-linear",
                   "bg-[#eeeaf5] text-[#6b5d82]",
                 ],
@@ -245,23 +216,18 @@ export function ProposalsDashboard() {
             <section className="mt-6 overflow-hidden rounded-2xl border border-black/8 bg-white">
               <div className="flex flex-col gap-4 border-b border-black/7 p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex gap-1 overflow-x-auto">
-                  {[
-                    "All",
-                    "Interview",
-                    "Viewed",
-                    "Submitted",
-                    "Archived",
-                    "Withdrawn",
-                  ].map((tab) => (
-                    <button
-                      key={tab}
-                      type="button"
-                      onClick={() => setActiveTab(tab)}
-                      className={`shrink-0 cursor-pointer rounded-lg px-3 py-2 text-xs font-semibold ${activeTab === tab ? "bg-[#edf4ea] text-[#4e774b]" : "text-[#747971] hover:bg-black/3"}`}
-                    >
-                      {tab}
-                    </button>
-                  ))}
+                  {["All", "Interview", "Viewed", "Submitted", "Archived"].map(
+                    (tab) => (
+                      <button
+                        key={tab}
+                        type="button"
+                        onClick={() => setActiveTab(tab)}
+                        className={`shrink-0 cursor-pointer rounded-lg px-3 py-2 text-xs font-semibold ${activeTab === tab ? "bg-[#edf4ea] text-[#4e774b]" : "text-[#747971] hover:bg-black/3"}`}
+                      >
+                        {tab}
+                      </button>
+                    ),
+                  )}
                 </div>
                 <label className="flex h-10 items-center gap-2 rounded-xl border border-black/9 px-3 sm:w-72">
                   <Icon
@@ -350,7 +316,7 @@ export function ProposalsDashboard() {
                     </div>
                   </article>
                 ))}
-                {!filtered.length && (
+                {userLoaded && !isLoading && !filtered.length && (
                   <div className="px-6 py-16 text-center">
                     <Icon
                       icon="solar:document-text-linear"
@@ -361,6 +327,11 @@ export function ProposalsDashboard() {
                     <p className="mt-2 text-sm text-[#7c8179]">
                       Try another status or search term.
                     </p>
+                  </div>
+                )}
+                {userLoaded && isLoading && (
+                  <div className="px-6 py-16 text-center text-sm text-[#7c8179]">
+                    Loading proposals...
                   </div>
                 )}
               </div>
@@ -457,15 +428,6 @@ export function ProposalsDashboard() {
                   We’ll notify you when the client takes another action.
                 </p>
               </section>
-              {!["Archived", "Withdrawn"].includes(selected.status) && (
-                <button
-                  type="button"
-                  onClick={() => setWithdrawTarget(selected)}
-                  className="justify-self-start cursor-pointer text-xs font-semibold text-[#976060] hover:underline"
-                >
-                  Withdraw proposal
-                </button>
-              )}
             </div>
           </div>
         </div>
@@ -496,13 +458,6 @@ export function ProposalsDashboard() {
                 className="cursor-pointer rounded-xl border border-black/10 px-4 py-2.5 text-sm font-semibold"
               >
                 Keep proposal
-              </button>
-              <button
-                type="button"
-                onClick={withdraw}
-                className="cursor-pointer rounded-xl bg-[#8b5555] px-4 py-2.5 text-sm font-semibold text-white"
-              >
-                Withdraw
               </button>
             </div>
           </div>

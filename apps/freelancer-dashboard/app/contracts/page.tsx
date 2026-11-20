@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { ContractsDashboard } from "./contracts-dashboard";
+import { Suspense } from "react";
 
 export const metadata: Metadata = {
   title: "My Contracts | OneMarketplace.io",
@@ -8,5 +9,9 @@ export const metadata: Metadata = {
 };
 
 export default function ContractsPage() {
-  return <ContractsDashboard />;
+  return (
+    <Suspense>
+      <ContractsDashboard />
+    </Suspense>
+  );
 }

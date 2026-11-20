@@ -76,3 +76,106 @@ export type Conversation = {
   lastMessageTime: string;
   messages: ChatMessage[];
 };
+
+export type FreelancerConversation = {
+  id: string;
+  person: string;
+  avatarUrl?: string | null;
+  initials: string;
+  accountType: "Client";
+  context: string;
+  contextHref: string;
+  contextLabel: string;
+  online: boolean;
+  unread: number;
+  lastMessage: string;
+  time: string;
+  messages: FreelancerMessage[];
+  activeMeeting: { id: string; joinUrl: string; startedAt: string } | null;
+};
+
+export type FreelancerMessage =
+  | {
+      id: string;
+      kind: "text";
+      sender: "client" | "talent";
+      text: string;
+      time: string;
+      replyToId?: string;
+      attachment?: {
+        name: string;
+        size: string;
+        type: string;
+        url?: string;
+      };
+    }
+  | {
+      id: string;
+      kind: "proposal";
+      sender: "talent";
+      title: string;
+      bid: number;
+      duration: string;
+      summary: string;
+      skills: string[];
+      href: string;
+      time: string;
+    }
+  | {
+      id: string;
+      kind: "meeting";
+      sender: "client" | "talent";
+      title: string;
+      startsAt: string;
+      meetUrl: string;
+      ended: boolean;
+      time: string;
+    }
+  | {
+      id: string;
+      kind: "meeting_ended";
+      durationMinutes: number;
+      time: string;
+    }
+  | {
+      id: string;
+      kind: "contract";
+      contractId: string;
+      sender: "client";
+      title: string;
+      amount: number;
+      status: "Awaiting acceptance" | "Active" | "Declined" | "Completed";
+      href: string;
+      time: string;
+    }
+  | {
+      id: string;
+      kind: "contract_completed";
+      sender: "system" | "client" | "talent";
+      title: string;
+      href: string;
+      time: string;
+      contractId?: string;
+    }
+  | {
+      id: string;
+      kind: "milestone";
+      sender: "client" | "talent";
+      title: string;
+      amount: number;
+      status: "Added" | "Funded" | "Submitted" | "Changes requested" | "Approved";
+      href: string;
+      time: string;
+      note?: string;
+      deliveryLink?: string;
+      dueDate?: string;
+    }
+  | {
+      id: string;
+      kind: "payment";
+      sender: "system";
+      title: string;
+      amount: number;
+      status: "Protected in escrow" | "Released";
+      time: string;
+    };

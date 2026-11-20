@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { FreelancerDashboard } from "./freelancer-dashboard";
 
 export const metadata: Metadata = {
@@ -8,5 +9,9 @@ export const metadata: Metadata = {
 };
 
 export default function MainDashboardPage() {
-  return <FreelancerDashboard />;
+  return (
+    <Suspense>
+      <FreelancerDashboard />
+    </Suspense>
+  );
 }

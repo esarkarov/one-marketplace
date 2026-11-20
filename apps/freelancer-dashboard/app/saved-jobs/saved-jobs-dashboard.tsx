@@ -1,100 +1,113 @@
 "use client";
 
+import { useAuth } from "@clerk/nextjs";
 import { Icon } from "@iconify/react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { format } from "timeago.js";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { DashboardHeader } from "../_components/dashboard/dashboard-header";
 import { WorkspaceSidebar } from "../_components/dashboard/workspace-sidebar";
+import { useProposalMetadata } from "../_components/proposals/use-proposal-metadata";
 
 type Job = {
-  id: number;
+  id: string;
   title: string;
-  company: string;
-  saved: string;
-  posted: string;
-  budget: string;
-  duration: string;
+  companyName: string;
+  savedAt: string;
+  published_at: string | null;
+  created_at: string | null;
+  total_budget: string;
+  expertise_level: string;
+  expected_duration: string;
   description: string;
   skills: string[];
-  rating: string;
-  spent: string;
-  proposals: string;
+  paymentVerified: boolean;
+  proposalCount: number;
 };
 
-const initialJobs: Job[] = [
-  {
-    id: 1,
-    title: "Senior Next.js developer for a collaborative workspace",
-    company: "Northstar Labs",
-    saved: "Saved today",
-    posted: "18 minutes ago",
-    budget: "$12,000",
-    duration: "10–12 weeks",
-    description:
-      "Build real-time collaboration features, improve application performance, and help shape a thoughtful frontend architecture.",
-    skills: ["Next.js", "TypeScript", "PostgreSQL", "WebSockets"],
-    rating: "4.9",
-    spent: "$184K+ spent",
-    proposals: "Less than 5",
-  },
-  {
-    id: 3,
-    title: "Full-stack developer for AI-assisted research platform",
-    company: "Lumen Research",
-    saved: "Saved yesterday",
-    posted: "1 hour ago",
-    budget: "$18,500",
-    duration: "12–16 weeks",
-    description:
-      "Own end-to-end workflows across the TypeScript stack and help design reliable LLM orchestration and evaluation tools.",
-    skills: ["TypeScript", "Node.js", "OpenAI", "Python"],
-    rating: "5.0",
-    spent: "$310K+ spent",
-    proposals: "10 to 15",
-  },
-  {
-    id: 4,
-    title: "Frontend accessibility audit and implementation",
-    company: "Commonfolk Studio",
-    saved: "Saved 3 days ago",
-    posted: "2 hours ago",
-    budget: "$3,800",
-    duration: "3–4 weeks",
-    description:
-      "Audit a customer portal against WCAG 2.2 AA and implement the highest-priority accessibility improvements.",
-    skills: ["Accessibility", "React", "WCAG", "Testing"],
-    rating: "4.9",
-    spent: "$76K+ spent",
-    proposals: "Less than 5",
-  },
-];
+const proposalLabel = (count: number) => {
+  if (count < 5) return "Less than 5 proposals";
+  if (count < 10) return "5 to 10 proposals";
+  if (count < 15) return "10 to 15 proposals";
+  if (count < 20) return "15 to 20 proposals";
+  return "20+ proposals";
+};
 
 export function SavedJobsDashboard() {
-  const [jobs, setJobs] = useState(initialJobs);
+  const { getToken } = useAuth();
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("recent");
   const [removed, setRemoved] = useState<Job | null>(null);
+  const { data: proposalMetadata } = useProposalMetadata();
+  const appliedJobIds = useMemo(
+    () => new Set(proposalMetadata?.proposals.map(({ jobId }) => jobId) ?? []),
+    [proposalMetadata],
+  );
+  const { data: jobs = [], isLoading } = useQuery<Job[]>({
+    queryKey: ["saved-jobs"],
+    queryFn: async () => {
+      const token = await getToken();
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_SERVER_URI}/jobs/saved?role=freelancer`,
+        { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" },
+      );
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message);
+      return result.data;
+    },
+  });
 
   const visible = useMemo(() => {
     const query = search.trim().toLowerCase();
     const result = jobs.filter((job) =>
-      `${job.title} ${job.company} ${job.skills.join(" ")}`
+      `${job.title} ${job.companyName} ${job.skills.join(" ")}`
         .toLowerCase()
         .includes(query),
     );
     return sort === "budget"
       ? [...result].sort(
-          (a, b) =>
-            Number(b.budget.replace(/\D/g, "")) -
-            Number(a.budget.replace(/\D/g, "")),
+          (a, b) => Number(b.total_budget) - Number(a.total_budget),
         )
       : result;
   }, [jobs, search, sort]);
 
-  const remove = (job: Job) => {
-    setJobs((current) => current.filter((item) => item.id !== job.id));
+  const remove = async (job: Job) => {
+    queryClient.setQueryData<Job[]>(["saved-jobs"], (current = []) =>
+      current.filter((item) => item.id !== job.id),
+    );
     setRemoved(job);
+    const token = await getToken();
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_SERVER_URI}/jobs/saved/${job.id}?role=freelancer`,
+      { method: "DELETE", headers: { Authorization: `Bearer ${token}` } },
+    );
+    if (!response.ok) {
+      queryClient.setQueryData<Job[]>(["saved-jobs"], (current = []) => [
+        job,
+        ...current,
+      ]);
+      setRemoved(null);
+      return;
+    }
     window.setTimeout(() => setRemoved(null), 3500);
+  };
+
+  const undo = async () => {
+    if (!removed) return;
+    const job = removed;
+    setRemoved(null);
+    const token = await getToken();
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_SERVER_URI}/jobs/saved/${job.id}?role=freelancer`,
+      { method: "POST", headers: { Authorization: `Bearer ${token}` } },
+    );
+    if (response.ok)
+      queryClient.setQueryData<Job[]>(["saved-jobs"], (current = []) => [
+        job,
+        ...current,
+      ]);
   };
 
   return (
@@ -151,15 +164,21 @@ export function SavedJobsDashboard() {
               </div>
             </section>
             <div className="mt-4 grid gap-4">
+              {isLoading && (
+                <div className="h-64 animate-pulse rounded-2xl border border-black/8 bg-white" />
+              )}
               {visible.map((job) => (
                 <article
                   key={job.id}
-                  className="rounded-2xl border border-black/8 bg-white p-5 transition hover:border-black/14 hover:shadow-lg hover:shadow-black/4 sm:p-7"
+                  className="rounded-2xl border border-black/8 bg-white p-5 transition sm:p-7"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
                       <p className="text-xs text-[#858a82]">
-                        {job.saved} · Posted {job.posted}
+                        Saved {format(job.savedAt)} · Posted{" "}
+                        {format(
+                          job.published_at ?? job.created_at ?? job.savedAt,
+                        )}
                       </p>
                       <h2 className="mt-3 text-xl leading-7 font-semibold tracking-[-0.025em]">
                         {job.title}
@@ -176,7 +195,7 @@ export function SavedJobsDashboard() {
                       </Link>
                       <button
                         type="button"
-                        onClick={() => remove(job)}
+                        onClick={() => void remove(job)}
                         aria-label="Remove saved job"
                         className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border border-[#a8c3a4] bg-[#e8f2e5] text-[#4e784b]"
                       >
@@ -186,11 +205,11 @@ export function SavedJobsDashboard() {
                   </div>
                   <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-xs font-medium text-[#656a63]">
                     <span>Fixed price</span>
-                    <span>{job.budget}</span>
-                    <span>Expert</span>
-                    <span>{job.duration}</span>
+                    <span>${Number(job.total_budget).toLocaleString()}</span>
+                    <span>{job.expertise_level}</span>
+                    <span>{job.expected_duration}</span>
                   </div>
-                  <p className="mt-5 text-sm leading-6 text-[#626860]">
+                  <p className="mt-5 text-sm line-clamp-3 leading-6 text-[#626860]">
                     {job.description}
                   </p>
                   <div className="mt-5 flex flex-wrap gap-2">
@@ -207,29 +226,31 @@ export function SavedJobsDashboard() {
                     <div>
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-[#737870]">
                         <strong className="text-[#343833]">
-                          {job.company}
+                          {job.companyName}
                         </strong>
-                        <span className="inline-flex items-center gap-1 font-semibold text-[#4f784c]">
-                          <Icon icon="solar:verified-check-bold" width="15" />
-                          Payment verified
-                        </span>
-                        <span className="text-[#d1a238]">★ {job.rating}</span>
-                        <span>{job.spent}</span>
+                        {job.paymentVerified && (
+                          <span className="inline-flex items-center gap-1 font-semibold text-[#4f784c]">
+                            <Icon icon="solar:verified-check-bold" width="15" />
+                            Payment verified
+                          </span>
+                        )}
                       </div>
                       <p className="mt-2 text-xs text-[#858a82]">
-                        {job.proposals} proposals
+                        {proposalLabel(job.proposalCount)}
                       </p>
                     </div>
                     <Link
                       href={`/jobs/${job.id}`}
                       className="rounded-xl bg-[#252724] px-5 py-2.5 text-center text-sm font-semibold text-white! hover:bg-[#3b3e39]"
                     >
-                      Submit a proposal
+                      {appliedJobIds.has(job.id)
+                        ? "Proposal submitted"
+                        : "Submit a proposal"}
                     </Link>
                   </div>
                 </article>
               ))}
-              {!visible.length && (
+              {!isLoading && !visible.length && (
                 <div className="rounded-2xl border border-dashed border-black/12 bg-white px-6 py-16 text-center">
                   <Icon
                     icon="solar:bookmark-linear"
@@ -258,10 +279,7 @@ export function SavedJobsDashboard() {
           <span>Removed from saved jobs</span>
           <button
             type="button"
-            onClick={() => {
-              setJobs((current) => [removed, ...current]);
-              setRemoved(null);
-            }}
+            onClick={() => void undo()}
             className="cursor-pointer font-semibold text-[#a9cba5]"
           >
             Undo

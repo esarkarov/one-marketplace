@@ -7,6 +7,11 @@ import { DashboardHeader } from "../_components/dashboard/dashboard-header";
 import { WorkspaceSidebar } from "../_components/dashboard/workspace-sidebar";
 import { dashboardNotifications } from "../_components/notifications/notifications-data";
 import type { DashboardNotification } from "../_components/notifications/types";
+import {
+  presentNotification,
+  useNotifications,
+  useNotificationStream,
+} from "@/hooks/use-notifications";
 
 const filters = [
   "All",
@@ -18,10 +23,20 @@ const filters = [
 ];
 
 export function NotificationsDashboard() {
-  const [notifications, setNotifications] = useState(dashboardNotifications);
+  const {
+    notifications: data,
+    isLoading,
+    markAllRead,
+    markRead,
+  } = useNotifications();
+
+  useNotificationStream();
+
   const [filter, setFilter] = useState("All");
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [search, setSearch] = useState("");
+
+  const notifications = useMemo(() => data.map(presentNotification), [data]);
 
   const visible = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -37,21 +52,12 @@ export function NotificationsDashboard() {
   }, [filter, notifications, search, unreadOnly]);
 
   const unreadCount = notifications.filter((item) => item.unread).length;
-  const grouped = visible.reduce<Record<string, DashboardNotification[]>>(
-    (result, notification) => {
-      (result[notification.date] ??= []).push(notification);
-      return result;
-    },
-    {},
-  );
-
-  const markRead = (id: number) => {
-    setNotifications((current) =>
-      current.map((item) =>
-        item.id === id ? { ...item, unread: false } : item,
-      ),
-    );
-  };
+  const grouped = visible.reduce<
+    Record<string, ReturnType<typeof presentNotification>[]>
+  >((result, notification) => {
+    (result[notification.date] ??= []).push(notification);
+    return result;
+  }, {});
 
   return (
     <div className="min-h-svh bg-[#f4f6f2] font-(family-name:--font-dm-sans) text-[#242724]">
@@ -76,11 +82,7 @@ export function NotificationsDashboard() {
               {unreadCount > 0 && (
                 <button
                   type="button"
-                  onClick={() =>
-                    setNotifications((current) =>
-                      current.map((item) => ({ ...item, unread: false })),
-                    )
-                  }
+                  onClick={() => markAllRead()}
                   className="inline-flex h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border border-black/10 bg-white px-5 text-sm font-semibold hover:bg-black/3"
                 >
                   <Icon icon="solar:check-read-linear" width="19" />
@@ -136,66 +138,84 @@ export function NotificationsDashboard() {
                 </div>
               </div>
 
-              {Object.entries(grouped).map(([date, items]) => (
-                <section key={date}>
-                  <h2 className="border-b border-black/6 bg-[#fafbf9] px-5 py-3 text-[11px] font-semibold tracking-[0.12em] text-[#7c8179] uppercase">
-                    {date}
-                  </h2>
-                  {items.map((notification) => (
+              {isLoading && (
+                <div role="status" aria-label="Loading notifications">
+                  {Array.from({ length: 5 }).map((_, index) => (
                     <div
-                      key={notification.id}
-                      className={`group flex gap-4 border-b border-black/6 px-5 py-5 last:border-b-0 sm:px-6 ${
-                        notification.unread ? "bg-[#f4f8f2]" : "bg-white"
-                      }`}
+                      key={index}
+                      className="flex animate-pulse gap-4 border-b border-black/6 px-6 py-5"
                     >
-                      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-black/6 bg-white text-[#52784f]">
-                        <Icon icon={notification.icon} width="21" />
+                      <span className="h-11 w-11 rounded-xl bg-[#e8ece6]" />
+                      <span className="flex-1">
+                        <span className="block h-3.5 w-48 rounded bg-[#e3e7e1]" />
+                        <span className="mt-3 block h-3 w-3/4 rounded bg-[#edf0eb]" />
                       </span>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="text-sm font-semibold">
-                            {notification.title}
-                          </h3>
-                          {notification.unread && (
-                            <span className="h-2 w-2 rounded-full bg-[#5f8d5c]" />
-                          )}
-                        </div>
-                        <p className="mt-1 text-sm leading-6 text-[#71766e]">
-                          {notification.description}
-                        </p>
-                        <div className="mt-3 flex flex-wrap items-center gap-3">
-                          <Link
-                            href={notification.href}
-                            onClick={() => markRead(notification.id)}
-                            className="inline-flex items-center gap-1 text-xs font-semibold text-[#4e774b] hover:underline"
-                          >
-                            View {notification.category.toLowerCase()}
-                            <Icon
-                              icon="solar:arrow-right-up-linear"
-                              width="14"
-                            />
-                          </Link>
-                          <span className="text-[11px] text-[#949990]">
-                            {notification.time}
-                          </span>
-                        </div>
-                      </div>
-                      {notification.unread && (
-                        <button
-                          type="button"
-                          onClick={() => markRead(notification.id)}
-                          aria-label={`Mark ${notification.title} as read`}
-                          className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full text-[#71766e] hover:bg-white hover:text-[#4e774b]"
-                        >
-                          <Icon icon="solar:check-read-linear" width="19" />
-                        </button>
-                      )}
                     </div>
                   ))}
-                </section>
-              ))}
+                </div>
+              )}
 
-              {!visible.length && (
+              {!isLoading &&
+                Object.entries(grouped).map(([date, items]) => (
+                  <section key={date}>
+                    <h2 className="border-b border-black/6 bg-[#fafbf9] px-5 py-3 text-[11px] font-semibold tracking-[0.12em] text-[#7c8179] uppercase">
+                      {date}
+                    </h2>
+                    {items.map((notification) => (
+                      <div
+                        key={notification.id}
+                        className={`group flex gap-4 border-b border-black/6 px-5 py-5 last:border-b-0 sm:px-6 ${
+                          notification.unread ? "bg-[#f4f8f2]" : "bg-white"
+                        }`}
+                      >
+                        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-black/6 bg-white text-[#52784f]">
+                          <Icon icon={notification.icon} width="21" />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h3 className="text-sm font-semibold">
+                              {notification.title}
+                            </h3>
+                            {notification.unread && (
+                              <span className="h-2 w-2 rounded-full bg-[#5f8d5c]" />
+                            )}
+                          </div>
+                          <p className="mt-1 text-sm leading-6 text-[#71766e]">
+                            {notification.description}
+                          </p>
+                          <div className="mt-3 flex flex-wrap items-center gap-3">
+                            <Link
+                              href={notification.href}
+                              onClick={() => markRead(notification.id)}
+                              className="inline-flex items-center gap-1 text-xs font-semibold text-[#4e774b] hover:underline"
+                            >
+                              View {notification.category.toLowerCase()}
+                              <Icon
+                                icon="solar:arrow-right-up-linear"
+                                width="14"
+                              />
+                            </Link>
+                            <span className="text-[11px] text-[#949990]">
+                              {notification.time}
+                            </span>
+                          </div>
+                        </div>
+                        {notification.unread && (
+                          <button
+                            type="button"
+                            onClick={() => markRead(notification.id)}
+                            aria-label={`Mark ${notification.title} as read`}
+                            className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full text-[#71766e] hover:bg-white hover:text-[#4e774b]"
+                          >
+                            <Icon icon="solar:check-read-linear" width="19" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </section>
+                ))}
+
+              {!isLoading && !visible.length && (
                 <div className="px-6 py-20 text-center">
                   <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#edf4ea] text-[#52784f]">
                     <Icon icon="solar:bell-off-linear" width="27" />

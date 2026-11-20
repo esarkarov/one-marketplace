@@ -1,8 +1,11 @@
 "use client";
 
 import { Icon } from "@iconify/react";
-import { FormEvent, useState } from "react";
+import { SubmitEvent, useState } from "react";
 import type { Job } from "./types";
+import { useAuth } from "@clerk/nextjs";
+import { useQueryClient } from "@tanstack/react-query";
+import { proposalMetadataQueryKey } from "../proposals/use-proposal-metadata";
 
 type ProposalModalProps = {
   job: Job;
@@ -11,9 +14,45 @@ type ProposalModalProps = {
 
 export function ProposalModal({ job, onClose }: ProposalModalProps) {
   const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const { getToken } = useAuth();
+  const queryClient = useQueryClient();
 
-  const submitProposal = (event: FormEvent<HTMLFormElement>) => {
+  const submitProposal = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setSubmitted(true);
+    setError("");
+    const form = new FormData(event.currentTarget);
+    const token = await getToken();
+
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_SERVER_URI}/proposals?role=freelancer`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          jobId: job.id,
+          bidAmount: form.get("bidAmount"),
+          duration: form.get("duration"),
+          coverLetter: form.get("coverLetter"),
+          screeningAnswers: job.screeningQuestions?.map((_, index) =>
+            form.get(`screening-${index}`),
+          ),
+        }),
+      },
+    );
+    const result = await response.json();
+    setSubmitting(false);
+    if (!response.ok)
+      return setError(result.message || "Proposal could not be submitted.");
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: proposalMetadataQueryKey }),
+      queryClient.invalidateQueries({ queryKey: ["connects"] }),
+    ]);
     setSubmitted(true);
   };
 
@@ -82,6 +121,7 @@ export function ProposalModal({ job, onClose }: ProposalModalProps) {
                     </span>
                     <input
                       required
+                      name="bidAmount"
                       type="number"
                       min="1"
                       defaultValue={
@@ -99,6 +139,7 @@ export function ProposalModal({ job, onClose }: ProposalModalProps) {
                 <label className="grid gap-2 text-sm font-semibold">
                   Delivery
                   <select
+                    name="duration"
                     required
                     className="h-12 rounded-xl border border-black/11 bg-white px-3.5 font-normal outline-none focus:border-[#70966d]"
                   >
@@ -110,8 +151,11 @@ export function ProposalModal({ job, onClose }: ProposalModalProps) {
                 </label>
               </div>
               <label className="grid gap-2 text-sm font-semibold">
-                Cover letter
+                <span className="flex items-center">
+                  Cover letter <span className="text-red-500 pl-1">*</span>
+                </span>
                 <textarea
+                  name="coverLetter"
                   required
                   minLength={80}
                   rows={6}
@@ -122,12 +166,35 @@ export function ProposalModal({ job, onClose }: ProposalModalProps) {
                   Minimum 80 characters
                 </span>
               </label>
+
+              {!!job.screeningQuestions?.length && (
+                <div className="grid gap-4 border-t border-black/7 pt-5">
+                  <h3 className="font-semibold">Additional Questions</h3>
+                  {job.screeningQuestions.map((question, index) => (
+                    <label
+                      key={question}
+                      className="grid gap-2 text-sm font-semibold"
+                    >
+                      <span className="flex items-center">
+                        {question} <span className="text-red-500 pl-1">*</span>
+                      </span>
+                      <textarea
+                        name={`screening-${index}`}
+                        required
+                        rows={3}
+                        className="resize-none rounded-xl border border-black/11 bg-white p-3.5 font-normal leading-6 outline-none focus:border-[#70966d]"
+                      />
+                    </label>
+                  ))}
+                </div>
+              )}
+
               <div className="rounded-xl bg-[#eff4ed] p-4 text-xs leading-5 text-[#626960]">
                 <strong className="text-[#333832]">
-                  You’ll use 8 Connects.
-                </strong>{" "}
-                You have 64 Connects available.
+                  You’ll use 6 Connects.
+                </strong>
               </div>
+              {error && <p className="text-sm text-red-600">{error}</p>}
               <div className="flex justify-end gap-3 border-t border-black/7 pt-5">
                 <button
                   type="button"
@@ -138,9 +205,10 @@ export function ProposalModal({ job, onClose }: ProposalModalProps) {
                 </button>
                 <button
                   type="submit"
-                  className="cursor-pointer rounded-xl bg-[#252724] px-5 py-2.5 text-sm font-semibold text-white"
+                  disabled={submitting}
+                  className="cursor-pointer rounded-xl bg-[#252724] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
                 >
-                  Send proposal
+                  {submitting ? "Submitting..." : "Send proposal"}
                 </button>
               </div>
             </form>

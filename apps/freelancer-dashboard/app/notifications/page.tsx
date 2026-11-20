@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { NotificationsDashboard } from "./notifications-dashboard";
+import { Suspense } from "react";
 
 export const metadata: Metadata = {
   title: "Notifications | OneMarketplace.io",
@@ -8,5 +9,9 @@ export const metadata: Metadata = {
 };
 
 export default function NotificationsPage() {
-  return <NotificationsDashboard />;
+  return (
+    <Suspense>
+      <NotificationsDashboard />
+    </Suspense>
+  );
 }

@@ -1,5 +1,15 @@
 @import "tailwindcss";
 
+input[type="number"] {
+  appearance: textfield;
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  margin: 0;
+  appearance: none;
+}
+
 :root {
   --background: #f4f6f2;
   --foreground: #242724;

@@ -12,14 +12,25 @@ export const metadata: Metadata = {
 export default async function SettingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ section?: string }>;
+  searchParams: Promise<{
+    section?: string;
+    payment?: string;
+    active?: string;
+  }>;
 }) {
-  const { section } = await searchParams;
+  const { section, payment, active } = await searchParams;
   const validSection = settingsSections.some((item) => item.id === section);
 
   if (!validSection) {
     redirect("/settings?section=overview");
   }
 
-  return <SettingsDashboard key={section} initialSection={section} />;
+  return (
+    <SettingsDashboard
+      key={section}
+      initialSection={section}
+      paymentStatus={payment}
+      verificationActive={active === "true"}
+    />
+  );
 }

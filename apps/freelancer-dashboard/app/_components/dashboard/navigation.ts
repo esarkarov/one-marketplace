@@ -27,5 +27,9 @@ export const sidebarNavigation = [
     label: "Messages",
     icon: "solar:chat-round-dots-linear",
   },
-  { href: "/settings", label: "Settings", icon: "solar:settings-linear" },
+  {
+    href: "/settings?section=overview",
+    label: "Settings",
+    icon: "solar:settings-linear",
+  },
 ] as const;

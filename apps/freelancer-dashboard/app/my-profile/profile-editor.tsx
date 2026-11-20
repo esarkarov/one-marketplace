@@ -2,10 +2,16 @@
 
 import { Icon } from "@iconify/react";
 import Link from "next/link";
-import { useForm } from "react-hook-form";
-import { SubmitEvent, useEffect, useState } from "react";
+import { useForm, useWatch } from "react-hook-form";
+import React, { SubmitEvent, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { DashboardHeader } from "../_components/dashboard/dashboard-header";
+import { getToken, useUser } from "@clerk/nextjs";
+import Image from "next/image";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ProfileSkeleton } from "./profile-skelton";
+import { countries } from "@/utils/countries";
+import { UserResource } from "@clerk/nextjs/types";
 
 type PreviewPortfolio = {
   id: number;
@@ -77,40 +83,6 @@ const initialLanguages: Language[] = [
   { language: "English", proficiency: "Fluent" },
 ];
 
-const initialSkills = [
-  "Next.js",
-  "TypeScript",
-  "React",
-  "Node.js",
-  "PostgreSQL",
-  "Tailwind CSS",
-  "AWS",
-  "UI Engineering",
-];
-
-const initialPortfolio: PreviewPortfolio[] = [
-  {
-    id: 1,
-    title: "B2B analytics workspace",
-    category: "SaaS product",
-    description:
-      "Designed and built a collaborative analytics platform used by 4,000+ product teams.",
-    liveLink: "https://example.com/analytics-workspace",
-    color: "from-[#dcebe2] to-[#abcbb8]",
-    icon: "solar:chart-square-linear",
-  },
-  {
-    id: 2,
-    title: "AI research assistant",
-    category: "AI application",
-    description:
-      "Production research workflow with source citations, evaluation, and team collaboration.",
-    liveLink: "https://example.com/research-assistant",
-    color: "from-[#e6e2f1] to-[#beb5d8]",
-    icon: "solar:magic-stick-3-linear",
-  },
-];
-
 const inputClass =
   "h-12 w-full rounded-xl border border-black/10 bg-white px-3.5 text-sm outline-none transition placeholder:text-[#a1a59e] focus:border-[#71936e] focus:ring-3 focus:ring-[#71936e]/10";
 const labelClass = "grid gap-2 text-sm font-semibold text-[#343833]";
@@ -148,39 +120,21 @@ function SectionCard({
   );
 }
 
-function ProfilePreview() {
-  const completedJobs = [
-    {
-      title: "Build a collaborative analytics dashboard",
-      client: "Northstar Labs",
-      completed: "June 2026",
-      budget: "$8,400",
-      rating: "5.0",
-      review:
-        "Shahriar brought strong product judgment to every decision. The implementation was fast, polished, and exceptionally well documented.",
-      skills: ["Next.js", "TypeScript", "PostgreSQL"],
-    },
-    {
-      title: "Frontend architecture for an AI research platform",
-      client: "Lumen Research",
-      completed: "March 2026",
-      budget: "$12,750",
-      rating: "5.0",
-      review:
-        "A genuinely senior engineer. He simplified a difficult architecture and delivered each milestone exactly when promised.",
-      skills: ["React", "Node.js", "OpenAI"],
-    },
-    {
-      title: "SaaS design system and accessibility upgrade",
-      client: "Aster Technologies",
-      completed: "December 2025",
-      budget: "$5,600",
-      rating: "4.9",
-      review:
-        "Excellent attention to detail and communication. Our product is more consistent, accessible, and much easier to maintain.",
-      skills: ["Design systems", "WCAG", "Tailwind CSS"],
-    },
-  ];
+function ProfilePreview({
+  user,
+  profileMetaData,
+}: {
+  user: UserResource | undefined | null;
+  profileMetaData: any;
+}) {
+  const jobsList = profileMetaData?.workHistory ?? [];
+
+  const completedCount = jobsList.filter(
+    (job: any) => job.status === "COMPLETED",
+  ).length;
+  const ongoingCount = jobsList.filter(
+    (job: any) => job.status === "ACTIVE",
+  ).length;
 
   return (
     <div className="min-h-svh bg-[#f4f6f2] font-(family-name:--font-dm-sans) text-[#242724]">
@@ -211,43 +165,66 @@ function ProfilePreview() {
         <div className="mt-6 grid items-start gap-6 lg:grid-cols-[290px_minmax(0,1fr)]">
           <aside className="grid gap-5 lg:sticky lg:top-24">
             <section className="rounded-3xl border border-black/8 bg-white p-6 text-center">
-              <div className="relative mx-auto h-28 w-28">
-                <span className="flex h-full w-full items-center justify-center rounded-full bg-[#496e67] text-3xl font-semibold text-white">
-                  SK
-                </span>
-                <span
-                  className="absolute right-1 bottom-1 h-5 w-5 rounded-full border-4 border-white bg-[#59a05d]"
-                  title="Available now"
+              <div className="relative mx-auto w-28">
+                <Image
+                  width={90}
+                  height={90}
+                  src={user?.imageUrl || ""}
+                  alt={user?.firstName || ""}
+                  className="rounded-full h-28 w-28 object-cover"
                 />
               </div>
-              <h1 className="mt-5 text-2xl font-semibold tracking-[-0.035em]">
-                Shahriar Sajeeb
+              <h1 className="mt-2 inline-flex items-center gap-2 text-2xl font-semibold tracking-[-0.035em]">
+                {user?.fullName}
+                {profileMetaData?.identityVerified && (
+                  <Icon
+                    icon="solar:verified-check-bold"
+                    width="21"
+                    className="text-[#5d895a]"
+                  />
+                )}
               </h1>
               <p className="mt-2 text-sm leading-6 text-[#656b63]">
-                Full-stack product engineer
-                <br />
-                Next.js & TypeScript
+                {profileMetaData?.professional_title}
               </p>
               <p className="mt-3 inline-flex items-center gap-1.5 text-xs text-[#777c74]">
                 <Icon icon="solar:map-point-linear" width="16" />
-                Chiang Mai, Thailand
+                {profileMetaData?.city},{" "}
+                {countries.find(
+                  (country) => country.code === user?.unsafeMetadata?.country,
+                )?.name ?? ""}
               </p>
 
               <div className="mt-6 grid grid-cols-3 border-y border-black/7 py-4">
                 <div>
-                  <strong className="block">100%</strong>
+                  <strong className="block">
+                    {profileMetaData?.stats?.jobSuccessScore &&
+                    Number(profileMetaData.stats.jobSuccessScore) > 0
+                      ? `${profileMetaData.stats.jobSuccessScore}%`
+                      : "0"}
+                  </strong>
                   <span className="mt-1 block text-[10px] text-[#858a82]">
                     Job success
                   </span>
                 </div>
                 <div className="border-x border-black/7">
-                  <strong className="block">4.9</strong>
+                  <strong className="block">
+                    {profileMetaData?.stats?.rating &&
+                    Number(profileMetaData.stats.rating) > 0
+                      ? Number(profileMetaData.stats.rating).toFixed(1)
+                      : "0"}
+                  </strong>
                   <span className="mt-1 block text-[10px] text-[#858a82]">
                     Rating
                   </span>
                 </div>
                 <div>
-                  <strong className="block">24</strong>
+                  <strong className="block">
+                    {profileMetaData?.workHistory
+                      ? profileMetaData.workHistory.length
+                      : (profileMetaData?.stats?.completedJobs ?? 0) +
+                        (profileMetaData?.stats?.ongoingJobs ?? 0)}
+                  </strong>
                   <span className="mt-1 block text-[10px] text-[#858a82]">
                     Projects
                   </span>
@@ -260,20 +237,26 @@ function ProfilePreview() {
                 </p>
                 <p className="mt-2 flex items-center gap-2 text-sm font-medium">
                   <span className="h-2 w-2 rounded-full bg-[#59a05d]" />
-                  20–30 hours per week
+                  {profileMetaData?.weekly_availability}
                 </p>
                 <p className="mt-4 text-xs font-semibold tracking-wide text-[#7b8078] uppercase">
                   Languages
                 </p>
-                <p className="mt-2 text-sm text-[#656b63]">English — Fluent</p>
-                <p className="mt-1 text-sm text-[#656b63]">Bengali — Native</p>
+                {profileMetaData.languages.map((language: any) => (
+                  <p
+                    key={language.language}
+                    className="mt-2 text-sm text-[#656b63]"
+                  >
+                    {language.language} - {language.proficiency}
+                  </p>
+                ))}
               </div>
             </section>
 
             <section className="rounded-2xl border border-[#d2dfcf] bg-[#edf4ea] p-5">
               <div className="flex items-center gap-2 text-sm font-semibold text-[#476f44]">
                 <Icon icon="solar:shield-check-bold" width="20" />
-                Identity verified
+                Account Verification Status
               </div>
               <div className="mt-4 grid gap-3 text-xs text-[#657063]">
                 <p className="flex items-center gap-2">
@@ -284,14 +267,17 @@ function ProfilePreview() {
                   />
                   Email verified
                 </p>
-                <p className="flex items-center gap-2">
-                  <Icon
-                    icon="solar:check-circle-bold"
-                    width="15"
-                    className="text-[#5d895a]"
-                  />
-                  Payment method verified
-                </p>
+
+                {profileMetaData?.identityVerified && (
+                  <p className="flex items-center gap-2">
+                    <Icon
+                      icon="solar:check-circle-bold"
+                      width="15"
+                      className="text-[#5d895a]"
+                    />
+                    Personal Identity Verified
+                  </p>
+                )}
               </div>
             </section>
           </aside>
@@ -301,16 +287,16 @@ function ProfilePreview() {
               <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-start">
                 <div>
                   <p className="text-xs font-semibold tracking-[0.14em] text-[#5c8159] uppercase">
-                    Available for selected projects
+                    {profileMetaData?.availability_status} for selected projects
                   </p>
                   <h2 className="mt-3 max-w-2xl text-3xl leading-tight font-semibold tracking-[-0.04em]">
-                    I build dependable digital products from idea to production.
+                    {profileMetaData?.professional_title}
                   </h2>
                 </div>
                 <div className="shrink-0 text-left sm:text-right">
                   <p className="text-xs text-[#7c8179]">Hourly rate</p>
                   <p className="mt-1 text-xl font-semibold">
-                    $85
+                    ${parseInt(profileMetaData?.hourly_rate)}
                     <span className="text-sm font-medium text-[#7c8179]">
                       /hr
                     </span>
@@ -318,20 +304,10 @@ function ProfilePreview() {
                 </div>
               </div>
               <div className="mt-6 space-y-4 text-sm leading-7 text-[#626860]">
-                <p>
-                  I help product teams turn complex ideas into fast, dependable
-                  web applications. My work spans product architecture, polished
-                  React interfaces, scalable APIs, and production
-                  infrastructure.
-                </p>
-                <p>
-                  I communicate clearly, ship in thoughtful milestones, and care
-                  deeply about the details users feel—from accessibility and
-                  performance to the quality of the final handoff.
-                </p>
+                <p>{profileMetaData?.professional_description}</p>
               </div>
               <div className="mt-6 flex flex-wrap gap-2">
-                {initialSkills.map((skill) => (
+                {profileMetaData?.skills.map((skill: string) => (
                   <span
                     key={skill}
                     className="rounded-xl bg-[#edf2eb] px-3 py-2 text-xs font-medium text-[#4f584d]"
@@ -353,45 +329,53 @@ function ProfilePreview() {
                   </h2>
                 </div>
                 <span className="text-xs text-[#838880]">
-                  {initialPortfolio.length} projects
+                  {profileMetaData?.portfolios?.length} projects
                 </span>
               </div>
               <div className="mt-6 grid gap-4 md:grid-cols-2">
-                {initialPortfolio.map((project) => (
+                {profileMetaData?.portfolios?.map((project: any) => (
                   <article
                     key={project.id}
-                    className="overflow-hidden rounded-2xl border border-black/8"
+                    className="group flex min-w-0 flex-col overflow-hidden rounded-xl border border-black/9 bg-white transition duration-200 hover:-translate-y-0.5 hover:border-black/14 hover:shadow hover:shadow-black/2"
                   >
                     <div
-                      className={`flex h-44 items-center justify-center bg-linear-to-br ${project.color}`}
+                      className="relative aspect-video overflow-hidden bg-[#e4ead8] bg-cover bg-center"
+                      style={{
+                        backgroundImage: `url(${project.cover_image.url})`,
+                      }}
                     >
-                      <Icon
-                        icon={project.icon}
-                        width="48"
-                        className="text-[#425a48]"
-                      />
+                      <div className="absolute inset-0 bg-linear-to-t from-black/28 via-transparent to-transparent opacity-70" />
                     </div>
-                    <div className="p-5">
-                      <p className="text-[11px] font-semibold tracking-wide text-[#62805f] uppercase">
+                    <div className="flex flex-1 flex-col p-5">
+                      <p className="text-[10px] font-semibold tracking-[0.12em] text-[#62805f] uppercase">
                         {project.category}
                       </p>
-                      <h3 className="mt-2 text-lg font-semibold">
+                      <h3 className="mt-2 line-clamp-2 text-base font-semibold tracking-[-0.015em] text-[#292d28]">
                         {project.title}
                       </h3>
-                      <p className="mt-2 text-sm leading-6 text-[#747a72]">
+                      <p className="mt-2 line-clamp-3 text-xs leading-5 text-[#777c74]">
                         {project.description}
                       </p>
-                      {project.liveLink && (
-                        <a
-                          href={project.liveLink}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="mt-4 inline-flex items-center gap-1.5 text-xs font-semibold text-[#52784f] hover:underline"
-                        >
-                          View live project
-                          <Icon icon="solar:arrow-right-up-linear" width="15" />
-                        </a>
-                      )}
+                      <div className="mt-5 border-t border-black/7 pt-4">
+                        {project.live_url ? (
+                          <a
+                            href={project.live_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#52784f] transition hover:text-[#365f34]"
+                          >
+                            View live project
+                            <Icon
+                              icon="solar:arrow-right-up-linear"
+                              width="15"
+                            />
+                          </a>
+                        ) : (
+                          <span className="text-xs text-[#969b94]">
+                            Portfolio case study
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </article>
                 ))}
@@ -405,54 +389,139 @@ function ProfilePreview() {
                     Work history
                   </p>
                   <h2 className="mt-2 text-2xl font-semibold tracking-[-0.035em]">
-                    Completed jobs
+                    Completed & ongoing jobs
                   </h2>
                 </div>
-                <span className="text-xs text-[#838880]">24 completed</span>
+                <span className="text-xs text-[#838880]">
+                  {completedCount} completed · {ongoingCount} in progress
+                </span>
               </div>
               <div className="mt-6 overflow-hidden rounded-2xl border border-black/8">
-                {completedJobs.map((job, index) => (
-                  <article
-                    key={job.title}
-                    className={`p-5 sm:p-6 ${index ? "border-t border-black/7" : ""}`}
-                  >
-                    <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
-                      <div>
-                        <h3 className="font-semibold">{job.title}</h3>
-                        <p className="mt-1.5 text-xs text-[#7b8078]">
-                          {job.client} · Completed {job.completed}
+                {jobsList.length === 0 && (
+                  <p className="p-8 text-center text-sm text-[#838980]">
+                    No completed work yet.
+                  </p>
+                )}
+                {jobsList.map((job: any, index: number) => {
+                  const isOngoing = job.status === "ACTIVE";
+                  const isCompleted = job.status === "COMPLETED";
+                  const formattedDate = job.completed
+                    ? typeof job.completed === "string" &&
+                      !job.completed.includes(" ")
+                      ? new Date(job.completed).toLocaleDateString("en-US", {
+                          month: "long",
+                          year: "numeric",
+                        })
+                      : String(job.completed)
+                    : "Recently";
+
+                  return (
+                    <article
+                      key={job.id || index}
+                      className={`p-5 sm:p-6 ${index ? "border-t border-black/7" : ""}`}
+                    >
+                      <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-semibold">{job.title}</h3>
+                            {isOngoing && (
+                              <span className="rounded-md bg-[#edf4ea] px-2 py-0.5 text-[10px] font-semibold text-[#52784f]">
+                                In progress
+                              </span>
+                            )}
+                          </div>
+                          <p className="mt-1.5 text-xs text-[#7b8078]">
+                            {job.client} ·{" "}
+                            {isOngoing
+                              ? "Ongoing project"
+                              : `Completed ${formattedDate}`}
+                          </p>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-3">
+                          {isCompleted &&
+                            job.clientHasReviewed &&
+                            job.freelancerHasReviewed &&
+                            job.rating && (
+                              <span className="text-sm font-semibold text-[#d1a238]">
+                                ★{" "}
+                                <span className="text-[#30342f]">
+                                  {Number(job.rating).toFixed(1)}
+                                </span>
+                              </span>
+                            )}
+                          <span className="text-sm font-semibold">
+                            ${job.amount ? job.amount.toLocaleString() : "0"}
+                          </span>
+                        </div>
+                      </div>
+
+                      {isOngoing ? (
+                        <p className="mt-3 text-xs italic text-[#7b8078]">
+                          Job is currently in progress.
                         </p>
-                      </div>
-                      <div className="flex shrink-0 items-center gap-3">
-                        <span className="text-sm font-semibold text-[#d1a238]">
-                          ★ <span className="text-[#30342f]">{job.rating}</span>
-                        </span>
-                        <span className="text-sm font-semibold">
-                          {job.budget}
-                        </span>
-                      </div>
-                    </div>
-                    <blockquote className="mt-4 border-l-2 border-[#b8ceb4] pl-4 text-sm leading-6 text-[#687067]">
-                      “{job.review}”
-                    </blockquote>
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      {job.skills.map((skill) => (
-                        <span
-                          key={skill}
-                          className="rounded-lg bg-[#f0f2ee] px-2.5 py-1.5 text-[11px] font-medium text-[#656b63]"
-                        >
-                          {skill}
-                        </span>
-                      ))}
-                    </div>
-                  </article>
-                ))}
+                      ) : isCompleted &&
+                        job.clientHasReviewed &&
+                        job.freelancerHasReviewed ? (
+                        <blockquote className="mt-4 border-l-2 border-[#b8ceb4] pl-4 text-sm leading-6 text-[#687067]">
+                          “{job.review}”
+                        </blockquote>
+                      ) : isCompleted &&
+                        job.clientHasReviewed &&
+                        !job.freelancerHasReviewed ? (
+                        <div className="mt-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-2xl border border-[#e2dac6] bg-[#faf5e8] p-4 text-xs text-[#7c6328]">
+                          <div className="flex items-center gap-2">
+                            <Icon
+                              icon="solar:lock-keyhole-bold"
+                              width="18"
+                              className="text-[#9e7c33] shrink-0"
+                            />
+                            <span>
+                              Please leave a review for the client to preview
+                              the client's review.
+                            </span>
+                          </div>
+                          <Link
+                            href={`/contracts?contractId=${job.id}`}
+                            className="inline-flex h-8 items-center rounded-lg bg-[#252724] px-3 font-semibold text-white transition hover:bg-[#3b3e39] shrink-0"
+                          >
+                            Leave review
+                          </Link>
+                        </div>
+                      ) : isCompleted && !job.clientHasReviewed ? (
+                        <div className="mt-3 flex items-center justify-between gap-2 text-xs text-[#838880]">
+                          <span>No review left by client yet.</span>
+                          {!job.freelancerHasReviewed && (
+                            <Link
+                              href={`/contracts?contractId=${job.id}`}
+                              className="font-semibold text-[#52784f] underline"
+                            >
+                              Leave review for client
+                            </Link>
+                          )}
+                        </div>
+                      ) : null}
+
+                      {job.skills && job.skills.length > 0 && (
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          {job.skills.map((skill: string) => (
+                            <span
+                              key={skill}
+                              className="rounded-lg bg-[#f0f2ee] px-2.5 py-1.5 text-[11px] font-medium text-[#656b63]"
+                            >
+                              {skill}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </article>
+                  );
+                })}
               </div>
               <Link
                 href={"/contracts"}
-                className="mt-5 cursor-pointer text-sm font-semibold text-[#52784f] hover:underline"
+                className="mt-5 inline-block cursor-pointer text-sm font-semibold text-[#52784f] hover:underline"
               >
-                Show all completed jobs
+                View all contracts
               </Link>
             </section>
           </div>
@@ -467,28 +536,30 @@ export function ProfileEditor({
 }: {
   initialEditing?: boolean;
 }) {
+  const { user, isLoaded } = useUser();
   const isEditing = initialEditing;
   const {
     register,
     handleSubmit,
     clearErrors,
     reset,
+    trigger,
+    control,
     setError,
     formState: { errors, isDirty, isValid },
   } = useForm<FreelancerProfileFormValues>({
     mode: "onChange",
     defaultValues: {
-      firstName: "Shahriar",
-      lastName: "Sajeeb",
-      country: "Thailand",
-      city: "Chiang Mai",
-      professional_title: "Full-stack product engineer · Next.js & TypeScript",
-      professional_description:
-        "I help product teams turn complex ideas into fast, dependable web applications. My work spans product architecture, polished React interfaces, scalable APIs, and production infrastructure. I communicate clearly, ship in thoughtful milestones, and care deeply about the details users feel.",
-      hourly_rate: 85,
+      firstName: "",
+      lastName: "",
+      country: "",
+      city: "",
+      professional_title: "",
+      professional_description: "",
+      hourly_rate: 20,
       availability_status: "AVAILABLE",
       weekly_availability: "20–30 hours / week",
-      experience_level: "Expert",
+      experience_level: "Entry",
     },
   });
   const [activeSection, setActiveSection] = useState("profile-details");
@@ -497,10 +568,105 @@ export function ProfileEditor({
   const [portfolio, setPortfolio] = useState<FreelancerPortfolioValue[]>([]);
   const [languages, setLanguages] = useState<Language[]>(initialLanguages);
   const [showPortfolioForm, setShowPortfolioForm] = useState(false);
+  const [coverImagePreview, setCoverImagePreview] = useState("");
+  const [avatarPreviewUrl, setAvatarPreviewUrl] = useState("");
   const [saved, setSaved] = useState(false);
   const [savedDynamicValues, setSavedDynamicValues] = useState(() =>
     JSON.stringify({ skills: [], languages: initialLanguages, portfolio: [] }),
   );
+  const queryClient = useQueryClient();
+  const hasInitializedProfile = useRef(false);
+
+  const { data: profileMetaData, isLoading: profileMetaDataLoading } = useQuery(
+    {
+      queryKey: ["profile-metadata"],
+      enabled: Boolean(user),
+      queryFn: async () => {
+        const token = await getToken();
+
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_SERVER_URI}/freelancer/profile?role=freelancer`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+            cache: "no-store",
+          },
+        );
+
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(
+            result.message || "The client profile could not be loaded.",
+          );
+        }
+
+        return result.data;
+      },
+    },
+  );
+
+  useEffect(() => {
+    if (
+      !isLoaded ||
+      profileMetaDataLoading ||
+      !user ||
+      hasInitializedProfile.current
+    ) {
+      return;
+    }
+
+    const nextSkills = profileMetaData?.skills ?? [];
+    const nextLanguages =
+      profileMetaData?.languages?.length > 0
+        ? profileMetaData.languages
+        : initialLanguages;
+    const nextPortfolio = (profileMetaData?.portfolios ?? []).map(
+      (project: FreelancerPortfolioValue) => ({
+        ...project,
+        client_id: project.client_id,
+      }),
+    );
+
+    reset({
+      firstName: user.firstName ?? "",
+      lastName: user.lastName ?? "",
+      country:
+        countries.find(
+          (country) => country.code === user?.unsafeMetadata?.country,
+        )?.code ?? "",
+      city: profileMetaData?.city ?? "",
+      professional_title: profileMetaData?.professional_title ?? "",
+      professional_description: profileMetaData?.professional_description ?? "",
+      hourly_rate: Number(profileMetaData?.hourly_rate ?? 20),
+      availability_status: profileMetaData?.availability_status ?? "AVAILABLE",
+      weekly_availability:
+        profileMetaData?.weekly_availability ?? "20–30 hours / week",
+      experience_level: profileMetaData?.experience_level ?? "Entry",
+      skills: nextSkills,
+      languages: nextLanguages,
+      portfolios: nextPortfolio,
+    });
+
+    setSkills(nextSkills);
+    setLanguages(nextLanguages);
+    setPortfolio(nextPortfolio);
+    setSavedDynamicValues(
+      JSON.stringify({
+        skills: nextSkills,
+        languages: nextLanguages,
+        portfolio: nextPortfolio,
+      }),
+    );
+    hasInitializedProfile.current = true;
+
+    // Without a resolver, react-hook-form's `isValid` isn't reliably
+    // recomputed by reset() alone — it needs an explicit trigger() to
+    // revalidate against the values just loaded in, or the Save button
+    // stays disabled even though every field is actually filled in.
+    void trigger();
+  }, [isLoaded, profileMetaData, profileMetaDataLoading, reset, trigger, user]);
 
   const updateLanguage = (index: number, update: Partial<Language>) => {
     setLanguages((current) =>
@@ -542,6 +708,11 @@ export function ProfileEditor({
     }
   };
 
+  const closePortfolioForm = () => {
+    setShowPortfolioForm(false);
+    setCoverImagePreview("");
+  };
+
   const addPortfolio = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
@@ -569,8 +740,116 @@ export function ProfileEditor({
       },
     ]);
     clearErrors("portfolios");
-    setShowPortfolioForm(false);
+    closePortfolioForm();
   };
+
+  const profileMutation = useMutation({
+    mutationFn: async (values: FreelancerProfileFormValues) => {
+      if (!user) throw new Error("Your account could not be loaded.");
+
+      const token = await getToken();
+      if (!token) throw new Error("Your session has expired.");
+
+      const { firstName, lastName, portfolios, ...freelancer_metadata } =
+        values;
+
+      await user.update({
+        firstName: isIdentityVerified ? (user.firstName ?? "") : firstName,
+        lastName: isIdentityVerified ? (user.lastName ?? "") : lastName,
+        unsafeMetadata: {
+          ...user.unsafeMetadata,
+          country: isIdentityVerified
+            ? user.unsafeMetadata?.country
+            : values.country,
+        },
+      });
+
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_SERVER_URI}/freelancer/profile?role=freelancer`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            freelancer_metadata,
+            freelancer_portfolios: portfolios.map(
+              ({ client_id: _clientId, ...portfolio }) => portfolio,
+            ),
+          }),
+        },
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || "The profile could not be saved.");
+      }
+
+      return result.data;
+    },
+    onSuccess: async (_profile, values) => {
+      await queryClient.invalidateQueries({ queryKey: ["profile-metadata"] });
+      await user?.reload();
+      reset(values);
+      setSavedDynamicValues(
+        JSON.stringify({
+          skills: values.skills,
+          languages: values.languages,
+          portfolio: values.portfolios,
+        }),
+      );
+      setSaved(true);
+      toast.success("Profile saved successfully.");
+      window.setTimeout(() => setSaved(false), 3000);
+      window.location.assign("/my-profile");
+    },
+    onError: (error) => {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "The profile could not be saved.",
+      );
+    },
+  });
+
+  const updateAvatar = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Profile photos must be 5 MB or smaller");
+      return;
+    }
+
+    setAvatarPreviewUrl(URL.createObjectURL(file));
+
+    try {
+      await user?.setProfileImage({ file });
+      await user?.reload();
+      toast.success("Profile photo updated.");
+    } catch {
+      toast.error("The profile photo could not be updated.");
+      setAvatarPreviewUrl("");
+    }
+
+    event.target.value = "";
+  };
+
+  useEffect(
+    () => () => {
+      if (avatarPreviewUrl) URL.revokeObjectURL(avatarPreviewUrl);
+    },
+    [avatarPreviewUrl],
+  );
+
+  useEffect(
+    () => () => {
+      if (coverImagePreview) URL.revokeObjectURL(coverImagePreview);
+    },
+    [coverImagePreview],
+  );
 
   const onSubmit = (values: FreelancerProfileFormValues) => {
     let hasCollectionError = false;
@@ -599,37 +878,12 @@ export function ProfileEditor({
       return;
     }
 
-    const profileValues = {
-      clerk_profile: {
-        firstName: values.firstName,
-        lastName: values.lastName,
-      },
-      freelancer_metadata: {
-        professional_title: values.professional_title,
-        professional_description: values.professional_description,
-        hourly_rate: values.hourly_rate,
-        country: values.country,
-        city: values.city,
-        availability_status: values.availability_status,
-        weekly_availability: values.weekly_availability,
-        experience_level: values.experience_level,
-        skills,
-        languages,
-      },
-      freelancer_portfolios: portfolio.map((project) => ({
-        title: project.title,
-        category: project.category,
-        description: project.description,
-        live_url: project.live_url,
-        cover_image: project.cover_image,
-      })),
-    };
-
-    console.log("Freelancer profile values:", profileValues);
-    reset(values);
-    setSavedDynamicValues(JSON.stringify({ skills, languages, portfolio }));
-    setSaved(true);
-    window.setTimeout(() => setSaved(false), 3000);
+    profileMutation.mutate({
+      ...values,
+      skills,
+      languages,
+      portfolios: portfolio,
+    });
   };
 
   const onInvalid = () => {
@@ -647,7 +901,47 @@ export function ProfileEditor({
     languages.length > 0 &&
     languages.every((item) => item.language);
 
-  const strength = Math.min(100, 75 + skills.length + portfolio.length * 3);
+  const isIdentityVerified = Boolean(profileMetaData?.identityVerified);
+
+  const formValues = useWatch({ control });
+
+  const personalFields = [
+    formValues.firstName,
+    formValues.lastName,
+    formValues.country,
+    formValues.city,
+  ];
+
+  const professionalFields = [
+    formValues.professional_title,
+    formValues.professional_description,
+    formValues.hourly_rate,
+    formValues.availability_status,
+    formValues.weekly_availability,
+    formValues.experience_level,
+  ];
+
+  const completedLanguages = languages.filter((item) => item.language).length;
+
+  const strength = (
+    Math.min(user?.hasImage ? 10 : 0) +
+    personalFields.filter(Boolean).length * 3.75 +
+    professionalFields.filter(Boolean).length * 5 +
+    Math.min(skills.length / 10, 1) * 15 +
+    Math.min(completedLanguages / 3, 1) * 10 +
+    Math.min(portfolio.length / 3, 1) * 20
+  ).toFixed(2);
+
+  const strengthSuggestions = [
+    !user?.hasImage && "Add a real profile photo.",
+    personalFields.some((field) => !field) && "Complete your personal details.",
+    professionalFields.some((field) => !field) &&
+      "Complete every professional field.",
+    skills.length < 10 && `Add ${10 - skills.length} more skills.`,
+    completedLanguages < 3 && `Add ${3 - completedLanguages} more languages.`,
+    portfolio.length < 3 &&
+      `Add ${3 - portfolio.length} more portfolio projects.`,
+  ].filter(Boolean) as string[];
 
   useEffect(() => {
     if (!isEditing) return;
@@ -682,8 +976,12 @@ export function ProfileEditor({
     return () => observer.disconnect();
   }, [isEditing]);
 
+  if (!isLoaded || profileMetaDataLoading) {
+    return <ProfileSkeleton editing={isEditing} />;
+  }
+
   if (!isEditing) {
-    return <ProfilePreview />;
+    return <ProfilePreview user={user} profileMetaData={profileMetaData} />;
   }
 
   return (
@@ -720,24 +1018,68 @@ export function ProfileEditor({
           <aside className="grid gap-5 xl:sticky xl:top-24">
             <section className="rounded-2xl border border-black/8 bg-white p-5 text-center">
               <div className="relative mx-auto h-24 w-24">
-                <span className="flex h-full w-full items-center justify-center rounded-full bg-[#496e67] text-2xl font-semibold text-white">
-                  SK
-                </span>
-                <button
-                  type="button"
+                <Image
+                  width={90}
+                  height={90}
+                  src={avatarPreviewUrl || user?.imageUrl || ""}
+                  alt={user?.firstName || ""}
+                  className="rounded-full h-24 w-24 object-cover"
+                />
+                <label
                   aria-label="Change profile photo"
                   className="absolute right-0 bottom-0 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border-2 border-white bg-[#252724] text-white"
                 >
                   <Icon icon="solar:camera-linear" width="16" />
-                </button>
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    onChange={updateAvatar}
+                    className="sr-only"
+                  />
+                </label>
               </div>
-              <h2 className="mt-4 text-lg font-semibold">Shahriar Sajeeb</h2>
+              <h2 className="mt-4 flex items-center justify-center gap-1.5 text-lg font-semibold">
+                {user?.fullName}
+                {profileMetaData?.identityVerified && (
+                  <Icon
+                    icon="solar:verified-check-bold"
+                    width="18"
+                    className="text-[#5d895a]"
+                  />
+                )}
+              </h2>
               <p className="mt-1 text-xs text-[#777c74]">
-                Full-stack product engineer
+                {profileMetaData?.professional_title}
               </p>
               <div className="mt-5 flex items-center justify-between text-xs">
                 <span className="font-medium">Profile strength</span>
-                <strong className="text-[#52784f]">{strength}%</strong>
+                <span className="flex items-center gap-1.5">
+                  <strong className="text-[#52784f]">{strength}%</strong>
+                  {parseInt(strength) < 100 && (
+                    <span className="group relative">
+                      <button
+                        type="button"
+                        aria-label="How to complete your profile"
+                        className="flex h-4 w-4 cursor-help items-center justify-center rounded-full border border-[#789075] text-[10px] font-bold text-[#52784f]"
+                      >
+                        ?
+                      </button>
+                      <span className="pointer-events-none absolute right-0 bottom-6 z-20 hidden w-56 rounded-xl bg-[#252724] p-3 text-left text-[11px] leading-5 font-normal text-white shadow-xl group-hover:block group-focus-within:block">
+                        <strong className="mb-1 block font-semibold">
+                          Reach 100%
+                        </strong>
+                        {strengthSuggestions.map((suggestion) => (
+                          <span
+                            key={suggestion}
+                            className="block text-white/75"
+                          >
+                            • {suggestion}
+                          </span>
+                        ))}
+                      </span>
+                    </span>
+                  )}
+                </span>
               </div>
               <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[#e6e9e3]">
                 <div
@@ -782,11 +1124,19 @@ export function ProfileEditor({
               title="Profile details"
               description="The personal information clients see when reviewing your profile."
             >
+              {isIdentityVerified && (
+                <div className="mb-5 flex items-center gap-2 rounded-xl border border-[#d2dfcf] bg-[#edf4ea] px-4 py-3 text-xs text-[#476f44]">
+                  <Icon icon="solar:lock-keyhole-bold" width="16" />
+                  Your name, country, and city are locked because your identity
+                  is verified.
+                </div>
+              )}
               <div className="grid gap-5 sm:grid-cols-2">
                 <label className={labelClass}>
                   First name *
                   <input
-                    className={inputClass}
+                    className={`${inputClass} disabled:cursor-not-allowed disabled:bg-black/3 disabled:text-[#8a8f87]`}
+                    disabled={isIdentityVerified}
                     {...register("firstName", {
                       required: "First name is required.",
                     })}
@@ -800,7 +1150,8 @@ export function ProfileEditor({
                 <label className={labelClass}>
                   Last name *
                   <input
-                    className={inputClass}
+                    className={`${inputClass} disabled:cursor-not-allowed disabled:bg-black/3 disabled:text-[#8a8f87]`}
+                    disabled={isIdentityVerified}
                     {...register("lastName", {
                       required: "Last name is required.",
                     })}
@@ -814,16 +1165,33 @@ export function ProfileEditor({
                 <label className={labelClass}>
                   Country *
                   <select
-                    className={inputClass}
                     {...register("country", {
                       required: "Country is required.",
                     })}
+                    disabled={isIdentityVerified}
+                    defaultValue={(() => {
+                      const savedCountry = user?.unsafeMetadata?.country;
+
+                      if (typeof savedCountry !== "string") return "";
+
+                      return (
+                        countries.find(
+                          (country) =>
+                            country.code === savedCountry ||
+                            country.name === savedCountry,
+                        )?.code ?? ""
+                      );
+                    })()}
+                    className="mt-2 h-11 w-full rounded-xl border border-black/10 bg-white px-3 text-sm font-normal outline-none focus:border-[#6e916a] disabled:cursor-not-allowed disabled:bg-black/3 disabled:text-[#8a8f87]"
                   >
-                    <option>Thailand</option>
-                    <option>United States</option>
-                    <option>United Kingdom</option>
-                    <option>Canada</option>
-                    <option>Australia</option>
+                    <option value="" disabled>
+                      Select your country
+                    </option>
+                    {countries.map((country) => (
+                      <option value={country.code} key={country.code}>
+                        {country.name}
+                      </option>
+                    ))}
                   </select>
                   {errors.country && (
                     <span className="text-xs font-medium text-[#a44c4c]">
@@ -834,7 +1202,9 @@ export function ProfileEditor({
                 <label className={labelClass}>
                   City *
                   <input
-                    className={inputClass}
+                    className={`${inputClass} disabled:cursor-not-allowed disabled:bg-black/3 disabled:text-[#8a8f87]`}
+                    placeholder="New York"
+                    disabled={isIdentityVerified}
                     {...register("city", { required: "City is required." })}
                   />
                   {errors.city && (
@@ -950,6 +1320,7 @@ export function ProfileEditor({
                   Professional title *
                   <input
                     className={inputClass}
+                    placeholder="Software Engineer"
                     {...register("professional_title", {
                       required: "Professional title is required.",
                     })}
@@ -963,6 +1334,7 @@ export function ProfileEditor({
                 <label className={labelClass}>
                   Professional Description *
                   <textarea
+                    placeholder="Write something about your profession"
                     rows={7}
                     {...register("professional_description", {
                       required: "Professional description is required.",
@@ -1156,7 +1528,7 @@ export function ProfileEditor({
                 {portfolio.map((project) => (
                   <article
                     key={project.client_id}
-                    className="group flex min-w-0 flex-col overflow-hidden rounded-2xl border border-black/9 bg-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-black/14 hover:shadow-lg hover:shadow-black/6"
+                    className="group flex min-w-0 flex-col overflow-hidden rounded-xl border border-black/9 bg-white transition duration-200 hover:-translate-y-0.5 hover:border-black/14 hover:shadow hover:shadow-black/2"
                   >
                     <div
                       className="relative aspect-video overflow-hidden bg-[#e4ead8] bg-cover bg-center"
@@ -1252,7 +1624,7 @@ export function ProfileEditor({
                 disabled={!canSave}
                 className="ml-auto cursor-pointer rounded-xl bg-[#252724] px-6 py-3 text-sm font-semibold text-white hover:bg-[#3b3e39] disabled:cursor-not-allowed disabled:opacity-45"
               >
-                Save profile
+                {profileMutation.isPending ? "Saving..." : "Save profile"}
               </button>
             </div>
           </form>
@@ -1284,7 +1656,7 @@ export function ProfileEditor({
               </div>
               <button
                 type="button"
-                onClick={() => setShowPortfolioForm(false)}
+                onClick={closePortfolioForm}
                 aria-label="Close"
                 className="cursor-pointer"
               >
@@ -1340,22 +1712,53 @@ export function ProfileEditor({
                   />
                 </span>
               </label>
-              <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-black/15 bg-[#f8f9f6] px-4 py-6 text-sm font-semibold text-[#5e655d]">
-                <Icon icon="solar:upload-linear" width="20" /> Upload cover
-                image *
+              <label
+                className={
+                  coverImagePreview
+                    ? "relative flex cursor-pointer items-center justify-center overflow-hidden rounded-xl border border-black/15"
+                    : "flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-black/15 bg-[#f8f9f6] px-4 py-6 text-sm font-semibold text-[#5e655d]"
+                }
+              >
+                {coverImagePreview ? (
+                  <>
+                    <Image
+                      src={coverImagePreview}
+                      alt="Cover image preview"
+                      width={480}
+                      height={200}
+                      className="h-40 w-full object-cover"
+                    />
+                    <span className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-2 bg-black/55 py-2 text-xs font-semibold text-white">
+                      <Icon icon="solar:upload-linear" width="16" />
+                      Change cover image
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <Icon icon="solar:upload-linear" width="20" /> Upload cover
+                    image *
+                  </>
+                )}
                 <input
                   name="cover_image"
                   type="file"
                   accept="image/png,image/jpeg,image/webp"
                   required
                   className="sr-only"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    setCoverImagePreview((previous) => {
+                      if (previous) URL.revokeObjectURL(previous);
+                      return file ? URL.createObjectURL(file) : "";
+                    });
+                  }}
                 />
               </label>
             </div>
             <div className="mt-6 flex justify-end gap-3 border-t border-black/7 pt-5">
               <button
                 type="button"
-                onClick={() => setShowPortfolioForm(false)}
+                onClick={closePortfolioForm}
                 className="cursor-pointer rounded-xl border border-black/10 px-5 py-2.5 text-sm font-semibold"
               >
                 Cancel

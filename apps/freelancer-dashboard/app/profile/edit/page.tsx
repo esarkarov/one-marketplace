@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { ProfileEditor } from "../../my-profile/profile-editor";
+import { Suspense } from "react";
 
 export const metadata: Metadata = {
   title: "Set Up Freelancer Profile | OneMarketplace.io",
@@ -8,5 +9,9 @@ export const metadata: Metadata = {
 };
 
 export default function EditFreelancerProfilePage() {
-  return <ProfileEditor initialEditing />;
+  return (
+    <Suspense>
+      <ProfileEditor initialEditing />
+    </Suspense>
+  );
 }
