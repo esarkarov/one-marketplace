@@ -15,7 +15,12 @@ export interface FailureBody {
   message: string;
   code: string;
   requestId?: string;
+  errors?: { path: string; message: string }[];
 }
+
+export const ADMIN_AUTH_NOT_CONFIGURED = "ADMIN_AUTH_NOT_CONFIGURED";
+export const ADMIN_AUTH_NOT_CONFIGURED_MESSAGE =
+  "Admin sign-in is not configured on the server.";
 
 const isAbort = (error: unknown) =>
   typeof error === "object" &&
@@ -58,11 +63,35 @@ const failureResponse = (error: unknown) => {
   return Response.json(body, { status });
 };
 
-async function respondJson(call: () => Promise<unknown>): Promise<Response> {
+export function passThroughFailureFor(error: unknown): {
+  status: number;
+  body: FailureBody;
+} {
+  if (isApiError(error) && error.status >= 400 && error.status < 500) {
+    const body: FailureBody = {
+      success: false,
+      message: errorMessage(error),
+      code: error.code,
+    };
+    if (error.requestId) body.requestId = error.requestId;
+    if (error.errors) body.errors = error.errors;
+    return { status: error.status, body };
+  }
+  return failureFor(error);
+}
+
+async function respondJson(
+  call: () => Promise<unknown>,
+  options: { passThrough4xx?: boolean } = {},
+): Promise<Response> {
   try {
     const data = await call();
     return Response.json({ success: true, message: "OK", data });
   } catch (error) {
+    if (options.passThrough4xx) {
+      const { status, body } = passThroughFailureFor(error);
+      return Response.json(body, { status });
+    }
     return failureResponse(error);
   }
 }
@@ -83,24 +112,28 @@ export function proxySystemHealth(deps: UpstreamDeps) {
 }
 
 export function proxyRedisKeys(deps: UpstreamDeps, pattern: string) {
-  return respondJson(() =>
-    unwrap(
-      apiFor(deps).GET("/api/v1/admin/system/redis/keys", {
-        params: { query: { pattern } },
-        signal: deps.signal,
-      }),
-    ),
+  return respondJson(
+    () =>
+      unwrap(
+        apiFor(deps).GET("/api/v1/admin/system/redis/keys", {
+          params: { query: { pattern } },
+          signal: deps.signal,
+        }),
+      ),
+    { passThrough4xx: true },
   );
 }
 
 export function proxyRedisKey(deps: UpstreamDeps, key: string) {
-  return respondJson(() =>
-    unwrap(
-      apiFor(deps).GET("/api/v1/admin/system/redis/keys/{key}", {
-        params: { path: { key } },
-        signal: deps.signal,
-      }),
-    ),
+  return respondJson(
+    () =>
+      unwrap(
+        apiFor(deps).GET("/api/v1/admin/system/redis/keys/{key}", {
+          params: { path: { key } },
+          signal: deps.signal,
+        }),
+      ),
+    { passThrough4xx: true },
   );
 }
 
@@ -186,6 +219,19 @@ export async function handleLogin({
       api.POST("/api/v1/admin/auth/login", { body: { password } }),
     );
   } catch (error) {
+    if (
+      isApiError(error) &&
+      error.status === 503 &&
+      error.code === "SERVICE_UNAVAILABLE"
+    ) {
+      const failure: FailureBody = {
+        success: false,
+        message: ADMIN_AUTH_NOT_CONFIGURED_MESSAGE,
+        code: ADMIN_AUTH_NOT_CONFIGURED,
+      };
+      if (error.requestId) failure.requestId = error.requestId;
+      return { status: 502, body: failure };
+    }
     if (isApiError(error) && error.status >= 400 && error.status < 500) {
       const failure: FailureBody = {
         success: false,

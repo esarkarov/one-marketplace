@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { AdminIcon } from "../_components/admin-icon";
+import { loginErrorMessage } from "../../lib/login-message";
 import { safeNextPath } from "../../lib/safe-next-path";
 
 export function LoginForm({
@@ -30,7 +31,7 @@ export function LoginForm({
       });
       const result = await response.json();
       if (!response.ok || !result.success) {
-        throw new Error(result.message || "Incorrect password.");
+        throw new Error(loginErrorMessage(response.status, result));
       }
       router.replace(safeNextPath(next));
       router.refresh();

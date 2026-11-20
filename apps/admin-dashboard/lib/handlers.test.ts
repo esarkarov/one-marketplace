@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
+import { loginErrorMessage } from "./login-message";
 import {
   handleLogin,
   handleLogout,
   proxyLogStream,
   proxyRedisKey,
+  proxyRedisKeys,
   proxySystemHealth,
 } from "./handlers";
 
@@ -154,6 +156,135 @@ describe("handleLogin", () => {
       expect(result.status).toBe(400);
     }
     expect(requests).toHaveLength(0);
+  });
+});
+
+describe("handleLogin when admin auth is not configured", () => {
+  it("answers a distinguishable code on 503 SERVICE_UNAVAILABLE", async () => {
+    const { fetch } = recordingFetch(() =>
+      json(503, errorEnvelope("SERVICE_UNAVAILABLE", "Not configured.", "r-3")),
+    );
+    const result = await handleLogin({
+      body: { password: "pw" },
+      baseUrl: BASE_URL,
+      fetch,
+      production: false,
+    });
+    expect(result.status).toBe(502);
+    expect(result.cookie).toBeUndefined();
+    expect(result.body).toEqual({
+      success: false,
+      message: "Admin sign-in is not configured on the server.",
+      code: "ADMIN_AUTH_NOT_CONFIGURED",
+      requestId: "r-3",
+    });
+  });
+
+  it("keeps other 5xx failures on 502 with their own code", async () => {
+    const { fetch } = recordingFetch(() =>
+      json(500, errorEnvelope("INTERNAL_ERROR", "boom")),
+    );
+    const result = await handleLogin({
+      body: { password: "pw" },
+      baseUrl: BASE_URL,
+      fetch,
+      production: false,
+    });
+    expect(result.status).toBe(502);
+    expect(result.body).toMatchObject({ code: "INTERNAL_ERROR" });
+  });
+});
+
+describe("loginErrorMessage", () => {
+  it("shows the not-configured notice", () => {
+    expect(
+      loginErrorMessage(502, {
+        code: "ADMIN_AUTH_NOT_CONFIGURED",
+        message: "x",
+      }),
+    ).toBe("Admin sign-in is not configured on the server.");
+  });
+
+  it("shows Incorrect password. on 401", () => {
+    expect(
+      loginErrorMessage(401, { code: "UNAUTHORIZED", message: "nope" }),
+    ).toBe("Incorrect password.");
+  });
+
+  it("keeps the server message for other failures", () => {
+    expect(
+      loginErrorMessage(429, {
+        code: "RATE_LIMITED",
+        message: "Too many attempts.",
+      }),
+    ).toBe("Too many attempts.");
+    expect(loginErrorMessage(502, null)).toBe("Incorrect password.");
+  });
+});
+
+describe("redis proxy upstream status handling", () => {
+  const deps = (fetch: typeof globalThis.fetch) => ({
+    baseUrl: BASE_URL,
+    token: "tok",
+    signal: new AbortController().signal,
+    fetch,
+  });
+
+  it.each([
+    ["keys", (f: typeof fetch) => proxyRedisKeys(deps(f), "*")],
+    ["key", (f: typeof fetch) => proxyRedisKey(deps(f), "a:b")],
+  ])("passes an upstream 4xx through for %s", async (_n, call) => {
+    const { fetch } = recordingFetch(() =>
+      json(400, {
+        ...errorEnvelope("VALIDATION_ERROR", "Bad pattern.", "r-4"),
+        errors: [{ path: "pattern", message: "Too long" }],
+      }),
+    );
+    const response = await call(fetch);
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({
+      success: false,
+      message: "Bad pattern.",
+      code: "VALIDATION_ERROR",
+      requestId: "r-4",
+      errors: [{ path: "pattern", message: "Too long" }],
+    });
+  });
+
+  it.each([
+    ["keys", (f: typeof fetch) => proxyRedisKeys(deps(f), "*")],
+    ["key", (f: typeof fetch) => proxyRedisKey(deps(f), "a")],
+  ])(
+    "keeps 401 as 401, 5xx and network failures as 502 for %s",
+    async (_n, call) => {
+      const unauthorized = recordingFetch(() =>
+        json(401, errorEnvelope("UNAUTHORIZED", "Expired.")),
+      );
+      expect((await call(unauthorized.fetch)).status).toBe(401);
+
+      const serverError = recordingFetch(() =>
+        json(500, errorEnvelope("INTERNAL_ERROR", "boom")),
+      );
+      expect((await call(serverError.fetch)).status).toBe(502);
+
+      const unavailable = recordingFetch(() =>
+        json(503, errorEnvelope("SERVICE_UNAVAILABLE", "down")),
+      );
+      expect((await call(unavailable.fetch)).status).toBe(502);
+
+      const network = (async () => {
+        throw new TypeError("fetch failed");
+      }) as unknown as typeof fetch;
+      expect((await call(network)).status).toBe(502);
+    },
+  );
+
+  it("still forwards request.signal upstream", async () => {
+    const controller = new AbortController();
+    const { fetch, requests } = recordingFetch(() => json(200, okEnvelope([])));
+    await proxyRedisKeys({ ...deps(fetch), signal: controller.signal }, "*");
+    controller.abort();
+    expect(requests[0]?.signal.aborted).toBe(true);
   });
 });
 
