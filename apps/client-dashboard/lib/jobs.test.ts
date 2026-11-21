@@ -18,6 +18,8 @@ import {
   toJobBody,
   totalBudgetCents,
   validateMilestoneAmount,
+  JOB_MILESTONE_MAX_CENTS,
+  JOB_MILESTONE_MIN_CENTS,
   type JobFormValues,
   type JobPost,
 } from "./jobs";
@@ -89,12 +91,13 @@ describe("money", () => {
     expect(toCents(-5)).toBeNull();
   });
 
-  it("validates the $10 minimum per milestone", () => {
+  it("matches the backend job milestone bounds of 501 cents to $1,000,000", () => {
+    expect(JOB_MILESTONE_MIN_CENTS).toBe(501);
+    expect(JOB_MILESTONE_MAX_CENTS).toBe(100_000_000);
+    expect(validateMilestoneAmount(5.01)).toBeNull();
     expect(validateMilestoneAmount(10)).toBeNull();
-    expect(validateMilestoneAmount(9.99)).toBe(
-      "Budget must be at least $10.00.",
-    );
-    expect(validateMilestoneAmount(0)).toBe("Budget must be at least $10.00.");
+    expect(validateMilestoneAmount(5)).toBe("Budget must be at least $5.01.");
+    expect(validateMilestoneAmount(0)).toBe("Budget must be at least $5.01.");
     expect(validateMilestoneAmount(Number.NaN)).toBe("Enter a valid number.");
     expect(validateMilestoneAmount(10.123)).toBe(
       "Use a plain amount with at most 2 decimals.",

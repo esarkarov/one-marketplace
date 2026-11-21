@@ -7,7 +7,6 @@ import {
   formatLocation,
   hasInterview,
   initialsOf,
-  isCheckoutUrl,
   isClientProposalItem,
   matchesFilter,
   messagesHref,
@@ -216,13 +215,6 @@ describe("helpers", () => {
 
   it("builds the messages link", () => {
     expect(messagesHref("abc")).toBe("/messages?conversationId=abc");
-  });
-
-  it("accepts only https checkout urls", () => {
-    expect(isCheckoutUrl("https://checkout.stripe.com/c/pay/x")).toBe(true);
-    expect(isCheckoutUrl("http://checkout.stripe.com/x")).toBe(false);
-    expect(isCheckoutUrl("javascript:alert(1)")).toBe(false);
-    expect(isCheckoutUrl("not a url")).toBe(false);
   });
 });
 

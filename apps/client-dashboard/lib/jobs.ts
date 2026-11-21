@@ -30,8 +30,8 @@ export const JOB_LIMITS = {
   milestoneTitle: 120,
 } as const;
 
-export const MIN_MILESTONE_CENTS = 1000;
-export const MAX_MILESTONE_CENTS = 100_000_000;
+export const JOB_MILESTONE_MIN_CENTS = 501;
+export const JOB_MILESTONE_MAX_CENTS = 100_000_000;
 export const MAX_MILESTONES = 20;
 
 const KNOWN_STATUS_LABELS = {
@@ -110,19 +110,28 @@ export const toCents = (amount: number | string): number | null => {
   }
 };
 
+export interface MilestoneAmountBounds {
+  minCents: number;
+  maxCents: number;
+}
+
 export const validateMilestoneAmount = (
   amount: number | string,
+  bounds: MilestoneAmountBounds = {
+    minCents: JOB_MILESTONE_MIN_CENTS,
+    maxCents: JOB_MILESTONE_MAX_CENTS,
+  },
 ): string | null => {
   if (typeof amount === "number" && !Number.isFinite(amount)) {
     return "Enter a valid number.";
   }
   const cents = toCents(amount);
   if (cents === null) return "Use a plain amount with at most 2 decimals.";
-  if (cents < MIN_MILESTONE_CENTS) {
-    return `Budget must be at least ${formatCents(MIN_MILESTONE_CENTS)}.`;
+  if (cents < bounds.minCents) {
+    return `Budget must be at least ${formatCents(bounds.minCents)}.`;
   }
-  if (cents > MAX_MILESTONE_CENTS) {
-    return `Budget cannot exceed ${formatCents(MAX_MILESTONE_CENTS)}.`;
+  if (cents > bounds.maxCents) {
+    return `Budget cannot exceed ${formatCents(bounds.maxCents)}.`;
   }
   return null;
 };

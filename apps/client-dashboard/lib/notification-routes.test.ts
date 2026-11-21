@@ -35,6 +35,47 @@ describe("notificationHref", () => {
     expect(notificationHref(type, "/contracts?contractId=1")).toBeNull();
   });
 
+  it.each([
+    "CONTRACT_OFFER",
+    "CONTRACT_ACCEPTED",
+    "CONTRACT_WITHDRAWN",
+    "MILESTONE_SUBMITTED",
+    "MILESTONE_APPROVED",
+    "MILESTONE_CHANGES_REQUESTED",
+  ])("targets the contract from the metadata for %s", (type) => {
+    expect(
+      notificationHref(type, "/messages?conversationId=c1", {
+        contractId: "c 1/2",
+      }),
+    ).toBe("/contracts?contractId=c%201%2F2");
+  });
+
+  it("falls back to the link rules without a usable contract id", () => {
+    expect(notificationHref("CONTRACT_OFFER", null, null)).toBe("/contracts");
+    expect(notificationHref("CONTRACT_OFFER", null, {})).toBe("/contracts");
+    expect(notificationHref("CONTRACT_OFFER", null, { contractId: 7 })).toBe(
+      "/contracts",
+    );
+    expect(notificationHref("CONTRACT_OFFER", null, { contractId: " " })).toBe(
+      "/contracts",
+    );
+    expect(
+      notificationHref("MILESTONE_SUBMITTED", "/contracts?contractId=c-1", {}),
+    ).toBe("/contracts?contractId=c-1");
+  });
+
+  it("ignores metadata for other types", () => {
+    expect(
+      notificationHref("MILESTONE_FUNDED", null, { contractId: "c-1" }),
+    ).toBe("/contracts");
+    expect(
+      notificationHref("PROPOSAL_RECEIVED", null, { contractId: "c-1" }),
+    ).toBe("/proposals");
+    expect(
+      notificationHref("PAYOUT_COMPLETED", null, { contractId: "c-1" }),
+    ).toBeNull();
+  });
+
   it("keeps the query of a link that stays inside the route", () => {
     expect(
       notificationHref("MILESTONE_SUBMITTED", "/contracts?contractId=c-1"),

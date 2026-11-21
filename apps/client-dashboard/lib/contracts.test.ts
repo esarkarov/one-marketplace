@@ -1,6 +1,8 @@
 import { ApiError } from "@onemarketplace/api-client";
 import { describe, expect, it } from "vitest";
 import {
+  ADD_MILESTONE_MAX_CENTS,
+  ADD_MILESTONE_MIN_CENTS,
   canAddMilestone,
   canFinishContract,
   canFundMilestone,
@@ -8,6 +10,7 @@ import {
   canReviewMilestone,
   canWithdrawContract,
   contractErrorMessage,
+  contractErrorMessageOf,
   contractHref,
   contractStatusLabel,
   contractStatusTone,
@@ -209,7 +212,14 @@ describe("action rules", () => {
     expect(canFinishContract(contract({ milestones: [paid, upcoming] }))).toBe(
       false,
     );
-    expect(canFinishContract(contract({ milestones: [] }))).toBe(false);
+    expect(canFinishContract(contract({ milestones: [] }))).toBe(true);
+    expect(canAddMilestone(contract({ milestones: [] }))).toBe(true);
+    expect(canAddMilestone(contract({ milestones: [paid, upcoming] }))).toBe(
+      false,
+    );
+    expect(
+      canAddMilestone(contract({ status: "PENDING", milestones: [] })),
+    ).toBe(false);
     expect(
       canFinishContract(contract({ status: "COMPLETED", milestones: [paid] })),
     ).toBe(false);
@@ -265,6 +275,7 @@ describe("checkout url", () => {
     expect(safeCheckoutUrl("javascript:alert(1)")).toBe(null);
     expect(safeCheckoutUrl("//evil.example")).toBe(null);
     expect(safeCheckoutUrl("")).toBe(null);
+    expect(safeCheckoutUrl("https://user:pw@checkout.stripe.com/x")).toBe(null);
   });
 });
 
@@ -315,6 +326,32 @@ describe("add milestone validation", () => {
       validateAddMilestone({ title: "Phase", amount: "20", dueDate: "" }, today)
         .ok,
     ).toBe(false);
+  });
+
+  it("matches the backend add-milestone amount bounds", () => {
+    expect(ADD_MILESTONE_MIN_CENTS).toBe(1000);
+    expect(ADD_MILESTONE_MAX_CENTS).toBe(Number.MAX_SAFE_INTEGER);
+    expect(
+      validateAddMilestone(
+        { title: "Phase", amount: "10", dueDate: today },
+        today,
+      ),
+    ).toEqual({
+      ok: true,
+      value: { title: "Phase", amountCents: 1000, dueDate: today },
+    });
+    expect(
+      validateAddMilestone(
+        { title: "Phase", amount: "5.01", dueDate: today },
+        today,
+      ),
+    ).toEqual({ ok: false, message: "Budget must be at least $10.00." });
+    expect(
+      validateAddMilestone(
+        { title: "Phase", amount: "2000000", dueDate: today },
+        today,
+      ).ok,
+    ).toBe(true);
   });
 
   it("formats the local date", () => {
@@ -375,6 +412,14 @@ describe("error mapping", () => {
     });
     expect(contractErrorMessage(error)).not.toContain("stack");
     expect(contractErrorMessage(new Error("boom"))).not.toContain("boom");
+  });
+
+  it("returns an empty message when there is no error", () => {
+    expect(contractErrorMessageOf(null)).toBe("");
+    expect(contractErrorMessageOf(undefined)).toBe("");
+    expect(contractErrorMessageOf(new InvalidCheckoutUrlError())).toBe(
+      "Checkout returned an invalid address.",
+    );
   });
 
   it("shows the invalid checkout address message", () => {

@@ -180,14 +180,6 @@ export const canSendOffer = (
 export const messagesHref = (conversationId: string): string =>
   `/messages?conversationId=${encodeURIComponent(conversationId)}`;
 
-export const isCheckoutUrl = (value: string): boolean => {
-  try {
-    return new URL(value).protocol === "https:";
-  } catch {
-    return false;
-  }
-};
-
 export const INTERVIEW_MESSAGE_MAX = 5000;
 
 export const proposalErrorMessage = (error: unknown): string => {

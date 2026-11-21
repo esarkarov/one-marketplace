@@ -46,12 +46,34 @@ const internalTarget = (
   }
 };
 
+const CONTRACT_TARGET_TYPES: ReadonlySet<string> = new Set([
+  "CONTRACT_OFFER",
+  "CONTRACT_ACCEPTED",
+  "CONTRACT_WITHDRAWN",
+  "MILESTONE_SUBMITTED",
+  "MILESTONE_APPROVED",
+  "MILESTONE_CHANGES_REQUESTED",
+]);
+
+const metadataContractId = (
+  metadata: Readonly<Record<string, unknown>> | null | undefined,
+): string | null => {
+  const value = metadata?.contractId;
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+};
+
 export const notificationHref = (
   type: string,
   link?: string | null,
+  metadata?: Readonly<Record<string, unknown>> | null,
 ): string | null => {
   const base = NOTIFICATION_ROUTES[type]?.base ?? null;
   if (!base) return null;
+  if (CONTRACT_TARGET_TYPES.has(type)) {
+    const contractId = metadataContractId(metadata);
+    if (contractId)
+      return `${base}?contractId=${encodeURIComponent(contractId)}`;
+  }
   const target = internalTarget(link);
   if (
     target &&

@@ -1,88 +1,40 @@
 "use client";
 
 import { Icon } from "@iconify/react";
-import { useAuth } from "@clerk/nextjs";
+import { formatCents } from "@onemarketplace/api-client";
 import {
-  type InfiniteData,
-  useInfiniteQuery,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
-import { formatDistanceToNow } from "date-fns";
+  useAccount,
+  useConversations,
+  useMessagingSocket,
+} from "@onemarketplace/web-core";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { io, type Socket } from "socket.io-client";
-import { playIncomingMessageSound } from "../../hooks/message-sound";
-import { markConversationLocallyRead } from "../../hooks/use-unread-messages";
+import {
+  useConversationMessages,
+  useMarkConversationRead,
+  useReviewMilestone,
+  useSendMessage,
+  useStartMeeting,
+} from "@/app/hooks/use-messages";
+import {
+  isCounterpartyTyping,
+  latestServerMessageId,
+  messageErrorMessage,
+  readMarkKey,
+  toConversationView,
+  toThread,
+  validateAttachment,
+} from "@/lib/messages";
+import { isHttpsUrl } from "@/lib/url";
 import {
   type ClientConversation,
   type ClientMessage,
 } from "../data/client-data";
 
-type ApiConversation = {
-  id: string;
-  jobId: string | null;
-  contractId: string | null;
-  contractStatus: string | null;
-  unreadCount: number;
-  jobTitle: string | null;
-  lastMessageAt: string | null;
-  lastAttachmentName: string | null;
-  lastMessage: { body: string | null; eventType: string | null } | null;
-  participants: Array<{
-    accountId: string | null;
-    agencyId: string | null;
-    participantType: string;
-    name: string;
-    avatarUrl: string | null;
-  }>;
-  activeMeeting: { id: string; joinUrl: string; startedAt: string } | null;
-};
-
-type ApiMessage = {
-  id: string;
-  senderId: string | null;
-  messageType: string;
-  body: string | null;
-  eventType: string | null;
-  eventPayload: Record<string, unknown> | null;
-  createdAt: string;
-  replyToMessageId: string | null;
-  attachments: Array<{
-    file_name: string;
-    file_url: string;
-    file_size: number;
-    mime_type: string;
-  }>;
-};
-
-type MessagePage = { messages: ApiMessage[]; nextCursor: string | null };
-
-const updateLatestMessages = (
-  current: InfiniteData<MessagePage> | undefined,
-  update: (messages: ApiMessage[]) => ApiMessage[],
-): InfiniteData<MessagePage> =>
-  current
-    ? {
-        ...current,
-        pages: current.pages.map((page, index) =>
-          index === 0 ? { ...page, messages: update(page.messages) } : page,
-        ),
-      }
-    : {
-        pages: [{ messages: update([]), nextCursor: null }],
-        pageParams: [undefined],
-      };
-
-const readFile = (file: File) =>
-  new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(new Error("File could not be read."));
-    reader.readAsDataURL(file);
-  });
+const CONVERSATIONS_STEP = 20;
+const CONVERSATIONS_MAX = 100;
 
 export function MessagesDashboard({
   conversationId,
@@ -90,447 +42,69 @@ export function MessagesDashboard({
   conversationId?: string;
 }) {
   const router = useRouter();
-  const queryClient = useQueryClient();
-  const { getToken, userId } = useAuth();
+  const account = useAccount();
+  const actorId = account.actorId;
+  const socket = useMessagingSocket();
   const [search, setSearch] = useState("");
   const [draft, setDraft] = useState("");
   const [attachmentOpen, setAttachmentOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState("");
-  const [sending, setSending] = useState(false);
-  const [socketReady, setSocketReady] = useState(false);
-  const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
-  const [typingUser, setTypingUser] = useState<{
-    conversationId: string;
-    userId: string;
-  } | null>(null);
-  const socketRef = useRef<Socket | null>(null);
+  const [conversationLimit, setConversationLimit] =
+    useState(CONVERSATIONS_STEP);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const loadingOlderRef = useRef(false);
   const userScrolledMessagesRef = useRef(false);
   const markedReadRef = useRef<string | null>(null);
+  const sendLockRef = useRef(false);
 
-  useEffect(() => {
-    if (!userId) return;
-    let active = true;
-    void getToken().then((token) => {
-      if (!active || !token) return;
-      const socket = io(new URL(process.env.NEXT_PUBLIC_SERVER_URI!).origin, {
-        auth: { token, role: "client" },
-      });
-      socketRef.current = socket;
-      socket.on("connect", () => setSocketReady(true));
-      socket.on("disconnect", () => setSocketReady(false));
-      socket.on("presence:snapshot", ({ userIds }: { userIds: string[] }) =>
-        setOnlineUsers(new Set(userIds)),
-      );
-      socket.on(
-        "presence:update",
-        ({
-          userId: changedUserId,
-          online,
-        }: {
-          userId: string;
-          online: boolean;
-        }) =>
-          setOnlineUsers((current) => {
-            const next = new Set(current);
-            online ? next.add(changedUserId) : next.delete(changedUserId);
-            return next;
-          }),
-      );
-      socket.on(
-        "conversation:update",
-        ({
-          conversationId: changedConversationId,
-          messagesChanged,
-          senderId,
-        }: {
-          conversationId: string;
-          messagesChanged?: boolean;
-          senderId?: string | null;
-        }) => {
-          if (senderId !== userId) playIncomingMessageSound();
-          void queryClient.invalidateQueries({
-            queryKey: ["client-conversations"],
-          });
-          if (messagesChanged !== false)
-            void queryClient.invalidateQueries({
-              queryKey: ["conversation-messages", changedConversationId],
-            });
-        },
-      );
-      socket.on(
-        "typing:update",
-        ({
-          conversationId,
-          userId,
-          isTyping,
-        }: {
-          conversationId: string;
-          userId: string;
-          isTyping: boolean;
-        }) => setTypingUser(isTyping ? { conversationId, userId } : null),
-      );
-    });
-    return () => {
-      active = false;
-      socketRef.current?.disconnect();
-      socketRef.current = null;
-      setSocketReady(false);
-    };
-  }, [conversationId, getToken, queryClient, userId]);
+  const {
+    data: inbox,
+    isLoading: inboxLoading,
+    error: inboxError,
+  } = useConversations({ limit: conversationLimit });
 
-  const { data: inbox, isLoading: inboxLoading } = useQuery<{
-    conversations: ApiConversation[];
-    totalUnread: number;
-  }>({
-    queryKey: ["client-conversations"],
-    queryFn: async () => {
-      const token = await getToken();
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_SERVER_URI}/conversations?role=client`,
-        { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" },
-      );
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.message);
-      return result.data;
-    },
-  });
-
-  const selectedConversation = inbox?.conversations.find(
+  const selectedConversation = inbox?.results.find(
     ({ id }) => id === conversationId,
   );
+  const thread = useConversationMessages(
+    conversationId,
+    Boolean(selectedConversation),
+  );
   const {
-    data: messageData,
-    isLoading: messagesLoading,
+    messages: loadedMessages,
     hasNextPage,
     isFetchingNextPage,
     fetchNextPage,
-  } = useInfiniteQuery<MessagePage>({
-    queryKey: ["conversation-messages", conversationId],
-    enabled: Boolean(selectedConversation),
-    initialPageParam: undefined,
-    getNextPageParam: (page) => page.nextCursor ?? undefined,
-    queryFn: async ({ pageParam }) => {
-      const token = await getToken();
-      const cursor =
-        typeof pageParam === "string"
-          ? `&cursor=${encodeURIComponent(pageParam)}`
-          : "";
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_SERVER_URI}/conversations/${conversationId}/messages?role=client${cursor}`,
-        { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" },
-      );
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.message);
-      return result.data;
-    },
-  });
-  const loadedMessages = useMemo(
-    () =>
-      (messageData?.pages ?? [])
-        .slice()
-        .reverse()
-        .flatMap((page) => page.messages),
-    [messageData?.pages],
-  );
+  } = thread;
+  const messagesLoading = thread.isLoading || account.status === "loading";
+
+  const sendMessageMutation = useSendMessage(actorId);
+  const markRead = useMarkConversationRead();
+  const startMeeting = useStartMeeting();
+  const reviewMutation = useReviewMilestone();
 
   const conversations: ClientConversation[] = useMemo(
     () =>
-      (inbox?.conversations ?? []).map((conversation) => {
-        const person = conversation.participants.find(
-          ({ accountId }) => accountId !== userId,
-        );
-        return {
-          id: conversation.id,
-          person: person?.name ?? "Freelancer",
-          avatarUrl: person?.avatarUrl,
-          initials: (person?.name ?? "Freelancer")
-            .split(" ")
-            .map((part) => part[0])
-            .join("")
-            .slice(0, 2),
-          accountType:
-            person?.participantType === "AGENCY" ? "Agency" : "Freelancer",
-          context: conversation.jobTitle ?? "Direct conversation",
-          contextHref:
-            conversation.contractStatus === "ACTIVE" && conversation.contractId
-              ? `/contracts?contractId=${conversation.contractId}`
-              : conversation.jobId
-                ? `/proposals/${conversation.jobId}`
-                : "/proposals",
-          contextLabel:
-            conversation.contractStatus === "ACTIVE"
-              ? "View contract details"
-              : "View project details",
-          online: person
-            ? onlineUsers.has(person.agencyId ?? person.accountId ?? "")
-            : false,
-          unread:
-            conversation.id === conversationId ? 0 : conversation.unreadCount,
-          lastMessage:
-            conversation.lastMessage?.body ??
-            conversation.lastMessage?.eventType ??
-            (conversation.lastAttachmentName
-              ? `Attachment – ${conversation.lastAttachmentName}`
-              : null) ??
-            "Conversation started",
-          time: conversation.lastMessageAt
-            ? formatDistanceToNow(new Date(conversation.lastMessageAt), {
-                addSuffix: true,
-              })
-            : "New",
-          messages: [],
-          activeMeeting: conversation.activeMeeting,
-        };
-      }),
-    [conversationId, inbox, onlineUsers, userId],
+      (inbox?.results ?? []).map((conversation) =>
+        toConversationView(conversation, conversationId),
+      ),
+    [conversationId, inbox],
   );
 
   const selectedBase = conversations.find(({ id }) => id === conversationId);
-  const activeContractIds = new Set<string>();
-  const completedContractIds = new Set<string>();
-  const endedMeetingIds = new Set<string>();
-  const activeMilestoneSubmissions = new Map<string, string>();
-  const milestoneSubmissionStatuses = new Map<
-    string,
-    "Submitted" | "Approved" | "Changes requested"
-  >();
-  loadedMessages.forEach((message) => {
-    if (
-      message.messageType === "SYSTEM_EVENT" &&
-      message.eventType === "MILESTONE_SUBMITTED"
-    ) {
-      const milestoneId = (
-        message.eventPayload as { milestoneId?: string } | null
-      )?.milestoneId;
-      if (milestoneId) {
-        activeMilestoneSubmissions.set(milestoneId, message.id);
-        milestoneSubmissionStatuses.set(message.id, "Submitted");
-      }
-    }
-    if (
-      message.messageType === "SYSTEM_EVENT" &&
-      message.eventType === "CONTRACT_ACCEPTED"
-    ) {
-      const contractId = (
-        message.eventPayload as { contractId?: string } | null
-      )?.contractId;
-      if (contractId) activeContractIds.add(contractId);
-    }
-    if (
-      message.messageType === "SYSTEM_EVENT" &&
-      message.eventType === "CONTRACT_COMPLETED"
-    ) {
-      const contractId = (
-        message.eventPayload as { contractId?: string } | null
-      )?.contractId;
-      if (contractId) {
-        completedContractIds.add(contractId);
-        activeContractIds.delete(contractId);
-      }
-    }
-    if (
-      message.messageType === "SYSTEM_EVENT" &&
-      message.eventType === "MEETING_ENDED"
-    ) {
-      const meetingId = (message.eventPayload as { meetingId?: string } | null)
-        ?.meetingId;
-      if (meetingId) endedMeetingIds.add(meetingId);
-    }
-    if (
-      message.eventType === "MILESTONE_APPROVED" ||
-      message.eventType === "MILESTONE_CHANGES_REQUESTED"
-    ) {
-      const milestoneId = (
-        message.eventPayload as { milestoneId?: string } | null
-      )?.milestoneId;
-      if (milestoneId) {
-        const submissionId = activeMilestoneSubmissions.get(milestoneId);
-        if (submissionId) {
-          milestoneSubmissionStatuses.set(
-            submissionId,
-            message.eventType === "MILESTONE_APPROVED"
-              ? "Approved"
-              : "Changes requested",
-          );
-        }
-      }
-    }
-  });
-  const selectedMessages: ClientMessage[] = loadedMessages
-    .filter(
-      (message) =>
-        !(
-          message.messageType === "SYSTEM_EVENT" &&
-          (message.eventType === "CONTRACT_ACCEPTED" ||
-            message.eventType === "MILESTONE_APPROVED" ||
-            message.eventType === "MILESTONE_CHANGES_REQUESTED")
-        ),
-    )
-    .map((message) => {
-      if (
-        message.messageType === "SYSTEM_EVENT" &&
-        message.eventType === "CONTRACT_COMPLETED"
-      ) {
-        const payload = message.eventPayload as {
-          contractId?: string;
-          title?: string;
-        } | null;
-        return {
-          id: message.id,
-          kind: "contract_completed",
-          sender: "system",
-          contractId: payload?.contractId,
-          title: payload?.title ?? "Contract completed",
-          href: payload?.contractId
-            ? `/contracts?contractId=${payload.contractId}`
-            : "/contracts",
-          time: formatDistanceToNow(new Date(message.createdAt), {
-            addSuffix: true,
-          }),
-        };
-      }
-
-      if (
-        message.messageType === "SYSTEM_EVENT" &&
-        message.eventType === "CONTRACT_OFFER"
-      ) {
-        const payload = message.eventPayload as {
-          contractId?: string;
-          title?: string;
-          firstMilestone?: { amount?: number };
-        } | null;
-        const contractId = payload?.contractId ?? "";
-        return {
-          id: message.id,
-          kind: "contract",
-          sender: "client",
-          title: payload?.title ?? "Contract offer",
-          amount: Number(payload?.firstMilestone?.amount ?? 0),
-          status: completedContractIds.has(contractId)
-            ? "Completed"
-            : activeContractIds.has(contractId)
-              ? "Active"
-              : "Awaiting acceptance",
-          href: payload?.contractId
-            ? `/contracts?contractId=${payload.contractId}`
-            : "/contracts",
-          time: formatDistanceToNow(new Date(message.createdAt), {
-            addSuffix: true,
-          }),
-        };
-      }
-
-      if (
-        message.messageType === "SYSTEM_EVENT" &&
-        (message.eventType === "MILESTONE_SUBMITTED" ||
-          message.eventType === "MILESTONE_FUNDED" ||
-          message.eventType === "MILESTONE_ADDED")
-      ) {
-        const payload = message.eventPayload as {
-          contractId?: string;
-          milestoneId?: string;
-          milestoneTitle?: string;
-          amount?: number;
-          submissionMessage?: string;
-          submissionDeliveryLink?: string | null;
-          requirements?: string | null;
-          dueDate?: string;
-        } | null;
-        return {
-          id: message.id,
-          kind: "milestone",
-          sender:
-            message.eventType === "MILESTONE_SUBMITTED" ? "talent" : "client",
-          title: payload?.milestoneTitle ?? "Milestone submitted",
-          amount: Number(payload?.amount ?? 0),
-          status:
-            message.eventType === "MILESTONE_ADDED"
-              ? "Added"
-              : message.eventType === "MILESTONE_FUNDED"
-                ? "Funded"
-                : (milestoneSubmissionStatuses.get(message.id) ?? "Submitted"),
-          href: payload?.contractId
-            ? `/contracts?contractId=${payload.contractId}`
-            : "/contracts",
-          time: formatDistanceToNow(new Date(message.createdAt), {
-            addSuffix: true,
-          }),
-          contractId: payload?.contractId,
-          milestoneId: payload?.milestoneId,
-          submissionMessage:
-            payload?.submissionMessage ?? payload?.requirements ?? undefined,
-          submissionDeliveryLink: payload?.submissionDeliveryLink ?? undefined,
-          dueDate: payload?.dueDate,
-        };
-      }
-
-      if (
-        message.messageType === "SYSTEM_EVENT" &&
-        message.eventType === "MEETING_STARTED"
-      ) {
-        const payload = message.eventPayload as {
-          joinUrl?: string;
-          meetingId?: string;
-        } | null;
-        return {
-          id: message.id,
-          kind: "meeting",
-          sender: message.senderId === userId ? "client" : "talent",
-          title: "Video meeting",
-          startsAt: `Started ${formatDistanceToNow(new Date(message.createdAt), { addSuffix: true })}`,
-          meetUrl: payload?.joinUrl ?? "",
-          ended: payload?.meetingId
-            ? endedMeetingIds.has(payload.meetingId)
-            : false,
-          time: formatDistanceToNow(new Date(message.createdAt), {
-            addSuffix: true,
-          }),
-        };
-      }
-
-      if (
-        message.messageType === "SYSTEM_EVENT" &&
-        message.eventType === "MEETING_ENDED"
-      ) {
-        const payload = message.eventPayload as {
-          durationMinutes?: number;
-        } | null;
-        return {
-          id: message.id,
-          kind: "meeting_ended",
-          durationMinutes: payload?.durationMinutes ?? 0,
-          time: formatDistanceToNow(new Date(message.createdAt), {
-            addSuffix: true,
-          }),
-        };
-      }
-
-      return {
-        id: message.id,
-        kind: "text",
-        sender: message.senderId === userId ? "client" : "talent",
-        text: message.body ?? "Shared an attachment.",
-        time: formatDistanceToNow(new Date(message.createdAt), {
-          addSuffix: true,
-        }),
-        replyToId: message.replyToMessageId ?? undefined,
-        attachment: message.attachments[0]
-          ? {
-              name: message.attachments[0].file_name,
-              size: `${(message.attachments[0].file_size / 1024 / 1024).toFixed(1)} MB`,
-              type: message.attachments[0].mime_type,
-              url: message.attachments[0].file_url,
-            }
-          : undefined,
-      };
-    });
+  const selectedMessages: ClientMessage[] = useMemo(
+    () => toThread(loadedMessages, actorId),
+    [actorId, loadedMessages],
+  );
   const selected = selectedBase
     ? { ...selectedBase, messages: selectedMessages }
     : undefined;
+  const counterpartyTyping = selected
+    ? isCounterpartyTyping(socket.typingIn(selected.id), actorId)
+    : false;
+  const socketOffline = socket.status === "closed" || socket.status === "error";
 
   useEffect(() => {
     userScrolledMessagesRef.current = false;
@@ -564,187 +138,57 @@ export function MessagesDashboard({
     [conversations, search],
   );
 
+  const selectedId = selectedConversation?.id;
+  const selectedUnread = selectedConversation?.unreadCount ?? 0;
+  const { mutate: markConversationRead } = markRead;
   useEffect(() => {
-    const lastMessage = loadedMessages.findLast(
-      ({ id }) => !id.startsWith("optimistic-"),
-    );
-    if (!selectedConversation || !lastMessage) return;
-    const readKey = `${selectedConversation.id}:${lastMessage.id}`;
+    if (!selectedId || selectedUnread === 0) return;
+    const lastId = latestServerMessageId(loadedMessages);
+    if (!lastId) return;
+    const readKey = readMarkKey(selectedId, lastId);
     if (markedReadRef.current === readKey) return;
     markedReadRef.current = readKey;
-    markConversationLocallyRead(selectedConversation.id);
-    queryClient.setQueryData<{
-      conversations: ApiConversation[];
-      totalUnread: number;
-    }>(["client-conversations"], (current) =>
-      current
-        ? {
-            ...current,
-            totalUnread: Math.max(
-              0,
-              current.totalUnread - selectedConversation.unreadCount,
-            ),
-            conversations: current.conversations.map((conversation) =>
-              conversation.id === selectedConversation.id
-                ? { ...conversation, unreadCount: 0 }
-                : conversation,
-            ),
-          }
-        : current,
-    );
-    if (socketRef.current?.connected) {
-      socketRef.current.emit("conversation:read", {
-        conversationId: selectedConversation.id,
-        messageId: lastMessage.id,
-      });
-      return;
-    }
-    void getToken().then((token) =>
-      fetch(
-        `${process.env.NEXT_PUBLIC_SERVER_URI}/conversations/${selectedConversation.id}/read?role=client`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ lastReadMessageId: lastMessage.id }),
-        },
-      )
-        .then(async (response) => {
-          if (!response.ok)
-            throw new Error("Messages could not be marked read.");
-        })
-        .catch(() => {
+    markConversationRead(
+      { conversationId: selectedId, lastReadMessageId: lastId },
+      {
+        onError: () => {
           if (markedReadRef.current === readKey) markedReadRef.current = null;
-        }),
+        },
+      },
     );
-  }, [
-    getToken,
-    loadedMessages,
-    queryClient,
-    selectedConversation,
-    socketReady,
-  ]);
+  }, [loadedMessages, markConversationRead, selectedId, selectedUnread]);
 
   const selectConversation = (conversation: ClientConversation) =>
     router.push(`/messages?conversationId=${conversation.id}`);
 
+  const sending = sendMessageMutation.isPending;
+
   const sendMessage = async (file?: File) => {
     const text = draft.trim();
-    if ((!text && !file) || !selected || sending || selected.activeMeeting)
+    if (
+      (!text && !file) ||
+      !selected ||
+      sendLockRef.current ||
+      selected.activeMeeting
+    )
       return;
-    const optimisticId = `optimistic-${Date.now()}`;
-    setSending(true);
+    sendLockRef.current = true;
     setDraft("");
-    queryClient.setQueryData<{
-      conversations: ApiConversation[];
-      totalUnread: number;
-    }>(["client-conversations"], (current) =>
-      current
-        ? {
-            ...current,
-            conversations: current.conversations.map((conversation) =>
-              conversation.id === selected.id
-                ? {
-                    ...conversation,
-                    lastMessage: { body: text || null, eventType: null },
-                    lastAttachmentName: file?.name ?? null,
-                    lastMessageAt: new Date().toISOString(),
-                  }
-                : conversation,
-            ),
-          }
-        : current,
-    );
-    queryClient.setQueryData<InfiniteData<MessagePage>>(
-      ["conversation-messages", selected.id],
-      (current) =>
-        updateLatestMessages(current, (messages) => [
-          ...messages,
-          {
-            id: optimisticId,
-            senderId: userId ?? null,
-            messageType: "USER",
-            body: text || null,
-            eventType: null,
-            eventPayload: null,
-            createdAt: new Date().toISOString(),
-            replyToMessageId: null,
-            attachments: file
-              ? [
-                  {
-                    file_name: file.name,
-                    file_url: "",
-                    file_size: file.size,
-                    mime_type: file.type,
-                  },
-                ]
-              : [],
-          },
-        ]),
-    );
-
+    setFileError("");
     try {
-      const token = await getToken();
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_SERVER_URI}/conversations/${selected.id}/messages?role=client`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            body: text || undefined,
-            attachments: file
-              ? [
-                  {
-                    fileUrl: await readFile(file),
-                    fileName: file.name,
-                    fileSize: file.size,
-                    mimeType: file.type,
-                  },
-                ]
-              : [],
-          }),
-        },
-      );
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.message);
-      queryClient.setQueryData<InfiniteData<MessagePage>>(
-        ["conversation-messages", selected.id],
-        (current) =>
-          updateLatestMessages(current, (messages) =>
-            messages.map((message) =>
-              message.id === optimisticId ? result.data : message,
-            ),
-          ),
-      );
-    } catch (error) {
-      queryClient.setQueryData<InfiniteData<MessagePage>>(
-        ["conversation-messages", selected.id],
-        (current) =>
-          updateLatestMessages(current, (messages) =>
-            messages.filter(({ id }) => id !== optimisticId),
-          ),
-      );
-      setDraft(text);
-      setFileError(
-        error instanceof Error ? error.message : "Message could not be sent.",
-      );
-      void queryClient.invalidateQueries({
-        queryKey: ["client-conversations"],
+      await sendMessageMutation.mutateAsync({
+        conversationId: selected.id,
+        body: text || null,
+        file: file ?? null,
       });
-      setSending(false);
+    } catch (error) {
+      setDraft(text);
+      setFileError(messageErrorMessage(error));
       return;
+    } finally {
+      sendLockRef.current = false;
     }
-
-    setSending(false);
-    socketRef.current?.emit("typing:set", {
-      conversationId: selected.id,
-      isTyping: false,
-    });
+    socket.setTyping(selected.id, false);
     setSelectedFile(null);
     setAttachmentOpen(false);
   };
@@ -754,89 +198,48 @@ export function MessagesDashboard({
     action: "APPROVE" | "REQUEST_CHANGES",
     feedback?: string,
   ) => {
-    if (!message.contractId || !message.milestoneId) return;
-    const token = await getToken();
-    const response = await fetch(
-      `${process.env.NEXT_PUBLIC_SERVER_URI}/contracts/${message.contractId}/milestones/${message.milestoneId}/review?role=client`,
-      {
-        method: "PATCH",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ action, feedback }),
-      },
-    );
-    const result = await response.json();
-    if (!response.ok) throw new Error(result.message);
-    await Promise.all([
-      queryClient.invalidateQueries({
-        queryKey: ["conversation-messages", conversationId],
-      }),
-      queryClient.invalidateQueries({ queryKey: ["client-contracts"] }),
-    ]);
+    if (!message.contractId || !message.milestoneId || !selected) return;
+    await reviewMutation.mutateAsync({
+      contractId: message.contractId,
+      milestoneId: message.milestoneId,
+      conversationId: selected.id,
+      action,
+      feedback,
+    });
   };
 
-  const [creatingMeeting, setCreatingMeeting] = useState(false);
+  const openMeeting = (joinUrl: string) => {
+    if (isHttpsUrl(joinUrl)) {
+      window.open(joinUrl, "_blank", "noopener,noreferrer");
+    } else {
+      setFileError("The meeting link is not valid.");
+    }
+  };
 
   const createMeeting = async () => {
     if (!selected) return;
     if (selected.activeMeeting) {
-      window.open(
-        selected.activeMeeting.joinUrl,
-        "_blank",
-        "noopener,noreferrer",
-      );
+      openMeeting(selected.activeMeeting.joinUrl);
       return;
     }
-    if (creatingMeeting) return;
-    setCreatingMeeting(true);
+    if (startMeeting.isPending) return;
+    setFileError("");
     try {
-      const token = await getToken();
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_SERVER_URI}/conversations/${selected.id}/meetings?role=client`,
-        {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-        },
-      );
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.message);
-      window.open(result.data.joinUrl, "_blank", "noopener,noreferrer");
-      await queryClient.invalidateQueries({
-        queryKey: ["client-conversations"],
-      });
-      await queryClient.invalidateQueries({
-        queryKey: ["conversation-messages", selected.id],
-      });
+      const meeting = await startMeeting.mutateAsync(selected.id);
+      openMeeting(meeting.joinUrl);
     } catch (error) {
-      setFileError(
-        error instanceof Error
-          ? error.message
-          : "Meeting could not be created.",
-      );
-    } finally {
-      setCreatingMeeting(false);
+      setFileError(messageErrorMessage(error));
     }
   };
+  const creatingMeeting = startMeeting.isPending;
 
   const chooseFile = (file?: File) => {
     setSelectedFile(null);
     setFileError("");
     if (!file) return;
-    const allowedTypes = [
-      "application/pdf",
-      "image/png",
-      "image/jpeg",
-      "text/plain",
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    ];
-    if (!allowedTypes.includes(file.type)) {
-      setFileError("Use PDF, DOCX, PNG, JPG, or TXT files only.");
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      setFileError("The maximum attachment size is 5 MB.");
+    const problem = validateAttachment(file);
+    if (problem) {
+      setFileError(problem);
       return;
     }
     setSelectedFile(file);
@@ -856,8 +259,7 @@ export function MessagesDashboard({
           </h1>
         </div>
         <p className="text-xs text-[#858a82]">
-          {conversations.reduce((sum, item) => sum + item.unread, 0)} unread
-          messages
+          {inbox?.totalUnread ?? 0} unread messages
         </p>
       </div>
 
@@ -903,9 +305,6 @@ export function MessagesDashboard({
                   ) : (
                     conversation.initials
                   )}
-                  {conversation.online && (
-                    <span className="absolute right-0 bottom-0 h-3 w-3 rounded-full border-2 border-white bg-[#5ca568]" />
-                  )}
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="flex justify-between gap-2">
@@ -930,10 +329,25 @@ export function MessagesDashboard({
                 )}
               </button>
             ))}
-            {!filtered.length && (
+            {!filtered.length && !inboxLoading && (
               <p className="p-8 text-center text-xs text-[#858a82]">
-                No project threads found.
+                {inboxError
+                  ? messageErrorMessage(inboxError)
+                  : "No project threads found."}
               </p>
+            )}
+            {inbox?.hasMore && conversationLimit < CONVERSATIONS_MAX && (
+              <button
+                type="button"
+                onClick={() =>
+                  setConversationLimit((limit) =>
+                    Math.min(CONVERSATIONS_MAX, limit + CONVERSATIONS_STEP),
+                  )
+                }
+                className="w-full cursor-pointer p-4 text-xs font-semibold text-[#52784f]"
+              >
+                Load more threads
+              </button>
             )}
           </div>
         </section>
@@ -957,9 +371,7 @@ export function MessagesDashboard({
                 <div>
                   <h2 className="text-sm font-semibold">{selected.person}</h2>
                   <p className="mt-1 text-[10px] text-[#7b8078]">
-                    {typingUser?.conversationId === selected.id
-                      ? "Typing..."
-                      : `${selected.accountType} · ${selected.online ? "Online" : "Offline"}`}
+                    {counterpartyTyping ? "Typing..." : selected.accountType}
                   </p>
                 </div>
               </div>
@@ -1053,6 +465,23 @@ export function MessagesDashboard({
               <div ref={messagesEndRef} />
             </div>
 
+            {socketOffline && (
+              <p
+                role="status"
+                className="shrink-0 border-t border-black/7 bg-[#f5eed4] px-5 py-2 text-[10px] font-medium text-[#806d31]"
+              >
+                Reconnecting… new messages will appear when the connection is
+                back.
+              </p>
+            )}
+            {fileError && !attachmentOpen && (
+              <p
+                role="alert"
+                className="shrink-0 border-t border-black/7 bg-[#f6e3e3] px-5 py-2 text-xs text-[#a65050]"
+              >
+                {fileError}
+              </p>
+            )}
             <div className="shrink-0 border-t border-black/7 bg-white p-4">
               <div className="flex items-end gap-2 rounded-xl border border-black/10 p-2">
                 <button
@@ -1068,17 +497,12 @@ export function MessagesDashboard({
                   value={draft}
                   onChange={(event) => {
                     setDraft(event.target.value);
-                    socketRef.current?.emit("typing:set", {
-                      conversationId: selected.id,
-                      isTyping: Boolean(event.target.value.trim()),
-                    });
+                    socket.setTyping(
+                      selected.id,
+                      Boolean(event.target.value.trim()),
+                    );
                   }}
-                  onBlur={() =>
-                    socketRef.current?.emit("typing:set", {
-                      conversationId: selected.id,
-                      isTyping: false,
-                    })
-                  }
+                  onBlur={() => socket.setTyping(selected.id, false)}
                   onKeyDown={(event) => {
                     if (event.key === "Enter" && !event.shiftKey) {
                       event.preventDefault();
@@ -1115,12 +539,16 @@ export function MessagesDashboard({
               <h2 className="mt-5 font-semibold">
                 {inboxLoading
                   ? "Loading conversation..."
-                  : "Conversation does not exist"}
+                  : inboxError
+                    ? "Conversations could not be loaded"
+                    : "Conversation does not exist"}
               </h2>
               <p className="mt-2 max-w-sm text-sm leading-6 text-[#7b8078]">
                 {inboxLoading
                   ? "Please wait while the conversation is loaded."
-                  : "The conversation ID is missing or you do not have access to it."}
+                  : inboxError
+                    ? messageErrorMessage(inboxError)
+                    : "The conversation ID is missing or you do not have access to it."}
               </p>
             </div>
           </section>
@@ -1259,6 +687,7 @@ function TransactionMessage({
     "APPROVE" | "REQUEST_CHANGES" | null
   >(null);
   const [modificationMessage, setModificationMessage] = useState("");
+  const [reviewError, setReviewError] = useState("");
   useEffect(() => {
     if (!reviewDialog) return;
     const previousHtmlOverflow = document.documentElement.style.overflow;
@@ -1372,7 +801,7 @@ function TransactionMessage({
             {message.title}
           </p>
         </div>
-        <strong className="text-xs">${message.amount.toLocaleString()}</strong>
+        <strong className="text-xs">{formatCents(message.amountCents)}</strong>
       </div>
     );
   }
@@ -1443,7 +872,7 @@ function TransactionMessage({
                   ))}
                 </div>
                 <EventFooter
-                  detail={`$${message.bid.toLocaleString()} · ${message.duration}`}
+                  detail={`${formatCents(message.bidCents)} · ${message.duration}`}
                   href={message.href}
                   action="View proposal"
                 />
@@ -1471,7 +900,7 @@ function TransactionMessage({
                     First milestone funded
                   </p>
                   <p className="mt-1 text-lg font-semibold text-[#29252d]">
-                    ${message.amount.toLocaleString()}
+                    {formatCents(message.amountCents)}
                   </p>
                 </div>
                 <div
@@ -1577,7 +1006,7 @@ function TransactionMessage({
                 </div>
                 <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-black/6 pt-4">
                   <span className="text-[10px] font-semibold text-[#747b72]">
-                    ${message.amount.toLocaleString()} · {message.status}
+                    {formatCents(message.amountCents)} · {message.status}
                   </span>
                   {message.status === "Submitted" && (
                     <div className="flex gap-2">
@@ -1636,6 +1065,11 @@ function TransactionMessage({
               />
             )}
             <div className="mt-5 flex justify-end gap-2">
+              {reviewError && (
+                <p role="alert" className="mr-auto text-xs text-[#a65050]">
+                  {reviewError}
+                </p>
+              )}
               <button
                 type="button"
                 disabled={Boolean(reviewing)}
@@ -1664,7 +1098,11 @@ function TransactionMessage({
                     .then(() => {
                       setReviewDialog(null);
                       setModificationMessage("");
+                      setReviewError("");
                     })
+                    .catch((error: unknown) =>
+                      setReviewError(messageErrorMessage(error)),
+                    )
                     .finally(() => setReviewing(null));
                 }}
                 className="h-10 rounded-xl bg-[#252724] px-4 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"

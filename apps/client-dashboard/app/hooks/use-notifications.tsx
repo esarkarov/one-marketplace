@@ -40,7 +40,11 @@ export const presentNotification = (notification: Notification) => {
     category,
     icon: icons[category],
     description: notification.message,
-    href: notificationHref(notification.type, notification.link),
+    href: notificationHref(
+      notification.type,
+      notification.link,
+      notification.metadata,
+    ),
     unread: !notification.isRead,
     time: format(createdAt),
     date: sameDay(createdAt, today)

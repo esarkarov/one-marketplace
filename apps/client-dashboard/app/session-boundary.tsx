@@ -15,6 +15,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { decideAccountGate } from "../lib/account-gate";
+import { shouldPlayMessageSound } from "../lib/messages";
 import { messageSound } from "./hooks/message-sound";
 
 const LANDING_PAGE =
@@ -80,13 +81,12 @@ function AccountGate({ children }: { children: React.ReactNode }) {
 
 function SessionEffects() {
   const account = useAccount();
-  const pathname = usePathname();
 
   useEffect(() => messageSound.install(), []);
   useNotificationStream();
   useMessagingSocket({
-    onConversationUpdate: ({ senderId }) => {
-      if (pathname !== "/messages" && !account.isMine(senderId)) {
+    onConversationUpdate: (payload) => {
+      if (shouldPlayMessageSound(payload, account.isMine)) {
         messageSound.play();
       }
     },

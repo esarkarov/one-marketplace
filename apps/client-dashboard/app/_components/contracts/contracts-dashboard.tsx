@@ -23,6 +23,7 @@ import {
   canReviewMilestone,
   canWithdrawContract,
   contractErrorMessage,
+  contractErrorMessageOf,
   contractStatusLabel,
   contractStatusTone,
   contractTotals,
@@ -45,7 +46,7 @@ import {
   type MilestoneItem,
   type MilestoneState,
 } from "@/lib/contracts";
-import { isCheckoutUrl } from "@/lib/proposals";
+import { isHttpsUrl } from "@/lib/url";
 
 type Decision = {
   type: "changes" | "approve" | "activate";
@@ -570,7 +571,7 @@ function SubmissionDetails({ milestone }: { milestone: MilestoneItem }) {
         </p>
       )}
       {link &&
-        (isCheckoutUrl(link) ? (
+        (isHttpsUrl(link) ? (
           <a
             href={link}
             target="_blank"
@@ -1126,9 +1127,6 @@ function MilestoneDecisionModal({
     </div>
   );
 }
-
-const contractErrorMessageOf = (error: unknown): string =>
-  error ? contractErrorMessage(error) : "";
 
 function ErrorLine({ message }: { message: string }) {
   if (!message) return null;

@@ -106,9 +106,9 @@ export const useFundMilestone = () => {
       return { url };
     },
     {
-      onSuccess: async ({ url }) => {
-        await refresh();
+      onSuccess: ({ url }) => {
         window.location.assign(url);
+        void refresh();
       },
       onError: refresh,
     },

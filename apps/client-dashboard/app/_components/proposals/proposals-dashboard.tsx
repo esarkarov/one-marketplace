@@ -29,7 +29,6 @@ import {
   countByFilter,
   hasInterview,
   INTERVIEW_MESSAGE_MAX,
-  isCheckoutUrl,
   matchesFilter,
   messagesHref,
   profileHref,
@@ -38,6 +37,7 @@ import {
   toProposalViews,
   type ProposalView,
 } from "@/lib/proposals";
+import { isHttpsUrl } from "@/lib/url";
 import { countries } from "@/utils/countries";
 
 const PAGE_BUTTON =
@@ -245,7 +245,7 @@ function JobProposals({ jobId }: { jobId: string }) {
 
   const startContractCheckout = async (proposal: ProposalView) => {
     const result = await checkout.mutateAsync(proposal.id);
-    if (!isCheckoutUrl(result.url)) {
+    if (!isHttpsUrl(result.url)) {
       throw new Error("Checkout returned an invalid address.");
     }
     window.location.assign(result.url);

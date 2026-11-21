@@ -89,7 +89,7 @@ export type CompletedClientContract = {
 };
 
 export type ClientConversation = {
-  id: number | string;
+  id: string;
   person: string;
   initials: string;
   avatarUrl?: string | null;
@@ -97,7 +97,6 @@ export type ClientConversation = {
   context: string;
   contextHref: string;
   contextLabel: string;
-  online: boolean;
   unread: number;
   lastMessage: string;
   time: string;
@@ -125,7 +124,7 @@ export type ClientMessage =
       kind: "proposal";
       sender: "talent";
       title: string;
-      bid: number;
+      bidCents: number;
       duration: string;
       summary: string;
       skills: string[];
@@ -153,7 +152,7 @@ export type ClientMessage =
       kind: "contract";
       sender: "client";
       title: string;
-      amount: number;
+      amountCents: number;
       status: "Awaiting acceptance" | "Active" | "Completed";
       href: string;
       time: string;
@@ -172,7 +171,7 @@ export type ClientMessage =
       kind: "milestone";
       sender: "client" | "talent";
       title: string;
-      amount: number;
+      amountCents: number;
       status:
         "Added" | "Funded" | "Submitted" | "Changes requested" | "Approved";
       href: string;
@@ -188,7 +187,7 @@ export type ClientMessage =
       kind: "payment";
       sender: "system";
       title: string;
-      amount: number;
+      amountCents: number;
       status: "Protected in escrow" | "Released";
       time: string;
     };

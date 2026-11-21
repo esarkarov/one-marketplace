@@ -7,12 +7,8 @@ import {
   formatDate,
   isApiError,
 } from "@onemarketplace/api-client";
-import {
-  MAX_MILESTONE_CENTS,
-  MIN_MILESTONE_CENTS,
-  validateMilestoneAmount,
-} from "./jobs";
-import { isCheckoutUrl } from "./proposals";
+import { validateMilestoneAmount } from "./jobs";
+import { isHttpsUrl } from "./url";
 
 export type ContractItem = Components["schemas"]["ContractsContract"];
 export type MilestoneItem = ContractItem["milestones"][number];
@@ -20,6 +16,9 @@ export type ContractStatus = ContractItem["status"];
 export type MilestoneStatus = MilestoneItem["status"];
 
 export const CONTRACTS_PAGE_SIZE = 20;
+
+export const ADD_MILESTONE_MIN_CENTS = 1000;
+export const ADD_MILESTONE_MAX_CENTS = Number.MAX_SAFE_INTEGER;
 
 export const MILESTONE_TITLE_MIN = 3;
 export const MILESTONE_TITLE_MAX = 120;
@@ -208,7 +207,6 @@ export const canFinishContract = (
   contract: Pick<ContractItem, "status" | "milestones">,
 ): boolean =>
   contract.status === "ACTIVE" &&
-  contract.milestones.length > 0 &&
   contract.milestones.every(
     (milestone) => milestoneState(milestone) === "PAID",
   );
@@ -247,7 +245,7 @@ export const contractHref = (contractId: string): string =>
   `/contracts?contractId=${encodeURIComponent(contractId)}`;
 
 export const safeCheckoutUrl = (value: string): string | null =>
-  isCheckoutUrl(value) ? value : null;
+  isHttpsUrl(value) ? value : null;
 
 export const contractErrorMessage = (error: unknown): string => {
   if (error instanceof InvalidCheckoutUrlError) return error.message;
@@ -256,6 +254,9 @@ export const contractErrorMessage = (error: unknown): string => {
     ? `${message} (reference ${error.requestId})`
     : message;
 };
+
+export const contractErrorMessageOf = (error: unknown): string =>
+  error ? contractErrorMessage(error) : "";
 
 export const isContractConflict = (error: unknown): boolean =>
   error instanceof ApiError && error.status === 409;
@@ -291,7 +292,10 @@ export const validateAddMilestone = (
       message: `Title must be ${MILESTONE_TITLE_MIN} to ${MILESTONE_TITLE_MAX} characters.`,
     };
   }
-  const amountMessage = validateMilestoneAmount(input.amount.trim());
+  const amountMessage = validateMilestoneAmount(input.amount.trim(), {
+    minCents: ADD_MILESTONE_MIN_CENTS,
+    maxCents: ADD_MILESTONE_MAX_CENTS,
+  });
   if (amountMessage) return { ok: false, message: amountMessage };
   const amountCents = dollarsToCents(input.amount.trim());
   if (!DATE_ONLY.test(input.dueDate)) {
@@ -363,4 +367,4 @@ export const todayLocalDate = (now: Date = new Date()): string =>
     String(now.getDate()).padStart(2, "0"),
   ].join("-");
 
-export const MILESTONE_AMOUNT_HINT = `${formatCents(MIN_MILESTONE_CENTS)} to ${formatCents(MAX_MILESTONE_CENTS)}`;
+export const MILESTONE_AMOUNT_HINT = `At least ${formatCents(ADD_MILESTONE_MIN_CENTS)}`;
