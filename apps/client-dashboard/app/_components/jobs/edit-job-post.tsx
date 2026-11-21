@@ -1,72 +1,31 @@
 "use client";
 
-import { useAuth } from "@clerk/nextjs";
 import { Icon } from "@iconify/react";
-import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { JobPostForm, type InitialJobPost } from "./job-post-form";
-
-type JobPostResponse = {
-  id: string;
-  title: string;
-  description: string;
-  expertise_level: string;
-  expected_duration: string;
-  skills: string[];
-  milestones: { title: string; budget: number; dueDate: string }[];
-  screening_questions: string[] | null;
-  attachments: InitialJobPost["attachments"] | null;
-  status: string;
-};
+import { useJob } from "@/app/hooks/use-jobs";
+import {
+  isJobLocked,
+  isJobNotFound,
+  jobErrorMessage,
+  jobToInitial,
+} from "@/lib/jobs";
+import { JobPostForm } from "./job-post-form";
 
 export function EditJobPost({ jobId }: { jobId: string }) {
-  const { getToken } = useAuth();
-  const {
-    data: job,
-    isLoading,
-    error,
-  } = useQuery({
-    queryKey: ["client-job-post", jobId],
-    queryFn: async () => {
-      const token = await getToken();
-      if (!token) throw new Error("Your session has expired.");
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_SERVER_URI}/jobs/${jobId}?role=client`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
-      );
-      const result = await response.json();
-      if (!response.ok || !result.data)
-        throw new Error(result.message || "Job post could not be loaded.");
-      return result.data as JobPostResponse;
-    },
-  });
+  const { data: job, isLoading, error } = useJob(jobId);
 
   if (isLoading) return <EditJobPostSkeleton />;
   if (error || !job)
     return (
       <div className="rounded-2xl border border-black/8 bg-white p-8 text-center text-sm text-[#737970]">
-        {error?.message || "Job post not found."}
+        {isJobNotFound(error) || !error
+          ? "Job post not found."
+          : jobErrorMessage(error)}
       </div>
     );
-  if (job.status === "HIRED") return <LockedJob />;
+  if (isJobLocked(job.status)) return <LockedJob />;
 
-  const initialJob: InitialJobPost = {
-    id: job.id,
-    title: job.title,
-    description: job.description,
-    level: job.expertise_level,
-    duration: job.expected_duration,
-    skills: job.skills,
-    milestones: job.milestones.map(({ title, budget, dueDate }) => ({
-      title,
-      amount: budget,
-      due: dueDate,
-    })),
-    screeningQuestions: job.screening_questions ?? [],
-    attachments: job.attachments ?? [],
-  };
+  const initialJob = jobToInitial(job);
 
   const formKey = `${job.id}-${initialJob.attachments.map(({ fileId }) => fileId).join("-")}`;
 

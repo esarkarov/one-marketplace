@@ -15,6 +15,7 @@ import {
   presentNotification,
   useClientNotifications,
 } from "@/app/hooks/use-notifications";
+import { useClientProfile } from "@/app/hooks/use-client-profile";
 import { useUnreadMessages } from "@/app/hooks/use-unread-messages";
 
 export function ClientHeader() {
@@ -22,20 +23,7 @@ export function ClientHeader() {
   const unreadMessages = useUnreadMessages();
   const { isSignedIn } = useAuth();
   const { user } = useUser();
-  const { data: profileMetaData } = useQuery({
-    queryKey: ["profile-metadata"],
-    enabled: Boolean(user),
-    queryFn: async () => {
-      const token = await getToken();
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_SERVER_URI}/client/profile?role=client`,
-        { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" },
-      );
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.message);
-      return result.data;
-    },
-  });
+  const { data: profileMetaData } = useClientProfile(Boolean(user));
   const { data: contracts = [] } = useQuery<
     Array<{ status: "PENDING" | "ACTIVE" | "COMPLETED" }>
   >({
@@ -293,34 +281,7 @@ function AccountMenu() {
   const [open, setOpen] = useState(false);
   const { user, isLoaded } = useUser();
   const { signOut } = useClerk();
-
-  const { data: profileMetaData } = useQuery({
-    queryKey: ["profile-metadata"],
-    enabled: Boolean(user),
-    queryFn: async () => {
-      const token = await getToken();
-
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_SERVER_URI}/client/profile?role=client`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          cache: "no-store",
-        },
-      );
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          result.message || "The client profile could not be loaded.",
-        );
-      }
-
-      return result.data;
-    },
-  });
+  const { data: profileMetaData } = useClientProfile(Boolean(user));
 
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {

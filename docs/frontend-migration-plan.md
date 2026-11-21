@@ -71,6 +71,7 @@ Lint override: until an app is migrated, `packages/eslint-config/next.mjs` downg
 - 2026-11-20: batch 1b done: `packages/web-core` (`@onemarketplace/web-core`: `ApiProvider` and `queryKeys`, `useAccount`, one shared notification stream per tab with reconnect, backoff and refetch, notifications list and optimistic mutations, one shared messaging socket with a fresh token per handshake, unread counts, sound player). No app uses it yet; the app wiring stays in the app batches.
 - 2026-11-20: batch 3a done (client foundations): see [Batch 3a result](#batch-3a-result). Not yet verified against a running API or a browser. Sub-batches 3b to 3e (jobs, proposals, contracts, messages, profile, settings, search) are open; `client-dashboard` stays in `unmigratedApps` until 3e.
 - 2026-11-21: batch 3b done (client onboarding, profile and settings): see [Batch 3b result](#batch-3b-result). Not yet verified against a running API or a browser.
+- 2026-11-21: batch 3c done (client jobs): see [Batch 3c result](#batch-3c-result). Not yet verified against a running API or a browser.
 
 ## Batch 0 result
 
@@ -146,3 +147,30 @@ Lint override: until an app is migrated, `packages/eslint-config/next.mjs` downg
 6. Open `/profile`: role, company, industry and the join year show; hiring stats and completed contracts show amounts like `$1,999.00` (not raw cents).
 7. Settings, Finances: "Manage finances" opens Stripe. Verification: "Verify with Stripe" opens Stripe Identity; `/settings?section=verifications&active=true` opens the modal once and Cancel closes it for good.
 8. Sign out and sign in again: you go straight to the dashboard, with no pass through `/profile/edit`. With the API stopped, the profile and settings pages show an error message instead of a blank page.
+
+## Batch 3c result
+
+- Operations used: `jobs_get` (`limit` 10, `offset`), `jobs_post`, `jobs_get_by_job_id`, `jobs_put_by_job_id`, `jobs_delete_by_job_id`. Hooks and query keys (`["client-jobs", ...]`) are in `app/hooks/use-jobs.ts`; pure mapping, validation, money, status and error helpers are in `lib/jobs.ts` (tests: `lib/jobs.test.ts`). Create, edit and delete invalidate the jobs queries and the proposals page's job query.
+- Shapes: camelCase bodies (`expertiseLevel`, `expectedDuration`, `screeningQuestions`, `milestones[].budgetCents`, `dueDate`); responses use `totalBudgetCents`, `milestones[].budgetCents`, `proposalCount`, `shortlistCount`, `hireCount`, `createdAt`. Input dollars become cents with `dollarsToCents` (a number such as 0.1 + 0.2 or more than 2 decimals is rejected, no float math); display uses `formatCents`. The spec has no `minBudgetCents` or `maxBudgetCents` on these operations.
+- List: `{ results, hasMore }` with Previous and Next buttons (page size 10, offset = page x 10, `keepPreviousData`, buttons disabled while fetching and at the ends). An empty later page (for example after deleting the last job on it) shows "No more job posts." with Previous.
+- Status: every value of the spec enum has an explicit label (`DRAFT` Draft, `PUBLISHED` Open, `HIRED` Hired); an unknown value is shown as received, never as "Closed". Edit is hidden for jobs with hires and locked for `HIRED` jobs; 409 `JOB_LOCKED` shows the API message.
+- Errors: `ApiError` with `errorMessage`; `errors[]` paths map onto form fields (`expertiseLevel` to Expertise level, `expectedDuration` to Duration, `milestones.N.budgetCents` to that milestone's budget, `milestones.N.dueDate`, `screeningQuestions.N`, `skills`, `attachments`); a banner under the top of the form shows the message and `(reference <requestId>)`. Delete errors show inside the confirm dialog. 404 `JOB_NOT_FOUND` on the edit page shows "Job post not found."; other load errors show the message with the reference.
+- Validation: milestone budget is at least $10 and at most $1,000,000 (the API accepts more than 500 cents and up to 100,000,000 cents per milestone; the form keeps its $10 floor); the budget input now takes cents (`step="0.01"`).
+- Due dates: the hardcoded year 2026 parsing is gone. The API stores `dueDate` as text; ISO dates (what the form sends) and ISO timestamps are used as they are, text with a year ("Dec 5, 2027") is parsed, and text without a year ("Dec 5") becomes empty so the owner picks the date again instead of getting a wrong year.
+- Fixed on the way: "Save draft" never ran because `handleSubmit(...)` was not invoked; new attachments are sent without a `fileId` (was `""`).
+- Header and sidebar: all three hand-written `/client/profile` fetches now use `useClientProfile` (one shared query, one request). `identityVerified === false` still gates the `/contracts/client` fetch and the warning banner; a profile of `null` (404 `PROFILE_NOT_FOUND`) means no company name and no banner.
+- Proposals exception: `proposals-dashboard.tsx` only had its `GET /jobs` call moved to the typed client (`limit` 100, first page only, mapped from `results`); the rest of the file, its 5 `any` and 1 `set-state-in-effect` warnings are left for 3d. `ClientJob.id` is typed `number` in `client-data.ts` but the API id is a uuid string (the file already compares with `String(item.id)`); two casts bridge it until 3d. The dollar `budget` and milestone `amount` there are derived from cents for display only.
+- Known limitations: the spec has no close or cancel operation for a job, so none was added (a published job can only be edited or deleted; a hired job is locked). The proposals page sees at most the first 100 jobs. Not verified against a running API or a browser. Five-rule warnings in the client app: 11 before, 9 after (header and sidebar no longer have any; `proposals-dashboard.tsx` keeps 6). Typecheck reports only a stale `.next/types/validator.ts` reference to the removed `app/api/me/route.js`; delete the local `apps/client-dashboard/.next` folder to clear it.
+
+### Manual QA checklist (owner) for 3c
+
+1. Start the API and the client app (Clerk dev keys, `NEXT_PUBLIC_SERVER_URI=http://localhost:4000/api/v1`). Open `/jobs` with no jobs: "You have not posted any jobs yet."
+2. Create: `/jobs/new`, fill the form with two milestones (for example $19.99 and $10). The total shows `$29.99`. Publish: `POST /jobs` carries `budgetCents` 1999 and 1000, you land on `/jobs`, and the card shows `Open` and `$29.99`.
+3. Save draft on a new job: the request is sent with `status: "DRAFT"` and the card shows `Draft`.
+4. Edit: open Edit on a job, change the title and a budget, save. `PUT /jobs/{id}` is sent, the list and the edit form show the new values after reload, and the budget round trips with cents (19.99 stays 19.99).
+5. List with pagination: with more than 10 jobs, Next shows the second page and Previous returns; both are disabled at the ends and while loading.
+6. Delete: Edit, Delete job post, confirm. The job disappears from the list. Repeat on a deleted job's edit URL: "Job post not found.".
+7. Validation: a milestone under $10 shows "Budget must be at least $10.00."; more than 2 decimals is refused. Force an API error (a 101-character title through devtools, or a 5001-character description): the message lands on that field, the banner shows the reference id, and the form keeps its data.
+8. A hired job: Edit is hidden in the list and `/jobs/{id}/edit` shows "This job post is locked".
+9. Header and sidebar: after loading any page there is one `GET /client/profile` request; the company name shows in the sidebar and the account menu; saving the profile updates both without reload. A new account without a profile (404 `PROFILE_NOT_FOUND`) shows no company name and no verification banner.
+10. `/proposals` still lists the jobs as cards (`Open` for published, budgets in dollars) and `/proposals?job=<id>` opens the selected job.

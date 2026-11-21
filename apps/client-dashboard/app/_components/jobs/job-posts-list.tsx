@@ -1,56 +1,29 @@
 "use client";
-import { useAuth } from "@clerk/nextjs";
+import { formatCents } from "@onemarketplace/api-client";
 import { Icon } from "@iconify/react";
-import { useQuery } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 import Link from "next/link";
-import React from "react";
+import React, { useState } from "react";
+import { useJobs } from "@/app/hooks/use-jobs";
+import { isJobOpen, jobErrorMessage, jobStatusLabel } from "@/lib/jobs";
 
-type JobPost = {
-  id: string;
-  title: string;
-  description: string;
-  expertise_level: string;
-  expected_duration: string;
-  skills: string[];
-  total_budget: string;
-  status: string;
-  proposalCount?: number;
-  shortlistCount?: number;
-  hireCount?: number;
-  created_at: string | null;
-};
+const PAGE_BUTTON =
+  "inline-flex h-10 cursor-pointer items-center gap-2 rounded-xl border border-black/10 bg-white px-4 text-xs font-semibold focus-visible:ring-2 focus-visible:ring-[#6e916a] focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-40";
 
 const JobPostsList = () => {
-  const { getToken } = useAuth();
-  const {
-    data: jobs = [],
-    isLoading,
-    error,
-  } = useQuery({
-    queryKey: ["client-job-posts"],
-    queryFn: async () => {
-      const token = await getToken();
-      if (!token) throw new Error("Your session has expired.");
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_SERVER_URI}/jobs?role=client`,
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
-      const result = await response.json();
-      if (!response.ok)
-        throw new Error(result.message || "Job posts could not be loaded.");
-      return result.data as JobPost[];
-    },
-  });
+  const [page, setPage] = useState(0);
+  const { data, isLoading, isFetching, error } = useJobs(page);
+  const jobs = data?.results ?? [];
 
   if (isLoading) return <JobPostsSkeleton />;
-  if (error) return <Message text={error.message} />;
-  if (!jobs.length) return <Message text="You have not posted any jobs yet." />;
+  if (error) return <Message text={jobErrorMessage(error)} />;
+  if (!jobs.length && page === 0)
+    return <Message text="You have not posted any jobs yet." />;
   return (
     <div className="mt-8 grid gap-4">
       {jobs.map((job) => {
-        const open = job.status === "PUBLISHED";
-        const hasHires = (job.hireCount ?? 0) > 0;
+        const open = isJobOpen(job.status);
+        const hasHires = job.hireCount > 0;
 
         return (
           <article
@@ -67,22 +40,18 @@ const JobPostsList = () => {
                         : "bg-[#f1f0e7] text-[#766f47]"
                     }`}
                   >
-                    {open
-                      ? "Open"
-                      : job.status === "DRAFT"
-                        ? "Draft"
-                        : "Closed"}
+                    {jobStatusLabel(job.status)}
                   </span>
                   <span className="text-[10px] text-[#8a8f87]">
-                    {job.created_at
-                      ? `${formatDistanceToNow(new Date(job.created_at))} ago`
+                    {job.createdAt
+                      ? `${formatDistanceToNow(new Date(job.createdAt))} ago`
                       : "Recently created"}
                   </span>
                 </div>
                 <h2 className="mt-3 text-lg font-semibold">{job.title}</h2>
                 <p className="mt-2 text-xs text-[#757b73]">
-                  Fixed price · ${Number(job.total_budget).toLocaleString()} ·{" "}
-                  {job.expertise_level} · {job.expected_duration}
+                  Fixed price · {formatCents(job.totalBudgetCents)} ·{" "}
+                  {job.expertiseLevel} · {job.expectedDuration}
                 </p>
               </div>
               <div className="flex flex-wrap items-start justify-end gap-2">
@@ -110,7 +79,7 @@ const JobPostsList = () => {
             </p>
 
             <div className="mt-5 flex flex-wrap gap-2">
-              {job?.skills?.map((skill) => (
+              {job.skills.map((skill) => (
                 <span
                   key={skill}
                   className="rounded-lg bg-[#f0f3ee] px-2.5 py-1.5 text-[10px] text-[#657062]"
@@ -121,13 +90,42 @@ const JobPostsList = () => {
             </div>
 
             <div className="mt-5 grid grid-cols-3 gap-3 border-t border-black/7 pt-4 sm:max-w-md">
-              <JobStat label={"Proposals"} value={job.proposalCount || 0} />
-              <JobStat label={"Shortlisted"} value={job.shortlistCount || 0} />
-              <JobStat label={"Hires"} value={job.hireCount || 0} />
+              <JobStat label={"Proposals"} value={job.proposalCount} />
+              <JobStat label={"Shortlisted"} value={job.shortlistCount} />
+              <JobStat label={"Hires"} value={job.hireCount} />
             </div>
           </article>
         );
       })}
+      {!jobs.length && <Message text="No more job posts." />}
+      {(page > 0 || data?.hasMore) && (
+        <nav
+          aria-label="Job posts pages"
+          className="flex items-center justify-between gap-3"
+        >
+          <button
+            type="button"
+            disabled={page === 0 || isFetching}
+            onClick={() => setPage((value) => Math.max(value - 1, 0))}
+            className={PAGE_BUTTON}
+          >
+            <Icon icon="solar:arrow-left-linear" width="15" />
+            Previous
+          </button>
+          <span className="text-xs text-[#737970]" aria-live="polite">
+            Page {page + 1}
+          </span>
+          <button
+            type="button"
+            disabled={!data?.hasMore || isFetching}
+            onClick={() => setPage((value) => value + 1)}
+            className={PAGE_BUTTON}
+          >
+            Next
+            <Icon icon="solar:arrow-right-linear" width="15" />
+          </button>
+        </nav>
+      )}
     </div>
   );
 };

@@ -2,6 +2,8 @@
 
 import { Icon } from "@iconify/react";
 import { useAuth } from "@clerk/nextjs";
+import { centsToDollarsString, unwrap } from "@onemarketplace/api-client";
+import { useApi } from "@onemarketplace/web-core";
 import { useQuery } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 import Link from "next/link";
@@ -14,6 +16,7 @@ import Image from "next/image";
 const proposalsPerPage = 2;
 const emptyProposalData: any[] = [];
 const emptyJobsData: any[] = [];
+const PROPOSALS_JOBS_LIMIT = 100;
 
 export function ProposalsDashboard({
   initialJobId = null,
@@ -22,6 +25,7 @@ export function ProposalsDashboard({
 }) {
   const router = useRouter();
   const { getToken } = useAuth();
+  const api = useApi();
   const selectedJobId = initialJobId;
   const [filter, setFilter] = useState("All");
   const [proposals, setProposals] = useState<ClientProposal[]>([]);
@@ -39,15 +43,13 @@ export function ProposalsDashboard({
   >({
     queryKey: ["client-proposals-job-posts"],
     queryFn: async () => {
-      const token = await getToken();
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_SERVER_URI}/jobs?role=client`,
-        { headers: { Authorization: `Bearer ${token}` } },
+      const page = await unwrap(
+        api.GET("/api/v1/jobs", {
+          params: { query: { limit: PROPOSALS_JOBS_LIMIT } },
+        }),
       );
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.message);
-      return result.data.map((job: any) => ({
-        id: job.id,
+      return page.results.map((job): ClientJob => ({
+        id: job.id as unknown as ClientJob["id"],
         title: job.title,
         status:
           job.status === "PUBLISHED"
@@ -55,23 +57,23 @@ export function ProposalsDashboard({
             : job.status === "DRAFT"
               ? "Draft"
               : "Closed",
-        posted: job.created_at
-          ? `${formatDistanceToNow(new Date(job.created_at))} ago`
+        posted: job.createdAt
+          ? `${formatDistanceToNow(new Date(job.createdAt))} ago`
           : "Recently",
-        budget: Number(job.total_budget),
-        level: job.expertise_level,
-        duration: job.expected_duration,
+        budget: Number(centsToDollarsString(job.totalBudgetCents)),
+        level: job.expertiseLevel as ClientJob["level"],
+        duration: job.expectedDuration,
         description: job.description,
         skills: job.skills,
-        proposals: job.proposalCount ?? 0,
-        shortlisted: job.shortlistCount ?? 0,
-        hires: job.hireCount ?? 0,
+        proposals: job.proposalCount,
+        shortlisted: job.shortlistCount,
+        hires: job.hireCount,
         visibility: "Marketplace",
-        screeningQuestions: job.screening_questions ?? [],
-        milestones: (job.milestones ?? []).map((milestone: any) => ({
-          id: milestone.id,
+        screeningQuestions: job.screeningQuestions ?? [],
+        milestones: job.milestones.map((milestone) => ({
+          id: milestone.id as unknown as number,
           title: milestone.title,
-          amount: Number(milestone.budget),
+          amount: Number(centsToDollarsString(milestone.budgetCents)),
           due: milestone.dueDate,
         })),
       }));

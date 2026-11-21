@@ -4,43 +4,16 @@ import { Icon } from "@iconify/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { clientSidebarNavigation } from "./navigation";
-import { getToken, useUser } from "@clerk/nextjs";
+import { useUser } from "@clerk/nextjs";
 import Image from "next/image";
-import { useQuery } from "@tanstack/react-query";
+import { useClientProfile } from "@/app/hooks/use-client-profile";
 
 export function ClientSidebar() {
   const { user, isLoaded } = useUser();
   const pathname = usePathname();
 
-  const { data: profileMetaData, isLoading: profileMetaDataLoading } = useQuery(
-    {
-      queryKey: ["profile-metadata"],
-      enabled: Boolean(user),
-      queryFn: async () => {
-        const token = await getToken();
-
-        const response = await fetch(
-          `${process.env.NEXT_PUBLIC_SERVER_URI}/client/profile?role=client`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-            cache: "no-store",
-          },
-        );
-
-        const result = await response.json();
-
-        if (!response.ok) {
-          throw new Error(
-            result.message || "The client profile could not be loaded.",
-          );
-        }
-
-        return result.data;
-      },
-    },
-  );
+  const { data: profileMetaData, isLoading: profileMetaDataLoading } =
+    useClientProfile(Boolean(user));
 
   return (
     <aside className="hidden xl:sticky xl:top-24 xl:block">

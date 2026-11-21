@@ -1,5 +1,6 @@
 "use client";
 
+import { isApiError } from "@onemarketplace/api-client";
 import { Icon } from "@iconify/react";
 import { addDays, isAfter, parseISO, startOfDay } from "date-fns";
 import {
@@ -11,56 +12,42 @@ import {
 } from "react-hook-form";
 import { useState } from "react";
 import { DatePickerField } from "./date-picker-field";
-import { useAuth } from "@clerk/nextjs";
-import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { useDeleteJob, useSaveJob } from "@/app/hooks/use-jobs";
+import {
+  JOB_LIMITS,
+  formatTotalBudget,
+  hasUnmappedErrors,
+  jobErrorMessage,
+  jobFieldErrorsFromApi,
+  normalizeDueDate,
+  parseSkills,
+  toJobBody,
+  validateMilestoneAmount,
+  type InitialJobPost,
+  type JobAttachment,
+  type JobBodyAttachment,
+  type JobFormValues,
+  type JobSaveStatus,
+} from "@/lib/jobs";
 
-type JobPostValues = {
-  title: string;
-  description: string;
-  expertise: string;
-  duration: string;
-  skills: string;
-  milestones: {
-    title: string;
-    amount: number;
-    due: string;
-  }[];
-  existingAttachments: StoredAttachment[];
-  questions: { value: string }[];
+type JobPostValues = JobFormValues & {
+  existingAttachments: JobAttachment[];
   attachments?: FileList;
 };
 
-type StoredAttachment = {
-  fileId: string;
-  fileName: string;
-  fileUrl: string;
-  fileType: string;
-  fileSize: number;
-};
-
-export type InitialJobPost = {
-  id: string;
-  title: string;
-  description: string;
-  level: string;
-  duration: string;
-  skills: string[];
-  screeningQuestions: string[];
-  milestones: { title: string; amount: number; due: string }[];
-  attachments: StoredAttachment[];
-};
+export type { InitialJobPost };
 
 export function JobPostForm({ initialJob }: { initialJob?: InitialJobPost }) {
   const editing = Boolean(initialJob);
-  const [savedStatus, setSavedStatus] = useState<"DRAFT" | "PUBLISHED" | null>(
-    null,
-  );
+  const [savedStatus, setSavedStatus] = useState<JobSaveStatus | null>(null);
+  const [savingStatus, setSavingStatus] = useState<JobSaveStatus | null>(null);
+  const [formError, setFormError] = useState("");
+  const [deleteError, setDeleteError] = useState("");
 
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  const { getToken } = useAuth();
   const router = useRouter();
 
   const {
@@ -69,6 +56,7 @@ export function JobPostForm({ initialJob }: { initialJob?: InitialJobPost }) {
     handleSubmit,
     getValues,
     reset,
+    setError,
     trigger,
     formState: { errors, isValid, dirtyFields, isSubmitting },
   } = useForm<JobPostValues>({
@@ -103,17 +91,11 @@ export function JobPostForm({ initialJob }: { initialJob?: InitialJobPost }) {
   } = useFieldArray({ control, name: "questions" });
 
   const fileToAttachment = (file: File) =>
-    new Promise<{
-      fileId: string;
-      fileName: string;
-      fileUrl: string;
-      fileType: string;
-      fileSize: number;
-    }>((resolve, reject) => {
+    new Promise<JobBodyAttachment>((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () =>
         resolve({
-          fileId: "",
+          fileId: null,
           fileName: file.name,
           fileUrl: String(reader.result),
           fileType: file.type,
@@ -149,14 +131,6 @@ export function JobPostForm({ initialJob }: { initialJob?: InitialJobPost }) {
     attachments?.length,
   );
 
-  const totalBudget = milestones.reduce(
-    (total, milestone) =>
-      total +
-      (Number.isFinite(Number(milestone.amount))
-        ? Number(milestone.amount)
-        : 0),
-    0,
-  );
   const milestoneIncomplete = milestones.some(
     (milestone) =>
       !milestone.title?.trim() ||
@@ -167,58 +141,19 @@ export function JobPostForm({ initialJob }: { initialJob?: InitialJobPost }) {
     (question) => !question.value?.trim(),
   );
 
-  const saveJob = useMutation({
-    mutationFn: async ({
-      values,
-      status,
-    }: {
-      values: JobPostValues;
-      status: "DRAFT" | "PUBLISHED";
-    }) => {
-      const token = await getToken();
-      if (!token)
-        throw new Error("Your session has expired. Please sign in again.");
+  const saveJob = useSaveJob(initialJob?.id);
+  const deleteJob = useDeleteJob(initialJob?.id ?? "");
 
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_SERVER_URI}/jobs${editing ? `/${initialJob?.id}` : ""}?role=client`,
-        {
-          method: editing ? "PUT" : "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            title: values.title,
-            description: values.description,
-            expertise_level: values.expertise,
-            expected_duration: values.duration,
-            skills: values.skills
-              .split(",")
-              .map((skill) => skill.trim())
-              .filter(Boolean),
-            milestones: values.milestones.map((milestone) => ({
-              title: milestone.title,
-              budget: milestone.amount,
-              dueDate: milestone.due,
-            })),
-            screening_questions: values.questions
-              .map(({ value }) => value.trim())
-              .filter(Boolean),
-            attachments: values?.attachments?.length
-              ? await Promise.all(
-                  Array.from(values.attachments ?? []).map(fileToAttachment),
-                )
-              : (initialJob?.attachments ?? []),
-            status,
-          }),
-        },
-      );
-      const result = await response.json();
-      if (!response.ok)
-        throw new Error(result.message || "Job post could not be saved.");
-      return result;
-    },
-    onSuccess: (_result, { status }) => {
+  const submitJob = async (values: JobPostValues, status: JobSaveStatus) => {
+    setFormError("");
+    setSavingStatus(status);
+    try {
+      const uploaded = values.attachments?.length
+        ? await Promise.all(
+            Array.from(values.attachments).map(fileToAttachment),
+          )
+        : (initialJob?.attachments ?? []);
+      await saveJob.mutateAsync(toJobBody(values, status, uploaded));
       setSavedStatus(status);
       reset();
       toast.success(
@@ -229,39 +164,50 @@ export function JobPostForm({ initialJob }: { initialJob?: InitialJobPost }) {
             : "Job post published.",
       );
       router.push("/jobs");
-    },
-    onError: (error) => toast.error(error.message),
-  });
-
-  const deleteJob = useMutation({
-    mutationFn: async () => {
-      const token = await getToken();
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_SERVER_URI}/jobs/${initialJob?.id}?role=client`,
-        {
-          method: "DELETE",
-          headers: { Authorization: `Bearer ${token}` },
-        },
+    } catch (error) {
+      const apiErrors = isApiError(error) ? error.errors : undefined;
+      for (const item of jobFieldErrorsFromApi(apiErrors)) {
+        setError(item.name, { type: "server", message: item.message });
+      }
+      const message =
+        error instanceof Error && !isApiError(error)
+          ? error.message
+          : jobErrorMessage(error);
+      setFormError(
+        apiErrors && !hasUnmappedErrors(apiErrors)
+          ? `Fix the highlighted fields. ${message}`
+          : message,
       );
-      const result = await response.json();
-      if (!response.ok)
-        throw new Error(result.message || "Job post could not be deleted.");
-    },
-    onSuccess: () => {
+    } finally {
+      setSavingStatus(null);
+    }
+  };
+
+  const removeJob = async () => {
+    setDeleteError("");
+    try {
+      await deleteJob.mutateAsync();
       toast.success("Job post deleted.");
       router.push("/jobs");
-    },
-    onError: (error) => toast.error(error.message),
-  });
+    } catch (error) {
+      setDeleteError(jobErrorMessage(error));
+    }
+  };
 
   return (
     <form
-      onSubmit={handleSubmit((values) =>
-        saveJob.mutateAsync({ values, status: "PUBLISHED" }),
-      )}
+      onSubmit={handleSubmit((values) => submitJob(values, "PUBLISHED"))}
       className="mt-8 grid gap-5"
       noValidate
     >
+      {formError && (
+        <p
+          role="alert"
+          className="rounded-xl bg-[#f8eeee] p-4 text-sm font-semibold text-[#9b4f4f]"
+        >
+          {formError}
+        </p>
+      )}
       {savedStatus && (
         <p
           role="status"
@@ -288,8 +234,8 @@ export function JobPostForm({ initialJob }: { initialJob?: InitialJobPost }) {
                 message: "Job title must be at least 10 characters.",
               },
               maxLength: {
-                value: 100,
-                message: "Job title cannot exceed 100 characters.",
+                value: JOB_LIMITS.title,
+                message: `Job title cannot exceed ${JOB_LIMITS.title} characters.`,
               },
             })}
             placeholder="e.g. Senior Next.js developer for a collaborative workspace"
@@ -311,7 +257,7 @@ export function JobPostForm({ initialJob }: { initialJob?: InitialJobPost }) {
                   "Add at least 80 characters so talent can scope the work.",
               },
               maxLength: {
-                value: 5000,
+                value: JOB_LIMITS.description,
                 message: "Description cannot exceed 5,000 characters.",
               },
             })}
@@ -366,10 +312,7 @@ export function JobPostForm({ initialJob }: { initialJob?: InitialJobPost }) {
             {...register("skills", {
               required: "Add at least one required skill.",
               validate: (value) =>
-                value
-                  .split(",")
-                  .map((skill) => skill.trim())
-                  .filter(Boolean).length > 0 ||
+                parseSkills(value).length > 0 ||
                 "Add at least one required skill.",
             })}
             placeholder="e.g. Next.js, TypeScript, Product design"
@@ -377,18 +320,14 @@ export function JobPostForm({ initialJob }: { initialJob?: InitialJobPost }) {
           />
         </FormField>
         <div className="flex flex-wrap gap-2">
-          {skills
-            .split(",")
-            .map((item) => item.trim())
-            .filter(Boolean)
-            .map((skill) => (
-              <span
-                key={skill}
-                className="rounded-full bg-[#edf3ea] px-3 py-1.5 text-[10px] font-medium text-[#527052]"
-              >
-                {skill}
-              </span>
-            ))}
+          {parseSkills(skills).map((skill) => (
+            <span
+              key={skill}
+              className="rounded-full bg-[#edf3ea] px-3 py-1.5 text-[10px] font-medium text-[#527052]"
+            >
+              {skill}
+            </span>
+          ))}
         </div>
       </Section>
 
@@ -399,7 +338,7 @@ export function JobPostForm({ initialJob }: { initialJob?: InitialJobPost }) {
         <div className="rounded-xl bg-[#f2f5ef] p-4">
           <p className="text-xs text-[#7b8078]">Total project budget</p>
           <p className="mt-1 text-2xl font-semibold">
-            ${totalBudget.toLocaleString()}
+            {formatTotalBudget(milestones)}
           </p>
         </div>
 
@@ -442,17 +381,13 @@ export function JobPostForm({ initialJob }: { initialJob?: InitialJobPost }) {
                     {...register(`milestones.${index}.amount`, {
                       required: "Enter a budget.",
                       valueAsNumber: true,
-                      min: {
-                        value: 10,
-                        message: "Budget must be greater than $10.",
-                      },
                       validate: (value) =>
-                        Number.isFinite(value) || "Enter a valid number.",
+                        validateMilestoneAmount(value) ?? true,
                     })}
                     type="number"
                     inputMode="decimal"
                     min="10"
-                    step="1"
+                    step="0.01"
                     placeholder="e.g. 3000"
                     className={inputClass(
                       Boolean(milestoneErrors?.amount),
@@ -679,15 +614,11 @@ export function JobPostForm({ initialJob }: { initialJob?: InitialJobPost }) {
             type="button"
             disabled={!isValid || isSubmitting || saveJob.isPending}
             onClick={() =>
-              void handleSubmit((values) =>
-                saveJob.mutateAsync({ values, status: "DRAFT" }),
-              )
+              void handleSubmit((values) => submitJob(values, "DRAFT"))()
             }
             className="h-11 rounded-xl border border-black/10 px-5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-40"
           >
-            {saveJob?.isPending && saveJob.variables?.status === "DRAFT"
-              ? "Saving draft..."
-              : "Save draft"}
+            {savingStatus === "DRAFT" ? "Saving draft..." : "Save draft"}
           </button>
         )}
         <button
@@ -728,6 +659,14 @@ export function JobPostForm({ initialJob }: { initialJob?: InitialJobPost }) {
               This permanently removes the job post and its uploaded
               attachments. This action cannot be undone.
             </p>
+            {deleteError && (
+              <p
+                role="alert"
+                className="mt-3 text-xs font-medium text-[#a85252]"
+              >
+                {deleteError}
+              </p>
+            )}
             <div className="mt-6 flex justify-end gap-2">
               <button
                 type="button"
@@ -739,7 +678,7 @@ export function JobPostForm({ initialJob }: { initialJob?: InitialJobPost }) {
               <button
                 type="button"
                 disabled={deleteJob.isPending}
-                onClick={() => deleteJob.mutate()}
+                onClick={() => void removeJob()}
                 className="h-11 rounded-xl bg-[#9b4f4f] px-5 text-sm font-semibold text-white disabled:opacity-50"
               >
                 {deleteJob.isPending ? "Deleting…" : "Delete job post"}
@@ -814,16 +753,4 @@ function RequiredMark() {
       *
     </span>
   );
-}
-
-function normalizeDueDate(dueDate: string) {
-  if (/^\d{4}-\d{2}-\d{2}$/.test(dueDate)) return dueDate;
-
-  const parsedDate = new Date(`${dueDate}, 2026`);
-  if (Number.isNaN(parsedDate.getTime())) return "";
-
-  const year = parsedDate.getFullYear();
-  const month = String(parsedDate.getMonth() + 1).padStart(2, "0");
-  const day = String(parsedDate.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
 }
