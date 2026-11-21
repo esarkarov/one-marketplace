@@ -32,6 +32,21 @@
       "Bash(pnpm test:quiet *)",
       "Bash(pnpm --silent test:quiet *)",
       "Bash(pnpm --filter @onemarketplace/api test:quiet *)",
+      "Bash(pnpm --filter * test)",
+      "Bash(pnpm --filter * test *)",
+      "Bash(pnpm --filter * test:quiet *)",
+      "Bash(pnpm --filter * exec vitest run *)",
+      "Bash(pnpm --filter * exec eslint *)",
+      "Bash(pnpm --filter * exec prettier --check *)",
+      "Bash(pnpm --filter @onemarketplace/api openapi:generate)",
+      "Bash(pnpm --filter @onemarketplace/api-client generate)",
+      "Bash(pnpm --filter @onemarketplace/api db:test:migrate)",
+      "Bash(pnpm exec eslint *)",
+      "Bash(pnpm exec prettier --check *)",
+      "Bash(pnpm exec vitest run *)",
+      "Bash(prettier --check *)",
+      "Bash(node .claude/hooks/selftest.mjs)",
+      "Bash(gitleaks git --config .gitleaks.toml *)",
       "Bash(git status *)",
       "Bash(git diff *)",
       "Bash(git log *)",
@@ -41,7 +56,14 @@
       "Bash(git rev-parse *)",
       "Bash(git branch --list *)",
       "Bash(git branch --show-current)",
-      "Bash(git remote -v)"
+      "Bash(git remote -v)",
+      "Bash(gh run list *)",
+      "Bash(gh run view *)",
+      "Bash(gh auth status)",
+      "Bash(gh api *code-scanning/alerts*)",
+      "Bash(node .claude/scripts/changed-areas.mjs)",
+      "Bash(node .claude/scripts/commit-plan.mjs)",
+      "Bash(sha256sum docs/api/openapi.json)"
     ],
     "ask": [
       "Bash(pnpm infra:reset *)",
@@ -50,6 +72,8 @@
       "Edit(./.claude/hooks/**)"
     ],
     "deny": [
+      "Read(**/.env*)",
+      "Edit(**/.env*)",
       "Read(./.env*)",
       "Read(!.env.example)",
       "Bash(cat *.env)",
@@ -66,17 +90,74 @@
       "Bash(rg *.env)",
       "Bash(Get-Content *.env)",
       "Bash(Get-Content *.env.local)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(git pull *)",
+      "Bash(git fetch *)",
+      "Bash(git merge *)",
+      "Bash(git rebase *)",
+      "Bash(git reset *)",
+      "Bash(git checkout *)",
+      "Bash(git switch *)",
+      "Bash(git restore *)",
+      "Bash(git stash *)",
+      "Bash(git cherry-pick *)",
+      "Bash(git revert *)",
+      "Bash(git tag *)",
+      "Bash(git rm *)",
+      "Bash(git mv *)",
+      "Bash(git clean *)",
+      "Bash(git apply *)",
+      "Bash(git am *)",
+      "Bash(git config *)",
+      "Bash(git init *)",
+      "Bash(git clone *)",
       "Bash(git push --force*)",
       "Bash(git push -f*)",
       "Bash(git push * --force*)",
       "Bash(git push * -f*)",
       "Bash(git push * +*)",
-      "Bash(rm -rf *)",
-      "Bash(rm -fr *)",
-      "Bash(rm -r -f *)",
-      "Bash(rm -f -r *)",
-      "Bash(rm -Rf *)",
-      "Bash(rm -fR *)"
+      "Bash(rm *)",
+      "Bash(rmdir *)",
+      "Bash(rd *)",
+      "Bash(del *)",
+      "Bash(Remove-Item *)",
+      "Bash(npm *)",
+      "Bash(npx *)",
+      "Bash(yarn *)",
+      "Bash(tsx *scripts/*)",
+      "Bash(node *scripts/*.ts*)",
+      "Bash(pnpm tsx *scripts/*)",
+      "Bash(pnpm * exec tsx *scripts/*)",
+      "Bash(pnpm exec tsx *scripts/*)",
+      "Bash(gh pr create *)",
+      "Bash(gh pr merge *)",
+      "Bash(gh pr close *)",
+      "Bash(gh pr comment *)",
+      "Bash(gh pr edit *)",
+      "Bash(gh pr review *)",
+      "Bash(gh issue create *)",
+      "Bash(gh issue close *)",
+      "Bash(gh issue comment *)",
+      "Bash(gh issue edit *)",
+      "Bash(gh release *)",
+      "Bash(gh repo *)",
+      "Bash(gh secret *)",
+      "Bash(gh variable *)",
+      "Bash(gh workflow run *)",
+      "Bash(gh workflow enable *)",
+      "Bash(gh workflow disable *)",
+      "Bash(gh run rerun *)",
+      "Bash(gh run cancel *)",
+      "Bash(gh run delete *)",
+      "Bash(gh auth login *)",
+      "Bash(gh auth logout *)",
+      "Bash(gh api * -X *)",
+      "Bash(gh api * --method *)",
+      "Bash(gh api * -f *)",
+      "Bash(gh api * -F *)",
+      "Bash(gh api * --input *)"
     ]
   },
   "disabledMcpjsonServers": ["playwright"],
@@ -89,6 +170,40 @@
             "type": "command",
             "command": "node",
             "args": ["${CLAUDE_PROJECT_DIR}/.claude/hooks/protect-files.mjs"]
+          },
+          {
+            "type": "command",
+            "command": "node",
+            "args": [
+              "${CLAUDE_PROJECT_DIR}/.claude/hooks/protect-generated.mjs"
+            ]
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": ["${CLAUDE_PROJECT_DIR}/.claude/hooks/bash-guard.mjs"]
+          },
+          {
+            "type": "command",
+            "command": "node",
+            "args": ["${CLAUDE_PROJECT_DIR}/.claude/hooks/trim-test-output.mjs"]
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": ["${CLAUDE_PROJECT_DIR}/.claude/hooks/format-edited.mjs"]
           }
         ]
       }

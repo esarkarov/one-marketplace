@@ -1,57 +1,82 @@
 # OneMarketplace
 
-pnpm monorepo for a freelancing marketplace.
+pnpm monorepo for a freelancing marketplace. Rules here are summaries; the docs they link to are the source. Nested `AGENTS.md` files in `services/api`, `infra` and each Next.js app add folder rules (read an app's own `AGENTS.md` before writing code in it).
 
-## Layout
+## Standing rules
 
-- apps/\*: Next.js dashboards (landing-page, client-dashboard, freelancer-dashboard, agency-dashboard, admin-dashboard)
-- services/api: Express 5 modular monolith with one module per domain, including the Drizzle schema and migrations. The tutorial code was migrated into it (`docs/decisions/0003-api-migration.md`); `services/` holds nothing else.
-- packages/\*: shared code, scoped as `@onemarketplace/<folder-name>`; `packages/api-client` is the typed API client generated from `docs/api/openapi.json` (source only, no React; see its README); `packages/web-core` is the shared React layer on top of it (provider, account, notification stream, messaging socket, unread counts, message sound; takes `getToken` as a prop, no Clerk or Next; see its README)
-- infra/docker: local Postgres and Redis
+- No git write of any kind (add, commit, push, reset, checkout, stash, tag, config). Agents never commit; print the command for the user (`/commit-plan`). A hook blocks these.
+- No deletions inside the repo. List files to delete in the report under FILES FOR ME TO DELETE.
+- Never read or edit `.env*` files. Never run `services/api/scripts/*.ts`.
+- pnpm only, never npm, npx or yarn. Shared versions use `catalog:` (`pnpm-workspace.yaml`).
+- `typescript` is an alias for `@typescript/typescript6` and `tsc` comes from `@typescript/native`; keep both.
+- No comments in source code. Kebab-case folders and files.
+- Ask before editing application source (`services/api/src`, `apps/*`, `packages/*/src`). Implementers edit only files named in an approved plan.
+- Never set `turbopack.root` to `process.cwd()`.
+- `docs/api/openapi.json`, `packages/api-client/src/generated/*`, `pnpm-lock.yaml` and applied migrations are not edited by hand (hooks block it).
+- Touched files must pass eslint with 0 errors. Local format check: `pnpm exec prettier --check --end-of-line auto <files>` (working tree may be CRLF, CI is LF).
+- Where a prompt and the repo disagree, the repo wins: say so.
 
-## Docs
+## Repo map
 
-- `docs/product.md`: roles and flows as the apps show them. Read it for product work.
-- `docs/design-system.md`: tokens and component conventions. Read it for UI work.
-- `docs/frontend-integration-notes.md`: what the apps must change to match the API contract (they already call it, with the old shapes). Read it for frontend work.
-- `docs/frontend-migration-plan.md`: audit findings, decisions and the batch plan for aligning the apps with the API. Read it for frontend work.
-- `docs/decisions/`: architecture decision records. They record the state at their date; paths in older ones predate ADR 0016, 0017 and 0020.
-- Nested `AGENTS.md` files in `services/api` and `infra` add folder-specific rules.
+- `apps/*` (Next.js, `pnpm --filter @onemarketplace/<name> dev`): landing-page 3000, client-dashboard 3001, freelancer-dashboard 3002, agency-dashboard 3003, admin-dashboard 3004.
+- `packages/*`: `api-client` (typed client generated from `docs/api/openapi.json`, no React), `web-core` (shared React layer on it: provider, account, notification stream, socket, unread counts; `getToken` is a prop), `ui` (placeholder), `tsconfig`, `eslint-config`.
+- `services/api` (`@onemarketplace/api`): Express 5 modular monolith. Modules: admin, agency, auth, client, connects, contracts, freelancer, health, identity, jobs, meetings, messaging, notification-store, notifications, payouts, proposals. Layers (a module imports only lower ones): 0 auth, health, notification-store; 1 admin, client, identity, jobs, payouts, connects; 2 freelancer; 3 agency; 4 messaging; 5 meetings, notifications, proposals; 6 contracts.
+- `infra/docker`: Postgres 18, Redis 8, RabbitMQ 4.4, Swagger UI (`pnpm infra:up`). Never `infra:reset` without asking.
+- Docs: `docs/architecture.md` (read for backend and cross-cutting work), `docs/product.md`, `docs/design-system.md`, `docs/frontend-integration-notes.md`, `docs/frontend-migration-plan.md`, `docs/ci.md`, `docs/adding-an-api-module.md`, `docs/decisions/` (ADRs 0001 to 0024, no index file; list the folder), `docs/test-plans/`, `docs/claude-code-setup.md`.
+- CI (`.github/workflows/ci.yml`): `check` (`pnpm check`), `build` (`pnpm -r build`), `api-test` (vitest, openapi drift), `gitleaks`, `audit` (informational), `dependency-review`, `codeql`, `workflow-lint`, `compose-validate`, `ci-pass` (the required check).
 
-@docs/architecture.md
+## Backend rules (details: `services/api/AGENTS.md`, ADRs)
 
-## Tooling
+- Read a module fully before changing it. ESM, `@/` for cross-directory imports, `.js` suffixes, no `../` (ADR 0020).
+- Module folder layout is fixed (ADR 0016, `module-layout.test.ts`). Cross-module imports go through the other module's `index.ts` and only to a lower layer; no cycles; `boundary-exceptions.ts` stays empty (ADR 0013, 0017).
+- SQL only in `repositories/*.repository.ts`; services open `db.transaction` but never import drizzle query helpers or models (ADR 0015, `repository-sql.test.ts`, `repository-purity.test.ts`).
+- Table ownership: one owner per table; other modules read only if listed in `src/test/architecture/table-access-allowlist.ts` (reads only). Cross-module writes are owner functions that take the executor first and do SQL only (ADR 0014 s.11).
+- Notifications that must not be lost are written with `insertNotification` inside the business transaction, deterministic event id, then `pushStoredNotification` after commit. Others go through RabbitMQ, which stays optional (ADR 0024, 0004).
+- Batch claims use a materialized id subquery: `WITH picked AS MATERIALIZED (...) UPDATE ... FROM picked`, never `WHERE id IN (SELECT ... LIMIT)` (ADR 0023).
+- Status transitions are single guarded conditional UPDATEs; a lost race answers a coded 409 (ADR 0007).
+- Money is integer cents (`*_cents`, `*Cents`); use `shared/money/money.ts` (ADR 0006).
+- Every route: zod `validate({ params, query, body, responses })`, read through `getValidated`, response schema with a 2xx entry, contract test (ADR 0011, 0012).
+- Migrations are append-only and generated by drizzle-kit through `/db-change` against local Docker; never edit an applied one; never run against a remote database.
+- Routes or schemas changed: `pnpm --filter @onemarketplace/api openapi:generate`, then `pnpm --filter @onemarketplace/api-client generate`; compare `sha256sum docs/api/openapi.json` before and after (CI fails on drift).
+- Env is validated in `src/config/env.ts`; read configuration only through `config`. Third-party clients live only in `src/infrastructure/`. No `console.*` (pino).
+- Vitest has two projects (`vitest.config.ts`): `parallel` (groupOrder 0) and `payout-totals` (groupOrder 1, serial). A test that writes PAID payout rows or asserts on global counts or search page order goes into `payoutTotalsFiles`.
+- Tests need the local `_test` database: `pnpm --filter @onemarketplace/api db:test:setup`.
 
-- Node 26 (pinned in `.node-version`) and pnpm 12. Use pnpm only, never npm or yarn.
-- Shared dependency versions live in the catalog in `pnpm-workspace.yaml`. Use `catalog:` in `package.json` for shared dependencies.
-- `typescript` is an alias for `@typescript/typescript6` so typescript-eslint keeps working. `tsc` comes from `@typescript/native` (TypeScript 7). Do not replace either.
-- Next.js apps: read the app's own `AGENTS.md` before writing code.
+## Frontend rules (read `docs/frontend-migration-plan.md` and `docs/frontend-integration-notes.md` first)
 
-## Commands
+- Call the API only through `@onemarketplace/api-client`; React concerns (account, notifications, socket, unread) come from `@onemarketplace/web-core`. Do not hand-roll fetches or streams.
+- Money is integer cents end to end; format in the UI only. Fields are lowerCamelCase, enums UPPER_SNAKE. Lists are `{ results, hasMore }` or `{ results, nextCursor }`.
+- Errors are `{ success: false, message, code, requestId, errors? }`: branch on `code`, log `requestId`.
+- Role and scope: send the role or scope the operation requires; public ids come from `accountId` (`GET /auth/status`), never a Clerk id.
+- `packages/eslint-config/next.mjs` lists `unmigratedApps` (agency, client, freelancer dashboards) whose five rules are warnings. An app leaves the list in its last batch with zero warnings for those rules; never add an app to it.
+- UI follows `docs/design-system.md`. Update the plan's Status section when a batch lands.
 
-- `pnpm install`
-- `pnpm -r --no-bail lint`, `typecheck`, `build`
-- `pnpm --filter @onemarketplace/<name> <script>` for a single package
+## Verification tiers
 
-## Conventions
+- Tier 1, after each unit of work, affected area only:
+  - API: affected module tests (`pnpm --filter @onemarketplace/api test:quiet <path>`), API typecheck, eslint on touched files, and the openapi drift check if routes or schemas changed.
+  - Frontend: affected tests, typecheck of the changed app, eslint on touched files.
+  - Use `/verify`; it detects the areas and runs these through the test-runner agent.
+- Tier 2, before the user commits a finished task or the last sub-batch of an app: full suite (`pnpm --filter @onemarketplace/api test:quiet`) or `pnpm check`, a production build when an app or shared package changed (`pnpm --filter <pkg> build` with dummy env), and one reviewer pass.
+- Mutation checks (break the code, see the test fail) only for security-, money- or ordering-sensitive logic.
+- Use Grep and ranged Read, do not re-read files, prefer quiet output. Start a fresh session per stage.
 
-- kebab-case for folders and files.
-- Conventional commit messages.
-- No unnecessary comments in source code.
-- Never set `turbopack.root` to `process.cwd()` in a Next config. Leave root detection to Next.
-- Ask before editing application source files.
+## Commits (the user commits, agents never do)
 
-## Agent setup
+- Conventional commits (`feat`, `fix`, `docs`, `chore`, `ci`, `style`, `refactor`, `test`), one concern per commit. Subject on one line; body lines at most 100 characters.
+- Trailers: commit messages end with `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>` and PR descriptions with `Generated with [Claude Code](https://claude.com/claude-code)` (the attribution lines the harness gives).
+- `git add` narrow paths. `git add .` only after a `git status` check.
+- Hooks: pre-commit runs `gitleaks git --pre-commit --staged` then lint-staged (eslint --fix per workspace, prettier --write); commit-msg runs commitlint.
 
-Agents, commands and skills live in `.claude/` (each file's frontmatter says what it owns), MCP servers in `.mcp.json`. Implementer agents edit only files named in an approved plan or request and return questions to the main session otherwise. Slash commands: `/feature`, `/db-change`, `/ui-review`, `/security-audit`, `/check`. Skills are vendored and pinned in `skills-lock.json`; update one by re-reviewing it, not by editing it in place.
+## Models and agents
 
-Guards in `.claude/settings.json`: `.env*` (except `.env.example`) and `pnpm-lock.yaml` cannot be changed with the Edit, Write or NotebookEdit tools, and edits to `.claude/settings.json` and `.claude/hooks/` ask first. MCP servers are pinned to exact versions and approved on first use. `playwright` is disabled by default; enable it through `/mcp` before UI review.
+- Agents in `.claude/agents/` (architect, reviewer opus; backend, database, frontend, qa, design-ux, infra sonnet; mechanical, explorer, test-runner haiku). Skills: `api-change`, `frontend-batch`, `adr`, `ci-triage`. Commands: `/feature`, `/db-change`, `/ui-review`, `/security-audit`, `/check`, `/verify`, `/commit-plan`, `/ci-status`. Usage: `docs/claude-code-setup.md`.
+- Guards (`.claude/settings.json`, `.claude/hooks/`): bash-guard (git and gh writes, rm, npm, scripts, .env), protect-generated, protect-files, format-edited, trim-test-output (bypass: `CLAUDE_FULL_TEST_OUTPUT=1`). Self-test: `node .claude/hooks/selftest.mjs`.
 
-## Token and model policy
+## Compact instructions
 
-- Models: architect and reviewer use opus; backend, database, frontend, qa, design-ux and infra use sonnet; `mechanical` uses haiku for renames, docs and lint fixes.
-- Start a fresh session for each stage of a feature.
-- Use Grep and ranged Read instead of reading whole files, and do not re-read a file already read.
-- After each step run only scoped checks (`pnpm --filter <pkg> ...`, `pnpm --filter @onemarketplace/api test:quiet <path>`); run the full suite once at the end of a step group.
-- Prefer quiet output: `pnpm test:quiet`, `pnpm --silent`.
-- At most one reviewer pass per change.
+When compacting, keep: the standing rules, the task and the approved plan, files changed so far with one line each, failing checks with their first error, commands already proven to work, open questions and the FILES FOR ME TO DELETE list. Drop file contents, full test logs and exploration dead ends.
+
+## Reports
+
+Compact report, at most 40 lines: what changed; test, tsc and lint counts; deviations from the prompt; FILES FOR ME TO DELETE; then `git status --short`.
