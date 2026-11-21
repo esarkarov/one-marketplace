@@ -1,336 +1,128 @@
 "use client";
 
 import { Icon } from "@iconify/react";
-import { useAuth } from "@clerk/nextjs";
-import { centsToDollarsString, unwrap } from "@onemarketplace/api-client";
-import { useApi } from "@onemarketplace/web-core";
-import { useQuery } from "@tanstack/react-query";
+import { formatCents } from "@onemarketplace/api-client";
 import { formatDistanceToNow } from "date-fns";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { type ClientJob, type ClientProposal } from "../data/client-data";
+import { useEffect, useMemo, useState } from "react";
+import { useJob, useJobs } from "@/app/hooks/use-jobs";
+import {
+  useContractCheckout,
+  useJobProposals,
+  useMarkProposalViewed,
+  useShortlistProposal,
+  useStartInterview,
+} from "@/app/hooks/use-proposals";
+import {
+  isJobLocked,
+  isJobNotFound,
+  isJobOpen,
+  jobErrorMessage,
+  jobStatusLabel,
+  type JobPost,
+} from "@/lib/jobs";
+import {
+  canSendOffer,
+  canStartInterview,
+  countByFilter,
+  hasInterview,
+  INTERVIEW_MESSAGE_MAX,
+  isCheckoutUrl,
+  matchesFilter,
+  messagesHref,
+  profileHref,
+  PROPOSAL_FILTERS,
+  proposalErrorMessage,
+  toProposalViews,
+  type ProposalView,
+} from "@/lib/proposals";
 import { countries } from "@/utils/countries";
-import Image from "next/image";
 
-const proposalsPerPage = 2;
-const emptyProposalData: any[] = [];
-const emptyJobsData: any[] = [];
-const PROPOSALS_JOBS_LIMIT = 100;
+const PAGE_BUTTON =
+  "inline-flex h-10 cursor-pointer items-center gap-2 rounded-xl border border-black/10 bg-white px-4 text-xs font-semibold focus-visible:ring-2 focus-visible:ring-[#6e916a] focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-40";
+
+const countryName = (code: string): string | undefined =>
+  countries.find((country) => country.code === code)?.name;
+
+const relativeTime = (iso: string | null, fallback: string): string =>
+  iso ? `${formatDistanceToNow(new Date(iso))} ago` : fallback;
 
 export function ProposalsDashboard({
   initialJobId = null,
 }: {
   initialJobId?: string | null;
 }) {
+  return initialJobId ? <JobProposals jobId={initialJobId} /> : <JobPicker />;
+}
+
+function PagerNav({
+  label,
+  page,
+  hasMore,
+  busy,
+  onPage,
+}: {
+  label: string;
+  page: number;
+  hasMore: boolean;
+  busy: boolean;
+  onPage: (page: number) => void;
+}) {
+  if (page === 0 && !hasMore) return null;
+  return (
+    <nav
+      aria-label={label}
+      className="mt-5 flex items-center justify-between gap-3"
+    >
+      <button
+        type="button"
+        disabled={page === 0 || busy}
+        onClick={() => onPage(Math.max(page - 1, 0))}
+        className={PAGE_BUTTON}
+      >
+        <Icon icon="solar:alt-arrow-left-linear" width="16" />
+        Previous
+      </button>
+      <span className="text-xs text-[#858a82]">Page {page + 1}</span>
+      <button
+        type="button"
+        disabled={!hasMore || busy}
+        onClick={() => onPage(page + 1)}
+        className={PAGE_BUTTON}
+      >
+        Next
+        <Icon icon="solar:alt-arrow-right-linear" width="16" />
+      </button>
+    </nav>
+  );
+}
+
+function JobPicker() {
   const router = useRouter();
-  const { getToken } = useAuth();
-  const api = useApi();
-  const selectedJobId = initialJobId;
-  const [filter, setFilter] = useState("All");
-  const [proposals, setProposals] = useState<ClientProposal[]>([]);
-  const [selectedProposal, setSelectedProposal] =
-    useState<ClientProposal | null>(null);
-  const [interviewProposal, setInterviewProposal] =
-    useState<ClientProposal | null>(null);
-  const [contractProposal, setContractProposal] =
-    useState<ClientProposal | null>(null);
-  const [notice, setNotice] = useState("");
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(0);
+  const { data, isLoading, isFetching, error } = useJobs(page);
+  const jobs = data?.results ?? [];
 
-  const { data: jobs = emptyJobsData, isLoading: jobsLoading } = useQuery<
-    ClientJob[]
-  >({
-    queryKey: ["client-proposals-job-posts"],
-    queryFn: async () => {
-      const page = await unwrap(
-        api.GET("/api/v1/jobs", {
-          params: { query: { limit: PROPOSALS_JOBS_LIMIT } },
-        }),
-      );
-      return page.results.map((job): ClientJob => ({
-        id: job.id as unknown as ClientJob["id"],
-        title: job.title,
-        status:
-          job.status === "PUBLISHED"
-            ? "Open"
-            : job.status === "DRAFT"
-              ? "Draft"
-              : "Closed",
-        posted: job.createdAt
-          ? `${formatDistanceToNow(new Date(job.createdAt))} ago`
-          : "Recently",
-        budget: Number(centsToDollarsString(job.totalBudgetCents)),
-        level: job.expertiseLevel as ClientJob["level"],
-        duration: job.expectedDuration,
-        description: job.description,
-        skills: job.skills,
-        proposals: job.proposalCount,
-        shortlisted: job.shortlistCount,
-        hires: job.hireCount,
-        visibility: "Marketplace",
-        screeningQuestions: job.screeningQuestions ?? [],
-        milestones: job.milestones.map((milestone) => ({
-          id: milestone.id as unknown as number,
-          title: milestone.title,
-          amount: Number(centsToDollarsString(milestone.budgetCents)),
-          due: milestone.dueDate,
-        })),
-      }));
-    },
-  });
-  const {
-    data: proposalData = emptyProposalData,
-    isLoading: proposalsLoading,
-  } = useQuery<any[]>({
-    queryKey: ["client-proposals", selectedJobId],
-    enabled: Boolean(selectedJobId),
-    queryFn: async () => {
-      const token = await getToken();
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_SERVER_URI}/proposals?role=client&jobId=${selectedJobId}`,
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.message);
-      return result.data;
-    },
-  });
-  useEffect(() => {
-    const job = jobs.find((item) => String(item.id) === selectedJobId);
+  if (isLoading) return <PageSkeleton />;
 
-    setProposals(
-      proposalData.map((proposal) => ({
-        id: proposal.id,
-        contractId: proposal.contractId ?? null,
-        backendStatus: proposal.status,
-        conversationId: proposal.conversationId,
-        jobId: selectedJobId!,
-        freelancerId: proposal.freelancerId,
-        senderId: proposal.senderId,
-        memberCount: proposal.memberCount,
-        bidder:
-          proposal.senderName ??
-          (proposal.senderType === "AGENCY" ? "Agency" : "Freelancer"),
-        avatarUrl: proposal.avatar,
-        initials: (
-          proposal.senderName ??
-          (proposal.senderType === "AGENCY" ? "Agency" : "Freelancer")
-        )
-          .split(" ")
-          .map((part: string) => part[0])
-          .join("")
-          .slice(0, 2),
-        accountType: proposal.senderType === "AGENCY" ? "Agency" : "Freelancer",
-        title:
-          proposal.senderType === "AGENCY"
-            ? `Agency · ${proposal.memberCount ?? 0} member${proposal.memberCount === 1 ? "" : "s"}`
-            : (proposal.professionalTitle ?? "Freelancer"),
-        location:
-          [
-            proposal.city,
-            countries.find((country) => country.code === proposal.country)
-              ?.name ?? proposal.country,
-          ]
-            .filter(Boolean)
-            .join(", ") || "Location unavailable",
-        verified: proposal.verified ?? false,
-        online: false,
-        rating: Number(proposal.rating ?? 0),
-        jobSuccess: Number(proposal.jobSuccessScore ?? 0),
-        completedProjects: Number(proposal.completedJobs ?? 0),
-        bid: Number(proposal.bidAmount),
-        duration: proposal.duration,
-        submitted: proposal.submittedAt
-          ? `${formatDistanceToNow(new Date(proposal.submittedAt))} ago`
-          : "recently",
-        coverLetter: proposal.coverLetter,
-        skills: proposal.skills ?? [],
-        milestonePlan:
-          job?.milestones?.map((milestone: any) => ({
-            title: milestone.title,
-            amount: milestone.amount,
-            duration: milestone.due,
-          })) ?? [],
-        screeningAnswers: proposal.screeningAnswers ?? [],
-        status: proposal.isShortlisted
-          ? "Shortlisted"
-          : proposal.status === "VIEWED"
-            ? "New"
-            : proposal.status === "INTERVIEWED"
-              ? "Interview"
-              : "New",
-      })),
-    );
-  }, [jobs, proposalData, selectedJobId]);
-
-  const selectedJob = jobs.find((job) => String(job.id) === selectedJobId);
-  const filteredProposals = proposals.filter(
-    (proposal) =>
-      proposal.jobId === selectedJobId &&
-      (filter === "All" || proposal.status === filter),
-  );
-  const totalPages = Math.max(
-    1,
-    Math.ceil(filteredProposals.length / proposalsPerPage),
-  );
-  const currentPage = Math.min(page, totalPages);
-  const pageStart = (currentPage - 1) * proposalsPerPage;
-  const visibleProposals = filteredProposals.slice(
-    pageStart,
-    pageStart + proposalsPerPage,
-  );
-
-  useEffect(() => {
-    if (!notice) return;
-    const timeout = window.setTimeout(() => setNotice(""), 3500);
-    return () => window.clearTimeout(timeout);
-  }, [notice]);
-
-  const updateStatus = (
-    proposalId: number | string,
-    status: ClientProposal["status"],
-  ) => {
-    setProposals((current) =>
-      current.map((proposal) =>
-        proposal.id === proposalId ? { ...proposal, status } : proposal,
-      ),
-    );
-    setSelectedProposal((current) =>
-      current?.id === proposalId ? { ...current, status } : current,
-    );
-    setNotice(`Proposal moved to ${status.toLowerCase()}.`);
-  };
-
-  const startInterview = (proposal: ClientProposal) => {
-    if (proposal.backendStatus === "INTERVIEWED") {
-      if (proposal.conversationId) {
-        router.push(`/messages?conversationId=${proposal.conversationId}`);
-      }
-      return;
-    }
-    setSelectedProposal(null);
-    setInterviewProposal(proposal);
-  };
-
-  const hireProposal = (proposal: ClientProposal) => {
-    setSelectedProposal(null);
-    setContractProposal(proposal);
-  };
-
-  const startContractCheckout = async (proposal: ClientProposal) => {
-    const token = await getToken();
-    const response = await fetch(
-      `${process.env.NEXT_PUBLIC_SERVER_URI}/contracts/checkout?role=client`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ proposalId: proposal.id }),
-      },
-    );
-    const result = await response.json();
-    if (!response.ok || !result.data?.url) {
-      throw new Error(result.message || "Checkout could not be started.");
-    }
-    window.location.assign(result.data.url);
-  };
-
-  const handleProposalUpdateStatus = async (proposal: ClientProposal) => {
-    setSelectedProposal(proposal);
-
-    try {
-      const token = await getToken();
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_SERVER_URI}/proposals/${proposal.id}/status?role=client`,
-        {
-          method: "PATCH",
-          headers: { Authorization: `Bearer ${token}` },
-        },
-      );
-
-      if (!response.ok) {
-        const result = await response.json();
-        throw new Error(
-          result.message || "Proposal status could not be updated.",
-        );
-      }
-    } catch (error) {
-      console.error("Proposal view status update failed.", error);
-    }
-  };
-
-  const handleShortList = async (proposal: ClientProposal) => {
-    const previousStatus = proposal.status;
-    updateStatus(proposal.id, "Shortlisted");
-
-    try {
-      const token = await getToken();
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_SERVER_URI}/proposals/${proposal.id}/status?role=client`,
-        {
-          method: "PATCH",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ isShortlisted: true }),
-        },
-      );
-      if (!response.ok) {
-        const result = await response.json();
-        throw new Error(result.message || "Proposal could not be shortlisted.");
-      }
-    } catch (error) {
-      updateStatus(proposal.id, previousStatus);
-      setNotice(
-        error instanceof Error
-          ? error.message
-          : "Proposal could not be shortlisted.",
-      );
-    }
-  };
-
-  const submitInterview = async (message: string) => {
-    if (!interviewProposal) return;
-    const token = await getToken();
-    const response = await fetch(
-      `${process.env.NEXT_PUBLIC_SERVER_URI}/proposals/${interviewProposal.id}/interview?role=client`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ message }),
-      },
-    );
-    const result = await response.json();
-    if (!response.ok) {
-      throw new Error(result.message || "Interview could not be started.");
-    }
-    updateStatus(interviewProposal.id, "Interview");
-    setInterviewProposal(null);
-    router.push(`/messages?conversationId=${result.data.conversationId}`);
-  };
-
-  if (!selectedJob) {
-    if (jobsLoading)
-      return (
-        <div className="mt-8 animate-pulse rounded-2xl border border-black/8 bg-white p-6">
-          <div className="h-3 w-20 rounded bg-[#e8ebe6]" />
-          <div className="mt-4 h-5 w-72 max-w-full rounded bg-[#dde2db]" />
-          <div className="mt-3 h-3 w-48 rounded bg-[#ecefeb]" />
-          <div className="mt-6 h-3 w-full rounded bg-[#e8ebe6]" />
-          <div className="mt-3 h-3 w-3/4 rounded bg-[#eef0ec]" />
-        </div>
-      );
-    return (
-      <>
-        <PageHeading />
+  return (
+    <>
+      <PageHeading />
+      {error ? (
+        <Notice text={jobErrorMessage(error)} />
+      ) : (
         <section className="mt-8 grid gap-4">
+          {!jobs.length && (
+            <Notice
+              text={
+                page === 0
+                  ? "You have not posted any jobs yet."
+                  : "No more job posts."
+              }
+            />
+          )}
           {jobs.map((job) => (
             <JobProposalCard
               key={job.id}
@@ -339,19 +131,129 @@ export function ProposalsDashboard({
             />
           ))}
         </section>
+      )}
+      <PagerNav
+        label="Job posts pages"
+        page={page}
+        hasMore={Boolean(data?.hasMore)}
+        busy={isFetching}
+        onPage={setPage}
+      />
+    </>
+  );
+}
+
+function JobProposals({ jobId }: { jobId: string }) {
+  const router = useRouter();
+  const jobQuery = useJob(jobId);
+  const [filter, setFilter] = useState<string>("All");
+  const [page, setPage] = useState(0);
+  const [notice, setNotice] = useState("");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [interviewId, setInterviewId] = useState<string | null>(null);
+  const [contractId, setContractId] = useState<string | null>(null);
+
+  const proposalsQuery = useJobProposals(jobId, page);
+  const markViewed = useMarkProposalViewed();
+  const shortlist = useShortlistProposal();
+  const startInterview = useStartInterview();
+  const checkout = useContractCheckout();
+
+  const proposals = useMemo(
+    () => toProposalViews(proposalsQuery.data?.results ?? [], countryName),
+    [proposalsQuery.data],
+  );
+  const visibleProposals = proposals.filter((proposal) =>
+    matchesFilter(proposal, filter),
+  );
+  const selectedProposal =
+    proposals.find((proposal) => proposal.id === selectedId) ?? null;
+  const interviewProposal =
+    proposals.find((proposal) => proposal.id === interviewId) ?? null;
+  const contractProposal =
+    proposals.find((proposal) => proposal.id === contractId) ?? null;
+
+  useEffect(() => {
+    if (!notice) return;
+    const timeout = window.setTimeout(() => setNotice(""), 3500);
+    return () => window.clearTimeout(timeout);
+  }, [notice]);
+
+  const job = jobQuery.data;
+
+  if (jobQuery.isLoading) return <PageSkeleton />;
+  if (!job) {
+    return (
+      <>
+        <BackLink />
+        <div className="mt-6">
+          <Notice
+            text={
+              isJobNotFound(jobQuery.error)
+                ? "Job post not found."
+                : jobErrorMessage(jobQuery.error)
+            }
+          />
+        </div>
       </>
     );
   }
 
+  const handleView = (proposal: ProposalView) => {
+    setSelectedId(proposal.id);
+    if (proposal.status !== "SUBMITTED") return;
+    markViewed.mutate(proposal.id, {
+      onError: (error) => {
+        console.error(
+          "Proposal view status update failed.",
+          proposalErrorMessage(error),
+        );
+      },
+    });
+  };
+
+  const handleShortlist = (proposal: ProposalView) => {
+    shortlist.mutate(proposal.id, {
+      onSuccess: () => setNotice("Proposal shortlisted."),
+      onError: (error) => setNotice(proposalErrorMessage(error)),
+    });
+  };
+
+  const handleInterview = (proposal: ProposalView) => {
+    if (hasInterview(proposal) && proposal.conversationId) {
+      router.push(messagesHref(proposal.conversationId));
+      return;
+    }
+    setSelectedId(null);
+    setInterviewId(proposal.id);
+  };
+
+  const handleHire = (proposal: ProposalView) => {
+    setSelectedId(null);
+    setContractId(proposal.id);
+  };
+
+  const submitInterview = async (message: string) => {
+    if (!interviewProposal) return;
+    const result = await startInterview.mutateAsync({
+      proposalId: interviewProposal.id,
+      message,
+    });
+    setInterviewId(null);
+    router.push(messagesHref(result.conversationId));
+  };
+
+  const startContractCheckout = async (proposal: ProposalView) => {
+    const result = await checkout.mutateAsync(proposal.id);
+    if (!isCheckoutUrl(result.url)) {
+      throw new Error("Checkout returned an invalid address.");
+    }
+    window.location.assign(result.url);
+  };
+
   return (
     <>
-      <Link
-        href="/proposals"
-        className="inline-flex cursor-pointer items-center gap-1.5 text-xs font-semibold text-[#52784f]"
-      >
-        <Icon icon="solar:arrow-left-linear" width="15" />
-        Back to job posts
-      </Link>
+      <BackLink />
 
       <div className="mt-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
@@ -359,13 +261,13 @@ export function ProposalsDashboard({
             Proposal review
           </p>
           <h1 className="mt-2 max-w-4xl text-3xl font-semibold tracking-[-.045em] sm:text-4xl">
-            {selectedJob.title}
+            {job.title}
           </h1>
           <p className="mt-2 text-sm text-[#72776f]">
             Compare every freelancer and agency that applied to this job.
           </p>
         </div>
-        {selectedJob.hires > 0 ? (
+        {job.hireCount > 0 ? (
           <Link
             href="/contracts"
             className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-black/10 bg-white px-4 text-sm font-semibold"
@@ -374,13 +276,15 @@ export function ProposalsDashboard({
             View contract
           </Link>
         ) : (
-          <Link
-            href={`/jobs/${selectedJob.id}/edit`}
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-black/10 bg-white px-4 text-sm font-semibold"
-          >
-            <Icon icon="solar:pen-2-linear" width="17" />
-            Edit job post
-          </Link>
+          !isJobLocked(job.status) && (
+            <Link
+              href={`/jobs/${job.id}/edit`}
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-black/10 bg-white px-4 text-sm font-semibold"
+            >
+              <Icon icon="solar:pen-2-linear" width="17" />
+              Edit job post
+            </Link>
+          )
         )}
       </div>
 
@@ -388,23 +292,14 @@ export function ProposalsDashboard({
         <div className="grid gap-4 sm:grid-cols-4">
           <JobMetric
             label="Fixed budget"
-            value={`$${selectedJob?.budget?.toLocaleString()}`}
+            value={formatCents(job.totalBudgetCents)}
           />
-          <JobMetric label="Proposals" value={String(selectedJob.proposals)} />
-          <JobMetric
-            label="Shortlisted"
-            value={String(
-              proposals.filter(
-                (proposal) =>
-                  proposal.jobId === selectedJob.id &&
-                  proposal.status === "Shortlisted",
-              ).length,
-            )}
-          />
-          <JobMetric label="Hires" value={String(selectedJob.hires)} />
+          <JobMetric label="Proposals" value={String(job.proposalCount)} />
+          <JobMetric label="Shortlisted" value={String(job.shortlistCount)} />
+          <JobMetric label="Hires" value={String(job.hireCount)} />
         </div>
         <div className="mt-5 flex flex-wrap gap-2 border-t border-black/7 pt-5">
-          {selectedJob.skills.map((skill: any) => (
+          {job.skills.map((skill) => (
             <span
               key={skill}
               className="rounded-lg bg-[#f0f3ee] px-2.5 py-1.5 text-[10px] text-[#657062]"
@@ -426,65 +321,46 @@ export function ProposalsDashboard({
 
       <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap gap-2">
-          {[
-            "All",
-            "New",
-            "Shortlisted",
-            "Interview",
-            "Offer sent",
-            "Rejected",
-            "Hired",
-          ].map((item) => {
-            const count =
-              item === "All"
-                ? proposals.filter(
-                    (proposal) => proposal.jobId === selectedJob.id,
-                  ).length
-                : proposals.filter(
-                    (proposal) =>
-                      proposal.jobId === selectedJob.id &&
-                      proposal.status === item,
-                  ).length;
-            return (
-              <button
-                key={item}
-                type="button"
-                onClick={() => {
-                  setFilter(item);
-                  setPage(1);
-                }}
-                className={`inline-flex h-9 cursor-pointer items-center gap-2 rounded-lg px-3 text-xs font-semibold ${
-                  filter === item
-                    ? "bg-[#edf4ea] text-[#4e774b]"
-                    : "bg-white text-[#6f756d] hover:bg-black/3"
-                }`}
-              >
-                {item}
-                <span className="text-[9px] opacity-65">{count}</span>
-              </button>
-            );
-          })}
+          {PROPOSAL_FILTERS.map((item) => (
+            <button
+              key={item}
+              type="button"
+              onClick={() => setFilter(item)}
+              className={`inline-flex h-9 cursor-pointer items-center gap-2 rounded-lg px-3 text-xs font-semibold ${
+                filter === item
+                  ? "bg-[#edf4ea] text-[#4e774b]"
+                  : "bg-white text-[#6f756d] hover:bg-black/3"
+              }`}
+            >
+              {item}
+              <span className="text-[9px] opacity-65">
+                {countByFilter(proposals, item)}
+              </span>
+            </button>
+          ))}
         </div>
         <p className="text-xs text-[#858a82]">
-          {filteredProposals.length
-            ? `Showing ${pageStart + 1}–${Math.min(
-                pageStart + proposalsPerPage,
-                filteredProposals.length,
-              )} of ${filteredProposals.length} proposals`
+          {visibleProposals.length
+            ? `Showing ${visibleProposals.length} of ${proposals.length} proposals on this page`
             : "No proposals shown"}
         </p>
       </div>
 
       <div className="mt-5 grid gap-4">
-        {proposalsLoading ? (
+        {proposalsQuery.isLoading ? (
           <ProposalSkeleton />
+        ) : proposalsQuery.error ? (
+          <Notice text={proposalErrorMessage(proposalsQuery.error)} />
         ) : visibleProposals.length ? (
           visibleProposals.map((proposal) => (
             <ProposalCard
               key={proposal.id}
               proposal={proposal}
-              onView={() => handleProposalUpdateStatus(proposal)}
-              onShortlist={() => handleShortList(proposal)}
+              shortlisting={
+                shortlist.isPending && shortlist.variables === proposal.id
+              }
+              onView={() => handleView(proposal)}
+              onShortlist={() => handleShortlist(proposal)}
             />
           ))
         ) : (
@@ -496,35 +372,35 @@ export function ProposalsDashboard({
               No proposals in this view
             </h2>
             <p className="mt-2 text-xs text-[#858a82]">
-              Choose another status or return to your job posts.
+              Choose another status, change the page or return to your job
+              posts.
             </p>
           </div>
         )}
       </div>
 
-      {filteredProposals.length > proposalsPerPage && (
-        <ProposalPagination
-          page={currentPage}
-          totalPages={totalPages}
-          totalResults={filteredProposals.length}
-          pageStart={pageStart}
-          onPageChange={setPage}
-        />
-      )}
+      <PagerNav
+        label="Proposals pagination"
+        page={page}
+        hasMore={Boolean(proposalsQuery.data?.hasMore)}
+        busy={proposalsQuery.isFetching}
+        onPage={setPage}
+      />
 
       {selectedProposal && (
         <ProposalDrawer
           proposal={selectedProposal}
-          onClose={() => setSelectedProposal(null)}
-          onInterview={() => startInterview(selectedProposal)}
-          onHire={() => hireProposal(selectedProposal)}
+          milestones={job.milestones}
+          onClose={() => setSelectedId(null)}
+          onInterview={() => handleInterview(selectedProposal)}
+          onHire={() => handleHire(selectedProposal)}
         />
       )}
 
       {interviewProposal && (
         <StartInterviewModal
           proposal={interviewProposal}
-          onClose={() => setInterviewProposal(null)}
+          onClose={() => setInterviewId(null)}
           onSubmit={submitInterview}
         />
       )}
@@ -532,7 +408,8 @@ export function ProposalsDashboard({
       {contractProposal && (
         <FundContractModal
           proposal={contractProposal}
-          onClose={() => setContractProposal(null)}
+          milestones={job.milestones}
+          onClose={() => setContractId(null)}
           onPay={() => startContractCheckout(contractProposal)}
         />
       )}
@@ -540,70 +417,35 @@ export function ProposalsDashboard({
   );
 }
 
-function ProposalPagination({
-  page,
-  totalPages,
-  totalResults,
-  pageStart,
-  onPageChange,
-}: {
-  page: number;
-  totalPages: number;
-  totalResults: number;
-  pageStart: number;
-  onPageChange: (page: number) => void;
-}) {
+function BackLink() {
   return (
-    <nav
-      aria-label="Proposals pagination"
-      className="mt-5 flex flex-col gap-3 rounded-2xl border border-black/8 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+    <Link
+      href="/proposals"
+      className="inline-flex cursor-pointer items-center gap-1.5 text-xs font-semibold text-[#52784f]"
     >
-      <p className="text-[10px] text-[#858a82]">
-        Showing {pageStart + 1}–
-        {Math.min(pageStart + proposalsPerPage, totalResults)} of {totalResults}
-      </p>
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          aria-label="Previous proposals page"
-          disabled={page === 1}
-          onClick={() => onPageChange(page - 1)}
-          className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg border border-black/10 disabled:cursor-not-allowed disabled:opacity-35"
-        >
-          <Icon icon="solar:alt-arrow-left-linear" width="16" />
-        </button>
-        {Array.from({ length: totalPages }, (_, index) => {
-          const pageNumber = index + 1;
-          const active = pageNumber === page;
+      <Icon icon="solar:arrow-left-linear" width="15" />
+      Back to job posts
+    </Link>
+  );
+}
 
-          return (
-            <button
-              key={pageNumber}
-              type="button"
-              aria-label={`Open proposals page ${pageNumber}`}
-              aria-current={active ? "page" : undefined}
-              onClick={() => onPageChange(pageNumber)}
-              className={`h-9 min-w-9 cursor-pointer rounded-lg px-3 text-xs font-semibold ${
-                active
-                  ? "bg-[#e9f1e6] text-[#4f794c]"
-                  : "border border-black/10 text-[#656b63]"
-              }`}
-            >
-              {pageNumber}
-            </button>
-          );
-        })}
-        <button
-          type="button"
-          aria-label="Next proposals page"
-          disabled={page === totalPages}
-          onClick={() => onPageChange(page + 1)}
-          className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg border border-black/10 disabled:cursor-not-allowed disabled:opacity-35"
-        >
-          <Icon icon="solar:alt-arrow-right-linear" width="16" />
-        </button>
-      </div>
-    </nav>
+function Notice({ text }: { text: string }) {
+  return (
+    <p className="rounded-2xl border border-black/8 bg-white p-6 text-sm text-[#6f756d]">
+      {text}
+    </p>
+  );
+}
+
+function PageSkeleton() {
+  return (
+    <div className="mt-8 animate-pulse rounded-2xl border border-black/8 bg-white p-6">
+      <div className="h-3 w-20 rounded bg-[#e8ebe6]" />
+      <div className="mt-4 h-5 w-72 max-w-full rounded bg-[#dde2db]" />
+      <div className="mt-3 h-3 w-48 rounded bg-[#ecefeb]" />
+      <div className="mt-6 h-3 w-full rounded bg-[#e8ebe6]" />
+      <div className="mt-3 h-3 w-3/4 rounded bg-[#eef0ec]" />
+    </div>
   );
 }
 
@@ -636,7 +478,7 @@ function JobProposalCard({
   job,
   onView,
 }: {
-  job: ClientJob;
+  job: JobPost;
   onView: () => void;
 }) {
   return (
@@ -647,21 +489,23 @@ function JobProposalCard({
             <div className="flex flex-wrap items-center gap-2">
               <span
                 className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${
-                  job.status === "Open"
+                  isJobOpen(job.status)
                     ? "bg-[#e7f2e4] text-[#4d784a]"
-                    : job.status === "Draft"
+                    : job.status === "DRAFT"
                       ? "bg-[#f1f0e7] text-[#766f47]"
                       : "bg-[#f0f1ef] text-[#767b74]"
                 }`}
               >
-                {job.status}
+                {jobStatusLabel(job.status)}
               </span>
-              <span className="text-[10px] text-[#8a8f87]">{job.posted}</span>
+              <span className="text-[10px] text-[#8a8f87]">
+                {relativeTime(job.createdAt, "Recently")}
+              </span>
             </div>
             <h2 className="mt-3 text-lg font-semibold">{job.title}</h2>
             <p className="mt-2 text-xs text-[#757b73]">
-              Fixed price · ${job?.budget?.toLocaleString()} · {job.level} ·{" "}
-              {job.duration}
+              Fixed price · {formatCents(job.totalBudgetCents)} ·{" "}
+              {job.expertiseLevel} · {job.expectedDuration}
             </p>
             <p className="mt-4 line-clamp-2 max-w-4xl text-sm leading-6 text-[#6f756d]">
               {job.description}
@@ -669,9 +513,9 @@ function JobProposalCard({
           </div>
 
           <div className="grid grid-cols-3 gap-3 sm:min-w-72">
-            <JobMetric label="Proposals" value={String(job.proposals)} />
-            <JobMetric label="Shortlisted" value={String(job.shortlisted)} />
-            <JobMetric label="Hires" value={String(job.hires)} />
+            <JobMetric label="Proposals" value={String(job.proposalCount)} />
+            <JobMetric label="Shortlisted" value={String(job.shortlistCount)} />
+            <JobMetric label="Hires" value={String(job.hireCount)} />
           </div>
         </div>
         <div className="mt-5 flex flex-wrap gap-2">
@@ -687,13 +531,13 @@ function JobProposalCard({
       </div>
       <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-black/7 bg-[#fafbf9] px-5 py-4 sm:px-6">
         <p className="text-xs text-[#858a82]">
-          {job.proposals
-            ? `${job.proposals} people and agencies applied`
+          {job.proposalCount
+            ? `${job.proposalCount} people and agencies applied`
             : "No proposals received yet"}
         </p>
         <button
           type="button"
-          disabled={job.proposals === 0}
+          disabled={job.proposalCount === 0}
           onClick={onView}
           className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-xl bg-[#252724] px-4 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:bg-[#c2c5c0]"
         >
@@ -707,13 +551,16 @@ function JobProposalCard({
 
 function ProposalCard({
   proposal,
+  shortlisting,
   onView,
   onShortlist,
 }: {
-  proposal: ClientProposal;
+  proposal: ProposalView;
+  shortlisting: boolean;
   onView: () => void;
   onShortlist: () => void;
 }) {
+  const href = profileHref(proposal);
   return (
     <article className="rounded-2xl border border-black/8 bg-white p-5 sm:p-6">
       <div className="flex flex-col gap-5 lg:flex-row">
@@ -728,9 +575,6 @@ function ProposalCard({
               />
             ) : (
               proposal.initials
-            )}
-            {proposal.online && (
-              <span className="absolute right-0 bottom-0 h-3.5 w-3.5 rounded-full border-2 border-white bg-[#5ca568]" />
             )}
           </span>
           <div className="min-w-0">
@@ -748,12 +592,13 @@ function ProposalCard({
             </div>
             <p className="mt-1 text-sm text-[#70766e]">{proposal.title}</p>
             <p className="mt-2 text-xs text-[#8a8f87]">
-              {proposal.location} · Submitted {proposal.submitted}
+              {proposal.location} · Submitted{" "}
+              {relativeTime(proposal.submittedAt, "recently")}
             </p>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-4 text-left sm:grid-cols-4 lg:text-right">
-          <Mini label="Bid" value={`$${proposal.bid.toLocaleString()}`} />
+          <Mini label="Bid" value={formatCents(proposal.bidCents)} />
           <Mini label="Duration" value={proposal.duration} />
           <Mini label="Success" value={`${proposal.jobSuccess}%`} />
           <Mini label="Rating" value={String(proposal.rating)} />
@@ -773,19 +618,28 @@ function ProposalCard({
         ))}
       </div>
       <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-black/7 pt-4">
-        <span className="rounded-full bg-[#edf4ea] px-3 py-1.5 text-[10px] font-semibold text-[#4e774b]">
-          {proposal.status}
-        </span>
         <div className="flex flex-wrap gap-2">
-          <a
-            href={getProfileHref(proposal)}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-black/10 px-4 py-3 text-xs font-semibold"
-          >
-            View profile
-            <Icon icon="solar:arrow-right-up-linear" width="14" />
-          </a>
+          <span className="rounded-full bg-[#edf4ea] px-3 py-1.5 text-[10px] font-semibold text-[#4e774b]">
+            {proposal.statusLabel}
+          </span>
+          {proposal.isShortlisted && (
+            <span className="rounded-full bg-[#f1f0e7] px-3 py-1.5 text-[10px] font-semibold text-[#766f47]">
+              Shortlisted
+            </span>
+          )}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {href && (
+            <a
+              href={href}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-black/10 px-4 py-3 text-xs font-semibold"
+            >
+              View profile
+              <Icon icon="solar:arrow-right-up-linear" width="14" />
+            </a>
+          )}
           <button
             type="button"
             onClick={onView}
@@ -793,13 +647,14 @@ function ProposalCard({
           >
             View proposal
           </button>
-          {proposal.status !== "Shortlisted" && (
+          {!proposal.isShortlisted && (
             <button
               type="button"
+              disabled={shortlisting}
               onClick={onShortlist}
-              className="h-10 cursor-pointer rounded-xl bg-[#252724] px-4 text-xs font-semibold text-white"
+              className="h-10 cursor-pointer rounded-xl bg-[#252724] px-4 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Shortlist
+              {shortlisting ? "Shortlisting..." : "Shortlist"}
             </button>
           )}
         </div>
@@ -808,35 +663,20 @@ function ProposalCard({
   );
 }
 
-function JobMetric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl bg-[#f3f5f1] p-3">
-      <p className="text-base font-semibold">{value}</p>
-      <p className="mt-1 text-[9px] text-[#858a82]">{label}</p>
-    </div>
-  );
-}
-
-function Mini({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="text-sm font-semibold">{value}</p>
-      <p className="mt-1 text-[9px] text-[#8a8f87]">{label}</p>
-    </div>
-  );
-}
-
 function ProposalDrawer({
   proposal,
+  milestones,
   onClose,
   onInterview,
   onHire,
 }: {
-  proposal: ClientProposal;
+  proposal: ProposalView;
+  milestones: JobPost["milestones"];
   onClose: () => void;
   onInterview: () => void;
   onHire: () => void;
 }) {
+  const href = profileHref(proposal);
   return (
     <div
       className="fixed inset-0 z-50 bg-black/25"
@@ -851,13 +691,13 @@ function ProposalDrawer({
             <h2 className="mt-2 text-2xl font-semibold">{proposal.bidder}</h2>
             <p className="mt-1 text-sm text-[#747a72]">{proposal.title}</p>
           </div>
-          <button type="button" onClick={onClose}>
+          <button type="button" onClick={onClose} aria-label="Close">
             <Icon icon="solar:close-circle-linear" width="24" />
           </button>
         </div>
         <div className="mt-6 grid grid-cols-3 gap-3">
           {[
-            ["Bid", `$${proposal.bid.toLocaleString()}`],
+            ["Bid", formatCents(proposal.bidCents)],
             ["Duration", proposal.duration],
             ["Completed", String(proposal.completedProjects)],
           ].map(([label, value]) => (
@@ -874,25 +714,25 @@ function ProposalDrawer({
           </p>
         </section>
         <section className="mt-6">
-          <h3 className="text-sm font-semibold">Proposed milestones</h3>
+          <h3 className="text-sm font-semibold">Job milestones</h3>
           <div className="mt-3 divide-y divide-black/6 rounded-xl border border-black/7">
-            {proposal.milestonePlan.map((item) => (
-              <div key={item.title} className="flex justify-between gap-4 p-4">
+            {milestones.map((item) => (
+              <div key={item.id} className="flex justify-between gap-4 p-4">
                 <div>
                   <p className="text-xs font-semibold">{item.title}</p>
                   <p className="mt-1 text-[10px] text-[#858a82]">
-                    {item.duration}
+                    {item.dueDate}
                   </p>
                 </div>
                 <p className="text-xs font-semibold">
-                  ${item.amount.toLocaleString()}
+                  {formatCents(item.budgetCents)}
                 </p>
               </div>
             ))}
           </div>
         </section>
 
-        {!!proposal.screeningAnswers?.length && (
+        {!!proposal.screeningAnswers.length && (
           <section className="mt-6">
             <h3 className="text-sm font-semibold">Screening answers</h3>
             <div className="mt-3 grid gap-3">
@@ -910,33 +750,35 @@ function ProposalDrawer({
             </div>
           </section>
         )}
-        <a
-          href={getProfileHref(proposal)}
-          target="_blank"
-          rel="noreferrer"
-          className="mt-6 inline-flex h-11 items-center gap-2 rounded-xl border border-black/10 px-4 text-xs font-semibold"
-        >
-          <Icon
-            icon={
-              proposal.accountType === "Agency"
-                ? "solar:buildings-2-linear"
-                : "solar:user-circle-linear"
-            }
-            width="18"
-          />
-          View {proposal.accountType.toLowerCase()} profile
-          <Icon icon="solar:arrow-right-up-linear" width="14" />
-        </a>
-        <div className="mt-7 flex flex-wrap justify-end gap-2">
-          <button
-            type="button"
-            onClick={onInterview}
-            className="h-11 rounded-xl border border-black/10 px-4 text-xs font-semibold"
+        {href && (
+          <a
+            href={href}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-6 inline-flex h-11 items-center gap-2 rounded-xl border border-black/10 px-4 text-xs font-semibold"
           >
-            {proposal.backendStatus === "INTERVIEWED"
-              ? "Go to interview"
-              : "Start interview"}
-          </button>
+            <Icon
+              icon={
+                proposal.accountType === "Agency"
+                  ? "solar:buildings-2-linear"
+                  : "solar:user-circle-linear"
+              }
+              width="18"
+            />
+            View {proposal.accountType.toLowerCase()} profile
+            <Icon icon="solar:arrow-right-up-linear" width="14" />
+          </a>
+        )}
+        <div className="mt-7 flex flex-wrap justify-end gap-2">
+          {canStartInterview(proposal) && (
+            <button
+              type="button"
+              onClick={onInterview}
+              className="h-11 rounded-xl border border-black/10 px-4 text-xs font-semibold"
+            >
+              {hasInterview(proposal) ? "Go to interview" : "Start interview"}
+            </button>
+          )}
           {proposal.contractId ? (
             <Link
               href={`/contracts?contractId=${proposal.contractId}`}
@@ -945,13 +787,15 @@ function ProposalDrawer({
               See contract
             </Link>
           ) : (
-            <button
-              type="button"
-              onClick={onHire}
-              className="h-11 rounded-xl bg-[#252724] px-5 text-xs font-semibold text-white"
-            >
-              Send contract offer
-            </button>
+            canSendOffer(proposal) && (
+              <button
+                type="button"
+                onClick={onHire}
+                className="h-11 rounded-xl bg-[#252724] px-5 text-xs font-semibold text-white"
+              >
+                Send contract offer
+              </button>
+            )
           )}
         </div>
       </aside>
@@ -959,38 +803,18 @@ function ProposalDrawer({
   );
 }
 
-function ProposalSkeleton() {
-  return (
-    <div className="animate-pulse rounded-2xl border border-black/8 bg-white p-6">
-      <div className="flex gap-4">
-        <div className="h-14 w-14 rounded-2xl bg-[#e5e9e3]" />
-        <div className="flex-1">
-          <div className="h-4 w-40 rounded bg-[#dde2db]" />
-          <div className="mt-3 h-3 w-56 rounded bg-[#ecefeb]" />
-        </div>
-      </div>
-      <div className="mt-6 h-3 w-full rounded bg-[#e8ebe6]" />
-      <div className="mt-3 h-3 w-3/4 rounded bg-[#eef0ec]" />
-    </div>
-  );
-}
-
-function getProfileHref(proposal: ClientProposal) {
-  return proposal.accountType === "Agency"
-    ? `/agency/${proposal.senderId}`
-    : `/talent/${proposal.freelancerId}`;
-}
-
 function FundContractModal({
   proposal,
+  milestones,
   onClose,
   onPay,
 }: {
-  proposal: ClientProposal;
+  proposal: ProposalView;
+  milestones: JobPost["milestones"];
   onClose: () => void;
   onPay: () => Promise<void>;
 }) {
-  const milestone = proposal.milestonePlan[0];
+  const milestone = milestones[0];
   const [isPaying, setIsPaying] = useState(false);
   const [error, setError] = useState("");
 
@@ -999,8 +823,12 @@ function FundContractModal({
     setError("");
     try {
       await onPay();
-    } catch (error) {
-      setError(error instanceof Error ? error.message : "Checkout failed.");
+    } catch (payError) {
+      setError(
+        payError instanceof Error && payError.message.startsWith("Checkout")
+          ? payError.message
+          : proposalErrorMessage(payError),
+      );
       setIsPaying(false);
     }
   };
@@ -1048,11 +876,11 @@ function FundContractModal({
                     {milestone.title}
                   </h3>
                   <p className="mt-1 text-xs text-[#7c827a]">
-                    Due {milestone.duration}
+                    Due {milestone.dueDate}
                   </p>
                 </div>
                 <strong className="text-lg">
-                  ${milestone.amount.toLocaleString()}
+                  {formatCents(milestone.budgetCents)}
                 </strong>
               </div>
             </div>
@@ -1060,11 +888,11 @@ function FundContractModal({
             <div className="mt-5 grid gap-3 border-y border-black/7 py-4 text-sm">
               <div className="flex items-center justify-between text-[#6d736b]">
                 <span>Milestone funding</span>
-                <span>${milestone.amount.toLocaleString()}</span>
+                <span>{formatCents(milestone.budgetCents)}</span>
               </div>
               <div className="flex items-center justify-between font-semibold">
                 <span>Amount due today</span>
-                <span>${milestone.amount.toLocaleString()}</span>
+                <span>{formatCents(milestone.budgetCents)}</span>
               </div>
             </div>
 
@@ -1086,7 +914,11 @@ function FundContractModal({
           </p>
         )}
 
-        {error && <p className="mt-4 text-xs text-red-600">{error}</p>}
+        {error && (
+          <p role="alert" className="mt-4 text-xs text-red-600">
+            {error}
+          </p>
+        )}
 
         <div className="mt-6 flex justify-end gap-2">
           <button
@@ -1117,7 +949,7 @@ function StartInterviewModal({
   onClose,
   onSubmit,
 }: {
-  proposal: ClientProposal;
+  proposal: ProposalView;
   onClose: () => void;
   onSubmit: (message: string) => Promise<void>;
 }) {
@@ -1140,11 +972,7 @@ function StartInterviewModal({
           try {
             await onSubmit(message.trim());
           } catch (submitError) {
-            setError(
-              submitError instanceof Error
-                ? submitError.message
-                : "Interview could not be started.",
-            );
+            setError(proposalErrorMessage(submitError));
             setIsSubmitting(false);
           }
         }}
@@ -1161,20 +989,29 @@ function StartInterviewModal({
               Introduce yourself and explain the next step in the interview.
             </p>
           </div>
-          <button type="button" onClick={onClose} disabled={isSubmitting}>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isSubmitting}
+            aria-label="Close"
+          >
             <Icon icon="solar:close-circle-linear" width="24" />
           </button>
         </div>
         <textarea
           autoFocus
           required
-          maxLength={5000}
+          maxLength={INTERVIEW_MESSAGE_MAX}
           value={message}
           onChange={(event) => setMessage(event.target.value)}
           placeholder="Hi, I reviewed your proposal and would like to discuss..."
           className="mt-5 min-h-36 w-full resize-y rounded-xl border border-black/10 p-4 text-sm outline-none focus:border-[#62805f]"
         />
-        {error && <p className="mt-2 text-xs text-[#9a5a5a]">{error}</p>}
+        {error && (
+          <p role="alert" className="mt-2 text-xs text-[#9a5a5a]">
+            {error}
+          </p>
+        )}
         <div className="mt-5 flex justify-end gap-2">
           <button
             type="button"
@@ -1193,6 +1030,40 @@ function StartInterviewModal({
           </button>
         </div>
       </form>
+    </div>
+  );
+}
+
+function JobMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl bg-[#f3f5f1] p-3">
+      <p className="text-base font-semibold">{value}</p>
+      <p className="mt-1 text-[9px] text-[#858a82]">{label}</p>
+    </div>
+  );
+}
+
+function Mini({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-sm font-semibold">{value}</p>
+      <p className="mt-1 text-[9px] text-[#8a8f87]">{label}</p>
+    </div>
+  );
+}
+
+function ProposalSkeleton() {
+  return (
+    <div className="animate-pulse rounded-2xl border border-black/8 bg-white p-6">
+      <div className="flex gap-4">
+        <div className="h-14 w-14 rounded-2xl bg-[#e5e9e3]" />
+        <div className="flex-1">
+          <div className="h-4 w-40 rounded bg-[#dde2db]" />
+          <div className="mt-3 h-3 w-56 rounded bg-[#ecefeb]" />
+        </div>
+      </div>
+      <div className="mt-6 h-3 w-full rounded bg-[#e8ebe6]" />
+      <div className="mt-3 h-3 w-3/4 rounded bg-[#eef0ec]" />
     </div>
   );
 }
