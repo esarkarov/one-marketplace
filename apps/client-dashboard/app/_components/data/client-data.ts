@@ -71,32 +71,6 @@ export type ClientProposal = {
     "New" | "Shortlisted" | "Interview" | "Offer sent" | "Rejected" | "Hired";
 };
 
-export type ClientContract = {
-  id: number | string;
-  title: string;
-  talent: string;
-  initials: string;
-  accountType: "Freelancer" | "Agency";
-  status: "Active" | "Awaiting approval" | "Completed";
-  started: string;
-  totalBudget: number;
-  paid: number;
-  escrow: number;
-  progress: number;
-  nextDeadline: string;
-  description: string;
-  reviewedByCurrentUser?: boolean;
-  milestones: {
-    id: number | string;
-    title: string;
-    amount: number;
-    due: string;
-    status: "Paid" | "In progress" | "Upcoming" | "Submitted";
-    submissionComment?: string;
-    clientRequirements?: string;
-  }[];
-};
-
 export type CompletedClientContract = {
   id: number;
   title: string;

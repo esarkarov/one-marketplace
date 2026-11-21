@@ -1,131 +1,79 @@
 "use client";
 
 import { Icon } from "@iconify/react";
-import { useAuth } from "@clerk/nextjs";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { formatCents } from "@onemarketplace/api-client";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { type ClientContract } from "../data/client-data";
+import {
+  useAddMilestone,
+  useApproveMilestone,
+  useContracts,
+  useFinishContract,
+  useFundMilestone,
+  useRequestMilestoneChanges,
+  useWithdrawContract,
+} from "@/app/hooks/use-contracts";
+import {
+  MILESTONE_AMOUNT_HINT,
+  canAddMilestone,
+  canFinishContract,
+  canFundMilestone,
+  canGiveReview,
+  canReviewMilestone,
+  canWithdrawContract,
+  contractErrorMessage,
+  contractStatusLabel,
+  contractStatusTone,
+  contractTotals,
+  counterpartyLabel,
+  findContract,
+  formatDueDate,
+  messagesLink,
+  milestoneLabel,
+  milestoneState,
+  nextDeadline,
+  startedAt,
+  sumContractTotals,
+  todayLocalDate,
+  validateAddMilestone,
+  validateContractReview,
+  validateFeedback,
+  validateRequirements,
+  type ContractItem,
+  type ContractTone,
+  type MilestoneItem,
+  type MilestoneState,
+} from "@/lib/contracts";
+import { isCheckoutUrl } from "@/lib/proposals";
 
-type ApiContract = {
-  id: string;
-  title: string;
-  description: string;
-  totalAmount: number;
-  status: "PENDING" | "ACTIVE" | "COMPLETED";
-  startedAt: string | null;
-  createdAt: string;
-  conversationId: string | null;
-  counterpartyName: string;
-  reviewedByCurrentUser: boolean;
-  milestones: Array<{
-    id: string;
-    title: string;
-    amount: number;
-    dueDate: string;
-    status: "PENDING" | "ACTIVE" | "COMPLETED";
-    fundedAt: string | null;
-    completedAt: string | null;
-  }>;
+type Decision = {
+  type: "changes" | "approve" | "activate";
+  milestone: MilestoneItem;
 };
 
-const formatDate = (value: string) =>
-  new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  }).format(new Date(value));
-
-const mapContract = (contract: ApiContract): ClientContract => {
-  const paid = contract.milestones
-    .filter((milestone) => milestone.status === "COMPLETED")
-    .reduce((total, milestone) => total + milestone.amount, 0);
-  const escrow = contract.milestones
-    .filter(
-      (milestone) => milestone.fundedAt && milestone.status !== "COMPLETED",
-    )
-    .reduce((total, milestone) => total + milestone.amount, 0);
-  const nextMilestone = contract.milestones.find(
-    (milestone) => milestone.status !== "COMPLETED",
-  );
-
-  return {
-    id: contract.id,
-    title: contract.title,
-    talent: contract.counterpartyName,
-    initials: contract.counterpartyName
-      .split(" ")
-      .map((part) => part[0])
-      .join("")
-      .slice(0, 2),
-    accountType: "Freelancer",
-    status:
-      contract.status === "PENDING"
-        ? "Awaiting approval"
-        : contract.status === "ACTIVE"
-          ? "Active"
-          : "Completed",
-    started: formatDate(contract.startedAt ?? contract.createdAt),
-    totalBudget: contract.totalAmount,
-    paid,
-    escrow,
-    progress: contract.totalAmount
-      ? Math.round((paid / contract.totalAmount) * 100)
-      : 0,
-    nextDeadline: nextMilestone
-      ? formatDate(nextMilestone.dueDate)
-      : "Completed",
-    description: contract.description,
-    reviewedByCurrentUser: contract.reviewedByCurrentUser,
-    milestones: contract.milestones.map((milestone) => ({
-      id: milestone.id,
-      title: milestone.title,
-      amount: milestone.amount,
-      due: formatDate(milestone.dueDate),
-      status:
-        milestone.status === "COMPLETED"
-          ? "Paid"
-          : milestone.status === "ACTIVE" || milestone.fundedAt
-            ? "In progress"
-            : "Upcoming",
-    })),
-  };
+const statusBadgeClass: Record<ContractTone, string> = {
+  pending: "bg-[#f5eed4] text-[#806d31]",
+  active: "bg-[#e7f2e4] text-[#4d784a]",
+  completed: "bg-[#e5eef3] text-[#58788a]",
+  cancelled: "bg-[#f6e3e3] text-[#a04d4d]",
+  unknown: "bg-[#eef0ec] text-[#777e75]",
 };
 
 export function ContractsDashboard() {
-  const { getToken } = useAuth();
-  const queryClient = useQueryClient();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [contracts, setContracts] = useState<ClientContract[]>([]);
-  const [selected, setSelected] = useState<ClientContract | null>(null);
+  const [page, setPage] = useState(0);
   const [notice, setNotice] = useState("");
-  const [reviewTarget, setReviewTarget] = useState<ClientContract | null>(null);
-  const { data, isLoading } = useQuery<ApiContract[]>({
-    queryKey: ["client-contracts"],
-    queryFn: async () => {
-      const token = await getToken();
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_SERVER_URI}/contracts/client?role=client`,
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.message);
-      return result.data;
-    },
-  });
-
-  useEffect(() => {
-    if (data) setContracts(data.map(mapContract));
-  }, [data]);
-
-  useEffect(() => {
-    const contractId = searchParams.get("contractId");
-    if (!contractId) return;
-    const match = contracts.find(({ id }) => id === contractId);
-    if (match) setSelected(match);
-  }, [contracts, searchParams]);
+  const [reviewTarget, setReviewTarget] = useState<ContractItem | null>(null);
+  const [withdrawTarget, setWithdrawTarget] = useState<ContractItem | null>(
+    null,
+  );
+  const { data, isLoading, isFetching, error } = useContracts(page);
+  const contracts = data?.results ?? [];
+  const contractIdParam = searchParams.get("contractId");
+  const selected = findContract(contracts, contractIdParam);
+  const totals = sumContractTotals(contracts);
 
   useEffect(() => {
     if (!notice) return;
@@ -133,136 +81,6 @@ export function ContractsDashboard() {
     return () => window.clearTimeout(timeout);
   }, [notice]);
 
-  const approve = (
-    contractId: ClientContract["id"],
-    milestoneId: ClientContract["milestones"][number]["id"],
-  ) => {
-    setContracts((current) =>
-      current.map((contract) =>
-        contract.id === contractId
-          ? updateApprovedMilestone(contract, milestoneId)
-          : contract,
-      ),
-    );
-    setSelected(null);
-    setNotice("Milestone approved and payment released.");
-  };
-  const requestChanges = (
-    contractId: ClientContract["id"],
-    milestoneId: ClientContract["milestones"][number]["id"],
-    feedback: string,
-  ) => {
-    setContracts((current) =>
-      current.map((contract) =>
-        contract.id === contractId
-          ? {
-              ...contract,
-              status: "Active",
-              milestones: contract.milestones.map((milestone) =>
-                milestone.id === milestoneId
-                  ? {
-                      ...milestone,
-                      status: "In progress" as const,
-                      submissionComment: feedback,
-                    }
-                  : milestone,
-              ),
-            }
-          : contract,
-      ),
-    );
-    setSelected(null);
-    setNotice("Changes requested. Your feedback was sent to the freelancer.");
-  };
-  const activateMilestone = async (
-    contractId: ClientContract["id"],
-    milestoneId: ClientContract["milestones"][number]["id"],
-    requirements: string,
-  ) => {
-    const token = await getToken();
-    const response = await fetch(
-      `${process.env.NEXT_PUBLIC_SERVER_URI}/contracts/${contractId}/milestones/${milestoneId}/checkout?role=client`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ requirements: requirements || undefined }),
-      },
-    );
-    const result = await response.json();
-    if (!response.ok) throw new Error(result.message);
-    window.location.assign(result.data.url);
-  };
-  const addMilestone = async (
-    contractId: ClientContract["id"],
-    input: { title: string; amount: number; dueDate: string },
-  ) => {
-    const token = await getToken();
-    const response = await fetch(
-      `${process.env.NEXT_PUBLIC_SERVER_URI}/contracts/${contractId}/milestones?role=client`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(input),
-      },
-    );
-    const result = await response.json();
-    if (!response.ok) throw new Error(result.message);
-    const update = (contract: ClientContract): ClientContract => ({
-      ...contract,
-      status: "Active",
-      totalBudget: contract.totalBudget + result.data.amount,
-      nextDeadline: formatDate(result.data.dueDate),
-      progress: Math.round(
-        (contract.paid / (contract.totalBudget + result.data.amount)) * 100,
-      ),
-      milestones: [
-        ...contract.milestones,
-        {
-          id: result.data.id,
-          title: result.data.title,
-          amount: result.data.amount,
-          due: formatDate(result.data.dueDate),
-          status: "Upcoming",
-        },
-      ],
-    });
-    setContracts((current) =>
-      current.map((contract) =>
-        contract.id === contractId ? update(contract) : contract,
-      ),
-    );
-    setSelected((current) =>
-      current?.id === contractId ? update(current) : current,
-    );
-    setNotice("New milestone added. Fund it when you are ready to begin.");
-  };
-  const finishContract = async (
-    contract: ClientContract,
-    input: { rating: number; comment: string },
-  ) => {
-    const token = await getToken();
-    const response = await fetch(
-      `${process.env.NEXT_PUBLIC_SERVER_URI}/contracts/${contract.id}/finish?role=client`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(input),
-      },
-    );
-    const result = await response.json();
-    if (!response.ok) throw new Error(result.message);
-    await queryClient.invalidateQueries({ queryKey: ["client-contracts"] });
-    setNotice(result.message);
-  };
   return (
     <>
       <div>
@@ -277,68 +95,96 @@ export function ContractsDashboard() {
         </p>
       </div>
       {notice && (
-        <p className="mt-5 rounded-xl bg-[#e7f2e4] p-3 text-xs font-semibold text-[#4d784a]">
+        <p
+          role="status"
+          className="mt-5 rounded-xl bg-[#e7f2e4] p-3 text-xs font-semibold text-[#4d784a]"
+        >
           {notice}
         </p>
       )}
+      {error && (
+        <p
+          role="alert"
+          className="mt-5 rounded-xl bg-[#f6e3e3] p-3 text-xs font-semibold text-[#a04d4d]"
+        >
+          {contractErrorMessage(error)}
+        </p>
+      )}
+      {contractIdParam && !selected && !isLoading && !error && (
+        <p className="mt-5 rounded-xl bg-[#f5eed4] p-3 text-xs font-semibold text-[#806d31]">
+          That contract is not on this page of results.
+          {data?.hasMore ? " Use Next to look further." : ""}
+        </p>
+      )}
       <section className="mt-8 grid gap-4 sm:grid-cols-3">
-        <Summary
-          label="Active contracts"
-          value={String(
-            contracts.filter((contract) => contract.status === "Active").length,
-          )}
-        />
+        <Summary label="Active contracts" value={String(totals.activeCount)} />
         <Summary
           label="Currently in progress"
-          value={`$${contracts.reduce((total, contract) => total + contract.escrow, 0).toLocaleString()}`}
+          value={formatCents(totals.escrowCents)}
         />
-        <Summary
-          label="Paid"
-          value={`$${contracts.reduce((total, contract) => total + contract.paid, 0).toLocaleString()}`}
-        />
+        <Summary label="Paid" value={formatCents(totals.paidCents)} />
       </section>
       <div className="mt-6 grid gap-4">
         {isLoading && <ContractsSkeleton />}
-        {contracts.map((contract) => (
-          <article
-            key={contract.id}
-            className="rounded-2xl border border-black/8 bg-white p-5 sm:p-6"
-          >
-            <div className="flex flex-col justify-between gap-4 sm:flex-row">
-              <div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <span
-                    className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${contract.status === "Awaiting approval" ? "bg-[#f5eed4] text-[#806d31]" : "bg-[#e7f2e4] text-[#4d784a]"}`}
-                  >
-                    {contract.status}
-                  </span>
-                  <span className="text-[10px] text-[#8a8f87]">
-                    Started {contract.started}
-                  </span>
+        {contracts.map((contract) => {
+          const totalsForContract = contractTotals(contract);
+          const deadline = nextDeadline(contract);
+          const chat = messagesLink(contract.conversationId);
+          return (
+            <article
+              key={contract.id}
+              className="rounded-2xl border border-black/8 bg-white p-5 sm:p-6"
+            >
+              <div className="flex flex-col justify-between gap-4 sm:flex-row">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${statusBadgeClass[contractStatusTone(contract.status)]}`}
+                    >
+                      {contractStatusLabel(contract.status)}
+                    </span>
+                    <span className="text-[10px] text-[#8a8f87]">
+                      Started {formatDueDate(startedAt(contract))}
+                    </span>
+                  </div>
+                  <h2 className="mt-3 text-lg font-semibold">
+                    {contract.title}
+                  </h2>
+                  <p className="mt-2 text-xs text-[#747a72]">
+                    {contract.counterpartyName} ·{" "}
+                    {counterpartyLabel(contract.counterpartyType)}
+                  </p>
                 </div>
-                <h2 className="mt-3 text-lg font-semibold">{contract.title}</h2>
-                <p className="mt-2 text-xs text-[#747a72]">
-                  {contract.talent} · {contract.accountType}
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <Link
-                  href={`/messages?conversationId=${data?.find(({ id }) => id === contract.id)?.conversationId ?? ""}`}
-                  className="h-10 rounded-xl border border-black/10 px-4 py-3 text-xs font-semibold"
-                >
-                  Message
-                </Link>
-                <button
-                  type="button"
-                  onClick={() => {
-                    router.push(`/contracts?contractId=${contract.id}`);
-                  }}
-                  className="h-10 cursor-pointer rounded-xl bg-[#252724] px-4 text-xs font-semibold text-white"
-                >
-                  View contract
-                </button>
-                {contract.status === "Completed" &&
-                  !contract.reviewedByCurrentUser && (
+                <div className="flex flex-wrap gap-2">
+                  {chat && (
+                    <Link
+                      href={chat}
+                      className="h-10 rounded-xl border border-black/10 px-4 py-3 text-xs font-semibold"
+                    >
+                      Message
+                    </Link>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      router.push(
+                        `/contracts?contractId=${encodeURIComponent(contract.id)}`,
+                      )
+                    }
+                    className="h-10 cursor-pointer rounded-xl bg-[#252724] px-4 text-xs font-semibold text-white"
+                  >
+                    View contract
+                  </button>
+                  {canWithdrawContract(contract) && (
+                    <button
+                      type="button"
+                      onClick={() => setWithdrawTarget(contract)}
+                      className="h-10 cursor-pointer rounded-xl border border-[#e2c4c4] px-4 text-xs font-semibold text-[#a04d4d]"
+                    >
+                      Withdraw offer
+                    </button>
+                  )}
+                  {canGiveReview(contract) && (
                     <button
                       type="button"
                       onClick={() => setReviewTarget(contract)}
@@ -347,70 +193,104 @@ export function ContractsDashboard() {
                       Give review
                     </button>
                   )}
+                </div>
               </div>
-            </div>
-            <div className="mt-5 grid gap-4 sm:grid-cols-4">
-              <ContractMetric
-                label="Total budget"
-                value={`$${contract.totalBudget.toLocaleString()}`}
-              />
-              <ContractMetric
-                label="Paid"
-                value={`$${contract.paid.toLocaleString()}`}
-              />
-              <ContractMetric
-                label="In progress"
-                value={`$${contract.escrow.toLocaleString()}`}
-              />
-              <ContractMetric
-                label="Next deadline"
-                value={contract.nextDeadline}
-              />
-            </div>
-            <div className="mt-5">
-              <div className="flex justify-between text-[10px] text-[#7b8078]">
-                <span>Contract progress</span>
-                <span>{contract.progress}%</span>
-              </div>
-              <div className="mt-2 h-1.5 rounded-full bg-[#e4e8e1]">
-                <div
-                  className="h-full rounded-full bg-[#658a62]"
-                  style={{ width: `${contract.progress}%` }}
+              <div className="mt-5 grid gap-4 sm:grid-cols-4">
+                <ContractMetric
+                  label="Total budget"
+                  value={formatCents(totalsForContract.totalCents)}
+                />
+                <ContractMetric
+                  label="Paid"
+                  value={formatCents(totalsForContract.paidCents)}
+                />
+                <ContractMetric
+                  label="In progress"
+                  value={formatCents(totalsForContract.escrowCents)}
+                />
+                <ContractMetric
+                  label="Next deadline"
+                  value={deadline ? formatDueDate(deadline) : "—"}
                 />
               </div>
-            </div>
-          </article>
-        ))}
-        {!isLoading && !contracts.length && (
+              <div className="mt-5">
+                <div className="flex justify-between text-[10px] text-[#7b8078]">
+                  <span>Contract progress</span>
+                  <span>{totalsForContract.progressPercent}%</span>
+                </div>
+                <div className="mt-2 h-1.5 rounded-full bg-[#e4e8e1]">
+                  <div
+                    className="h-full rounded-full bg-[#658a62]"
+                    style={{ width: `${totalsForContract.progressPercent}%` }}
+                  />
+                </div>
+              </div>
+            </article>
+          );
+        })}
+        {!isLoading && !error && !contracts.length && (
           <div className="rounded-2xl border border-dashed border-black/10 bg-white p-10 text-center text-sm text-[#72776f]">
-            No contracts yet.
+            {page > 0 ? "No more contracts." : "No contracts yet."}
           </div>
         )}
       </div>
+      {(page > 0 || data?.hasMore) && (
+        <div className="mt-6 flex items-center justify-between">
+          <button
+            type="button"
+            disabled={page === 0 || isFetching}
+            onClick={() => setPage((current) => Math.max(0, current - 1))}
+            className="h-10 cursor-pointer rounded-xl border border-black/10 px-4 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Previous
+          </button>
+          <span className="text-xs text-[#7b8078]">Page {page + 1}</span>
+          <button
+            type="button"
+            disabled={!data?.hasMore || isFetching}
+            onClick={() => setPage((current) => current + 1)}
+            className="h-10 cursor-pointer rounded-xl border border-black/10 px-4 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Next
+          </button>
+        </div>
+      )}
       {selected && (
         <ContractDrawer
           contract={selected}
-          onClose={() => {
-            setSelected(null);
-            router.replace("/contracts");
-          }}
-          onApprove={approve}
-          onRequestChanges={requestChanges}
-          onActivateMilestone={activateMilestone}
-          onAddMilestone={addMilestone}
+          onClose={() => router.replace("/contracts")}
+          onNotice={setNotice}
           onFinish={() => setReviewTarget(selected)}
+          onWithdraw={() => setWithdrawTarget(selected)}
         />
       )}
       {reviewTarget && (
         <ContractReviewModal
           contract={reviewTarget}
           onClose={() => setReviewTarget(null)}
-          onSubmit={(input) => finishContract(reviewTarget, input)}
+          onDone={(message) => {
+            setReviewTarget(null);
+            setNotice(message);
+          }}
+        />
+      )}
+      {withdrawTarget && (
+        <WithdrawOfferModal
+          contract={withdrawTarget}
+          onClose={() => setWithdrawTarget(null)}
+          onDone={(message) => {
+            setWithdrawTarget(null);
+            setNotice(message);
+            if (contractIdParam === withdrawTarget.id) {
+              router.replace("/contracts");
+            }
+          }}
         />
       )}
     </>
   );
 }
+
 function Summary({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl border border-black/8 bg-white p-5">
@@ -442,46 +322,24 @@ function ContractMetric({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
+
 function ContractDrawer({
   contract,
   onClose,
-  onApprove,
-  onRequestChanges,
-  onActivateMilestone,
-  onAddMilestone,
+  onNotice,
   onFinish,
+  onWithdraw,
 }: {
-  contract: ClientContract;
+  contract: ContractItem;
   onClose: () => void;
-  onApprove: (
-    contractId: ClientContract["id"],
-    milestoneId: ClientContract["milestones"][number]["id"],
-  ) => void;
-  onRequestChanges: (
-    contractId: ClientContract["id"],
-    milestoneId: ClientContract["milestones"][number]["id"],
-    feedback: string,
-  ) => void;
-  onActivateMilestone: (
-    contractId: ClientContract["id"],
-    milestoneId: ClientContract["milestones"][number]["id"],
-    requirements: string,
-  ) => Promise<void>;
-  onAddMilestone: (
-    contractId: ClientContract["id"],
-    input: { title: string; amount: number; dueDate: string },
-  ) => Promise<void>;
+  onNotice: (message: string) => void;
   onFinish: () => void;
+  onWithdraw: () => void;
 }) {
-  const [decision, setDecision] = useState<{
-    type: "changes" | "approve" | "activate";
-    milestone: ClientContract["milestones"][number];
-  } | null>(null);
+  const [decision, setDecision] = useState<Decision | null>(null);
   const [addingMilestone, setAddingMilestone] = useState(false);
-  const allMilestonesCompleted =
-    contract.status === "Active" &&
-    contract.milestones.length > 0 &&
-    contract.milestones.every((milestone) => milestone.status === "Paid");
+  const totals = contractTotals(contract);
+  const showCompletionActions = canFinishContract(contract);
 
   return (
     <div
@@ -492,12 +350,24 @@ function ContractDrawer({
         <div className="flex justify-between gap-4">
           <div>
             <p className="text-xs font-semibold text-[#62805f]">
-              {contract.accountType} contract
+              {counterpartyLabel(contract.counterpartyType)} contract
             </p>
             <h2 className="mt-2 text-2xl font-semibold">{contract.title}</h2>
-            <p className="mt-1 text-sm text-[#747a72]">{contract.talent}</p>
+            <p className="mt-1 text-sm text-[#747a72]">
+              {contract.counterpartyName}
+            </p>
+            <span
+              className={`mt-3 inline-flex rounded-full px-2.5 py-1 text-[10px] font-semibold ${statusBadgeClass[contractStatusTone(contract.status)]}`}
+            >
+              {contractStatusLabel(contract.status)}
+            </span>
           </div>
-          <button type="button" onClick={onClose} className="cursor-pointer">
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close contract"
+            className="cursor-pointer"
+          >
             <Icon icon="solar:close-circle-linear" width="24" />
           </button>
         </div>
@@ -525,16 +395,10 @@ function ContractDrawer({
         <h3 className="mt-7 text-sm font-semibold">Milestone details</h3>
         <div className="mt-3 grid gap-3">
           {contract.milestones.map((milestone, index) => {
-            const tone = milestoneTone(milestone.status);
-            const canActivate =
-              milestone.status === "Upcoming" &&
-              contract.milestones
-                .slice(0, index)
-                .every((previous) => previous.status === "Paid") &&
-              !contract.milestones.some(
-                (item) =>
-                  item.status === "In progress" || item.status === "Submitted",
-              );
+            const state = milestoneState(milestone);
+            const tone = milestoneTone(state);
+            const canActivate = canFundMilestone(contract, index);
+            const canReview = canReviewMilestone(contract, milestone);
 
             return (
               <article
@@ -546,7 +410,7 @@ function ContractDrawer({
                     <span
                       className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold ${tone.marker}`}
                     >
-                      {milestone.status === "Paid" ? (
+                      {state === "PAID" ? (
                         <Icon icon="solar:check-read-linear" width="15" />
                       ) : (
                         index + 1
@@ -555,36 +419,27 @@ function ContractDrawer({
                     <div>
                       <p className="text-xs font-semibold">{milestone.title}</p>
                       <p className="mt-1 text-[10px] text-[#858a82]">
-                        Due {milestone.due}
+                        Due {formatDueDate(milestone.dueDate)}
                       </p>
                     </div>
                   </div>
                   <div className="shrink-0 text-right">
                     <p className="text-xs font-semibold">
-                      ${milestone.amount.toLocaleString()}
+                      {formatCents(milestone.amountCents)}
                     </p>
                     <p className="mt-1 text-[10px] text-[#858a82]">
                       <span
                         className={`inline-flex rounded-full px-2 py-1 font-semibold ${tone.badge}`}
                       >
-                        {milestone.status}
+                        {milestoneLabel(milestone)}
                       </span>
                     </p>
                   </div>
                 </div>
-                {milestone.status === "Submitted" &&
-                  milestone.submissionComment && (
-                    <div className="mt-4 rounded-xl bg-white/80 p-3">
-                      <p className="flex items-center gap-1.5 text-[9px] font-semibold tracking-wide text-[#70806d] uppercase">
-                        <Icon icon="solar:letter-linear" width="14" />
-                        Freelancer submission comment
-                      </p>
-                      <p className="mt-2 text-[11px] leading-5 text-[#616860]">
-                        {milestone.submissionComment}
-                      </p>
-                    </div>
-                  )}
-                {milestone.status === "Submitted" && (
+                {state === "SUBMITTED" && (
+                  <SubmissionDetails milestone={milestone} />
+                )}
+                {canReview && (
                   <div className="mt-4 flex justify-end gap-2 border-t border-black/7 pt-4">
                     <button
                       type="button"
@@ -627,7 +482,12 @@ function ContractDrawer({
             );
           })}
         </div>
-        {allMilestonesCompleted && (
+        <p className="mt-4 text-[10px] text-[#858a82]">
+          Total {formatCents(totals.totalCents)} · Paid{" "}
+          {formatCents(totals.paidCents)} · Funded and in progress{" "}
+          {formatCents(totals.escrowCents)}
+        </p>
+        {showCompletionActions && (
           <div className="mt-6 flex justify-end gap-2 border-t border-black/8 pt-5">
             <button
               type="button"
@@ -636,16 +496,29 @@ function ContractDrawer({
             >
               Finish contract
             </button>
+            {canAddMilestone(contract) && (
+              <button
+                type="button"
+                onClick={() => setAddingMilestone(true)}
+                className="h-10 cursor-pointer rounded-xl bg-[#252724] px-4 text-xs font-semibold text-white"
+              >
+                Add milestone
+              </button>
+            )}
+          </div>
+        )}
+        {canWithdrawContract(contract) && (
+          <div className="mt-6 flex justify-end border-t border-black/8 pt-5">
             <button
               type="button"
-              onClick={() => setAddingMilestone(true)}
-              className="h-10 cursor-pointer rounded-xl bg-[#252724] px-4 text-xs font-semibold text-white"
+              onClick={onWithdraw}
+              className="h-10 cursor-pointer rounded-xl border border-[#e2c4c4] px-4 text-xs font-semibold text-[#a04d4d]"
             >
-              Add milestone
+              Withdraw offer
             </button>
           </div>
         )}
-        {contract.status === "Completed" && !contract.reviewedByCurrentUser && (
+        {canGiveReview(contract) && (
           <div className="mt-6 flex justify-end border-t border-black/8 pt-5">
             <button
               type="button"
@@ -662,25 +535,53 @@ function ContractDrawer({
           contract={contract}
           decision={decision}
           onClose={() => setDecision(null)}
-          onApprove={() => onApprove(contract.id, decision.milestone.id)}
-          onRequestChanges={(feedback) =>
-            onRequestChanges(contract.id, decision.milestone.id, feedback)
-          }
-          onActivateMilestone={(requirements) =>
-            onActivateMilestone(
-              contract.id,
-              decision.milestone.id,
-              requirements,
-            )
-          }
+          onDone={(message) => {
+            setDecision(null);
+            onNotice(message);
+          }}
         />
       )}
       {addingMilestone && (
         <AddMilestoneModal
+          contractId={contract.id}
           onClose={() => setAddingMilestone(false)}
-          onSubmit={(input) => onAddMilestone(contract.id, input)}
+          onDone={(message) => {
+            setAddingMilestone(false);
+            onNotice(message);
+          }}
         />
       )}
+    </div>
+  );
+}
+
+function SubmissionDetails({ milestone }: { milestone: MilestoneItem }) {
+  const link = milestone.submissionDeliveryLink;
+  if (!milestone.submissionMessage && !link) return null;
+  return (
+    <div className="mt-4 rounded-xl bg-white/80 p-3">
+      <p className="flex items-center gap-1.5 text-[9px] font-semibold tracking-wide text-[#70806d] uppercase">
+        <Icon icon="solar:letter-linear" width="14" />
+        Freelancer submission
+      </p>
+      {milestone.submissionMessage && (
+        <p className="mt-2 text-[11px] leading-5 break-words text-[#616860]">
+          {milestone.submissionMessage}
+        </p>
+      )}
+      {link &&
+        (isCheckoutUrl(link) ? (
+          <a
+            href={link}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-2 inline-block text-[11px] break-all text-[#52784f] underline"
+          >
+            {link}
+          </a>
+        ) : (
+          <p className="mt-2 text-[11px] break-all text-[#616860]">{link}</p>
+        ))}
     </div>
   );
 }
@@ -688,16 +589,18 @@ function ContractDrawer({
 function ContractReviewModal({
   contract,
   onClose,
-  onSubmit,
+  onDone,
 }: {
-  contract: ClientContract;
+  contract: ContractItem;
   onClose: () => void;
-  onSubmit: (input: { rating: number; comment: string }) => Promise<void>;
+  onDone: (message: string) => void;
 }) {
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
+  const [localError, setLocalError] = useState("");
+  const finish = useFinishContract();
+  const finishing = contract.status === "ACTIVE";
+  const saving = finish.isPending;
 
   return (
     <div className="fixed inset-0 z-80 grid place-items-center bg-[#172018]/50 p-5 backdrop-blur-sm">
@@ -705,18 +608,19 @@ function ContractReviewModal({
         className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"
         onSubmit={(event) => {
           event.preventDefault();
-          setSaving(true);
-          setError("");
-          void onSubmit({ rating, comment: comment.trim() })
-            .then(onClose)
-            .catch((error) => {
-              setError(
-                error instanceof Error
-                  ? error.message
-                  : "Review could not be submitted.",
-              );
-              setSaving(false);
-            });
+          const parsed = validateContractReview({ rating, comment });
+          if (!parsed.ok) {
+            setLocalError(parsed.message);
+            return;
+          }
+          setLocalError("");
+          finish.submit({ contractId: contract.id, ...parsed.value }, () =>
+            onDone(
+              finishing
+                ? "Contract finished. Thanks for your review."
+                : "Review submitted.",
+            ),
+          );
         }}
       >
         <div className="flex items-start justify-between gap-4">
@@ -732,12 +636,14 @@ function ContractReviewModal({
             <Icon icon="solar:close-circle-linear" width="23" />
           </button>
         </div>
-        <h2 className="mt-4 text-xl font-semibold">Review {contract.talent}</h2>
+        <h2 className="mt-4 text-xl font-semibold">
+          Review {contract.counterpartyName}
+        </h2>
         <p className="mt-2 text-sm text-[#737970]">
-          Share your experience from “{contract.title}”. A review is required to
-          finish the contract.
+          Share your experience from “{contract.title}”.
+          {finishing ? " A review is required to finish the contract." : ""}
         </p>
-        <div className="mt-5 flex gap-1" aria-label="Rating">
+        <div className="mt-5 flex gap-1" role="group" aria-label="Rating">
           {[1, 2, 3, 4, 5].map((value) => (
             <button
               key={value}
@@ -760,7 +666,12 @@ function ContractReviewModal({
           placeholder="Write your review..."
           className="mt-5 w-full resize-none rounded-xl border border-black/10 p-3 text-sm outline-none focus:border-[#6e916a]"
         />
-        {error && <p className="mt-3 text-xs text-red-600">{error}</p>}
+        <ErrorLine
+          message={
+            localError ||
+            (finish.error ? contractErrorMessage(finish.error) : "")
+          }
+        />
         <div className="mt-6 flex justify-end gap-2">
           <button
             type="button"
@@ -777,9 +688,9 @@ function ContractReviewModal({
           >
             {saving
               ? "Submitting…"
-              : contract.status === "Completed"
-                ? "Submit review"
-                : "Finish contract"}
+              : finishing
+                ? "Finish contract"
+                : "Submit review"}
           </button>
         </div>
       </form>
@@ -788,27 +699,21 @@ function ContractReviewModal({
 }
 
 function AddMilestoneModal({
+  contractId,
   onClose,
-  onSubmit,
+  onDone,
 }: {
+  contractId: string;
   onClose: () => void;
-  onSubmit: (input: {
-    title: string;
-    amount: number;
-    dueDate: string;
-  }) => Promise<void>;
+  onDone: (message: string) => void;
 }) {
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
   const [dueDate, setDueDate] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  const today = new Date();
-  const minimumDueDate = [
-    today.getFullYear(),
-    String(today.getMonth() + 1).padStart(2, "0"),
-    String(today.getDate()).padStart(2, "0"),
-  ].join("-");
+  const [localError, setLocalError] = useState("");
+  const add = useAddMilestone();
+  const saving = add.isPending;
+  const [minimumDueDate] = useState(() => todayLocalDate());
 
   return (
     <div className="fixed inset-0 z-70 grid place-items-center bg-[#172018]/50 p-5 backdrop-blur-[3px]">
@@ -816,34 +721,32 @@ function AddMilestoneModal({
         className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"
         onSubmit={(event) => {
           event.preventDefault();
-          setSaving(true);
-          setError("");
-          void onSubmit({
-            title: title.trim(),
-            amount: Number(amount),
-            dueDate,
-          })
-            .then(onClose)
-            .catch((error) => {
-              setError(
-                error instanceof Error
-                  ? error.message
-                  : "Milestone could not be added.",
-              );
-              setSaving(false);
-            });
+          const parsed = validateAddMilestone(
+            { title, amount, dueDate },
+            minimumDueDate,
+          );
+          if (!parsed.ok) {
+            setLocalError(parsed.message);
+            return;
+          }
+          setLocalError("");
+          add.submit({ contractId, body: parsed.value }, () =>
+            onDone("New milestone added. Fund it when you are ready to begin."),
+          );
         }}
       >
         <ModalHeading
           eyebrow="Contract extension"
           title="Add another milestone"
           onClose={onClose}
+          disabled={saving}
         />
         <label className="mt-5 block text-xs font-semibold">
           Milestone title
           <input
             required
             minLength={3}
+            maxLength={120}
             value={title}
             onChange={(event) => setTitle(event.target.value)}
             className="mt-2 h-11 w-full rounded-xl border border-black/10 px-3 text-sm font-normal outline-none focus:border-[#6e916a]"
@@ -851,16 +754,20 @@ function AddMilestoneModal({
         </label>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <label className="text-xs font-semibold">
-            Amount
+            Amount (USD)
             <input
               required
               type="number"
+              inputMode="decimal"
               min="10"
               step="0.01"
               value={amount}
               onChange={(event) => setAmount(event.target.value)}
               className="mt-2 h-11 w-full rounded-xl border border-black/10 px-3 text-sm font-normal outline-none focus:border-[#6e916a]"
             />
+            <span className="mt-1 block text-[10px] font-normal text-[#858a82]">
+              {MILESTONE_AMOUNT_HINT}
+            </span>
           </label>
           <label className="text-xs font-semibold">
             Due date
@@ -874,7 +781,11 @@ function AddMilestoneModal({
             />
           </label>
         </div>
-        {error && <p className="mt-3 text-xs text-[#a65050]">{error}</p>}
+        <ErrorLine
+          message={
+            localError || (add.error ? contractErrorMessage(add.error) : "")
+          }
+        />
         <div className="mt-6 flex justify-end gap-2">
           <button
             type="button"
@@ -897,48 +808,132 @@ function AddMilestoneModal({
   );
 }
 
+function WithdrawOfferModal({
+  contract,
+  onClose,
+  onDone,
+}: {
+  contract: ContractItem;
+  onClose: () => void;
+  onDone: (message: string) => void;
+}) {
+  const withdraw = useWithdrawContract();
+  const working = withdraw.isPending;
+  const total = formatCents(contract.totalAmountCents);
+
+  return (
+    <div className="fixed inset-0 z-80 grid place-items-center bg-[#172018]/50 p-5 backdrop-blur-[3px]">
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-label="Withdraw offer"
+        className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl sm:p-7"
+      >
+        <ModalHeading
+          eyebrow="Withdraw offer"
+          title="Withdraw this contract offer?"
+          onClose={onClose}
+          disabled={working}
+        />
+        <MilestoneSummary
+          title={contract.title}
+          amountCents={contract.totalAmountCents}
+        />
+        <p className="mt-4 text-xs leading-5 text-[#737970]">
+          The offer to {contract.counterpartyName} is cancelled and the job
+          returns to open. The first milestone payment you made at checkout is
+          refunded to your card ({total} contract total). This cannot be undone.
+        </p>
+        <ErrorLine
+          message={withdraw.error ? contractErrorMessage(withdraw.error) : ""}
+        />
+        <div className="mt-6 grid gap-2 sm:grid-cols-2">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={working}
+            className="h-11 cursor-pointer rounded-xl border border-black/10 px-4 text-xs font-semibold disabled:opacity-50"
+          >
+            Keep offer
+          </button>
+          <button
+            type="button"
+            disabled={working || withdraw.isSuccess}
+            onClick={() =>
+              withdraw.submit(contract.id, () =>
+                onDone("Offer withdrawn. Your payment is being refunded."),
+              )
+            }
+            className="h-11 cursor-pointer rounded-xl bg-[#a04d4d] px-4 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {working ? "Withdrawing…" : "Yes, withdraw offer"}
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 function MilestoneDecisionModal({
   contract,
   decision,
   onClose,
-  onApprove,
-  onRequestChanges,
-  onActivateMilestone,
+  onDone,
 }: {
-  contract: ClientContract;
-  decision: {
-    type: "changes" | "approve" | "activate";
-    milestone: ClientContract["milestones"][number];
-  };
+  contract: ContractItem;
+  decision: Decision;
   onClose: () => void;
-  onApprove: () => void;
-  onRequestChanges: (feedback: string) => void;
-  onActivateMilestone: (requirements: string) => Promise<void>;
+  onDone: (message: string) => void;
 }) {
   const [feedback, setFeedback] = useState("");
   const [requirements, setRequirements] = useState("");
-  const [error, setError] = useState("");
-  const [funding, setFunding] = useState(false);
+  const [localError, setLocalError] = useState("");
+  const approve = useApproveMilestone();
+  const requestChanges = useRequestMilestoneChanges();
+  const fund = useFundMilestone();
   const requestingChanges = decision.type === "changes";
   const activating = decision.type === "activate";
+  const busy =
+    approve.isPending ||
+    requestChanges.isPending ||
+    fund.isPending ||
+    fund.isSuccess;
+  const apiError = contractErrorMessageOf(
+    approve.error ?? requestChanges.error ?? fund.error,
+  );
+  const target = {
+    contractId: contract.id,
+    milestoneId: decision.milestone.id,
+  };
 
   const submitChanges = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const normalizedFeedback = feedback.trim();
-    if (normalizedFeedback.length < 10) {
-      setError(
-        "Please describe the requested update in at least 10 characters.",
-      );
+    const parsed = validateFeedback(feedback);
+    if (!parsed.ok) {
+      setLocalError(parsed.message);
       return;
     }
-    onRequestChanges(normalizedFeedback);
+    setLocalError("");
+    requestChanges.submit({ ...target, feedback: parsed.value }, () =>
+      onDone("Changes requested. Your feedback was sent to the freelancer."),
+    );
+  };
+
+  const startFunding = () => {
+    const parsed = validateRequirements(requirements);
+    if (!parsed.ok) {
+      setLocalError(parsed.message);
+      return;
+    }
+    setLocalError("");
+    fund.submit({ ...target, requirements: parsed.value });
   };
 
   return (
     <div
       className="fixed inset-0 z-60 grid place-items-center bg-[#172018]/50 p-5 backdrop-blur-[3px]"
       onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
+        if (event.target === event.currentTarget && !busy) onClose();
       }}
     >
       {requestingChanges ? (
@@ -950,10 +945,11 @@ function MilestoneDecisionModal({
             eyebrow="Revision request"
             title="What needs to be updated?"
             onClose={onClose}
+            disabled={busy}
           />
           <MilestoneSummary
             title={decision.milestone.title}
-            amount={decision.milestone.amount}
+            amountCents={decision.milestone.amountCents}
           />
           <label className="mt-5 block text-xs font-semibold">
             Changes requested <span className="text-[#a04d4d]">*</span>
@@ -961,41 +957,39 @@ function MilestoneDecisionModal({
               value={feedback}
               onChange={(event) => {
                 setFeedback(event.target.value);
-                if (error) setError("");
+                if (localError) setLocalError("");
               }}
               rows={5}
+              maxLength={5000}
               placeholder="Explain what should change, why it matters, and what you expect in the next submission…"
-              aria-invalid={Boolean(error)}
+              aria-invalid={Boolean(localError)}
               className={`mt-2 w-full resize-none rounded-xl border p-3 text-sm font-normal outline-none ${
-                error
+                localError
                   ? "border-[#c56b6b] focus:border-[#c56b6b]"
                   : "border-black/10 focus:border-[#6e916a]"
               }`}
             />
           </label>
-          {error && (
-            <p className="mt-2 text-[10px] font-medium text-[#a65050]">
-              {error}
-            </p>
-          )}
+          <ErrorLine message={localError || apiError} />
           <p className="mt-3 text-[10px] leading-5 text-[#7b8179]">
-            This feedback will be sent to {contract.talent}, and the milestone
-            will return to In progress.
+            This feedback will be sent to {contract.counterpartyName}, and the
+            milestone will return to In progress.
           </p>
           <div className="mt-6 flex justify-end gap-2">
             <button
               type="button"
               onClick={onClose}
-              className="h-11 cursor-pointer rounded-xl border border-black/10 px-5 text-xs font-semibold"
+              disabled={busy}
+              className="h-11 cursor-pointer rounded-xl border border-black/10 px-5 text-xs font-semibold disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               type="submit"
-              disabled={!feedback.trim()}
+              disabled={busy || !feedback.trim()}
               className="h-11 cursor-pointer rounded-xl bg-[#252724] px-5 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
             >
-              Send revision request
+              {requestChanges.isPending ? "Sending…" : "Send revision request"}
             </button>
           </div>
         </form>
@@ -1005,12 +999,12 @@ function MilestoneDecisionModal({
             eyebrow="Secure milestone funding"
             title="Fund and activate milestone"
             onClose={onClose}
+            disabled={busy}
           />
           <MilestoneSummary
             title={decision.milestone.title}
-            amount={decision.milestone.amount}
+            amountCents={decision.milestone.amountCents}
           />
-
           <div className="mt-5 rounded-xl border border-black/8 p-4">
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-3">
@@ -1025,11 +1019,10 @@ function MilestoneDecisionModal({
                 </div>
               </div>
               <strong className="text-sm">
-                ${decision.milestone.amount.toLocaleString()}
+                {formatCents(decision.milestone.amountCents)}
               </strong>
             </div>
           </div>
-
           <label className="mt-5 block text-xs font-semibold">
             Additional requirements{" "}
             <span className="font-normal text-[#8a8f87]">(optional)</span>
@@ -1037,11 +1030,11 @@ function MilestoneDecisionModal({
               value={requirements}
               onChange={(event) => setRequirements(event.target.value)}
               rows={4}
+              maxLength={500}
               placeholder="Add any updated instructions, priorities, links, or acceptance requirements for this milestone…"
               className="mt-2 w-full resize-none rounded-xl border border-black/10 p-3 text-sm font-normal outline-none focus:border-[#6e916a]"
             />
           </label>
-
           <div className="mt-4 flex gap-3 rounded-xl border border-[#d3e1cf] bg-[#edf4ea] p-4">
             <Icon
               icon="solar:shield-check-linear"
@@ -1049,41 +1042,30 @@ function MilestoneDecisionModal({
               className="shrink-0 text-[#52784f]"
             />
             <p className="text-[10px] leading-5 text-[#5c6b59]">
-              Your payment stays protected until it's released. It will not be
-              released to {contract.talent} until work is submitted and you
-              approve the completed milestone.
+              Your payment stays protected until it&apos;s released. It will not
+              be released to {contract.counterpartyName} until work is submitted
+              and you approve the completed milestone.
             </p>
           </div>
-
+          <ErrorLine message={localError || apiError} />
           <div className="mt-6 flex justify-end gap-2">
             <button
               type="button"
               onClick={onClose}
-              className="h-11 cursor-pointer rounded-xl border border-black/10 px-5 text-xs font-semibold"
+              disabled={busy}
+              className="h-11 cursor-pointer rounded-xl border border-black/10 px-5 text-xs font-semibold disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               type="button"
-              disabled={funding}
-              onClick={() => {
-                setFunding(true);
-                setError("");
-                void onActivateMilestone(requirements.trim()).catch((error) => {
-                  setError(
-                    error instanceof Error
-                      ? error.message
-                      : "Milestone checkout could not start.",
-                  );
-                  setFunding(false);
-                });
-              }}
+              disabled={busy}
+              onClick={startFunding}
               className="h-11 cursor-pointer rounded-xl bg-[#252724] px-5 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {funding ? "Opening checkout…" : "Fund & activate"}
+              {busy ? "Opening checkout…" : "Fund & activate"}
             </button>
           </div>
-          {error && <p className="mt-3 text-xs text-[#a65050]">{error}</p>}
         </section>
       ) : (
         <section className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl sm:p-7">
@@ -1091,10 +1073,11 @@ function MilestoneDecisionModal({
             eyebrow="Payment release"
             title="Approve this milestone?"
             onClose={onClose}
+            disabled={busy}
           />
           <MilestoneSummary
             title={decision.milestone.title}
-            amount={decision.milestone.amount}
+            amountCents={decision.milestone.amountCents}
           />
           <div className="mt-5 rounded-xl border border-[#d6e3d2] bg-[#edf4ea] p-4">
             <div className="flex gap-3">
@@ -1105,9 +1088,9 @@ function MilestoneDecisionModal({
               />
               <p className="text-xs leading-5 text-[#536250]">
                 Approving will release{" "}
-                <strong>${decision.milestone.amount.toLocaleString()}</strong>{" "}
-                to {contract.talent} and permanently mark this milestone as
-                completed.
+                <strong>{formatCents(decision.milestone.amountCents)}</strong>{" "}
+                to {contract.counterpartyName} and permanently mark this
+                milestone as completed.
               </p>
             </div>
           </div>
@@ -1115,20 +1098,27 @@ function MilestoneDecisionModal({
             Confirm only after you have reviewed the submitted work and are
             satisfied that it meets the milestone requirements.
           </p>
+          <ErrorLine message={apiError} />
           <div className="mt-6 grid gap-2 sm:grid-cols-2">
             <button
               type="button"
               onClick={onClose}
-              className="h-11 cursor-pointer rounded-xl border border-black/10 px-4 text-xs font-semibold"
+              disabled={busy}
+              className="h-11 cursor-pointer rounded-xl border border-black/10 px-4 text-xs font-semibold disabled:opacity-50"
             >
               Keep reviewing
             </button>
             <button
               type="button"
-              onClick={onApprove}
-              className="h-11 cursor-pointer rounded-xl bg-[#252724] px-4 text-xs font-semibold text-white"
+              disabled={busy}
+              onClick={() =>
+                approve.submit(target, () =>
+                  onDone("Milestone approved and payment released."),
+                )
+              }
+              className="h-11 cursor-pointer rounded-xl bg-[#252724] px-4 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Yes, approve & release
+              {approve.isPending ? "Releasing…" : "Yes, approve & release"}
             </button>
           </div>
         </section>
@@ -1137,14 +1127,28 @@ function MilestoneDecisionModal({
   );
 }
 
+const contractErrorMessageOf = (error: unknown): string =>
+  error ? contractErrorMessage(error) : "";
+
+function ErrorLine({ message }: { message: string }) {
+  if (!message) return null;
+  return (
+    <p role="alert" className="mt-3 text-xs text-[#a65050]">
+      {message}
+    </p>
+  );
+}
+
 function ModalHeading({
   eyebrow,
   title,
   onClose,
+  disabled = false,
 }: {
   eyebrow: string;
   title: string;
   onClose: () => void;
+  disabled?: boolean;
 }) {
   return (
     <div className="flex items-start justify-between gap-4">
@@ -1157,8 +1161,9 @@ function ModalHeading({
       <button
         type="button"
         onClick={onClose}
+        disabled={disabled}
         aria-label="Close modal"
-        className="cursor-pointer text-[#697067]"
+        className="cursor-pointer text-[#697067] disabled:opacity-40"
       >
         <Icon icon="solar:close-circle-linear" width="24" />
       </button>
@@ -1168,10 +1173,10 @@ function ModalHeading({
 
 function MilestoneSummary({
   title,
-  amount,
+  amountCents,
 }: {
   title: string;
-  amount: number;
+  amountCents: number;
 }) {
   return (
     <div className="mt-5 flex items-center justify-between gap-4 rounded-xl bg-[#f2f5f0] p-4">
@@ -1179,20 +1184,16 @@ function MilestoneSummary({
         <p className="text-[9px] text-[#7b8179]">Milestone</p>
         <p className="mt-1 text-xs font-semibold">{title}</p>
       </div>
-      <strong className="text-sm">${amount.toLocaleString()}</strong>
+      <strong className="text-sm">{formatCents(amountCents)}</strong>
     </div>
   );
 }
 
-function MilestoneProgress({ contract }: { contract: ClientContract }) {
-  const paidMilestones = contract.milestones.filter(
-    (milestone) => milestone.status === "Paid",
-  );
-  const paidAmount = paidMilestones.reduce(
-    (total, milestone) => total + milestone.amount,
-    0,
-  );
-  const completion = Math.round((paidAmount / contract.totalBudget) * 100);
+function MilestoneProgress({ contract }: { contract: ContractItem }) {
+  const totals = contractTotals(contract);
+  const paidCount = contract.milestones.filter(
+    (milestone) => milestoneState(milestone) === "PAID",
+  ).length;
 
   return (
     <section className="mt-7 rounded-2xl border border-black/7 bg-[#f7f9f5] p-4 sm:p-5">
@@ -1200,29 +1201,28 @@ function MilestoneProgress({ contract }: { contract: ClientContract }) {
         <div>
           <p className="text-xs font-semibold">Contract completion</p>
           <p className="mt-1 text-[10px] text-[#7b8179]">
-            {paidMilestones.length} of {contract.milestones.length} milestones
-            completed
+            {paidCount} of {contract.milestones.length} milestones completed
           </p>
         </div>
-        <strong className="text-xl text-[#52784f]">{completion}%</strong>
+        <strong className="text-xl text-[#52784f]">
+          {totals.progressPercent}%
+        </strong>
       </div>
-
       <div className="mt-4 flex h-2 gap-1 overflow-hidden rounded-full bg-[#e4e8e1]">
         {contract.milestones.map((milestone) => (
           <span
             key={milestone.id}
-            title={`${milestone.title}: ${milestone.status}`}
-            className={`h-full transition-colors ${milestoneTone(milestone.status).bar}`}
+            title={`${milestone.title}: ${milestoneLabel(milestone)}`}
+            className={`h-full transition-colors ${milestoneTone(milestoneState(milestone)).bar}`}
             style={{
-              width: `${(milestone.amount / contract.totalBudget) * 100}%`,
+              width: `${totals.totalCents > 0 ? (milestone.amountCents / totals.totalCents) * 100 : 0}%`,
             }}
           />
         ))}
       </div>
-
       <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
         {contract.milestones.map((milestone, index) => {
-          const tone = milestoneTone(milestone.status);
+          const tone = milestoneTone(milestoneState(milestone));
           return (
             <div key={milestone.id} className="min-w-0">
               <div className="flex items-center gap-1.5">
@@ -1232,7 +1232,7 @@ function MilestoneProgress({ contract }: { contract: ClientContract }) {
                 </span>
               </div>
               <p className={`mt-1 pl-3.5 text-[9px] ${tone.text}`}>
-                {milestone.status}
+                {milestoneLabel(milestone)}
               </p>
             </div>
           );
@@ -1242,9 +1242,9 @@ function MilestoneProgress({ contract }: { contract: ClientContract }) {
   );
 }
 
-function milestoneTone(status: ClientContract["milestones"][number]["status"]) {
-  switch (status) {
-    case "Paid":
+function milestoneTone(state: MilestoneState) {
+  switch (state) {
+    case "PAID":
       return {
         bar: "bg-[#5e8b5a]",
         dot: "bg-[#5e8b5a]",
@@ -1253,7 +1253,7 @@ function milestoneTone(status: ClientContract["milestones"][number]["status"]) {
         badge: "bg-[#e3f0df] text-[#52784f]",
         card: "border-[#cadcc6] bg-[#fbfdf9]",
       };
-    case "Submitted":
+    case "SUBMITTED":
       return {
         bar: "bg-[#c1a34d]",
         dot: "bg-[#c1a34d]",
@@ -1262,7 +1262,7 @@ function milestoneTone(status: ClientContract["milestones"][number]["status"]) {
         badge: "bg-[#f5eed4] text-[#806d31]",
         card: "border-[#e2d7ad] bg-[#fffdf7]",
       };
-    case "In progress":
+    case "IN_PROGRESS":
       return {
         bar: "bg-[#6f91a3]",
         dot: "bg-[#6f91a3]",
@@ -1281,36 +1281,4 @@ function milestoneTone(status: ClientContract["milestones"][number]["status"]) {
         card: "border-black/7 bg-white",
       };
   }
-}
-
-function updateApprovedMilestone(
-  contract: ClientContract,
-  milestoneId: ClientContract["milestones"][number]["id"],
-): ClientContract {
-  const approvedMilestone = contract.milestones.find(
-    (milestone) => milestone.id === milestoneId,
-  );
-  if (!approvedMilestone || approvedMilestone.status === "Paid") {
-    return contract;
-  }
-
-  const milestones = contract.milestones.map((milestone) =>
-    milestone.id === milestoneId
-      ? { ...milestone, status: "Paid" as const }
-      : milestone,
-  );
-  const paid = milestones
-    .filter((milestone) => milestone.status === "Paid")
-    .reduce((total, milestone) => total + milestone.amount, 0);
-
-  return {
-    ...contract,
-    status: milestones.every((milestone) => milestone.status === "Paid")
-      ? "Completed"
-      : "Active",
-    milestones,
-    paid,
-    escrow: Math.max(contract.escrow - approvedMilestone.amount, 0),
-    progress: Math.round((paid / contract.totalBudget) * 100),
-  };
 }

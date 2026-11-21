@@ -7,15 +7,16 @@ import { useEffect, useRef, useState } from "react";
 import { BrandMark } from "../brand-mark";
 import { MarketplaceSearchModal } from "../discovery/marketplace-search-modal";
 import { clientHeaderNavigation } from "./navigation";
-import { getToken, useAuth, useClerk, useUser } from "@clerk/nextjs";
+import { useAuth, useClerk, useUser } from "@clerk/nextjs";
 import { useUnreadNotificationCount } from "@onemarketplace/web-core";
-import { useQuery } from "@tanstack/react-query";
 import Image from "next/image";
 import {
   presentNotification,
   useClientNotifications,
 } from "@/app/hooks/use-notifications";
 import { useClientProfile } from "@/app/hooks/use-client-profile";
+import { useContracts } from "@/app/hooks/use-contracts";
+import { hasActiveContract } from "@/lib/contracts";
 import { useUnreadMessages } from "@/app/hooks/use-unread-messages";
 
 export function ClientHeader() {
@@ -24,25 +25,12 @@ export function ClientHeader() {
   const { isSignedIn } = useAuth();
   const { user } = useUser();
   const { data: profileMetaData } = useClientProfile(Boolean(user));
-  const { data: contracts = [] } = useQuery<
-    Array<{ status: "PENDING" | "ACTIVE" | "COMPLETED" }>
-  >({
-    queryKey: ["client-contracts"],
+  const { data: contractsPage } = useContracts(0, {
     enabled: profileMetaData?.identityVerified === false,
-    queryFn: async () => {
-      const token = await getToken();
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_SERVER_URI}/contracts/client?role=client`,
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.message);
-      return result.data;
-    },
   });
   const showVerificationWarning =
     profileMetaData?.identityVerified === false &&
-    contracts.some((contract) => contract.status === "ACTIVE");
+    hasActiveContract(contractsPage?.results ?? []);
 
   return (
     <>
