@@ -32,6 +32,7 @@ import {
   validateRequirements,
   type ContractItem,
   type MilestoneItem,
+  MILESTONE_AMOUNT_HINT,
 } from "./contracts";
 
 const milestone = (overrides: Partial<MilestoneItem> = {}): MilestoneItem => ({
@@ -330,7 +331,7 @@ describe("add milestone validation", () => {
 
   it("matches the backend add-milestone amount bounds", () => {
     expect(ADD_MILESTONE_MIN_CENTS).toBe(1000);
-    expect(ADD_MILESTONE_MAX_CENTS).toBe(Number.MAX_SAFE_INTEGER);
+    expect(ADD_MILESTONE_MAX_CENTS).toBe(100_000_000);
     expect(
       validateAddMilestone(
         { title: "Phase", amount: "10", dueDate: today },
@@ -348,10 +349,16 @@ describe("add milestone validation", () => {
     ).toEqual({ ok: false, message: "Budget must be at least $10.00." });
     expect(
       validateAddMilestone(
-        { title: "Phase", amount: "2000000", dueDate: today },
+        { title: "Phase", amount: "1000000", dueDate: today },
         today,
       ).ok,
     ).toBe(true);
+    expect(
+      validateAddMilestone(
+        { title: "Phase", amount: "1000000.01", dueDate: today },
+        today,
+      ),
+    ).toEqual({ ok: false, message: "Budget cannot exceed $1,000,000.00." });
   });
 
   it("formats the local date", () => {
@@ -426,5 +433,25 @@ describe("error mapping", () => {
     expect(contractErrorMessage(new InvalidCheckoutUrlError())).toBe(
       "Checkout returned an invalid address.",
     );
+  });
+});
+
+describe("add milestone copy", () => {
+  it("derives the hint and both bound messages from the constants", () => {
+    expect(MILESTONE_AMOUNT_HINT).toBe("At least $10.00");
+    const run = (amount: string) =>
+      validateAddMilestone(
+        { title: "Phase two", amount, dueDate: "2030-01-01" },
+        "2029-01-01",
+      );
+    expect(run("9.99")).toEqual({
+      ok: false,
+      message: "Budget must be at least $10.00.",
+    });
+    expect(run("1000000.01")).toEqual({
+      ok: false,
+      message: "Budget cannot exceed $1,000,000.00.",
+    });
+    expect(run("1000000").ok).toBe(true);
   });
 });

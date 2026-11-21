@@ -4,11 +4,7 @@ import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 import prettier from "eslint-config-prettier";
 
-const unmigratedApps = [
-  "agency-dashboard",
-  "client-dashboard",
-  "freelancer-dashboard",
-];
+const unmigratedApps = ["agency-dashboard", "freelancer-dashboard"];
 
 const cwd = process.cwd();
 const isUnmigratedApp =

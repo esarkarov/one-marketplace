@@ -39,7 +39,9 @@ export const ALLOWED_ATTACHMENT_TYPES: readonly string[] = [
 ];
 export const ATTACHMENT_TYPE_MESSAGE =
   "Use PDF, DOCX, PNG, JPG, or TXT files only.";
-export const ATTACHMENT_SIZE_MESSAGE = "The maximum attachment size is 5 MB.";
+const MAX_ATTACHMENT_MB = MAX_ATTACHMENT_BYTES / (1024 * 1024);
+export const ATTACHMENT_SIZE_MESSAGE = `The maximum attachment size is ${MAX_ATTACHMENT_MB} MB.`;
+export const ATTACHMENT_HINT = `PDF, DOCX, PNG, JPG, or TXT · Maximum ${MAX_ATTACHMENT_MB} MB`;
 
 const OPTIMISTIC_PREFIX = "optimistic-";
 

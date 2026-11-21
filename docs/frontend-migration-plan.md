@@ -53,7 +53,7 @@ The audit found request-side differences on 14 operations (field names, cents, e
 | 0     | This batch: dependencies, env examples, `LANDING_PAGE`, docs, this plan                                                                            |
 | 1     | `packages/api-client` plus formatters (cents, dates), error handling, auth helper (`accountId` from `/auth/status`), notification and socket hooks |
 | 2     | admin                                                                                                                                              |
-| 3     | client                                                                                                                                             |
+| 3     | client (done, 3a to 3g)                                                                                                                            |
 | 4     | freelancer                                                                                                                                         |
 | 5     | agency                                                                                                                                             |
 | 6     | landing                                                                                                                                            |
@@ -61,7 +61,7 @@ The audit found request-side differences on 14 operations (field names, cents, e
 
 Order rationale: admin is the closest match to the contract, so it proves the api-client cheaply. Client is on the revenue critical path (job posting, checkout, funding). Freelancer and agency share code, so agency follows freelancer and reuses it. Landing is last because it only does sign-up and redirects.
 
-Lint override: until an app is migrated, `packages/eslint-config/next.mjs` downgrades five rules to warnings for `agency-dashboard`, `client-dashboard` and `freelancer-dashboard` only: `@typescript-eslint/no-explicit-any`, `react-hooks/set-state-in-effect`, `react/no-unescaped-entities`, `@typescript-eslint/no-non-null-asserted-optional-chain` and `react-hooks/purity`. An app's entry is removed from that list in the app's last sub-batch, and that batch must leave the app at 0 warnings for these five rules. While migrating, any file a batch rewrites or touches must be cleared of these warnings.
+Lint override: until an app is migrated, `packages/eslint-config/next.mjs` downgrades five rules to warnings for `agency-dashboard` and `freelancer-dashboard` only (`client-dashboard` left the list in 3g): `@typescript-eslint/no-explicit-any`, `react-hooks/set-state-in-effect`, `react/no-unescaped-entities`, `@typescript-eslint/no-non-null-asserted-optional-chain` and `react-hooks/purity`. An app's entry is removed from that list in the app's last sub-batch, and that batch must leave the app at 0 warnings for these five rules. While migrating, any file a batch rewrites or touches must be cleared of these warnings.
 
 ## Status
 
@@ -76,7 +76,8 @@ Lint override: until an app is migrated, `packages/eslint-config/next.mjs` downg
 - 2026-11-21: batch 3e done (client contracts and milestones): see [Batch 3e result](#batch-3e-result). Not yet verified against a running API, Stripe or a browser; the live check is deferred until the freelancer app can create proposals.
 - 2026-11-21: 3e follow-ups done (shared `isHttpsUrl`, redirect before refetch, milestone bounds and rules aligned with the API, contract notice targets): see [3e follow-ups](#3e-follow-ups).
 - 2026-11-21: batch 3f done (client messages): see [Batch 3f result](#batch-3f-result). Tier 1 only; not verified against a running API or a browser; the live check is deferred until the freelancer app can start conversations.
-- Open: 3g (search and public profiles, then remove `client-dashboard` from `unmigratedApps` with the owner's approval), followed by the Tier 2 checks (`pnpm check`, a production build of the client app with dummy env) and one final reviewer pass.
+- 2026-11-21: batch 3g done (client search, public profiles and dashboard home) and the client app is done: see [Batch 3g result](#batch-3g-result). `client-dashboard` is out of `unmigratedApps`. Tier 2 passed (see the result section). Not verified against a running API or a browser; the full end-to-end order is in [Client dashboard full QA](#client-dashboard-full-qa).
+- Next: batch 4 (freelancer app). It also unblocks the live checks that wait for a second actor.
 
 ## Batch 0 result
 
@@ -318,3 +319,48 @@ Prepare as above. DEFERRED until the freelancer app can start conversations.
 8. Meetings: Create meeting opens the Daily room (https only) and pauses the chat; Join meeting opens the same room. An API error shows above the composer with a reference.
 9. Contract events: an offer card shows the first milestone amount as `$1,500.00`-style text (cents formatted, not $0); a submitted milestone shows Accept work and Request changes; both call the review operation once, show an API error with a reference in the dialog and update the card after the refetch.
 10. Only one `GET /notifications/stream` and one websocket connection exist per tab (DevTools, Network), also while `/messages` is open.
+
+## Batch 3g result
+
+- Operations used: `client_get_dashboard_overview` (home), `client_get_marketplace_search` (`query`, `type` all, freelancer or agency, `limit` 20, `offset`; `{ results, hasMore }`), `freelancer_get_profile_by_id` and `agency_get_profile_by_id` (public profiles). Hooks and keys are in `app/hooks/use-profiles.ts`; pure helpers are in `lib/profiles.ts` (tests: `lib/profiles.test.ts`). No raw `fetch(` and no `NEXT_PUBLIC_SERVER_URI` are left outside `app/provider.tsx`.
+- Home: `totalSpentCents`, `currentlyFundedCents` and `activeJobPosts[].budgetCents` are formatted with `formatCents` and `formatCompactCents`; a load failure shows the API message with its reference.
+- Search: the account filter is the spec enum (`all`, `freelancer`, `agency`) and results use `accountType` `FREELANCER` or `AGENCY`. The old code compared against `"Agency"`, so agencies linked to `/talent/<id>`; they now open `/agency/<id>`. An error state replaces the silent empty list. The spec has no budget or rate parameters on this operation (the `minRateCents` and `maxRateCents` filters belong to `freelancer_get_search` and `agency_get_search`, which the client UI does not use).
+- Profiles: both pages are now thin server shells around client views (`profile-views.tsx`) with loading, not-found and error states. Everything is camelCase from the generated types; `hourlyRateCents`, `amountCents` and `totalEarningCents` go through `formatCents`; the old `professional_title`, `hourly_rate` and `cover_image` reads (which showed `NaN` or threw on portfolios) are gone. Portfolio links, avatars and cover images are shown only when `https:`.
+- Paging: the API returns `workHistory`, `portfolios` and `members` as whole arrays (no cursor), so they are paged in the UI with `paginate` (clamped, empty-safe): completed work 2 per page, ongoing projects 3 per page (new, it had none), team members 4 with "Show more". Ongoing projects show the start month only where the type has `createdAt` (freelancer profiles).
+- Status: `ACTIVE` and `COMPLETED` work are separated explicitly; only completed work reviewed by both sides with a rating is listed as feedback. A rating of `null` shows `N/A`.
+- STOPPED, not invented (item 3, profile "Message" button): `POST /conversations` needs `recipientId`, the public account id (`findAccountByPublicId`). `FreelancerPublicProfile.id` and `ClientMarketplaceResult.id` are the profile id (`freelancer_metadata.id`, the id of `GET /freelancer/profile/{id}`), and no public profile or search type exposes the account id (`PublicAgencyProfile` has no account id either, only `members[].id` and `profileId`). Needed from the API: an `accountId` on `FreelancerPublicProfile`, `PublicAgencyProfile` (owner) and `ClientMarketplaceResult`, or accepting the profile id as a recipient. Conversations are still started from a proposal interview.
+- Removed on the way: `talent` page's mapping into the mock `ClientProposal` type, `online` and `bid` on profiles, `window.location.assign` for the account menu (now `router.push`).
+- Review fixes: `companyWebsite` and existing job attachment links are rendered only when `https:`; two ids in internal links are URL-encoded.
+
+### Client app done (end of batch 3)
+
+- `client-dashboard` left `unmigratedApps` (`packages/eslint-config/next.mjs`, approved in the batch prompt). ESLint on the app: 0 errors, 1 warning (`@next/next/no-img-element` in `settings-client.tsx`, not one of the five rules); 0 warnings for the five rules.
+- Part 0: the add-milestone maximum is 100,000,000 cents like the job milestone maximum (was `Number.MAX_SAFE_INTEGER`). Backend gap: the add-milestone schema has no sane upper bound. Form copy (job title, description, milestone title, attachments, budget input minimum, message attachment hint, avatar size) is derived from lib constants, with tests.
+- Tier 2: format check (`--end-of-line auto`), `pnpm -r lint` (0 errors), `pnpm -r typecheck` (clean), tests (client 183, web-core 76, api-client 103), production build of the client app with a dummy Clerk key pair and `NEXT_PUBLIC_SERVER_URI=http://localhost:4000/api/v1`, `docs/api/openapi.json` unchanged (sha256 `bcbe56aa52b5165c910ffc136b6e1ba576d13e6131cf37c193f8cb809abb3861`, no git diff).
+- Open items from the reviewer (not blockers): `next.config.ts` has no `images.remotePatterns`, so `next/image` with remote avatars or portfolio images throws at runtime for hosts that are not configured (affects profiles, messages, proposals, header; pre-existing, needs the real CDN hosts); several internal hrefs interpolate uuids without `encodeURIComponent`; `proposals-dashboard.tsx` logs the mapped message with `console.error`.
+
+### Manual QA checklist (owner) for 3g
+
+1. Home `/`: the four metrics and the active job list show `$` amounts with cents rules (compact for totals); with the API stopped a red message shows.
+2. Press Ctrl+K: search lists results 20 at a time and loads more on scroll; the Talent and Agency filters narrow the list; a Talent result opens `/talent/<id>` and an Agency result opens `/agency/<id>`; with the API stopped the modal shows "Search is unavailable".
+3. `/talent/<id>`: name, title, location, rate as `$75.00/hr`, rating, availability, languages, skills, portfolio, ongoing projects and completed work. With more than 2 completed reviewed jobs the pager shows "Page 1 of N" and the buttons stop at both ends; with more than 3 active jobs the ongoing list pages too.
+4. `/talent/<unknown uuid>` shows "Talent profile not found."; `/talent/not-a-uuid` shows the API validation message with a reference.
+5. `/agency/<id>`: team (4 shown, "Show N more members"), portfolio, completed work. A member with a profile opens `/talent/<profileId>`; one without does nothing.
+6. A portfolio link that is not `https:` is not rendered (check with a test row), and there is no Message button on profiles (see the stopped item).
+
+## Client dashboard full QA
+
+One end-to-end order for the client app. Flows marked WAITS need the freelancer app (or Swagger acting as the freelancer, see "Test data for 3d"). Nothing here has been run against a live API yet.
+
+1. Onboarding (3a, 3b): sign up a client, land on `/profile/edit`, save the profile, reach the dashboard, sign out and in again without passing `/profile/edit`. Checklists 3a and 3b.
+2. Settings (3b): company form, finances link (Stripe), identity verification (Stripe Identity).
+3. Jobs (3c): create with two milestones, save a draft, edit, paginate, delete. Checklist 3c.
+4. Search and profiles (3g): open Ctrl+K, find a freelancer and an agency, open both public profiles. Checklist 3g. WAITS for freelancer data: create a freelancer and an agency profile first (freelancer onboarding through Swagger, 3d test data).
+5. Proposals (3d): WAITS for the freelancer app (a freelancer submits a proposal; Swagger can stand in). View, shortlist, start an interview. Checklist 3d.
+6. Contract offer with Stripe test mode (3d step 8 and 3e): "Send contract offer", pay with `4242 4242 4242 4242`, webhook through `stripe listen`. WAITS: the freelancer must accept the offer (Swagger `PATCH /contracts/{id}/accept`) and can decline it.
+7. Milestones (3e): fund a milestone through Stripe, WAITS for the freelancer to submit it, then request changes, approve, add a milestone, finish and review the contract. Checklist 3e.
+8. Messages (3f): the interview thread, send and receive, attachments, meetings, reconnect. WAITS for a second actor for replies, typing and presence (presence is not shown, API gap). Checklist 3f.
+9. Notifications (3a): after steps 5 to 8, each notice marks as read and opens its target (`/contracts?contractId=`, `/proposals/<jobId>`, `/messages?conversationId=`). The bell and one stream per tab hold throughout.
+10. Sign out: stream and socket close, no API calls follow.
+
+Spec gaps that limit this QA: no single-contract, single-proposal or single-conversation read; no client reject, un-shortlist or decline; no idempotency key on contract operations; no presence id on conversation participants; no account id on public profiles (no Message button); add-milestone has no sane upper bound in the API schema.

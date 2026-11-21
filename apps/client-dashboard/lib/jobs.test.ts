@@ -18,8 +18,11 @@ import {
   toJobBody,
   totalBudgetCents,
   validateMilestoneAmount,
+  JOB_LIMITS,
+  JOB_MESSAGES,
   JOB_MILESTONE_MAX_CENTS,
   JOB_MILESTONE_MIN_CENTS,
+  JOB_MILESTONE_MIN_INPUT,
   type JobFormValues,
   type JobPost,
 } from "./jobs";
@@ -232,6 +235,43 @@ describe("api errors", () => {
     );
     expect(jobErrorMessage(new Error("boom"))).toBe(
       "Something went wrong. Please try again.",
+    );
+  });
+});
+
+describe("generated copy", () => {
+  it("derives the form messages from the limits", () => {
+    expect(JOB_MESSAGES.titleMin).toBe(
+      `Job title must be at least ${JOB_LIMITS.titleMin} characters.`,
+    );
+    expect(JOB_MESSAGES.titleMax).toBe(
+      `Job title cannot exceed ${JOB_LIMITS.title} characters.`,
+    );
+    expect(JOB_MESSAGES.descriptionMin).toContain(
+      String(JOB_LIMITS.descriptionMin),
+    );
+    expect(JOB_MESSAGES.descriptionMax).toBe(
+      "Description cannot exceed 5,000 characters.",
+    );
+    expect(JOB_MESSAGES.milestoneTitleMin).toBe("Use at least 3 characters.");
+    expect(JOB_MESSAGES.attachmentCount).toBe(
+      "Add no more than 3 attachments.",
+    );
+    expect(JOB_MESSAGES.attachmentSize).toBe(
+      "Attachments cannot exceed 5 MB in total.",
+    );
+  });
+
+  it("derives the budget input minimum from the cent floor", () => {
+    expect(JOB_MILESTONE_MIN_INPUT).toBe("5.01");
+  });
+
+  it("derives the budget messages from the cent bounds", () => {
+    expect(validateMilestoneAmount(5)).toBe(
+      `Budget must be at least $${JOB_MILESTONE_MIN_INPUT}.`,
+    );
+    expect(validateMilestoneAmount(1_000_000.01)).toBe(
+      "Budget cannot exceed $1,000,000.00.",
     );
   });
 });

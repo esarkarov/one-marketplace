@@ -2,69 +2,17 @@
 import { Icon } from "@iconify/react";
 import Link from "next/link";
 import { ClientShell } from "./_components/dashboard/client-shell";
-import { useAuth, useUser } from "@clerk/nextjs";
-import { useQuery } from "@tanstack/react-query";
+import { useUser } from "@clerk/nextjs";
+import { formatCents } from "@onemarketplace/api-client";
 import { Suspense } from "react";
-
-interface ClientDashboardOverview {
-  openJobs: number;
-  totalProposals: number;
-  newProposals: number;
-  shortlistedProposals: number;
-  activeContracts: number;
-  totalContracts: number;
-  totalSpent: number;
-  currentlyFunded: number;
-  inProgressContracts: Array<{
-    id: string;
-    title: string;
-    progressPercent: number;
-  }>;
-  activeJobPosts: Array<{
-    id: string;
-    title: string;
-    budget: number;
-    level: string;
-    duration: string;
-    proposalCount: number;
-  }>;
-}
-
-const formatCompactCurrency = (value: number) =>
-  `$${new Intl.NumberFormat("en-US", {
-    notation: "compact",
-    maximumFractionDigits: 1,
-  }).format(value)}`;
+import { useDashboardOverview } from "@/app/hooks/use-profiles";
+import { formatCompactCents } from "@/lib/client-profile";
+import { profileErrorMessage } from "@/lib/profiles";
 
 export default function ClientDashboardPage() {
   const { user, isLoaded } = useUser();
-  const { getToken } = useAuth();
 
-  const { data: overview } = useQuery({
-    queryKey: ["client-dashboard-overview"],
-    enabled: Boolean(user),
-    queryFn: async () => {
-      const token = await getToken();
-
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_SERVER_URI}/client/dashboard-overview?role=client`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-          cache: "no-store",
-        },
-      );
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          result.message || "Your dashboard could not be loaded.",
-        );
-      }
-
-      return result.data as ClientDashboardOverview;
-    },
-  });
+  const { data: overview, error } = useDashboardOverview(Boolean(user));
 
   return (
     <Suspense>
@@ -88,6 +36,14 @@ export default function ClientDashboardPage() {
             <Icon icon="solar:add-circle-linear" width="18" /> Post a job
           </Link>
         </div>
+        {error && (
+          <p
+            role="alert"
+            className="mt-6 rounded-xl border border-[#e3c4c4] bg-[#fbf1f1] p-4 text-sm text-[#8b4a4a]"
+          >
+            {profileErrorMessage(error)}
+          </p>
+        )}
         <section className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <Metric
             icon="solar:document-text-linear"
@@ -111,7 +67,7 @@ export default function ClientDashboardPage() {
             value={overview ? String(overview.activeContracts) : "..."}
             detail={
               overview
-                ? `${formatCompactCurrency(overview.currentlyFunded)} currently funded`
+                ? `${formatCompactCents(overview.currentlyFundedCents)} currently funded`
                 : "..."
             }
           />
@@ -119,7 +75,7 @@ export default function ClientDashboardPage() {
             icon="solar:wallet-money-linear"
             label="Total spent"
             value={
-              overview ? formatCompactCurrency(overview.totalSpent) : "..."
+              overview ? formatCompactCents(overview.totalSpentCents) : "..."
             }
             detail={
               overview ? `Across ${overview.totalContracts} contracts` : "..."
@@ -156,12 +112,12 @@ export default function ClientDashboardPage() {
                     <div>
                       <h3 className="text-sm font-semibold">{job.title}</h3>
                       <p className="mt-2 text-xs text-[#7b8078]">
-                        Fixed price · ${job.budget.toLocaleString()} ·{" "}
+                        Fixed price · {formatCents(job.budgetCents)} ·{" "}
                         {job.level} · {job.duration}
                       </p>
                     </div>
                     <Link
-                      href={`/proposals?job=${job.id}`}
+                      href={`/proposals?job=${encodeURIComponent(job.id)}`}
                       className="h-9 rounded-lg border border-black/10 px-3 py-2 text-xs font-semibold"
                     >
                       {job.proposalCount} proposals
@@ -174,9 +130,7 @@ export default function ClientDashboardPage() {
           <section className="rounded-2xl bg-[#252a25] p-6 text-white">
             <p className="text-xs text-white/55">Currently in progress</p>
             <p className="mt-2 text-3xl font-semibold">
-              {overview
-                ? `$${overview.currentlyFunded.toLocaleString()}`
-                : "..."}
+              {overview ? formatCents(overview.currentlyFundedCents) : "..."}
             </p>
             <div className="mt-6 space-y-4">
               {(overview?.inProgressContracts ?? []).map((contract) => (

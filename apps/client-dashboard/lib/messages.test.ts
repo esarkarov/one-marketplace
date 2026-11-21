@@ -26,6 +26,9 @@ import {
   type ConversationsPageData,
   type MessageItem,
   type MessagePagesData,
+  ATTACHMENT_HINT,
+  ATTACHMENT_SIZE_MESSAGE,
+  MAX_ATTACHMENT_BYTES,
 } from "./messages";
 
 const ME = "11111111-1111-4111-8111-111111111111";
@@ -683,5 +686,17 @@ describe("attachments and errors", () => {
     });
     expect(messageErrorMessage(error)).not.toContain("stack");
     expect(messageErrorMessage(new Error("boom"))).not.toContain("boom");
+  });
+});
+
+describe("attachment copy", () => {
+  it("derives the size message and hint from the byte limit", () => {
+    const mb = MAX_ATTACHMENT_BYTES / (1024 * 1024);
+    expect(ATTACHMENT_SIZE_MESSAGE).toBe(
+      `The maximum attachment size is ${mb} MB.`,
+    );
+    expect(ATTACHMENT_HINT).toBe(
+      `PDF, DOCX, PNG, JPG, or TXT · Maximum ${mb} MB`,
+    );
   });
 });

@@ -13,6 +13,9 @@ export const CLIENT_PROFILE_LIMITS = {
   companyWebsite: 2048,
 } as const;
 
+export const AVATAR_MAX_BYTES = 5 * 1024 * 1024;
+export const AVATAR_SIZE_MESSAGE = `Profile photos must be ${AVATAR_MAX_BYTES / (1024 * 1024)} MB or smaller.`;
+
 export const INDUSTRY_OPTIONS = [
   "Healthcare technology",
   "Software & technology",

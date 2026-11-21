@@ -19,6 +19,8 @@ import {
 import {
   COMPANY_SIZE_OPTIONS,
   fieldErrorsFromApi,
+  AVATAR_MAX_BYTES,
+  AVATAR_SIZE_MESSAGE,
   formatBudgetCents,
   formatCompactCents,
   hasFieldErrors,
@@ -34,6 +36,7 @@ import {
   type ClientProfileFieldErrors,
   type ClientProfileValues,
 } from "@/lib/client-profile";
+import { safeHttpsUrl } from "@/lib/profiles";
 
 const countryCodeSet: ReadonlySet<string> = new Set(
   countries.map((country) => country.code),
@@ -161,10 +164,10 @@ export function ClientProfile({ editing = false }: { editing?: boolean }) {
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
+    if (file.size > AVATAR_MAX_BYTES) {
       setAvatarFile(null);
       setAvatarUrl("");
-      setAvatarError("Profile photos must be 5 MB or smaller.");
+      setAvatarError(AVATAR_SIZE_MESSAGE);
       return;
     }
 
@@ -718,15 +721,17 @@ function ProfilePreview({
               value={joinedYear(profileMetadata?.joinedAt) || "2026"}
             />
           </dl>
-          <a
-            href={profileMetadata?.companyWebsite}
-            target="_blank"
-            rel="noreferrer"
-            className="mt-5 inline-flex items-center gap-1.5 text-xs font-semibold text-[#52784f] hover:underline"
-          >
-            {profileMetadata?.companyWebsite}
-            <Icon icon="solar:arrow-right-up-linear" width="14" />
-          </a>
+          {safeHttpsUrl(profileMetadata?.companyWebsite) && (
+            <a
+              href={safeHttpsUrl(profileMetadata?.companyWebsite) ?? undefined}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-5 inline-flex items-center gap-1.5 text-xs font-semibold text-[#52784f] hover:underline"
+            >
+              {profileMetadata?.companyWebsite}
+              <Icon icon="solar:arrow-right-up-linear" width="14" />
+            </a>
+          )}
         </section>
       </aside>
 

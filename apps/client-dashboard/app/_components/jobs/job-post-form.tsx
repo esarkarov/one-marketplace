@@ -17,6 +17,8 @@ import { useRouter } from "next/navigation";
 import { useDeleteJob, useSaveJob } from "@/app/hooks/use-jobs";
 import {
   JOB_LIMITS,
+  JOB_MESSAGES,
+  JOB_MILESTONE_MIN_INPUT,
   formatTotalBudget,
   hasUnmappedErrors,
   jobErrorMessage,
@@ -31,6 +33,7 @@ import {
   type JobFormValues,
   type JobSaveStatus,
 } from "@/lib/jobs";
+import { safeHttpsUrl } from "@/lib/profiles";
 
 type JobPostValues = JobFormValues & {
   existingAttachments: JobAttachment[];
@@ -230,12 +233,12 @@ export function JobPostForm({ initialJob }: { initialJob?: InitialJobPost }) {
             {...register("title", {
               required: "Enter a clear job title.",
               minLength: {
-                value: 10,
-                message: "Job title must be at least 10 characters.",
+                value: JOB_LIMITS.titleMin,
+                message: JOB_MESSAGES.titleMin,
               },
               maxLength: {
                 value: JOB_LIMITS.title,
-                message: `Job title cannot exceed ${JOB_LIMITS.title} characters.`,
+                message: JOB_MESSAGES.titleMax,
               },
             })}
             placeholder="e.g. Senior Next.js developer for a collaborative workspace"
@@ -252,13 +255,12 @@ export function JobPostForm({ initialJob }: { initialJob?: InitialJobPost }) {
             {...register("description", {
               required: "Describe the project and expected outcome.",
               minLength: {
-                value: 80,
-                message:
-                  "Add at least 80 characters so talent can scope the work.",
+                value: JOB_LIMITS.descriptionMin,
+                message: JOB_MESSAGES.descriptionMin,
               },
               maxLength: {
                 value: JOB_LIMITS.description,
-                message: "Description cannot exceed 5,000 characters.",
+                message: JOB_MESSAGES.descriptionMax,
               },
             })}
             rows={7}
@@ -360,8 +362,8 @@ export function JobPostForm({ initialJob }: { initialJob?: InitialJobPost }) {
                     {...register(`milestones.${index}.title`, {
                       required: "Enter a milestone title.",
                       minLength: {
-                        value: 3,
-                        message: "Use at least 3 characters.",
+                        value: JOB_LIMITS.milestoneTitleMin,
+                        message: JOB_MESSAGES.milestoneTitleMin,
                       },
                     })}
                     placeholder="e.g. Architecture and prototype"
@@ -386,7 +388,7 @@ export function JobPostForm({ initialJob }: { initialJob?: InitialJobPost }) {
                     })}
                     type="number"
                     inputMode="decimal"
-                    min="10"
+                    min={JOB_MILESTONE_MIN_INPUT}
                     step="0.01"
                     placeholder="e.g. 3000"
                     className={inputClass(
@@ -526,10 +528,11 @@ export function JobPostForm({ initialJob }: { initialJob?: InitialJobPost }) {
                   0,
                 );
                 return (
-                  (files.length <= 3 || "Add no more than 3 attachments.") &&
+                  (files.length <= JOB_LIMITS.maxAttachments ||
+                    JOB_MESSAGES.attachmentCount) &&
                   (allowed || "Only PDF and text documents are allowed.") &&
-                  (totalSize <= 5 * 1024 * 1024 ||
-                    "Attachments cannot exceed 5 MB in total.")
+                  (totalSize <= JOB_LIMITS.maxAttachmentBytes ||
+                    JOB_MESSAGES.attachmentSize)
                 );
               },
             })}
@@ -578,7 +581,7 @@ export function JobPostForm({ initialJob }: { initialJob?: InitialJobPost }) {
             {Array.from(existingAttachments).map((file) => (
               <a
                 key={`${file.fileId}`}
-                href={file.fileUrl}
+                href={safeHttpsUrl(file.fileUrl) ?? undefined}
                 className="flex items-center gap-3 rounded-xl bg-[#f3f5f1] p-3"
               >
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-[#52784f]">

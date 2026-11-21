@@ -2,58 +2,24 @@
 
 import { Icon } from "@iconify/react";
 import { useState } from "react";
-
-const itemsPerPage = 2;
-
-type WorkHistoryItem = {
-  id: string;
-  title: string;
-  client: string;
-  status: "ACTIVE" | "COMPLETED";
-  completed: string | null;
-  amount: number;
-  rating: number | null;
-  review: string | null;
-  clientHasReviewed: boolean;
-  freelancerHasReviewed: boolean;
-};
+import {
+  completedWork,
+  formatRating,
+  paginate,
+  WORK_HISTORY_PAGE_SIZE,
+  type WorkEntry,
+} from "@/lib/profiles";
 
 export function WorkHistoryPagination({
   averageRating,
   workHistory,
 }: {
-  averageRating: number;
-  workHistory: WorkHistoryItem[];
+  averageRating: number | null;
+  workHistory: readonly WorkEntry[];
 }) {
-  const [page, setPage] = useState(1);
-  const completedWork = workHistory
-    .filter(
-      (job) =>
-        job.status === "COMPLETED" &&
-        job.clientHasReviewed &&
-        job.freelancerHasReviewed &&
-        job.rating !== null,
-    )
-    .map((job) => ({
-      project: job.title,
-      client: job.client,
-      completed: job.completed
-        ? new Date(job.completed).toLocaleDateString("en-US", {
-            month: "long",
-            year: "numeric",
-          })
-        : "Recently",
-      budget: `$${Number(job.amount).toLocaleString()}`,
-      rating: Number(job.rating).toFixed(1),
-      review: job.review ?? "",
-    }));
-  const totalPages = Math.ceil(completedWork.length / itemsPerPage);
-  const pageStart = (page - 1) * itemsPerPage;
-  const visibleWork = completedWork.slice(pageStart, pageStart + itemsPerPage);
-
-  const openPage = (nextPage: number) => {
-    setPage(Math.min(Math.max(nextPage, 1), totalPages));
-  };
+  const [requestedPage, setRequestedPage] = useState(1);
+  const work = completedWork(workHistory);
+  const view = paginate(work, requestedPage, WORK_HISTORY_PAGE_SIZE);
 
   return (
     <section className="rounded-2xl border border-black/8 bg-white p-5 sm:p-6">
@@ -66,52 +32,54 @@ export function WorkHistoryPagination({
             Completed work and reviews
           </h2>
         </div>
-        <p className="text-xs text-[#8a8f87]">{averageRating} average rating</p>
+        <p className="text-xs text-[#8a8f87]">
+          {formatRating(averageRating)} average rating
+        </p>
       </div>
 
       <div className="grid gap-4">
-        {visibleWork.map((work) => (
+        {view.items.map((item) => (
           <article
-            key={work.project}
+            key={item.id}
             className="rounded-xl border border-black/7 p-5"
           >
             <div className="flex flex-wrap justify-between gap-3">
               <div>
-                <h3 className="text-sm font-semibold">{work.project}</h3>
+                <h3 className="text-sm font-semibold">{item.project}</h3>
                 <p className="mt-1 text-xs text-[#7b8078]">
-                  {work.client} · Completed {work.completed}
+                  {item.client} · Completed {item.completed}
                 </p>
               </div>
               <div className="text-right">
-                <p className="text-sm font-semibold">{work.budget}</p>
+                <p className="text-sm font-semibold">{item.budget}</p>
                 <span className="mt-1 flex items-center justify-end gap-1 text-xs font-semibold">
                   <Icon
                     icon="solar:star-bold"
                     width="15"
                     className="text-[#d4a934]"
                   />
-                  {work.rating}
+                  {item.rating}
                 </span>
               </div>
             </div>
-            <p className="mt-4 text-sm leading-7 text-[#626861]">
-              “{work.review}”
-            </p>
+            {item.review && (
+              <p className="mt-4 text-sm leading-7 text-[#626861]">
+                “{item.review}”
+              </p>
+            )}
           </article>
         ))}
-        {!visibleWork.length && (
+        {!view.items.length && (
           <p className="rounded-xl border border-dashed border-black/10 p-8 text-center text-sm text-[#838980]">
             No completed work yet.
           </p>
         )}
       </div>
 
-      {!!completedWork.length && (
+      {view.total > 0 && (
         <div className="mt-5 flex flex-col gap-3 border-t border-black/7 pt-5 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs text-[#838980]">
-            Showing {pageStart + 1}–
-            {Math.min(pageStart + itemsPerPage, completedWork.length)} of{" "}
-            {completedWork.length} completed projects
+            Showing {view.from}–{view.to} of {view.total} completed projects
           </p>
           <nav
             aria-label="Work history pagination"
@@ -120,38 +88,20 @@ export function WorkHistoryPagination({
             <button
               type="button"
               aria-label="Previous work history page"
-              disabled={page === 1}
-              onClick={() => openPage(page - 1)}
+              disabled={view.page === 1}
+              onClick={() => setRequestedPage(view.page - 1)}
               className="flex h-9 w-9 items-center justify-center rounded-lg border border-black/10 disabled:cursor-not-allowed disabled:opacity-35"
             >
               <Icon icon="solar:alt-arrow-left-linear" width="16" />
             </button>
-            {Array.from({ length: totalPages }, (_, index) => {
-              const pageNumber = index + 1;
-              const active = pageNumber === page;
-
-              return (
-                <button
-                  key={pageNumber}
-                  type="button"
-                  aria-label={`Open work history page ${pageNumber}`}
-                  aria-current={active ? "page" : undefined}
-                  onClick={() => openPage(pageNumber)}
-                  className={`h-9 min-w-9 rounded-lg px-3 text-xs font-semibold ${
-                    active
-                      ? "bg-[#e9f1e6] text-[#4f794c]"
-                      : "border border-black/10 text-[#656b63]"
-                  }`}
-                >
-                  {pageNumber}
-                </button>
-              );
-            })}
+            <span className="text-xs font-semibold text-[#656b63]">
+              Page {view.page} of {view.totalPages}
+            </span>
             <button
               type="button"
               aria-label="Next work history page"
-              disabled={page === totalPages}
-              onClick={() => openPage(page + 1)}
+              disabled={view.page === view.totalPages}
+              onClick={() => setRequestedPage(view.page + 1)}
               className="flex h-9 w-9 items-center justify-center rounded-lg border border-black/10 disabled:cursor-not-allowed disabled:opacity-35"
             >
               <Icon icon="solar:alt-arrow-right-linear" width="16" />

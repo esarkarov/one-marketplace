@@ -1,24 +1,41 @@
 import { Icon } from "@iconify/react";
 import Link from "next/link";
-import type { ClientProposal } from "../data/client-data";
 import { OngoingProjects } from "./ongoing-projects";
 import { WorkHistoryPagination } from "./work-history-pagination";
 import Image from "next/image";
+import { countries } from "@/utils/countries";
+import {
+  formatHourlyRate,
+  formatJobSuccess,
+  formatRating,
+  initialsOf,
+  ongoingWork,
+  safeHttpsUrl,
+  talentLocation,
+  talentProjectCount,
+  type TalentProfile,
+} from "@/lib/profiles";
+
+const countryName = (code: string) =>
+  countries.find((country) => country.code === code)?.name;
 
 export function PublicMarketplaceProfile({
   profile,
 }: {
-  profile: ClientProposal;
+  profile: TalentProfile;
 }) {
-  const portfolio = (profile.portfolios ?? []).map((project) => ({
+  const portfolio = profile.portfolios.map((project) => ({
+    id: project.id,
     title: project.title,
     category: project.category,
     result: project.description,
-    imageUrl: project.cover_image.url,
-    liveUrl: project.live_url,
+    imageUrl: safeHttpsUrl(project.coverImage.url),
+    liveUrl: safeHttpsUrl(project.liveUrl),
     icon: "solar:code-square-linear",
     tone: "from-[#dcebe2] to-[#abcbb8]",
   }));
+  const avatarUrl = safeHttpsUrl(profile.avatarUrl);
+  const agencyAvatarUrl = safeHttpsUrl(profile.agency?.avatarUrl);
 
   return (
     <>
@@ -35,7 +52,7 @@ export function PublicMarketplaceProfile({
             Public talent profile
           </p>
           <h1 className="mt-2 text-3xl font-semibold tracking-[-.045em] sm:text-4xl">
-            {profile.bidder}
+            {profile.name}
           </h1>
         </div>
       </div>
@@ -45,25 +62,22 @@ export function PublicMarketplaceProfile({
           <section className="rounded-3xl border border-black/8 bg-white p-6 text-center">
             <div className="relative mx-auto h-28 w-28">
               <span className="flex h-full w-full items-center justify-center rounded-full bg-[#496e67] text-3xl font-semibold text-white">
-                {profile.avatarUrl ? (
+                {avatarUrl ? (
                   <Image
-                    src={profile.avatarUrl}
-                    alt={profile.bidder}
+                    src={avatarUrl}
+                    alt={profile.name}
                     fill
                     sizes="112px"
                     className="rounded-full object-cover"
                   />
                 ) : (
-                  profile.initials
+                  initialsOf(profile.name)
                 )}
               </span>
-              {profile.online && (
-                <span className="absolute right-1 bottom-1 h-5 w-5 rounded-full border-4 border-white bg-[#59a05d]" />
-              )}
             </div>
             <h2 className="mt-5 inline-flex items-center justify-center gap-1.5 text-xl font-semibold">
-              {profile.bidder}
-              {profile.verified && (
+              {profile.name}
+              {profile.identityVerified && (
                 <Icon
                   icon="solar:verified-check-bold"
                   width="18"
@@ -72,35 +86,35 @@ export function PublicMarketplaceProfile({
               )}
             </h2>
             <p className="mt-2 text-sm leading-6 text-[#656b63]">
-              {profile.title}
+              {profile.professionalTitle}
             </p>
             <p className="mt-3 inline-flex items-center gap-1.5 text-xs text-[#777c74]">
               <Icon icon="solar:map-point-linear" width="16" />
-              {profile.location}
+              {talentLocation(profile, countryName)}
             </p>
             <div className="mt-6 grid grid-cols-3 border-y border-black/7 py-4">
               <Stat
-                value={
-                  profile.jobSuccess && profile.jobSuccess > 0
-                    ? `${profile.jobSuccess}%`
-                    : "N/A"
-                }
+                value={formatJobSuccess(profile.stats.jobSuccessScore)}
                 label="Job success"
               />
-              <Stat value={String(profile.rating)} label="Rating" bordered />
               <Stat
-                value={String(profile.completedProjects)}
+                value={formatRating(profile.stats.rating)}
+                label="Rating"
+                bordered
+              />
+              <Stat
+                value={String(talentProjectCount(profile))}
                 label="Projects"
               />
             </div>
             <div className="mt-5 text-left">
-              <Detail label="Availability" value={profile.duration} />
+              <Detail label="Availability" value={profile.weeklyAvailability} />
               <div className="mt-4">
                 <p className="text-xs font-semibold tracking-wide text-[#858a82] uppercase">
                   Languages
                 </p>
                 <div className="mt-3 grid gap-2 text-sm text-[#656b63]">
-                  {profile.languages?.length ? (
+                  {profile.languages.length ? (
                     profile.languages.map(({ language, proficiency }) => (
                       <p key={language}>
                         {language} – {proficiency}
@@ -113,7 +127,7 @@ export function PublicMarketplaceProfile({
               </div>
             </div>
           </section>
-          {profile.verified && (
+          {profile.identityVerified && (
             <section className="rounded-2xl border border-[#d2dfcf] bg-[#edf4ea] p-5">
               <div className="flex items-center gap-2 text-sm font-semibold text-[#476f44]">
                 <Icon icon="solar:verified-check-bold" width="20" />
@@ -130,13 +144,13 @@ export function PublicMarketplaceProfile({
                 Associated with
               </p>
               <Link
-                href={`/agency/${profile.agency.id}`}
+                href={`/agency/${encodeURIComponent(profile.agency.id)}`}
                 className="mt-3 flex items-center gap-3 rounded-xl p-2 -m-2 transition hover:bg-[#f4f6f2]"
               >
-                {profile.agency.avatarUrl ? (
+                {agencyAvatarUrl ? (
                   <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-xl">
                     <Image
-                      src={profile.agency.avatarUrl}
+                      src={agencyAvatarUrl}
                       alt={profile.agency.name}
                       fill
                       sizes="40px"
@@ -175,19 +189,18 @@ export function PublicMarketplaceProfile({
                     Available for selected projects
                   </p>
                   <h2 className="mt-3 max-w-2xl text-3xl leading-tight font-semibold tracking-[-.04em]">
-                    {profile.title}
+                    {profile.professionalTitle}
                   </h2>
                 </div>
                 <div className="shrink-0 sm:text-right">
                   <p className="text-xs text-[#7c8179]">Hourly rate</p>
                   <p className="mt-1 text-xl font-semibold">
-                    ${profile.bid}
-                    <span className="text-sm text-[#7c8179]">/hr</span>
+                    {formatHourlyRate(profile.hourlyRateCents)}
                   </p>
                 </div>
               </div>
               <p className="mt-6 max-w-3xl text-sm leading-7 text-[#626860]">
-                {profile.coverLetter}
+                {profile.professionalDescription}
               </p>
               <div className="mt-6 flex flex-wrap gap-2">
                 {profile.skills.map((skill) => (
@@ -210,7 +223,7 @@ export function PublicMarketplaceProfile({
             <div className="grid max-w-lg gap-4">
               {portfolio.map((project) => (
                 <article
-                  key={project.title}
+                  key={project.id}
                   className="overflow-hidden rounded-xl border border-black/10 bg-white"
                 >
                   <div
@@ -261,15 +274,11 @@ export function PublicMarketplaceProfile({
             </div>
           </ProfileSection>
 
-          <OngoingProjects
-            projects={(profile.workHistory ?? []).filter(
-              (job) => job.status === "ACTIVE",
-            )}
-          />
+          <OngoingProjects projects={ongoingWork(profile.workHistory)} />
 
           <WorkHistoryPagination
-            averageRating={profile.rating}
-            workHistory={profile.workHistory ?? []}
+            averageRating={profile.stats.rating}
+            workHistory={profile.workHistory}
           />
         </div>
       </div>

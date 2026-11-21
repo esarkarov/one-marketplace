@@ -3,39 +3,25 @@
 import { Icon } from "@iconify/react";
 import Link from "next/link";
 import { useState } from "react";
-
-export interface AgencyFeaturedMember {
-  id: string;
-  freelancerId: string;
-  profileId: string | null;
-  name: string;
-  avatarUrl: string | null;
-  role: string;
-  skills: string[];
-  isOwner: boolean;
-  rating: number;
-  jobSuccessScore: number;
-  completedProjects: number;
-}
+import {
+  initialsOf,
+  MEMBERS_COLLAPSED_COUNT,
+  memberProfileHref,
+  type AgencyMember,
+} from "@/lib/profiles";
 
 const VISIBLE_SKILLS = 4;
-
-const getInitials = (name: string) =>
-  name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((word) => word[0]?.toUpperCase())
-    .join("") || "?";
 
 export function AgencyFeaturedMembers({
   members,
 }: {
-  members: AgencyFeaturedMember[];
+  members: readonly AgencyMember[];
 }) {
   const [expanded, setExpanded] = useState(false);
-  const visibleMembers = expanded ? members : members.slice(0, 4);
-  const remainingCount = members.length - 4;
+  const visibleMembers = expanded
+    ? members
+    : members.slice(0, MEMBERS_COLLAPSED_COUNT);
+  const remainingCount = members.length - MEMBERS_COLLAPSED_COUNT;
 
   if (members.length === 0) {
     return (
@@ -51,13 +37,14 @@ export function AgencyFeaturedMembers({
         {visibleMembers.map((member) => {
           const visibleSkills = member.skills.slice(0, VISIBLE_SKILLS);
           const hiddenSkillCount = member.skills.length - visibleSkills.length;
+          const href = memberProfileHref(member);
 
           return (
             <Link
               key={member.id}
-              href={member.profileId ? `/talent/${member.profileId}` : "#"}
+              href={href ?? "#"}
               onClick={(event) => {
-                if (!member.profileId) event.preventDefault();
+                if (!href) event.preventDefault();
               }}
               aria-label={`View ${member.name}'s public profile`}
               className="group flex flex-col gap-3 rounded-xl border border-black/7 p-4 transition-colors hover:border-[#9fb99c] hover:bg-[#f6f9f4]"
@@ -72,7 +59,7 @@ export function AgencyFeaturedMembers({
                   />
                 ) : (
                   <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#527a73] text-xs font-semibold text-white">
-                    {getInitials(member.name)}
+                    {initialsOf(member.name)}
                   </span>
                 )}
                 <div className="min-w-0 flex-1">
@@ -126,7 +113,7 @@ export function AgencyFeaturedMembers({
         })}
       </div>
 
-      {members.length > 4 && (
+      {members.length > MEMBERS_COLLAPSED_COUNT && (
         <div className="mt-5 flex justify-center border-t border-black/7 pt-5">
           <button
             type="button"

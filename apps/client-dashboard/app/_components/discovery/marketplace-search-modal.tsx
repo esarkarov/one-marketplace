@@ -1,28 +1,22 @@
 "use client";
 
-import { useAuth } from "@clerk/nextjs";
 import { Icon } from "@iconify/react";
-import { useInfiniteQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-
-const RESULTS_PAGE_SIZE = 20;
-
-type AccountFilter = "All" | "Freelancer" | "Agency";
-
-type MarketplaceResult = {
-  id: string;
-  accountType: "Freelancer" | "Agency";
-  name: string;
-  title: string;
-  location: string;
-  verified: boolean;
-  skills: string[];
-  jobSuccess: number;
-  rating: number;
-  avatarUrl: string | null;
-};
+import { useMarketplaceSearch } from "@/app/hooks/use-profiles";
+import {
+  ACCOUNT_FILTER_LABELS,
+  ACCOUNT_FILTERS,
+  accountTypeLabel,
+  initialsOf,
+  isAgencyResult,
+  marketplaceProfileHref,
+  profileErrorMessage,
+  safeHttpsUrl,
+  type AccountFilter,
+  type MarketplaceResult,
+} from "@/lib/profiles";
 
 const popularSearches = [
   "Next.js",
@@ -31,55 +25,26 @@ const popularSearches = [
   "Design systems",
 ];
 
-const typeParam = (filter: AccountFilter) =>
-  filter === "Freelancer"
-    ? "freelancer"
-    : filter === "Agency"
-      ? "agency"
-      : "all";
-
 export function MarketplaceSearchModal() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
-  const [accountFilter, setAccountFilter] = useState<AccountFilter>("All");
+  const [accountFilter, setAccountFilter] = useState<AccountFilter>("all");
   const inputRef = useRef<HTMLInputElement>(null);
-  const { getToken } = useAuth();
 
   useEffect(() => {
     const timeout = window.setTimeout(() => setDebouncedQuery(query), 250);
     return () => window.clearTimeout(timeout);
   }, [query]);
 
-  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
-    useInfiniteQuery({
-      queryKey: ["marketplace-search", debouncedQuery, accountFilter],
-      enabled: open,
-      initialPageParam: 0,
-      queryFn: async ({ pageParam }) => {
-        const token = await getToken();
-        const params = new URLSearchParams({
-          role: "client",
-          query: debouncedQuery,
-          type: typeParam(accountFilter),
-          offset: String(pageParam),
-        });
-        const response = await fetch(
-          `${process.env.NEXT_PUBLIC_SERVER_URI}/client/marketplace/search?${params.toString()}`,
-          { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" },
-        );
-        const result = await response.json();
-        if (!response.ok) {
-          throw new Error(result.message || "Marketplace search failed.");
-        }
-        return result.data as {
-          results: MarketplaceResult[];
-          hasMore: boolean;
-        };
-      },
-      getNextPageParam: (lastPage, allPages) =>
-        lastPage.hasMore ? allPages.length * RESULTS_PAGE_SIZE : undefined,
-    });
+  const {
+    data,
+    error,
+    isLoading,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useMarketplaceSearch(debouncedQuery, accountFilter, open);
 
   const results = useMemo(
     () => data?.pages.flatMap((page) => page.results) ?? [],
@@ -137,7 +102,7 @@ export function MarketplaceSearchModal() {
   const closeModal = () => {
     setOpen(false);
     setQuery("");
-    setAccountFilter("All");
+    setAccountFilter("all");
   };
 
   return (
@@ -222,23 +187,21 @@ export function MarketplaceSearchModal() {
 
                 <div className="mt-3 flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
                   <div className="flex items-center gap-1 rounded-lg bg-[#f0f3ed] p-1">
-                    {(["All", "Freelancer", "Agency"] as AccountFilter[]).map(
-                      (option) => (
-                        <button
-                          key={option}
-                          type="button"
-                          aria-pressed={accountFilter === option}
-                          onClick={() => setAccountFilter(option)}
-                          className={`h-8 rounded-md px-3 text-[10px] font-semibold ${
-                            accountFilter === option
-                              ? "bg-white text-[#52784f] shadow-sm"
-                              : "text-[#727870]"
-                          }`}
-                        >
-                          {option === "Freelancer" ? "Talent" : option}
-                        </button>
-                      ),
-                    )}
+                    {ACCOUNT_FILTERS.map((option) => (
+                      <button
+                        key={option}
+                        type="button"
+                        aria-pressed={accountFilter === option}
+                        onClick={() => setAccountFilter(option)}
+                        className={`h-8 rounded-md px-3 text-[10px] font-semibold ${
+                          accountFilter === option
+                            ? "bg-white text-[#52784f] shadow-sm"
+                            : "text-[#727870]"
+                        }`}
+                      >
+                        {ACCOUNT_FILTER_LABELS[option]}
+                      </button>
+                    ))}
                   </div>
                   <p className="text-[10px] text-[#858b83]">
                     {isLoading
@@ -249,7 +212,7 @@ export function MarketplaceSearchModal() {
               </header>
 
               <div className="min-h-0 flex-1 overflow-y-auto">
-                {!query && accountFilter === "All" && (
+                {!query && accountFilter === "all" && (
                   <div className="flex flex-wrap items-center gap-2 border-b border-black/6 px-4 py-3 sm:px-5">
                     <span className="mr-1 text-[10px] text-[#858b83]">
                       Popular:
@@ -283,6 +246,18 @@ export function MarketplaceSearchModal() {
                         </div>
                       </div>
                     ))}
+                  </div>
+                ) : error ? (
+                  <div
+                    role="alert"
+                    className="flex min-h-72 flex-col items-center justify-center px-6 text-center"
+                  >
+                    <h3 className="text-sm font-semibold">
+                      Search is unavailable
+                    </h3>
+                    <p className="mt-2 max-w-sm text-xs leading-5 text-[#7b8078]">
+                      {profileErrorMessage(error)}
+                    </p>
                   </div>
                 ) : results.length ? (
                   <>
@@ -334,29 +309,18 @@ function SearchResult({
   closeModal: () => void;
   setQuery: (query: string) => void;
 }) {
-  const agency = profile.accountType === "Agency";
-  const profileHref = agency
-    ? `/agency/${profile.id}`
-    : `/talent/${profile.id}`;
-  const initials = useMemo(
-    () =>
-      profile.name
-        .split(" ")
-        .filter(Boolean)
-        .map((part) => part[0])
-        .join("")
-        .slice(0, 2)
-        .toUpperCase(),
-    [profile.name],
-  );
+  const agency = isAgencyResult(profile);
+  const profileHref = marketplaceProfileHref(profile);
+  const initials = initialsOf(profile.name);
+  const avatarUrl = safeHttpsUrl(profile.avatarUrl);
 
   return (
     <article className="border-b border-black/6 p-4 odd:sm:border-r sm:p-5">
       <div className="flex items-start gap-3">
-        {profile.avatarUrl ? (
+        {avatarUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={profile.avatarUrl}
+            src={avatarUrl}
             alt=""
             className={`h-11 w-11 shrink-0 object-cover ${agency ? "rounded-xl" : "rounded-full"}`}
           />
@@ -380,7 +344,7 @@ function SearchResult({
               />
             )}
             <span className="rounded-full bg-[#eef3eb] px-2 py-1 text-[8px] font-semibold text-[#587655]">
-              {agency ? "Agency" : "Talent"}
+              {accountTypeLabel(profile.accountType)}
             </span>
           </div>
           <p className="mt-1 truncate text-[10px] text-[#686f66]">

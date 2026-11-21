@@ -1,71 +1,19 @@
 import { Icon } from "@iconify/react";
 import Link from "next/link";
-import {
-  AgencyFeaturedMembers,
-  type AgencyFeaturedMember,
-} from "./agency-featured-members";
+import { AgencyFeaturedMembers } from "./agency-featured-members";
 import { WorkHistoryPagination } from "./work-history-pagination";
+import {
+  formatJobSuccess,
+  formatRating,
+  initialsOf,
+  NOT_AVAILABLE,
+  safeHttpsUrl,
+  type AgencyProfile,
+} from "@/lib/profiles";
 
-const NOT_AVAILABLE = "N/A";
+export function PublicAgencyProfile({ agency }: { agency: AgencyProfile }) {
+  const avatarUrl = safeHttpsUrl(agency.avatarImage?.url);
 
-export interface PublicAgencyProfileData {
-  id: string;
-  name: string;
-  professionalTitle: string | null;
-  size: string;
-  specialty: string;
-  website: string | null;
-  overview: string;
-  tags: string[];
-  avatarImage: { imageId: string; url: string } | null;
-  portfolio: Array<{
-    id: string;
-    title: string;
-    category: string;
-    description: string;
-    liveUrl: string | null;
-    coverImage: { imageId: string; url: string };
-  }>;
-  ownerLocation: string | null;
-  ownerLanguages: string[];
-  ownerLanguageDetails: Array<{ language: string; proficiency: string }>;
-  members: AgencyFeaturedMember[];
-  createdAt: string | null;
-  stats: {
-    totalEarning: number;
-    completedJobs: number;
-    ongoingJobs: number;
-    reviewCount: number;
-    jobSuccessScore: number;
-    rating: number | null;
-  };
-  workHistory: Array<{
-    id: string;
-    title: string;
-    client: string;
-    status: "ACTIVE" | "COMPLETED";
-    completed: string | null;
-    amount: number;
-    rating: number | null;
-    review: string | null;
-    clientHasReviewed: boolean;
-    freelancerHasReviewed: boolean;
-  }>;
-}
-
-const getInitials = (name: string) =>
-  name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((word) => word[0]?.toUpperCase())
-    .join("") || "?";
-
-export function PublicAgencyProfile({
-  agency,
-}: {
-  agency: PublicAgencyProfileData;
-}) {
   return (
     <>
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
@@ -89,16 +37,16 @@ export function PublicAgencyProfile({
       <div className="mt-8 grid items-start gap-6 lg:grid-cols-[290px_minmax(0,1fr)]">
         <aside className="grid gap-5 lg:sticky lg:top-24">
           <section className="rounded-3xl border border-black/8 bg-white p-6 text-center">
-            {agency.avatarImage ? (
+            {avatarUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={agency.avatarImage.url}
+                src={avatarUrl}
                 alt={`${agency.name} avatar`}
                 className="mx-auto h-28 w-28 rounded-3xl object-cover"
               />
             ) : (
               <span className="mx-auto flex h-28 w-28 items-center justify-center rounded-3xl bg-[#496e67] text-3xl font-semibold text-white">
-                {getInitials(agency.name)}
+                {initialsOf(agency.name)}
               </span>
             )}
             <h2 className="mt-5 text-xl font-semibold">{agency.name}</h2>
@@ -111,15 +59,11 @@ export function PublicAgencyProfile({
             </p>
             <div className="mt-6 grid grid-cols-3 border-y border-black/7 py-4">
               <Stat
-                value={`${Math.round(agency.stats.jobSuccessScore)}%`}
+                value={formatJobSuccess(agency.stats.jobSuccessScore)}
                 label="Job success"
               />
               <Stat
-                value={
-                  agency.stats.rating !== null
-                    ? agency.stats.rating.toFixed(1)
-                    : "0"
-                }
+                value={formatRating(agency.stats.rating)}
                 label="Rating"
                 bordered
               />
@@ -211,9 +155,13 @@ export function PublicAgencyProfile({
                   >
                     <div
                       className="relative h-44 bg-[#e4ead8] bg-cover bg-center"
-                      style={{
-                        backgroundImage: `url(${project.coverImage.url})`,
-                      }}
+                      style={
+                        safeHttpsUrl(project.coverImage.url)
+                          ? {
+                              backgroundImage: `url(${JSON.stringify(project.coverImage.url)})`,
+                            }
+                          : undefined
+                      }
                     />
                     <div className="p-4 sm:p-5">
                       <p className="text-xs font-semibold tracking-[.14em] text-[#62805f] uppercase">
@@ -225,10 +173,10 @@ export function PublicAgencyProfile({
                       <p className="mt-3 line-clamp-3 text-sm leading-6 text-[#777d75]">
                         {project.description}
                       </p>
-                      {project.liveUrl && (
+                      {safeHttpsUrl(project.liveUrl) && (
                         <div className="mt-5 border-t border-black/8 pt-4">
                           <a
-                            href={project.liveUrl}
+                            href={safeHttpsUrl(project.liveUrl) ?? undefined}
                             target="_blank"
                             rel="noreferrer"
                             className="inline-flex items-center gap-2 text-sm font-semibold text-[#52784f]"
@@ -257,7 +205,7 @@ export function PublicAgencyProfile({
           </ProfileSection>
 
           <WorkHistoryPagination
-            averageRating={agency.stats.rating ?? 0}
+            averageRating={agency.stats.rating}
             workHistory={agency.workHistory}
           />
         </div>

@@ -14,6 +14,8 @@ import {
   toProfileBody,
   validateProfileValues,
   type ClientProfile,
+  AVATAR_MAX_BYTES,
+  AVATAR_SIZE_MESSAGE,
 } from "./client-profile";
 
 const valid = {
@@ -223,5 +225,13 @@ describe("money and dates", () => {
   it("reads the join year", () => {
     expect(joinedYear("2026-03-04T10:00:00.000Z")).toBe("2026");
     expect(joinedYear(null)).toBe("");
+  });
+});
+
+describe("avatar copy", () => {
+  it("derives the size message from the byte limit", () => {
+    expect(AVATAR_SIZE_MESSAGE).toBe(
+      `Profile photos must be ${AVATAR_MAX_BYTES / (1024 * 1024)} MB or smaller.`,
+    );
   });
 });

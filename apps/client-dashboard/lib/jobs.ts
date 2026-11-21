@@ -26,13 +26,35 @@ export const JOB_PAGE_SIZE = 10;
 
 export const JOB_LIMITS = {
   title: 100,
+  titleMin: 10,
   description: 5000,
+  descriptionMin: 80,
   milestoneTitle: 120,
+  milestoneTitleMin: 3,
+  maxAttachments: 3,
+  maxAttachmentBytes: 5 * 1024 * 1024,
 } as const;
 
 export const JOB_MILESTONE_MIN_CENTS = 501;
 export const JOB_MILESTONE_MAX_CENTS = 100_000_000;
 export const MAX_MILESTONES = 20;
+
+const formatGroupedInteger = (value: number): string =>
+  String(value).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+
+export const JOB_MESSAGES = {
+  titleMin: `Job title must be at least ${JOB_LIMITS.titleMin} characters.`,
+  titleMax: `Job title cannot exceed ${JOB_LIMITS.title} characters.`,
+  descriptionMin: `Add at least ${JOB_LIMITS.descriptionMin} characters so talent can scope the work.`,
+  descriptionMax: `Description cannot exceed ${formatGroupedInteger(JOB_LIMITS.description)} characters.`,
+  milestoneTitleMin: `Use at least ${JOB_LIMITS.milestoneTitleMin} characters.`,
+  attachmentCount: `Add no more than ${JOB_LIMITS.maxAttachments} attachments.`,
+  attachmentSize: `Attachments cannot exceed ${JOB_LIMITS.maxAttachmentBytes / (1024 * 1024)} MB in total.`,
+} as const;
+
+export const JOB_MILESTONE_MIN_INPUT = centsToDollarsString(
+  JOB_MILESTONE_MIN_CENTS,
+);
 
 const KNOWN_STATUS_LABELS = {
   DRAFT: "Draft",

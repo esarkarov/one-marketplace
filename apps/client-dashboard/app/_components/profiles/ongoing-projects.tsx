@@ -1,15 +1,23 @@
+"use client";
+
 import { Icon } from "@iconify/react";
+import { formatCents } from "@onemarketplace/api-client";
+import { useState } from "react";
+import {
+  ONGOING_PAGE_SIZE,
+  ongoingStarted,
+  paginate,
+  type OngoingEntry,
+} from "@/lib/profiles";
 
-type OngoingProject = {
-  id: string;
-  title: string;
-  client: string;
-  created_at: string | null;
-  amount: number;
-};
-
-export function OngoingProjects({ projects }: { projects: OngoingProject[] }) {
+export function OngoingProjects({
+  projects,
+}: {
+  projects: readonly OngoingEntry[];
+}) {
+  const [requestedPage, setRequestedPage] = useState(1);
   if (!projects.length) return null;
+  const view = paginate(projects, requestedPage, ONGOING_PAGE_SIZE);
 
   return (
     <section className="rounded-2xl border border-black/8 bg-white p-5 sm:p-6">
@@ -21,13 +29,12 @@ export function OngoingProjects({ projects }: { projects: OngoingProject[] }) {
           <h2 className="mt-2 text-xl font-semibold">Ongoing projects</h2>
         </div>
         <p className="text-xs text-[#8a8f87]">
-          {projects.length} active{" "}
-          {projects.length === 1 ? "project" : "projects"}
+          {view.total} active {view.total === 1 ? "project" : "projects"}
         </p>
       </div>
 
       <div className="grid gap-4">
-        {projects.map((project) => (
+        {view.items.map((project) => (
           <article
             key={project.id}
             className="rounded-xl border border-black/7 p-5"
@@ -42,22 +49,52 @@ export function OngoingProjects({ projects }: { projects: OngoingProject[] }) {
                   </span>
                 </div>
                 <p className="mt-1 text-xs text-[#7b8078]">
-                  {project.client} · Started{" "}
-                  {project.created_at
-                    ? new Date(project.created_at).toLocaleDateString("en-US", {
-                        month: "long",
-                        year: "numeric",
-                      })
-                    : "recently"}
+                  {project.client}
+                  {project.createdAt !== undefined &&
+                    ` · Started ${ongoingStarted(project)}`}
                 </p>
               </div>
               <p className="text-sm font-semibold">
-                ${Number(project.amount).toLocaleString()}
+                {formatCents(project.amountCents)}
               </p>
             </div>
           </article>
         ))}
       </div>
+
+      {view.totalPages > 1 && (
+        <div className="mt-5 flex items-center justify-between gap-3 border-t border-black/7 pt-5">
+          <p className="text-xs text-[#838980]">
+            Showing {view.from}–{view.to} of {view.total}
+          </p>
+          <nav
+            aria-label="Ongoing projects pagination"
+            className="flex items-center gap-2"
+          >
+            <button
+              type="button"
+              aria-label="Previous ongoing projects page"
+              disabled={view.page === 1}
+              onClick={() => setRequestedPage(view.page - 1)}
+              className="flex h-9 w-9 items-center justify-center rounded-lg border border-black/10 disabled:cursor-not-allowed disabled:opacity-35"
+            >
+              <Icon icon="solar:alt-arrow-left-linear" width="16" />
+            </button>
+            <span className="text-xs font-semibold text-[#656b63]">
+              Page {view.page} of {view.totalPages}
+            </span>
+            <button
+              type="button"
+              aria-label="Next ongoing projects page"
+              disabled={view.page === view.totalPages}
+              onClick={() => setRequestedPage(view.page + 1)}
+              className="flex h-9 w-9 items-center justify-center rounded-lg border border-black/10 disabled:cursor-not-allowed disabled:opacity-35"
+            >
+              <Icon icon="solar:alt-arrow-right-linear" width="16" />
+            </button>
+          </nav>
+        </div>
+      )}
     </section>
   );
 }

@@ -18,7 +18,7 @@ export type MilestoneStatus = MilestoneItem["status"];
 export const CONTRACTS_PAGE_SIZE = 20;
 
 export const ADD_MILESTONE_MIN_CENTS = 1000;
-export const ADD_MILESTONE_MAX_CENTS = Number.MAX_SAFE_INTEGER;
+export const ADD_MILESTONE_MAX_CENTS = 100_000_000;
 
 export const MILESTONE_TITLE_MIN = 3;
 export const MILESTONE_TITLE_MAX = 120;

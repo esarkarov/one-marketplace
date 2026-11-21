@@ -19,6 +19,7 @@ import {
   useStartMeeting,
 } from "@/app/hooks/use-messages";
 import {
+  ATTACHMENT_HINT,
   isCounterpartyTyping,
   latestServerMessageId,
   messageErrorMessage,
@@ -159,7 +160,9 @@ export function MessagesDashboard({
   }, [loadedMessages, markConversationRead, selectedId, selectedUnread]);
 
   const selectConversation = (conversation: ClientConversation) =>
-    router.push(`/messages?conversationId=${conversation.id}`);
+    router.push(
+      `/messages?conversationId=${encodeURIComponent(conversation.id)}`,
+    );
 
   const sending = sendMessageMutation.isPending;
 
@@ -615,7 +618,7 @@ function AttachmentModal({
           />
           <span className="mt-2 text-sm font-semibold">Choose a file</span>
           <span className="mt-1 text-[11px] text-[#858a82]">
-            PDF, DOCX, PNG, JPG, or TXT · Maximum 5 MB
+            {ATTACHMENT_HINT}
           </span>
           <input
             type="file"

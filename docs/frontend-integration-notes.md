@@ -60,3 +60,23 @@ Checklist for the five Next.js apps. They already call the API from the browser 
 - `useNotificationStream` opens one SSE connection per tab, reconnects after errors and after a clean end, stops on 401 and 403, refetches `GET /notifications` on every (re)connect and after a long idle, and merges pushes by `id`. `useNotifications`, `useMarkNotificationRead` and `useMarkAllNotificationsRead` use the `{ results, hasMore }` envelope. There is no unread-count endpoint, so the unread count comes from the first 100 notifications.
 - `useMessagingSocket` keeps one socket per tab and sends a fresh token on every connect (the handshake `auth` is a function). `useUnreadMessages` reads `totalUnread` from `GET /conversations`.
 - Which id to compare: message `senderId`, `conversation:update.senderId` and `typing:update.userId` are always the public account id, also in agency scope; `presence:*` ids are the agency id for the agency side. `useAccount()` exposes `actorId` (account id, use `isMine(senderId)`) and `presenceId`. Never compare Clerk user ids. In an agency conversation a teammate's message is not "mine".
+
+## Reuse map (client app to web-core)
+
+Nothing is moved yet. When the freelancer app needs one of these, move it to `packages/web-core` (hooks) or `packages/api-client` (pure helpers) instead of copying it. Paths are under `apps/client-dashboard`.
+
+App-agnostic (no client-only operation, role or route inside):
+
+- `lib/url.ts` (`isHttpsUrl`): redirect, checkout, meeting, attachment and portfolio link guard.
+- `lib/profiles.ts`: `paginate`, `completedWork`, `ongoingWork`, `safeHttpsUrl`, `initialsOf`, `formatMonthYear`, rating, job success and hourly-rate formatters, `profileErrorMessage`, `isProfileNotFound`. The generated public profile types are the same for every viewer.
+- `app/hooks/use-profiles.ts`: `useTalentProfile` and `useAgencyProfile` (public profile reads, no role).
+- `app/_components/profiles/*`: the public talent and agency profile views, work history and ongoing project paging, featured members. Only the "Back to proposals" link and the missing Message button are client specific.
+- `lib/jobs.ts` money helpers (`toCents`, `validateMilestoneAmount`, `centsToFormAmount`) and the money input rules; the status label pattern (`jobStatusLabel`, unknown values shown as received).
+- `lib/messages.ts` and `app/hooks/use-messages.ts`: cursor paging and dedupe (`flattenMessagePages`), optimistic send and `reconcileSentMessage`, attachment validation and limits, meeting start, read marking. Only `toConversationView` and `toThread` carry client wording; the role comes from the provider.
+- `lib/contracts.ts`: contract and milestone status derivation (`Submitted` is `ACTIVE` plus `paymentRequestedAt`), `useLockedMutation` style double-submit lock, checkout url guard, `contractErrorMessageOf`.
+- `lib/notification-routes.ts` pattern (`notificationHref(type, link, metadata)`): reuse the logic, give each app its own route table.
+- `app/session-boundary.tsx` and `lib/account-gate.ts`: reuse with the expected role as a parameter.
+
+Client only (operations or rules only the client role has): `use-jobs.ts`, `use-proposals.ts` (client side of `proposals_get`), `use-contracts.ts` (`contracts_get_client`, fund, review, withdraw), `use-client-profile.ts`, `useMarketplaceSearch` and `useDashboardOverview` in `use-profiles.ts`, and their `lib/*` modules.
+
+Known gaps shared by every app: the public profile `id` is the profile id (`freelancer_metadata.id`), not the account id; neither `FreelancerPublicProfile`, `PublicAgencyProfile` nor `ClientMarketplaceResult` exposes the account id that `POST /conversations` (`recipientId`) needs, so a profile "Message" button cannot be built until the API exposes it. Public profiles return `workHistory`, `portfolios` and `members` as whole arrays, so they are paged in the UI.

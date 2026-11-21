@@ -2,7 +2,7 @@
 
 import { Icon } from "@iconify/react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { BrandMark } from "../brand-mark";
 import { MarketplaceSearchModal } from "../discovery/marketplace-search-modal";
@@ -266,6 +266,7 @@ function Notifications() {
 }
 
 function AccountMenu() {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const { user, isLoaded } = useUser();
   const { signOut } = useClerk();
@@ -373,7 +374,7 @@ function AccountMenu() {
               data-clerk-account-trigger
               onClick={() => {
                 setOpen(false);
-                window.location.assign("/settings?section=account");
+                router.push("/settings?section=account");
               }}
               className="flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-3 text-left hover:bg-[#f4f6f2]"
             >
