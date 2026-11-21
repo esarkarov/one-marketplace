@@ -1,5 +1,7 @@
 import type { NextConfig } from "next";
 
-const nextConfig: NextConfig = {};
+const nextConfig: NextConfig = {
+  transpilePackages: ["@onemarketplace/api-client", "@onemarketplace/web-core"],
+};
 
 export default nextConfig;

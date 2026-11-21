@@ -1,6 +1,7 @@
 {
   "extends": "@onemarketplace/tsconfig/nextjs.json",
   "compilerOptions": {
+    "target": "ES2020",
     "paths": {
       "@/*": ["./*"]
     }

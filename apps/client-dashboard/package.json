@@ -7,12 +7,16 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "typecheck": "node node_modules/@typescript/native/bin/tsc --noEmit"
+    "typecheck": "node node_modules/@typescript/native/bin/tsc --noEmit",
+    "test": "vitest run",
+    "test:quiet": "vitest run --reporter=dot"
   },
   "dependencies": {
     "@clerk/nextjs": "catalog:",
     "@clerk/shared": "catalog:",
     "@iconify/react": "catalog:",
+    "@onemarketplace/api-client": "workspace:*",
+    "@onemarketplace/web-core": "workspace:*",
     "@tanstack/react-query": "catalog:",
     "date-fns": "^4.4.0",
     "next": "catalog:",
@@ -34,6 +38,7 @@
     "eslint": "catalog:",
     "tailwindcss": "catalog:",
     "typescript": "catalog:",
-    "@typescript/native": "catalog:"
+    "@typescript/native": "catalog:",
+    "vitest": "catalog:"
   }
 }

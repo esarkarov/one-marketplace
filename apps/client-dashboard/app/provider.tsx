@@ -1,12 +1,20 @@
 "use client";
 
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useAuth } from "@clerk/nextjs";
+import { ApiProvider } from "@onemarketplace/web-core";
 import React from "react";
+import { SessionBoundary } from "./session-boundary";
 
 export const Provider = ({ children }: { children: React.ReactNode }) => {
-  const queryClient = new QueryClient();
+  const { getToken } = useAuth();
 
   return (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    <ApiProvider
+      baseUrl={process.env.NEXT_PUBLIC_SERVER_URI ?? ""}
+      role="client"
+      getToken={() => getToken()}
+    >
+      <SessionBoundary>{children}</SessionBoundary>
+    </ApiProvider>
   );
 };

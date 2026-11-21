@@ -7,19 +7,20 @@ import { useEffect, useRef, useState } from "react";
 import { BrandMark } from "../brand-mark";
 import { MarketplaceSearchModal } from "../discovery/marketplace-search-modal";
 import { clientHeaderNavigation } from "./navigation";
-import { getToken, useClerk, useUser } from "@clerk/nextjs";
+import { getToken, useAuth, useClerk, useUser } from "@clerk/nextjs";
+import { useUnreadNotificationCount } from "@onemarketplace/web-core";
 import { useQuery } from "@tanstack/react-query";
 import Image from "next/image";
 import {
   presentNotification,
-  useNotifications,
-  useNotificationStream,
+  useClientNotifications,
 } from "@/app/hooks/use-notifications";
 import { useUnreadMessages } from "@/app/hooks/use-unread-messages";
 
 export function ClientHeader() {
   const pathname = usePathname();
   const unreadMessages = useUnreadMessages();
+  const { isSignedIn } = useAuth();
   const { user } = useUser();
   const { data: profileMetaData } = useQuery({
     queryKey: ["profile-metadata"],
@@ -112,7 +113,7 @@ export function ClientHeader() {
               />
               {unreadMessages > 0 && <Badge count={unreadMessages} />}
             </Link>
-            <Notifications />
+            {isSignedIn && <Notifications />}
             <AccountMenu />
           </div>
         </div>
@@ -121,10 +122,11 @@ export function ClientHeader() {
   );
 }
 
-function Badge({ count }: { count: number }) {
+function Badge({ count, capped = false }: { count: number; capped?: boolean }) {
   return (
     <span className="absolute top-1.5 right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full border-2 border-white bg-[#5f8d5c] px-1 text-[8px] font-bold text-white">
       {count}
+      {capped ? "+" : ""}
     </span>
   );
 }
@@ -136,11 +138,11 @@ function Notifications() {
     isLoading,
     markAllRead,
     markRead,
-  } = useNotifications();
+  } = useClientNotifications();
   const notifications = data.slice(0, 3).map(presentNotification);
   const containerRef = useRef<HTMLDivElement>(null);
-  const unreadCount = data.filter((item: any) => !item.is_read).length;
-  useNotificationStream();
+  const { count: unreadCount, capped: unreadCapped } =
+    useUnreadNotificationCount();
 
   useEffect(() => {
     if (!open) return;
@@ -170,7 +172,7 @@ function Notifications() {
           icon={open ? "solar:bell-bold" : "solar:bell-linear"}
           width="22"
         />
-        {unreadCount > 0 && <Badge count={unreadCount} />}
+        {unreadCount > 0 && <Badge count={unreadCount} capped={unreadCapped} />}
       </button>
       {open && (
         <section className="fixed top-18 right-3 left-3 overflow-hidden rounded-2xl border border-black/8 bg-white shadow-[0_24px_70px_rgba(26,34,26,.18)] sm:absolute sm:top-12 sm:right-0 sm:left-auto sm:w-100">
@@ -178,7 +180,8 @@ function Notifications() {
             <div>
               <h2 className="text-sm font-semibold">Notifications</h2>
               <p className="mt-1 text-[10px] text-[#858a82]">
-                {unreadCount} unread client updates
+                {unreadCount}
+                {unreadCapped ? "+" : ""} unread client updates
               </p>
             </div>
             {unreadCount > 0 && (
@@ -206,37 +209,55 @@ function Notifications() {
                 </div>
               ))}
 
-            {notifications.map((notification: any, index: any) => (
-              <Link
-                key={notification.id}
-                href={notification.href}
-                onClick={() => {
-                  markRead(notification.id);
-                  setOpen(false);
-                }}
-                className={`relative flex gap-3.5 px-5 py-4 transition hover:bg-[#f7f8f5] ${
-                  index ? "border-t border-black/6" : ""
-                } ${notification.unread ? "bg-[#f3f7f1]" : "bg-white"}`}
-              >
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-[#52784f] shadow-[inset_0_0_0_1px_rgba(0,0,0,0.06)]">
-                  <Icon icon={notification.icon} width="20" />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-semibold">
-                    {notification.title}
+            {notifications.map((notification, index) => {
+              const rowClass = `relative flex w-full gap-3.5 px-5 py-4 text-left transition hover:bg-[#f7f8f5] ${
+                index ? "border-t border-black/6" : ""
+              } ${notification.unread ? "bg-[#f3f7f1]" : "bg-white"}`;
+              const onSelect = () => {
+                if (notification.unread) markRead(notification.id);
+                setOpen(false);
+              };
+              const content = (
+                <>
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-[#52784f] shadow-[inset_0_0_0_1px_rgba(0,0,0,0.06)]">
+                    <Icon icon={notification.icon} width="20" />
                   </span>
-                  <span className="mt-1 block text-xs leading-5 text-[#737870]">
-                    {notification.description}
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-semibold">
+                      {notification.title}
+                    </span>
+                    <span className="mt-1 block text-xs leading-5 text-[#737870]">
+                      {notification.description}
+                    </span>
+                    <span className="mt-1.5 block text-[11px] text-[#93978f]">
+                      {notification.time}
+                    </span>
                   </span>
-                  <span className="mt-1.5 block text-[11px] text-[#93978f]">
-                    {notification.time}
-                  </span>
-                </span>
-                {notification.unread && (
-                  <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[#5f8d5c]" />
-                )}
-              </Link>
-            ))}
+                  {notification.unread && (
+                    <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[#5f8d5c]" />
+                  )}
+                </>
+              );
+              return notification.href ? (
+                <Link
+                  key={notification.id}
+                  href={notification.href}
+                  onClick={onSelect}
+                  className={rowClass}
+                >
+                  {content}
+                </Link>
+              ) : (
+                <button
+                  key={notification.id}
+                  type="button"
+                  onClick={onSelect}
+                  className={`${rowClass} cursor-pointer`}
+                >
+                  {content}
+                </button>
+              );
+            })}
           </div>
 
           {!isLoading && notifications.length === 0 && (
@@ -322,10 +343,10 @@ function AccountMenu() {
         onClick={() => setOpen((value) => !value)}
         className="flex cursor-pointer items-center gap-2 rounded-full border border-black/8 p-1 pr-2.5 hover:bg-black/3"
       >
-        {isLoaded ? (
+        {isLoaded && user?.imageUrl ? (
           <Image
-            src={user?.imageUrl!}
-            alt={user?.fullName!}
+            src={user.imageUrl}
+            alt={user.fullName ?? "Account"}
             width={40}
             height={40}
             className="h-8 w-8 rounded-full object-cover"
@@ -344,13 +365,15 @@ function AccountMenu() {
       {open && (
         <div className="absolute top-12 right-0 w-80 overflow-hidden rounded-2xl border border-black/8 bg-white shadow-[0_24px_70px_rgba(26,34,26,.18)]">
           <div className="flex items-center gap-3 border-b border-black/7 p-4">
-            <Image
-              src={user?.imageUrl!}
-              alt={user?.fullName!}
-              width={40}
-              height={40}
-              className="h-11 w-11 rounded-full object-cover"
-            />
+            {user?.imageUrl && (
+              <Image
+                src={user.imageUrl}
+                alt={user.fullName ?? "Account"}
+                width={40}
+                height={40}
+                className="h-11 w-11 rounded-full object-cover"
+              />
+            )}
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <p className="truncate text-sm font-semibold">

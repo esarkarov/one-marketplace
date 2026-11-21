@@ -3,39 +3,61 @@
 import { Icon } from "@iconify/react";
 import Link from "next/link";
 import { SubmitEvent, useCallback, useEffect, useRef, useState } from "react";
-import { useAuth, useUser } from "@clerk/nextjs";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useUser } from "@clerk/nextjs";
+import { errorMessage, isApiError } from "@onemarketplace/api-client";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { countries } from "@/utils/countries";
 import { toast } from "sonner";
 import { UserResource } from "@clerk/nextjs/types";
+import {
+  useClientCompletedContracts,
+  useClientHiringOverview,
+  useClientProfile,
+  useSaveClientProfile,
+} from "@/app/hooks/use-client-profile";
+import {
+  COMPANY_SIZE_OPTIONS,
+  fieldErrorsFromApi,
+  formatBudgetCents,
+  formatCompactCents,
+  hasFieldErrors,
+  INDUSTRY_OPTIONS,
+  joinedYear,
+  OTHER_INDUSTRY,
+  resolveIndustry,
+  splitIndustry,
+  toProfileBody,
+  validateProfileValues,
+  type ClientProfile as ClientProfileData,
+  type ClientProfileField,
+  type ClientProfileFieldErrors,
+  type ClientProfileValues,
+} from "@/lib/client-profile";
 
-interface ClientHiringOverview {
-  totalSpent: number;
-  completedContracts: number;
-  rating: number;
-  openJobs: number;
-  totalHires: number;
-  hireRate: number;
-  averageResponseDays: number | null;
-}
+const countryCodeSet: ReadonlySet<string> = new Set(
+  countries.map((country) => country.code),
+);
 
-interface ClientCompletedContract {
-  id: string;
-  title: string;
-  talent: string;
-  budget: number;
-  completedAt: string | null;
-  clientReview: { rating: number; text: string } | null;
-  talentReview: { rating: number; text: string } | null;
-}
+const formFieldName: Record<ClientProfileField, string> = {
+  professionalRole: "jobRole",
+  companyName: "companyName",
+  companyWebsite: "companyWebsite",
+  companySize: "companySize",
+  industry: "customIndustry",
+  companyDescription: "companyDescription",
+  country: "location",
+};
 
-const formatCompactCurrency = (value: number) =>
-  `$${new Intl.NumberFormat("en-US", {
-    notation: "compact",
-    maximumFractionDigits: 1,
-  }).format(value)}`;
+const toFormErrors = (
+  errors: ClientProfileFieldErrors,
+): Record<string, string> => {
+  const result: Record<string, string> = {};
+  for (const [field, message] of Object.entries(errors)) {
+    result[formFieldName[field as ClientProfileField]] = message;
+  }
+  return result;
+};
 
 const formatResponseTime = (days: number | null) => {
   if (days === null) return "No data yet";
@@ -44,44 +66,8 @@ const formatResponseTime = (days: number | null) => {
   return `${rounded} day${rounded === 1 ? "" : "s"}`;
 };
 
-interface ClientProfilePayload {
-  professionalRole: string;
-  companyName: string;
-  companyWebsite: string;
-  companySize: string;
-  industry: string;
-  companyDescription: string;
-  identityVerified?: boolean;
-  paymentMethodVerified?: boolean;
-  joinedAt?: Date;
-}
-
-interface SaveClientProfileResponse {
-  success: boolean;
-  message: string;
-}
-
-interface ClientProfileMetadataResponse extends SaveClientProfileResponse {
-  data: ClientProfilePayload | null;
-}
-
-const industryOptions = [
-  "Healthcare technology",
-  "Software & technology",
-  "Financial services",
-  "Retail & e-commerce",
-  "Education",
-  "Media & entertainment",
-  "Professional services",
-  "Manufacturing",
-  "Real estate",
-  "Nonprofit",
-] as const;
-
 export function ClientProfile({ editing = false }: { editing?: boolean }) {
   const { user } = useUser();
-  const { getToken } = useAuth();
-  const queryClient = useQueryClient();
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const [saved, setSaved] = useState(false);
@@ -95,79 +81,18 @@ export function ClientProfile({ editing = false }: { editing?: boolean }) {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
 
-  const { data: profileMetaData, isLoading: profileMetaDataLoading } = useQuery(
-    {
-      queryKey: ["profile-metadata"],
-      enabled: Boolean(user),
-      queryFn: async () => {
-        const token = await getToken();
-
-        const response = await fetch(
-          `${process.env.NEXT_PUBLIC_SERVER_URI}/client/profile?role=client`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-            cache: "no-store",
-          },
-        );
-
-        const result = (await response.json()) as ClientProfileMetadataResponse;
-
-        if (!response.ok) {
-          throw new Error(
-            result.message || "The client profile could not be loaded.",
-          );
-        }
-
-        return result.data;
-      },
-    },
-  );
+  const {
+    data: profileMetaData,
+    isLoading: profileMetaDataLoading,
+    error: profileLoadError,
+  } = useClientProfile(Boolean(user));
 
   const isIdentityVerified = Boolean(profileMetaData?.identityVerified);
 
-  const savedIndustry = profileMetaData?.industry;
   const industry =
-    selectedIndustry ??
-    (savedIndustry
-      ? industryOptions.some((option) => option === savedIndustry)
-        ? savedIndustry
-        : "Other"
-      : "Software & technology");
+    selectedIndustry ?? splitIndustry(profileMetaData?.industry ?? "").selected;
 
-  const saveClientProfileMutation = useMutation({
-    mutationFn: async (payload: ClientProfilePayload) => {
-      const token = await getToken();
-
-      if (!token) {
-        throw new Error("Your session has expired. Please sign in again.");
-      }
-
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_SERVER_URI}/client/profile?role=client`,
-        {
-          method: "PUT",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(payload),
-        },
-      );
-      const result = (await response.json()) as SaveClientProfileResponse;
-      if (!response.ok) {
-        throw new Error(
-          result.message || "The client profile could not be saved.",
-        );
-      }
-
-      return result;
-    },
-    onSuccess: (_result, payload) => {
-      queryClient.setQueryData(["profile-metadata"], payload);
-    },
-  });
+  const saveClientProfileMutation = useSaveClientProfile();
 
   const getFieldErrorMessage = (
     field: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement,
@@ -275,22 +200,33 @@ export function ClientProfile({ editing = false }: { editing?: boolean }) {
     const lastName = isIdentityVerified
       ? (user.lastName ?? "")
       : String(formData.get("lastName") ?? "").trim();
+    const clerkCountry = user.unsafeMetadata?.country;
     const location = isIdentityVerified
-      ? String(user.unsafeMetadata?.country ?? "")
+      ? (profileMetaData?.country ??
+        (typeof clerkCountry === "string" ? clerkCountry : ""))
       : String(formData.get("location") ?? "").trim();
-    const selectedIndustry = String(formData.get("industry") ?? "").trim();
-    const customIndustry = String(formData.get("customIndustry") ?? "").trim();
-    const profilePayload: ClientProfilePayload = {
-      professionalRole: String(formData.get("jobRole") ?? "").trim(),
-      companyName: String(formData.get("companyName") ?? "").trim(),
-      companyWebsite: String(formData.get("companyWebsite") ?? "").trim(),
-      companySize: String(formData.get("companySize") ?? "").trim(),
-      industry:
-        selectedIndustry === "Other" ? customIndustry : selectedIndustry,
-      companyDescription: String(
-        formData.get("companyDescription") ?? "",
-      ).trim(),
+    const values: ClientProfileValues = {
+      professionalRole: String(formData.get("jobRole") ?? ""),
+      companyName: String(formData.get("companyName") ?? ""),
+      companyWebsite: String(formData.get("companyWebsite") ?? ""),
+      companySize: String(formData.get("companySize") ?? ""),
+      industry: resolveIndustry(
+        String(formData.get("industry") ?? ""),
+        String(formData.get("customIndustry") ?? ""),
+      ),
+      companyDescription: String(formData.get("companyDescription") ?? ""),
+      country: location,
     };
+    const localErrors = validateProfileValues(values, countryCodeSet);
+
+    if (hasFieldErrors(localErrors)) {
+      setFieldErrors((current) => ({
+        ...current,
+        ...toFormErrors(localErrors),
+      }));
+      setFormError("Fix the highlighted fields before saving.");
+      return;
+    }
 
     setIsSubmitting(true);
 
@@ -308,18 +244,32 @@ export function ClientProfile({ editing = false }: { editing?: boolean }) {
         },
       });
 
-      await saveClientProfileMutation.mutateAsync(profilePayload);
+      await saveClientProfileMutation.mutateAsync(toProfileBody(values));
 
       setSaved(true);
       toast.success("Account updated successfully!");
-      window.location.assign("/profile");
+      router.push("/profile");
     } catch (error) {
-      console.error("Client profile update failed.", error);
-      setFormError(
-        error instanceof Error
-          ? error.message
-          : "We could not save your profile. Please try again.",
-      );
+      if (isApiError(error)) {
+        const apiErrors = fieldErrorsFromApi(error.errors);
+        if (hasFieldErrors(apiErrors)) {
+          setFieldErrors((current) => ({
+            ...current,
+            ...toFormErrors(apiErrors),
+          }));
+        }
+        setFormError(
+          error.requestId
+            ? `${errorMessage(error)} (reference ${error.requestId})`
+            : errorMessage(error),
+        );
+      } else {
+        setFormError(
+          error instanceof Error
+            ? error.message
+            : "We could not save your profile. Please try again.",
+        );
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -327,6 +277,14 @@ export function ClientProfile({ editing = false }: { editing?: boolean }) {
 
   if (!user || profileMetaDataLoading) {
     return <ProfileSkeleton editing={editing} />;
+  }
+
+  if (profileLoadError) {
+    return (
+      <p role="alert" className="text-sm font-medium text-[#a34f49]">
+        {errorMessage(profileLoadError)}
+      </p>
+    );
   }
 
   return (
@@ -465,7 +423,8 @@ export function ClientProfile({ editing = false }: { editing?: boolean }) {
                   required
                   disabled={isIdentityVerified}
                   defaultValue={(() => {
-                    const savedCountry = user?.unsafeMetadata?.country;
+                    const savedCountry =
+                      profileMetaData?.country ?? user?.unsafeMetadata?.country;
 
                     if (typeof savedCountry !== "string") return "";
 
@@ -530,17 +489,10 @@ export function ClientProfile({ editing = false }: { editing?: boolean }) {
               <SelectField
                 label="Company size *"
                 name="companySize"
-                defaultValue={profileMetaData?.companySize ?? "Just me"}
-                options={[
-                  "Just me",
-                  "2–10 employees",
-                  "11–50 employees",
-                  "51–200 employees",
-                  "201–500 employees",
-                  "501–1,000 employees",
-                  "1,001–5,000 employees",
-                  "5,001+ employees",
-                ]}
+                defaultValue={
+                  profileMetaData?.companySize || COMPANY_SIZE_OPTIONS[0]
+                }
+                options={[...COMPANY_SIZE_OPTIONS]}
               />
               <label className="text-xs font-semibold">
                 Industry *
@@ -551,22 +503,17 @@ export function ClientProfile({ editing = false }: { editing?: boolean }) {
                   onChange={(event) => setSelectedIndustry(event.target.value)}
                   className="mt-2 h-11 w-full rounded-xl border border-black/10 bg-white px-3 text-sm font-normal outline-none focus:border-[#6e916a]"
                 >
-                  {[...industryOptions, "Other"].map((option) => (
+                  {[...INDUSTRY_OPTIONS, OTHER_INDUSTRY].map((option) => (
                     <option key={option}>{option}</option>
                   ))}
                 </select>
               </label>
-              {industry === "Other" && (
+              {industry === OTHER_INDUSTRY && (
                 <Field
                   label="Custom industry *"
                   name="customIndustry"
                   defaultValue={
-                    profileMetaData &&
-                    !industryOptions.some(
-                      (option) => option === profileMetaData.industry,
-                    )
-                      ? profileMetaData.industry
-                      : ""
+                    splitIndustry(profileMetaData?.industry ?? "").custom
                   }
                   placeholder="Enter your industry"
                   error={
@@ -641,65 +588,18 @@ function ProfilePreview({
   profileMetadata,
   user,
 }: {
-  profileMetadata: ClientProfilePayload | null | undefined;
+  profileMetadata: ClientProfileData | null | undefined;
   user: UserResource;
 }) {
-  const { getToken } = useAuth();
   const contractsPerPage = 2;
   const [contractPage, setContractPage] = useState(1);
 
-  const { data: hiringOverview } = useQuery({
-    queryKey: ["client-hiring-overview"],
-    queryFn: async () => {
-      const token = await getToken();
+  const { data: hiringOverview } = useClientHiringOverview();
 
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_SERVER_URI}/client/hiring-overview?role=client`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-          cache: "no-store",
-        },
-      );
+  const { data: completedContractsPage, isLoading: completedContractsLoading } =
+    useClientCompletedContracts();
 
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          result.message || "Hiring activity could not be loaded.",
-        );
-      }
-
-      return result.data as ClientHiringOverview;
-    },
-  });
-
-  const { data: completedContracts, isLoading: completedContractsLoading } =
-    useQuery({
-      queryKey: ["client-completed-contracts"],
-      queryFn: async () => {
-        const token = await getToken();
-
-        const response = await fetch(
-          `${process.env.NEXT_PUBLIC_SERVER_URI}/client/completed-contracts?role=client`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-            cache: "no-store",
-          },
-        );
-
-        const result = await response.json();
-
-        if (!response.ok) {
-          throw new Error(
-            result.message || "Completed contracts could not be loaded.",
-          );
-        }
-
-        return result.data as ClientCompletedContract[];
-      },
-    });
-
-  const contracts = completedContracts ?? [];
+  const contracts = completedContractsPage?.results ?? [];
   const totalContractPages = Math.max(
     Math.ceil(contracts.length / contractsPerPage),
     1,
@@ -815,9 +715,7 @@ function ProfilePreview({
             />
             <SidebarDetail
               label="Member since"
-              value={
-                profileMetadata?.joinedAt?.toString().slice(0, 4) || "2026"
-              }
+              value={joinedYear(profileMetadata?.joinedAt) || "2026"}
             />
           </dl>
           <a
@@ -851,9 +749,7 @@ function ProfilePreview({
             />
             <Info
               label="Member since"
-              value={
-                profileMetadata?.joinedAt?.toString().slice(0, 4) || "2026"
-              }
+              value={joinedYear(profileMetadata?.joinedAt) || "2026"}
             />
           </div>
         </section>
@@ -861,7 +757,7 @@ function ProfilePreview({
           <InfoCard
             value={
               hiringOverview
-                ? formatCompactCurrency(hiringOverview.totalSpent)
+                ? formatCompactCents(hiringOverview.totalSpentCents)
                 : "..."
             }
             label="Total spent"
@@ -932,7 +828,7 @@ function ProfilePreview({
                     </div>
                     <div className="text-left sm:text-right">
                       <p className="text-sm font-semibold">
-                        ${contract.budget.toLocaleString()}
+                        {formatBudgetCents(contract.budgetCents)}
                       </p>
                       <p className="mt-1 text-[10px] text-[#8a8f87]">
                         {contract.completedAt

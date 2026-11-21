@@ -5,96 +5,8 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import {
   presentNotification,
-  useNotifications,
-  useNotificationStream,
+  useClientNotifications,
 } from "../hooks/use-notifications";
-
-type Category = "Proposals" | "Contracts" | "Messages" | "Payments" | "Account";
-
-type Notification = {
-  id: number;
-  icon: string;
-  title: string;
-  description: string;
-  time: string;
-  date: "Today" | "Yesterday" | "Earlier";
-  href: string;
-  category: Category;
-  unread: boolean;
-};
-
-const initialNotifications: Notification[] = [
-  {
-    id: 1,
-    icon: "solar:users-group-rounded-linear",
-    title: "New proposal received",
-    description:
-      "Northstar Digital applied to your collaborative workspace project.",
-    time: "8 minutes ago",
-    date: "Today",
-    href: "/proposals",
-    category: "Proposals",
-    unread: true,
-  },
-  {
-    id: 2,
-    icon: "solar:flag-linear",
-    title: "Milestone submitted",
-    description:
-      "The collaboration milestone is ready for your review and approval.",
-    time: "42 minutes ago",
-    date: "Today",
-    href: "/contracts",
-    category: "Contracts",
-    unread: true,
-  },
-  {
-    id: 3,
-    icon: "solar:chat-round-dots-linear",
-    title: "New message from Shahriar",
-    description: "The responsive dashboard build is ready for review.",
-    time: "2 hours ago",
-    date: "Today",
-    href: "/messages",
-    category: "Messages",
-    unread: true,
-  },
-  {
-    id: 4,
-    icon: "solar:shield-check-linear",
-    title: "Milestone funding confirmed",
-    description: "$12,000 is protected for the collaboration milestone.",
-    time: "Yesterday",
-    date: "Yesterday",
-    href: "/contracts",
-    category: "Payments",
-    unread: false,
-  },
-  {
-    id: 5,
-    icon: "solar:case-round-linear",
-    title: "Contract offer accepted",
-    description:
-      "Northstar Digital accepted your offer and the contract is now active.",
-    time: "Yesterday",
-    date: "Yesterday",
-    href: "/contracts",
-    category: "Contracts",
-    unread: false,
-  },
-  {
-    id: 6,
-    icon: "solar:verified-check-linear",
-    title: "Identity verification required",
-    description:
-      "Complete the secure Stripe Identity check before your first hire.",
-    time: "July 25",
-    date: "Earlier",
-    href: "/settings?section=verifications",
-    category: "Account",
-    unread: false,
-  },
-];
 
 const filters = [
   "All",
@@ -111,9 +23,7 @@ export function ClientNotifications() {
     isLoading,
     markAllRead,
     markRead,
-  } = useNotifications();
-
-  useNotificationStream();
+  } = useClientNotifications();
 
   const [filter, setFilter] = useState("All");
   const [unreadOnly, setUnreadOnly] = useState(false);
@@ -263,14 +173,19 @@ export function ClientNotifications() {
                         {notification.description}
                       </p>
                       <div className="mt-3 flex flex-wrap items-center gap-3">
-                        <Link
-                          href={notification.href}
-                          onClick={() => markRead(notification.id)}
-                          className="inline-flex items-center gap-1 text-xs font-semibold text-[#4e774b] hover:underline"
-                        >
-                          View {notification.category.toLowerCase()}
-                          <Icon icon="solar:arrow-right-up-linear" width="14" />
-                        </Link>
+                        {notification.href && (
+                          <Link
+                            href={notification.href}
+                            onClick={() => markRead(notification.id)}
+                            className="inline-flex items-center gap-1 text-xs font-semibold text-[#4e774b] hover:underline"
+                          >
+                            View {notification.category.toLowerCase()}
+                            <Icon
+                              icon="solar:arrow-right-up-linear"
+                              width="14"
+                            />
+                          </Link>
+                        )}
                         <span className="text-[11px] text-[#949990]">
                           {notification.time}
                         </span>

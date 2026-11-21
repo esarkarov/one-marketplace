@@ -69,6 +69,8 @@ Lint override: until an app is migrated, `packages/eslint-config/next.mjs` downg
 - 2026-11-20: batch 1a done: `packages/api-client` (generated types and operation metadata, typed fetch client with auth, role and scope injection, error envelope handling, money and date formatters). No app uses it yet; the notification and socket hooks, the auth helper and the app wiring remain in batch 1.
 - 2026-11-20: batch 2 done (admin): see [Batch 2 result](#batch-2-result). Not yet verified against a running API or a browser.
 - 2026-11-20: batch 1b done: `packages/web-core` (`@onemarketplace/web-core`: `ApiProvider` and `queryKeys`, `useAccount`, one shared notification stream per tab with reconnect, backoff and refetch, notifications list and optimistic mutations, one shared messaging socket with a fresh token per handshake, unread counts, sound player). No app uses it yet; the app wiring stays in the app batches.
+- 2026-11-20: batch 3a done (client foundations): see [Batch 3a result](#batch-3a-result). Not yet verified against a running API or a browser. Sub-batches 3b to 3e (jobs, proposals, contracts, messages, profile, settings, search) are open; `client-dashboard` stays in `unmigratedApps` until 3e.
+- 2026-11-21: batch 3b done (client onboarding, profile and settings): see [Batch 3b result](#batch-3b-result). Not yet verified against a running API or a browser.
 
 ## Batch 0 result
 
@@ -82,7 +84,7 @@ Lint override: until an app is migrated, `packages/eslint-config/next.mjs` downg
 - The admin app no longer holds `ADMIN_SESSION_SECRET` (removed from the code and the admin `.env.example`). The API still requires it.
 - `proxy.ts` only checks that the cookie exists (`lib/access.ts`, `decideAccess`). Pages redirect to `/login?next=<safe path>`; `/api/*` answers 401 JSON with code `UNAUTHENTICATED`. The API is the authority: a 401 from it sends server components to `/login?expired=1&next=<path>` and browser calls to the same place.
 - `next` is validated by `safeNextPath` everywhere it is read or written.
-- Route handlers under `app/api/system/*` and `app/api/logs/stream` forward `request.signal` upstream. Upstream 401 is returned as 401, every other upstream failure as 502 with the API error code (so a 400 or 403 from the API reaches the browser as 502 with the API message).
+- Route handlers under `app/api/system/*` and `app/api/logs/stream` forward `request.signal` upstream. Upstream 401 is returned as 401, every other upstream failure as 502 with the API error code (so a 400 or 403 from the API reaches the browser as 502 with the API message). Touch-up after batch 2: the two Redis routes (`/api/system/redis/keys` and `/keys/[key]`) now pass an upstream 4xx through with its status and error envelope (including `errors[]`); 5xx and network failures stay 502, and the health and log stream routes are unchanged. A login answered with 503 `SERVICE_UNAVAILABLE` returns 502 with code `ADMIN_AUTH_NOT_CONFIGURED` and the form shows "Admin sign-in is not configured on the server."; 401 still shows "Incorrect password.".
 - Money comes from `*Cents` fields formatted with `formatCents`; contract status includes `CANCELLED` (red, "Cancelled"); contracts, proposals and accounts show `AGENCY`/`FREELANCER`/`CLIENT` labels.
 - `apps/admin-dashboard/tsconfig.json` sets `target` to `ES2020` because the api-client source uses BigInt literals.
 - Known limitation: the API limits failed admin logins to 20 per 15 minutes per IP, and every admin reaches it through the Next server's IP, so failed attempts by one admin count against all of them. The API was not changed.
@@ -100,3 +102,47 @@ Lint override: until an app is migrated, `packages/eslint-config/next.mjs` downg
 7. `curl -i http://localhost:3004/api/system/health` without a cookie answers 401 JSON, not a redirect. `curl -i -X DELETE http://localhost:3004/api/session -H "Origin: https://evil.example"` answers 403.
 8. Open Logs, then close the tab: the API connection count drops (no leaked upstream stream).
 9. Log out: cookie cleared, back on `/login`.
+
+## Batch 3a result
+
+- Wiring: `apps/client-dashboard` depends on `@onemarketplace/api-client` and `@onemarketplace/web-core` (`workspace:*`, both in `transpilePackages`), has vitest and `target` ES2020. `app/provider.tsx` mounts web-core's `ApiProvider` (`baseUrl` from `NEXT_PUBLIC_SERVER_URI`, role `client`, `getToken` from Clerk `useAuth`) inside `ClerkProvider`; its own `QueryClient` replaces the app's.
+- Session: `app/session-boundary.tsx` mounts the notification stream, the messaging socket and the message sound only while Clerk reports a signed-in user, and calls `resetWebCore` when it reports none. Notification and conversation queries in the header are `enabled` only when signed in.
+- Account: the Clerk `userId` is no longer used as a public id in the header hooks (`use-unread-messages.ts`); incoming-message sound uses `useAccount().isMine(senderId)`. `messages-dashboard.tsx` still compares Clerk ids and is left for the messages sub-batch.
+- `proxy.ts` keeps Clerk authentication and the signed-out redirect to the landing page and makes no network call. The `/api/me` self-fetch is gone; its decision now lives in `AccountGate` (`app/session-boundary.tsx`) over `GET /auth/status` (same query key as `useAccount`, one request): failed check, no account or a role other than `client` go to the landing page; a client that is not onboarded goes to `/profile/edit` (allowed there); otherwise the page renders. The decision is the pure function `decideAccountGate` in `lib/account-gate.ts`. `app/api/me/route.ts` is unused.
+- Notifications: the data layer is web-core's `useNotifications`, `useUnreadNotificationCount`, the optimistic read mutations and the shared stream (one per tab, refetch on reconnect); the sound is `createSoundPlayer`. Click targets come from `lib/notification-routes.ts`: all contract and milestone types go to `/contracts`, `PROPOSAL_RECEIVED` and `PROPOSAL_VIEWED` to `/proposals`, `PROPOSAL_INTERVIEWED` to `/messages`; the notice's own `link` is used only when it stays inside that route (keeps `?contractId=` and `?conversationId=`). `PAYOUT_COMPLETED`, `AGENCY_INVITATION`, `AGENCY_WELCOME_BONUS`, `REVIEW_RECEIVED` and unknown types have no client route: the row marks as read and does not navigate.
+- Origin: the API allows the client dashboard through `CLIENT_DASHBOARD`; outside production `http://localhost:3001` is the default when it is unset.
+- Pages for later sub-batches still call the API with the old shapes and may fail at runtime until their own sub-batch.
+
+### Manual QA checklist (owner) for 3a
+
+1. Start the API and `pnpm --filter @onemarketplace/client-dashboard dev` with Clerk dev keys and `NEXT_PUBLIC_SERVER_URI=http://localhost:4000/api/v1`.
+2. Signed out, open `http://localhost:3001/`: redirected to the landing page, and the network tab shows no request to the API.
+3. Sign in as a client: a short "Loading your account…" then the dashboard; one `GET /auth/status?role=client` is sent. A freelancer account or an account without a profile ends on the landing page.
+4. A client that is not onboarded is sent to `/profile/edit` from any page and can stay there.
+5. The header and the notification bell load without console errors; the bell badge shows the unread count and the popover lists the latest three.
+6. The stream connects (`GET /notifications/stream` stays open in the network tab) and there is exactly one per tab; reload and it reconnects, and the list is refetched on connect.
+7. Create a notification for the client (for example a milestone submitted by a freelancer): it appears without reload and the badge goes up. Mark one read and mark all read: the badge drops at once and stays after reload.
+8. Click a milestone, contract or proposal notification: you land on `/contracts`, `/proposals` or `/messages` as in the table above. A notice with no client route only marks as read.
+9. Sign out: the stream closes and no API calls follow.
+
+## Batch 3b result
+
+- Onboarding path: `GET /auth/status` reports `isOnboarded=true` for a client once `PUT /client/profile` has run (`markClientOnboardingComplete` in the same transaction as the profile upsert, auth cache invalidated). No new endpoint or field was needed. The profile `country` is optional in the API but the form now requires it and sends an ISO 3166-1 alpha-2 code.
+- Operations used: `client_get_profile`, `client_put_profile`, `client_get_hiring_overview`, `client_get_completed_contracts` (`limit=50`), `client_get_finances_manage_link`, `identity_post_session`. Hooks are in `app/hooks/use-client-profile.ts`; pure mapping, validation and money helpers are in `lib/client-profile.ts` (tests: `lib/client-profile.test.ts`).
+- `GET /client/profile` answering 404 `PROFILE_NOT_FOUND` is a new account, not an error: the hook returns `null` and the form shows defaults. After a save the hook updates the profile cache (same `profile-metadata` key the header and sidebar still read) and invalidates the web-core auth status query, so `AccountGate` passes; the page then goes to `/profile` with the router (no full reload).
+- Errors: `ApiError` with `errorMessage`, `requestId` shown as a reference, `errors[]` mapped to form fields (`professionalRole` to Role, `country` to Location, `industry` to Custom industry). Local validation mirrors the API limits and runs before the request.
+- Money: the profile preview now reads `totalSpentCents` and `budgetCents` and formats them with `formatCents` (compact form for the total).
+- Settings: company form hydrates from the loaded profile without an effect and sends the full body (including the saved role and country, so a company edit never clears them). Finances (Stripe link) and identity verification use the typed client.
+- Left for later: `client-header.tsx` and `client-sidebar.tsx` still fetch `/client/profile` by hand under the same query key, and `app/api/me/route.ts` is unused. The completed-contracts list shows the first 50 only (`hasMore` is ignored). The Notifications settings toggles are local only (no API). Public profiles stay in 3f.
+- Not yet verified against a running API or a browser. Five-rule warnings in the client app: 13 before, 11 after (the two `set-state-in-effect` in `settings-client.tsx` are gone).
+
+### Manual QA checklist (owner) for 3b
+
+1. Start the API and the client app with Clerk dev keys and `NEXT_PUBLIC_SERVER_URI=http://localhost:4000/api/v1`. Sign up a new client account: you land on `/profile/edit`, and every other URL sends you back there.
+2. Submit the form empty: each required field shows its message and nothing is sent. Enter a website without `https://`: the URL message shows on the field.
+3. Force an API validation error (for example a 6000-character description or a 101-character role): the message appears on that field and a reference id shows under the form; the data in the form is kept.
+4. Fill everything (photo, name, role, country, company data) and save: `PUT /client/profile` answers 200, you land on `/profile` and the dashboard opens without a redirect. `GET /auth/status` now reports `isOnboarded: true`.
+5. Open `/settings?section=company`: the saved values are shown. Change one field and save: the button enables only when something changed, the notice shows, and a reload keeps the change. Role and country (see `/profile/edit`) are unchanged.
+6. Open `/profile`: role, company, industry and the join year show; hiring stats and completed contracts show amounts like `$1,999.00` (not raw cents).
+7. Settings, Finances: "Manage finances" opens Stripe. Verification: "Verify with Stripe" opens Stripe Identity; `/settings?section=verifications&active=true` opens the modal once and Cancel closes it for good.
+8. Sign out and sign in again: you go straight to the dashboard, with no pass through `/profile/edit`. With the API stopped, the profile and settings pages show an error message instead of a blank page.

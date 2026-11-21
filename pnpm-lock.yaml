@@ -413,6 +413,12 @@ importers:
       '@iconify/react':
         specifier: 'catalog:'
         version: 6.0.4(react@19.3.1)
+      '@onemarketplace/api-client':
+        specifier: workspace:*
+        version: link:../../packages/api-client
+      '@onemarketplace/web-core':
+        specifier: workspace:*
+        version: link:../../packages/web-core
       '@tanstack/react-query':
         specifier: 'catalog:'
         version: 5.108.0(@types/react@19.3.0)(react@19.3.1)
@@ -474,6 +480,9 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: '@typescript/typescript6@6.0.2'
+      vitest:
+        specifier: 'catalog:'
+        version: 5.1.0(@types/node@26.6.6)(@vitest/coverage-v8@5.1.0)(jsdom@31.0.1(@noble/hashes@1.8.0))(vite@8.3.6(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
 
   apps/freelancer-dashboard:
     dependencies:

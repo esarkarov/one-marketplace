@@ -1,12 +1,7 @@
-let notificationSound: HTMLAudioElement | null = null;
+import { createSoundPlayer } from "@onemarketplace/web-core";
 
-export const unlockMessageSound = () => {
-  notificationSound ??= new Audio("/notification.mp3");
-  notificationSound.preload = "auto";
-};
+export const messageSound = createSoundPlayer("/notification.mp3");
 
-export const playIncomingMessageSound = () => {
-  unlockMessageSound();
-  notificationSound!.currentTime = 0;
-  void notificationSound!.play().catch(() => undefined);
-};
+export const unlockMessageSound = messageSound.unlock;
+
+export const playIncomingMessageSound = messageSound.play;

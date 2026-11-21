@@ -1,15 +1,35 @@
 "use client";
 
 import { Icon } from "@iconify/react";
-import { useAuth, useReverification, useSession, useUser } from "@clerk/nextjs";
+import { useReverification, useSession, useUser } from "@clerk/nextjs";
+import { errorMessage, isApiError } from "@onemarketplace/api-client";
 import type {
   SessionWithActivitiesResource,
   TOTPResource,
 } from "@clerk/shared/types";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { format } from "timeago.js";
+import {
+  useClientProfile,
+  useSaveClientProfile,
+  useStartIdentityVerification,
+  useStripeManageLink,
+} from "@/app/hooks/use-client-profile";
+import {
+  COMPANY_SIZE_OPTIONS,
+  fieldErrorsFromApi,
+  hasFieldErrors,
+  INDUSTRY_OPTIONS,
+  OTHER_INDUSTRY,
+  profileToValues,
+  resolveIndustry,
+  splitIndustry,
+  toProfileBody,
+  validateProfileValues,
+  type ClientProfile,
+  type ClientProfileFieldErrors,
+} from "@/lib/client-profile";
 
 const extractClerkError = (error: unknown): string => {
   if (error && typeof error === "object" && "errors" in error) {
@@ -45,16 +65,6 @@ const Panel = ({
     {children}
   </section>
 );
-
-interface ClientProfileMetadata {
-  professionalRole?: string;
-  companyName?: string;
-  companyWebsite?: string;
-  companySize?: string;
-  industry?: string;
-  companyDescription?: string;
-  identityVerified?: boolean;
-}
 
 const navigation = [
   {
@@ -102,32 +112,22 @@ export function ClientSettings({
   initialSection: string;
   verificationActive: boolean;
 }) {
-  const { getToken } = useAuth();
   const [notice, setNotice] = useState("");
-  const [verificationOpen, setVerificationOpen] = useState(false);
-  const { data: profileMetaData } = useQuery<ClientProfileMetadata>({
-    queryKey: ["profile-metadata"],
-    queryFn: async () => {
-      const token = await getToken();
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_SERVER_URI}/client/profile?role=client`,
-        { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" },
-      );
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.message);
-      return result.data;
-    },
-  });
+  const [verificationOpened, setVerificationOpened] = useState(false);
+  const [verificationDismissed, setVerificationDismissed] = useState(false);
+  const { data: profileMetaData } = useClientProfile();
 
-  useEffect(() => {
-    if (
-      initialSection === "verifications" &&
+  const verificationOpen =
+    verificationOpened ||
+    (initialSection === "verifications" &&
       verificationActive &&
-      profileMetaData?.identityVerified === false
-    ) {
-      setVerificationOpen(true);
-    }
-  }, [initialSection, profileMetaData?.identityVerified, verificationActive]);
+      profileMetaData?.identityVerified === false &&
+      !verificationDismissed);
+
+  const closeVerification = () => {
+    setVerificationOpened(false);
+    setVerificationDismissed(true);
+  };
 
   const saveNotice = (message: string) => {
     setNotice(message);
@@ -206,7 +206,7 @@ export function ClientSettings({
           {initialSection === "verifications" && (
             <StripeVerification
               verified={profileMetaData?.identityVerified === true}
-              onStart={() => setVerificationOpen(true)}
+              onStart={() => setVerificationOpened(true)}
             />
           )}
           {initialSection === "account" && <AccountSettings />}
@@ -214,7 +214,7 @@ export function ClientSettings({
       </div>
 
       {verificationOpen && (
-        <IdentityVerificationModal onClose={() => setVerificationOpen(false)} />
+        <IdentityVerificationModal onClose={closeVerification} />
       )}
     </>
   );
@@ -296,31 +296,15 @@ function Overview({
 }
 
 function Finances({ onNotice }: { onNotice: (message: string) => void }) {
-  const { getToken } = useAuth();
-  const [redirecting, setRedirecting] = useState(false);
+  const manageLink = useStripeManageLink();
+  const redirecting = manageLink.isPending || manageLink.isSuccess;
 
   const manageFinances = async () => {
-    setRedirecting(true);
     try {
-      const token = await getToken();
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_SERVER_URI}/client/finances/manage-link?role=client`,
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
-      const result = await response.json();
-      if (!response.ok || !result.data?.url) {
-        throw new Error(
-          result.message || "Stripe could not be opened right now.",
-        );
-      }
-      window.location.assign(result.data.url);
+      const link = await manageLink.mutateAsync();
+      window.location.assign(link.url);
     } catch (error) {
-      onNotice(
-        error instanceof Error
-          ? error.message
-          : "Stripe could not be opened right now.",
-      );
-      setRedirecting(false);
+      onNotice(errorMessage(error));
     }
   };
 
@@ -359,11 +343,13 @@ function Field({
   value,
   onChange,
   type = "text",
+  error,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   type?: string;
+  error?: string | undefined;
 }) {
   return (
     <label className="block">
@@ -372,133 +358,88 @@ function Field({
         type={type}
         value={value}
         onChange={(event) => onChange(event.target.value)}
+        aria-invalid={Boolean(error)}
         className="h-11 w-full rounded-xl border border-black/10 px-3 text-sm outline-none focus:border-[#6f936b]"
       />
+      {error && (
+        <span role="alert" className="mt-1.5 block text-[11px] text-red-600">
+          {error}
+        </span>
+      )}
     </label>
   );
 }
-
-const industryOptions = [
-  "Healthcare technology",
-  "Software & technology",
-  "Financial services",
-  "Retail & e-commerce",
-  "Education",
-  "Media & entertainment",
-  "Professional services",
-  "Manufacturing",
-  "Real estate",
-  "Nonprofit",
-] as const;
-
-const companySizeOptions = [
-  "Just me",
-  "2–10 employees",
-  "11–50 employees",
-  "51–200 employees",
-  "201–500 employees",
-  "501–1,000 employees",
-  "1,001–5,000 employees",
-  "5,001+ employees",
-] as const;
 
 function CompanySettings({
   profile,
   onSave,
 }: {
-  profile?: ClientProfileMetadata;
+  profile: ClientProfile | null | undefined;
   onSave: () => void;
 }) {
-  const { getToken } = useAuth();
-  const queryClient = useQueryClient();
-  const [saving, setSaving] = useState(false);
+  if (profile === undefined) return null;
+  return <CompanyForm profile={profile} onSave={onSave} />;
+}
+
+function CompanyForm({
+  profile,
+  onSave,
+}: {
+  profile: ClientProfile | null;
+  onSave: () => void;
+}) {
+  const saveProfile = useSaveClientProfile();
+  const initial = profileToValues(profile);
+  const initialIndustry = splitIndustry(initial.industry);
   const [error, setError] = useState("");
-  const [hydrated, setHydrated] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<ClientProfileFieldErrors>({});
+  const [companyName, setCompanyName] = useState(initial.companyName);
+  const [companyWebsite, setCompanyWebsite] = useState(initial.companyWebsite);
+  const [companySize, setCompanySize] = useState<string>(initial.companySize);
+  const [industry, setIndustry] = useState<string>(initialIndustry.selected);
+  const [customIndustry, setCustomIndustry] = useState(initialIndustry.custom);
+  const [companyDescription, setCompanyDescription] = useState(
+    initial.companyDescription,
+  );
 
-  const [companyName, setCompanyName] = useState("");
-  const [companyWebsite, setCompanyWebsite] = useState("");
-  const [companySize, setCompanySize] = useState<string>(companySizeOptions[0]);
-  const [industry, setIndustry] = useState<string>(industryOptions[0]);
-  const [customIndustry, setCustomIndustry] = useState("");
-  const [companyDescription, setCompanyDescription] = useState("");
-
-  useEffect(() => {
-    if (!profile || hydrated) return;
-    setCompanyName(profile.companyName ?? "");
-    setCompanyWebsite(profile.companyWebsite ?? "");
-    setCompanySize(profile.companySize || companySizeOptions[0]);
-    const savedIndustry = profile.industry ?? "";
-    if (
-      savedIndustry &&
-      !industryOptions.some((option) => option === savedIndustry)
-    ) {
-      setIndustry("Other");
-      setCustomIndustry(savedIndustry);
-    } else {
-      setIndustry(savedIndustry || industryOptions[0]);
-    }
-    setCompanyDescription(profile.companyDescription ?? "");
-    setHydrated(true);
-  }, [profile, hydrated]);
-
-  const resolvedIndustry = industry === "Other" ? customIndustry : industry;
+  const resolvedIndustry = resolveIndustry(industry, customIndustry);
   const isDirty =
-    hydrated &&
-    (companyName.trim() !== (profile?.companyName ?? "") ||
-      companyWebsite.trim() !== (profile?.companyWebsite ?? "") ||
-      companySize.trim() !== (profile?.companySize ?? "") ||
-      companyDescription.trim() !== (profile?.companyDescription ?? "") ||
-      resolvedIndustry.trim() !== (profile?.industry ?? ""));
+    companyName.trim() !== initial.companyName ||
+    companyWebsite.trim() !== initial.companyWebsite ||
+    companySize.trim() !== initial.companySize ||
+    companyDescription.trim() !== initial.companyDescription ||
+    resolvedIndustry !== initial.industry;
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
+    setFieldErrors({});
 
-    const payload = {
-      professionalRole: profile?.professionalRole ?? "",
-      companyName: companyName.trim(),
-      companyWebsite: companyWebsite.trim(),
-      companySize: companySize.trim(),
-      industry: resolvedIndustry.trim(),
-      companyDescription: companyDescription.trim(),
+    const values = {
+      ...initial,
+      companyName,
+      companyWebsite,
+      companySize,
+      industry: resolvedIndustry,
+      companyDescription,
     };
+    const localErrors = validateProfileValues(values);
 
-    setSaving(true);
+    if (hasFieldErrors(localErrors)) {
+      setFieldErrors(localErrors);
+      return;
+    }
+
     try {
-      const token = await getToken();
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_SERVER_URI}/client/profile?role=client`,
-        {
-          method: "PUT",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(payload),
-        },
-      );
-      const result = await response.json();
-      if (!response.ok) {
-        throw new Error(
-          result.message || "The company profile could not be saved.",
-        );
-      }
-      queryClient.setQueryData(
-        ["profile-metadata"],
-        (current: ClientProfileMetadata | undefined) => ({
-          ...current,
-          ...payload,
-        }),
-      );
+      await saveProfile.mutateAsync(toProfileBody(values));
       onSave();
     } catch (err) {
+      if (isApiError(err)) setFieldErrors(fieldErrorsFromApi(err.errors));
       setError(
-        err instanceof Error
-          ? err.message
-          : "The company profile could not be saved.",
+        isApiError(err) && err.requestId
+          ? `${errorMessage(err)} (reference ${err.requestId})`
+          : errorMessage(err),
       );
-    } finally {
-      setSaving(false);
     }
   };
 
@@ -513,11 +454,13 @@ function CompanySettings({
             label="Company name"
             value={companyName}
             onChange={setCompanyName}
+            error={fieldErrors.companyName}
           />
           <Field
             label="Website"
             value={companyWebsite}
             onChange={setCompanyWebsite}
+            error={fieldErrors.companyWebsite}
           />
           <label className="block">
             <span className="mb-2 block text-xs font-semibold">Industry</span>
@@ -526,7 +469,7 @@ function CompanySettings({
               onChange={(event) => setIndustry(event.target.value)}
               className="h-11 w-full rounded-xl border border-black/10 bg-white px-3 text-sm outline-none focus:border-[#6f936b]"
             >
-              {[...industryOptions, "Other"].map((option) => (
+              {[...INDUSTRY_OPTIONS, OTHER_INDUSTRY].map((option) => (
                 <option key={option}>{option}</option>
               ))}
             </select>
@@ -540,16 +483,17 @@ function CompanySettings({
               onChange={(event) => setCompanySize(event.target.value)}
               className="h-11 w-full rounded-xl border border-black/10 bg-white px-3 text-sm outline-none focus:border-[#6f936b]"
             >
-              {companySizeOptions.map((option) => (
+              {COMPANY_SIZE_OPTIONS.map((option) => (
                 <option key={option}>{option}</option>
               ))}
             </select>
           </label>
-          {industry === "Other" && (
+          {industry === OTHER_INDUSTRY && (
             <Field
               label="Custom industry"
               value={customIndustry}
               onChange={setCustomIndustry}
+              error={fieldErrors.industry}
             />
           )}
         </div>
@@ -563,14 +507,26 @@ function CompanySettings({
             rows={5}
             className="w-full resize-none rounded-xl border border-black/10 p-3 text-sm outline-none focus:border-[#6f936b]"
           />
+          {fieldErrors.companyDescription && (
+            <span
+              role="alert"
+              className="mt-1.5 block text-[11px] text-red-600"
+            >
+              {fieldErrors.companyDescription}
+            </span>
+          )}
         </label>
-        {error && <p className="mt-3 text-xs text-red-600">{error}</p>}
+        {error && (
+          <p role="alert" className="mt-3 text-xs text-red-600">
+            {error}
+          </p>
+        )}
         <button
           type="submit"
-          disabled={saving || !isDirty}
+          disabled={saveProfile.isPending || !isDirty}
           className="mt-5 h-10 rounded-xl bg-[#252724] px-4 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {saving ? "Saving..." : "Save company profile"}
+          {saveProfile.isPending ? "Saving..." : "Save company profile"}
         </button>
       </form>
     </SectionCard>
@@ -675,34 +631,17 @@ function StripeVerification({
 }
 
 function IdentityVerificationModal({ onClose }: { onClose: () => void }) {
-  const { getToken } = useAuth();
-  const [redirecting, setRedirecting] = useState(false);
+  const session = useStartIdentityVerification();
+  const redirecting = session.isPending || session.isSuccess;
   const [error, setError] = useState("");
 
   const startVerification = async () => {
-    setRedirecting(true);
     setError("");
     try {
-      const token = await getToken();
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_SERVER_URI}/identity/session?role=client`,
-        {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-        },
-      );
-      const result = await response.json();
-      if (!response.ok || !result.data?.url) {
-        throw new Error(result.message || "Verification could not start.");
-      }
-      window.location.assign(result.data.url);
-    } catch (error) {
-      setError(
-        error instanceof Error
-          ? error.message
-          : "Verification could not start.",
-      );
-      setRedirecting(false);
+      const result = await session.mutateAsync();
+      window.location.assign(result.url);
+    } catch (err) {
+      setError(errorMessage(err));
     }
   };
 
