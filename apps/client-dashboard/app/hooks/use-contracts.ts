@@ -1,7 +1,11 @@
 "use client";
 
 import { unwrap } from "@onemarketplace/api-client";
-import { useApi } from "@onemarketplace/web-core";
+import {
+  InvalidCheckoutUrlError,
+  safeCheckoutUrl,
+  useApi,
+} from "@onemarketplace/web-core";
 import {
   keepPreviousData,
   useMutation,
@@ -9,12 +13,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { useRef } from "react";
-import {
-  CONTRACTS_PAGE_SIZE,
-  InvalidCheckoutUrlError,
-  safeCheckoutUrl,
-  type AddMilestoneBody,
-} from "@/lib/contracts";
+import { CONTRACTS_PAGE_SIZE, type AddMilestoneBody } from "@/lib/contracts";
 
 export const CONTRACTS_QUERY_KEY = ["client-contracts"] as const;
 

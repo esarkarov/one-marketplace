@@ -1,4 +1,8 @@
-import { ApiError } from "@onemarketplace/api-client";
+import {
+  milestoneState,
+  type ContractItem,
+  type MilestoneItem,
+} from "@onemarketplace/web-core";
 import { describe, expect, it } from "vitest";
 import {
   ADD_MILESTONE_MAX_CENTS,
@@ -9,29 +13,19 @@ import {
   canGiveReview,
   canReviewMilestone,
   canWithdrawContract,
-  contractErrorMessage,
-  contractErrorMessageOf,
   contractHref,
   contractStatusLabel,
   contractStatusTone,
-  contractTotals,
   counterpartyLabel,
   findContract,
   hasActiveContract,
-  InvalidCheckoutUrlError,
   messagesLink,
   milestoneLabel,
-  milestoneState,
-  nextDeadline,
-  safeCheckoutUrl,
-  sumContractTotals,
   todayLocalDate,
   validateAddMilestone,
   validateContractReview,
   validateFeedback,
   validateRequirements,
-  type ContractItem,
-  type MilestoneItem,
   MILESTONE_AMOUNT_HINT,
 } from "./contracts";
 
@@ -126,59 +120,6 @@ describe("status labels", () => {
   });
 });
 
-describe("money totals", () => {
-  it("sums paid and funded cents with integers only", () => {
-    const totals = contractTotals(
-      contract({ milestones: [paid, inProgress, upcoming] }),
-    );
-    expect(totals.paidCents).toBe(100000);
-    expect(totals.escrowCents).toBe(150000);
-    expect(totals.totalCents).toBe(250000);
-    expect(totals.progressPercent).toBe(40);
-  });
-
-  it("does not divide by zero and caps progress", () => {
-    expect(
-      contractTotals(contract({ totalAmountCents: 0, milestones: [paid] }))
-        .progressPercent,
-    ).toBe(0);
-    expect(
-      contractTotals(contract({ totalAmountCents: 1000, milestones: [paid] }))
-        .progressPercent,
-    ).toBe(100);
-  });
-
-  it("keeps cents exact for amounts that break float math", () => {
-    const a = milestone({ status: "COMPLETED", amountCents: 10 });
-    const b = milestone({ status: "COMPLETED", amountCents: 20 });
-    expect(
-      contractTotals(contract({ totalAmountCents: 30, milestones: [a, b] }))
-        .paidCents,
-    ).toBe(30);
-  });
-
-  it("leaves cancelled contracts out of the summary", () => {
-    const summary = sumContractTotals([
-      contract({ milestones: [paid, inProgress] }),
-      contract({ status: "CANCELLED", milestones: [paid] }),
-    ]);
-    expect(summary).toEqual({
-      paidCents: 100000,
-      escrowCents: 150000,
-      activeCount: 1,
-    });
-  });
-
-  it("picks the next deadline only for live contracts", () => {
-    const milestones = [paid, upcoming];
-    expect(nextDeadline(contract({ milestones }))).toBe("2027-01-15");
-    expect(nextDeadline(contract({ status: "CANCELLED", milestones }))).toBe(
-      null,
-    );
-    expect(nextDeadline(contract({ milestones: [paid] }))).toBe(null);
-  });
-});
-
 describe("action rules", () => {
   it("funds only the next upcoming milestone of an active contract", () => {
     const milestones = [paid, upcoming];
@@ -264,19 +205,6 @@ describe("links and ids", () => {
     expect(contractHref("abc")).toBe("/contracts?contractId=abc");
     expect(messagesLink("a b")).toBe("/messages?conversationId=a%20b");
     expect(messagesLink(null)).toBe(null);
-  });
-});
-
-describe("checkout url", () => {
-  it("accepts https only", () => {
-    expect(safeCheckoutUrl("https://checkout.stripe.com/c/pay/x")).toBe(
-      "https://checkout.stripe.com/c/pay/x",
-    );
-    expect(safeCheckoutUrl("http://checkout.stripe.com/x")).toBe(null);
-    expect(safeCheckoutUrl("javascript:alert(1)")).toBe(null);
-    expect(safeCheckoutUrl("//evil.example")).toBe(null);
-    expect(safeCheckoutUrl("")).toBe(null);
-    expect(safeCheckoutUrl("https://user:pw@checkout.stripe.com/x")).toBe(null);
   });
 });
 
@@ -394,45 +322,6 @@ describe("text validation", () => {
     expect(
       validateContractReview({ rating: 5, comment: " great work!! " }),
     ).toEqual({ ok: true, value: { rating: 5, comment: "great work!!" } });
-  });
-});
-
-describe("error mapping", () => {
-  it("shows the API message and the request id for a 4xx", () => {
-    const error = new ApiError({
-      status: 409,
-      code: "MILESTONE_ADD_NOT_ALLOWED",
-      message: "You cannot add a milestone yet.",
-      requestId: "req-1",
-    });
-    expect(contractErrorMessage(error)).toBe(
-      "You cannot add a milestone yet. (reference req-1)",
-    );
-  });
-
-  it("hides 5xx detail and handles non API errors", () => {
-    const error = new ApiError({
-      status: 500,
-      code: "INTERNAL_ERROR",
-      message: "stack at db.ts:12",
-      requestId: "req-2",
-    });
-    expect(contractErrorMessage(error)).not.toContain("stack");
-    expect(contractErrorMessage(new Error("boom"))).not.toContain("boom");
-  });
-
-  it("returns an empty message when there is no error", () => {
-    expect(contractErrorMessageOf(null)).toBe("");
-    expect(contractErrorMessageOf(undefined)).toBe("");
-    expect(contractErrorMessageOf(new InvalidCheckoutUrlError())).toBe(
-      "Checkout returned an invalid address.",
-    );
-  });
-
-  it("shows the invalid checkout address message", () => {
-    expect(contractErrorMessage(new InvalidCheckoutUrlError())).toBe(
-      "Checkout returned an invalid address.",
-    );
   });
 });
 

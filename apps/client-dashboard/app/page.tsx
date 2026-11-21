@@ -4,10 +4,10 @@ import Link from "next/link";
 import { ClientShell } from "./_components/dashboard/client-shell";
 import { useUser } from "@clerk/nextjs";
 import { formatCents } from "@onemarketplace/api-client";
+import { profileErrorMessage } from "@onemarketplace/web-core";
 import { Suspense } from "react";
 import { useDashboardOverview } from "@/app/hooks/use-profiles";
 import { formatCompactCents } from "@/lib/client-profile";
-import { profileErrorMessage } from "@/lib/profiles";
 
 export default function ClientDashboardPage() {
   const { user, isLoaded } = useUser();

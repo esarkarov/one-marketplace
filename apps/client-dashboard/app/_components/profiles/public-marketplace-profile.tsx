@@ -1,9 +1,4 @@
 import { Icon } from "@iconify/react";
-import Link from "next/link";
-import { OngoingProjects } from "./ongoing-projects";
-import { WorkHistoryPagination } from "./work-history-pagination";
-import Image from "next/image";
-import { countries } from "@/utils/countries";
 import {
   formatHourlyRate,
   formatJobSuccess,
@@ -14,7 +9,12 @@ import {
   talentLocation,
   talentProjectCount,
   type TalentProfile,
-} from "@/lib/profiles";
+} from "@onemarketplace/web-core";
+import Link from "next/link";
+import { OngoingProjects } from "./ongoing-projects";
+import { WorkHistoryPagination } from "./work-history-pagination";
+import Image from "next/image";
+import { countries } from "@/utils/countries";
 
 const countryName = (code: string) =>
   countries.find((country) => country.code === code)?.name;

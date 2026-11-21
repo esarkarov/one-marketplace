@@ -1,7 +1,4 @@
 import { Icon } from "@iconify/react";
-import Link from "next/link";
-import { AgencyFeaturedMembers } from "./agency-featured-members";
-import { WorkHistoryPagination } from "./work-history-pagination";
 import {
   formatJobSuccess,
   formatRating,
@@ -9,7 +6,10 @@ import {
   NOT_AVAILABLE,
   safeHttpsUrl,
   type AgencyProfile,
-} from "@/lib/profiles";
+} from "@onemarketplace/web-core";
+import Link from "next/link";
+import { AgencyFeaturedMembers } from "./agency-featured-members";
+import { WorkHistoryPagination } from "./work-history-pagination";
 
 export function PublicAgencyProfile({ agency }: { agency: AgencyProfile }) {
   const avatarUrl = safeHttpsUrl(agency.avatarImage?.url);

@@ -1,8 +1,12 @@
 "use client";
 
+import {
+  isProfileNotFound,
+  profileErrorMessage,
+  useAgencyProfile,
+  useTalentProfile,
+} from "@onemarketplace/web-core";
 import Link from "next/link";
-import { useAgencyProfile, useTalentProfile } from "@/app/hooks/use-profiles";
-import { isProfileNotFound, profileErrorMessage } from "@/lib/profiles";
 import { PublicAgencyProfile } from "./public-agency-profile";
 import { PublicMarketplaceProfile } from "./public-marketplace-profile";
 

@@ -63,20 +63,21 @@ Checklist for the five Next.js apps. They already call the API from the browser 
 
 ## Reuse map (client app to web-core)
 
-Nothing is moved yet. When the freelancer app needs one of these, move it to `packages/web-core` (hooks) or `packages/api-client` (pure helpers) instead of copying it. Paths are under `apps/client-dashboard`.
+The app-agnostic client modules now live in `packages/web-core` and are exported from its `index.ts` (no Clerk or Next import). The freelancer and agency apps import them from the package instead of copying them. Source files are under `packages/web-core/src`.
 
-App-agnostic (no client-only operation, role or route inside):
+Moved:
 
-- `lib/url.ts` (`isHttpsUrl`): redirect, checkout, meeting, attachment and portfolio link guard.
-- `lib/profiles.ts`: `paginate`, `completedWork`, `ongoingWork`, `safeHttpsUrl`, `initialsOf`, `formatMonthYear`, rating, job success and hourly-rate formatters, `profileErrorMessage`, `isProfileNotFound`. The generated public profile types are the same for every viewer.
-- `app/hooks/use-profiles.ts`: `useTalentProfile` and `useAgencyProfile` (public profile reads, no role).
-- `app/_components/profiles/*`: the public talent and agency profile views, work history and ongoing project paging, featured members. Only the "Back to proposals" link and the missing Message button are client specific.
-- `lib/jobs.ts` money helpers (`toCents`, `validateMilestoneAmount`, `centsToFormAmount`) and the money input rules; the status label pattern (`jobStatusLabel`, unknown values shown as received).
-- `lib/messages.ts` and `app/hooks/use-messages.ts`: cursor paging and dedupe (`flattenMessagePages`), optimistic send and `reconcileSentMessage`, attachment validation and limits, meeting start, read marking. Only `toConversationView` and `toThread` carry client wording; the role comes from the provider.
-- `lib/contracts.ts`: contract and milestone status derivation (`Submitted` is `ACTIVE` plus `paymentRequestedAt`), `useLockedMutation` style double-submit lock, checkout url guard, `contractErrorMessageOf`.
-- `lib/notification-routes.ts` pattern (`notificationHref(type, link, metadata)`): reuse the logic, give each app its own route table.
-- `app/session-boundary.tsx` and `lib/account-gate.ts`: reuse with the expected role as a parameter.
+- `url.ts`: `isHttpsUrl`, the redirect, checkout, meeting, attachment and portfolio link guard.
+- `money-input.ts`: `toCents`, `centsToFormAmount`, `validateMoneyInput(amount, bounds)`. Each app supplies its own bounds (the client job wrapper `validateMilestoneAmount` in `lib/jobs.ts`).
+- `account-gate.ts`: `decideAccountGate` with `expectedRole` and `onboardingPath`; the app keeps the Clerk and router part (`session-boundary.tsx`).
+- `profiles.ts` and `profile-hooks.ts`: `paginate`, `completedWork`, `ongoingWork`, `safeHttpsUrl`, `initialsOf`, `formatMonthYear`, rating, job success and hourly-rate formatters, `talentLocation`, `profileErrorMessage`, `isProfileNotFound`, the profile types, and `useTalentProfile` and `useAgencyProfile` (public reads, no role, keys `["web-core", "profiles", kind, id]`).
+- `messages.ts` and `message-hooks.ts`: cursor paging and dedupe (`flattenMessagePages`), optimistic send and `reconcileSentMessage`, attachment validation and limits, conversation cache updaters, `shouldPlayMessageSound`, `isCounterpartyTyping`, and the hooks `useConversationMessages`, `useSendMessage`, `useMarkConversationRead`, `useStartMeeting`.
+- `contracts.ts`: contract types, `milestoneState` (`Submitted` is `ACTIVE` plus `paymentRequestedAt`), `contractTotals`, `sumContractTotals`, `nextDeadline`, `startedAt`, `safeCheckoutUrl`, `InvalidCheckoutUrlError`, `contractErrorMessage`.
 
-Client only (operations or rules only the client role has): `use-jobs.ts`, `use-proposals.ts` (client side of `proposals_get`), `use-contracts.ts` (`contracts_get_client`, fund, review, withdraw), `use-client-profile.ts`, `useMarketplaceSearch` and `useDashboardOverview` in `use-profiles.ts`, and their `lib/*` modules.
+Stays in the client app (client wording, routes, UI or role rules). Paths are under `apps/client-dashboard`:
+
+- `app/_components/profiles/*`: the public profile views use Next `Link` and `Image` and client routes; only "Back to proposals" and the missing Message button are client specific, so another app can copy the markup but not import it.
+- `lib/messages.ts`: `toConversationView` and `toThread` (client wording and `/contracts`, `/proposals` links). `lib/contracts.ts`: labels, tones, the `can*` action rules (client perspective) and form validation. `lib/notification-routes.ts`: reuse the pattern `notificationHref(type, link, metadata)` with its own route table. `useLockedMutation` in `app/hooks/use-contracts.ts`: reuse the pattern.
+- Client only operations: `use-jobs.ts`, `use-proposals.ts`, `use-contracts.ts`, `use-client-profile.ts`, `useMarketplaceSearch` and `useDashboardOverview` in `use-profiles.ts`, `useReviewMilestone` in `use-messages.ts`, and their `lib/*` modules.
 
 Known gaps shared by every app: the public profile `id` is the profile id (`freelancer_metadata.id`), not the account id; neither `FreelancerPublicProfile`, `PublicAgencyProfile` nor `ClientMarketplaceResult` exposes the account id that `POST /conversations` (`recipientId`) needs, so a profile "Message" button cannot be built until the API exposes it. Public profiles return `workHistory`, `portfolios` and `members` as whole arrays, so they are paged in the UI.

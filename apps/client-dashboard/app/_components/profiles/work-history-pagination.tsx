@@ -1,14 +1,14 @@
 "use client";
 
 import { Icon } from "@iconify/react";
-import { useState } from "react";
 import {
   completedWork,
   formatRating,
   paginate,
   WORK_HISTORY_PAGE_SIZE,
   type WorkEntry,
-} from "@/lib/profiles";
+} from "@onemarketplace/web-core";
+import { useState } from "react";
 
 export function WorkHistoryPagination({
   averageRating,

@@ -2,13 +2,13 @@
 
 import { Icon } from "@iconify/react";
 import { formatCents } from "@onemarketplace/api-client";
-import { useState } from "react";
 import {
   ONGOING_PAGE_SIZE,
   ongoingStarted,
   paginate,
   type OngoingEntry,
-} from "@/lib/profiles";
+} from "@onemarketplace/web-core";
+import { useState } from "react";
 
 export function OngoingProjects({
   projects,

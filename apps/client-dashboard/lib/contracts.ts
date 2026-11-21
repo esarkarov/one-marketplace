@@ -1,19 +1,16 @@
-import type { Components } from "@onemarketplace/api-client";
 import {
-  ApiError,
   dollarsToCents,
-  errorMessage,
   formatCents,
   formatDate,
-  isApiError,
 } from "@onemarketplace/api-client";
+import {
+  milestoneState,
+  type ContractItem,
+  type ContractStatus,
+  type MilestoneItem,
+  type MilestoneState,
+} from "@onemarketplace/web-core";
 import { validateMilestoneAmount } from "./jobs";
-import { isHttpsUrl } from "./url";
-
-export type ContractItem = Components["schemas"]["ContractsContract"];
-export type MilestoneItem = ContractItem["milestones"][number];
-export type ContractStatus = ContractItem["status"];
-export type MilestoneStatus = MilestoneItem["status"];
 
 export const CONTRACTS_PAGE_SIZE = 20;
 
@@ -27,15 +24,6 @@ export const FEEDBACK_MIN = 10;
 export const FEEDBACK_MAX = 5000;
 export const REVIEW_COMMENT_MIN = 10;
 export const REVIEW_COMMENT_MAX = 1000;
-
-export const INVALID_CHECKOUT_MESSAGE = "Checkout returned an invalid address.";
-
-export class InvalidCheckoutUrlError extends Error {
-  constructor() {
-    super(INVALID_CHECKOUT_MESSAGE);
-    this.name = "InvalidCheckoutUrlError";
-  }
-}
 
 const KNOWN_CONTRACT_LABELS = {
   PENDING: "Awaiting approval",
@@ -69,26 +57,6 @@ export const contractStatusTone = (status: string): ContractTone => {
   }
 };
 
-export type MilestoneState =
-  "PAID" | "SUBMITTED" | "IN_PROGRESS" | "UPCOMING" | "UNKNOWN";
-
-const KNOWN_MILESTONE_STATUSES: readonly string[] = [
-  "PENDING",
-  "ACTIVE",
-  "COMPLETED",
-] satisfies readonly MilestoneStatus[];
-
-export const milestoneState = (
-  milestone: Pick<MilestoneItem, "status" | "paymentRequestedAt">,
-): MilestoneState => {
-  if (!KNOWN_MILESTONE_STATUSES.includes(milestone.status)) return "UNKNOWN";
-  if (milestone.status === "COMPLETED") return "PAID";
-  if (milestone.status === "ACTIVE") {
-    return milestone.paymentRequestedAt ? "SUBMITTED" : "IN_PROGRESS";
-  }
-  return "UPCOMING";
-};
-
 const MILESTONE_STATE_LABELS: Readonly<
   Record<Exclude<MilestoneState, "UNKNOWN">, string>
 > = {
@@ -103,58 +71,6 @@ export const milestoneLabel = (
 ): string => {
   const state = milestoneState(milestone);
   return state === "UNKNOWN" ? milestone.status : MILESTONE_STATE_LABELS[state];
-};
-
-export interface ContractTotals {
-  totalCents: number;
-  paidCents: number;
-  escrowCents: number;
-  progressPercent: number;
-}
-
-export const contractTotals = (
-  contract: Pick<ContractItem, "totalAmountCents" | "milestones">,
-): ContractTotals => {
-  let paidCents = 0;
-  let escrowCents = 0;
-  for (const milestone of contract.milestones) {
-    if (milestone.status === "COMPLETED") paidCents += milestone.amountCents;
-    else if (milestone.fundedAt) escrowCents += milestone.amountCents;
-  }
-  const totalCents = contract.totalAmountCents;
-  const progressPercent =
-    totalCents > 0
-      ? Math.min(100, Math.max(0, Math.round((paidCents * 100) / totalCents)))
-      : 0;
-  return { totalCents, paidCents, escrowCents, progressPercent };
-};
-
-export const sumContractTotals = (
-  contracts: readonly ContractItem[],
-): { escrowCents: number; paidCents: number; activeCount: number } => {
-  let escrowCents = 0;
-  let paidCents = 0;
-  let activeCount = 0;
-  for (const contract of contracts) {
-    if (contract.status === "CANCELLED") continue;
-    const totals = contractTotals(contract);
-    escrowCents += totals.escrowCents;
-    paidCents += totals.paidCents;
-    if (contract.status === "ACTIVE") activeCount += 1;
-  }
-  return { escrowCents, paidCents, activeCount };
-};
-
-export const nextDeadline = (
-  contract: Pick<ContractItem, "status" | "milestones">,
-): string | null => {
-  if (contract.status !== "ACTIVE" && contract.status !== "PENDING") {
-    return null;
-  }
-  const next = contract.milestones.find(
-    (milestone) => milestone.status !== "COMPLETED",
-  );
-  return next ? next.dueDate : null;
 };
 
 export const formatDueDate = (value: string | null | undefined): string =>
@@ -172,10 +88,6 @@ export const counterpartyLabel = (type: string): string => {
       return type;
   }
 };
-
-export const startedAt = (
-  contract: Pick<ContractItem, "startedAt" | "createdAt">,
-): string => contract.startedAt ?? contract.createdAt;
 
 export const canFundMilestone = (
   contract: Pick<ContractItem, "status" | "milestones">,
@@ -243,23 +155,6 @@ export const messagesLink = (
 
 export const contractHref = (contractId: string): string =>
   `/contracts?contractId=${encodeURIComponent(contractId)}`;
-
-export const safeCheckoutUrl = (value: string): string | null =>
-  isHttpsUrl(value) ? value : null;
-
-export const contractErrorMessage = (error: unknown): string => {
-  if (error instanceof InvalidCheckoutUrlError) return error.message;
-  const message = errorMessage(error);
-  return isApiError(error) && error.requestId
-    ? `${message} (reference ${error.requestId})`
-    : message;
-};
-
-export const contractErrorMessageOf = (error: unknown): string =>
-  error ? contractErrorMessage(error) : "";
-
-export const isContractConflict = (error: unknown): boolean =>
-  error instanceof ApiError && error.status === 409;
 
 export interface AddMilestoneInput {
   title: string;

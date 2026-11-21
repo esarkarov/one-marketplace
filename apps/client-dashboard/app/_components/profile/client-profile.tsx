@@ -5,6 +5,7 @@ import Link from "next/link";
 import { SubmitEvent, useCallback, useEffect, useRef, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import { errorMessage, isApiError } from "@onemarketplace/api-client";
+import { safeHttpsUrl } from "@onemarketplace/web-core";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { countries } from "@/utils/countries";
@@ -36,7 +37,6 @@ import {
   type ClientProfileFieldErrors,
   type ClientProfileValues,
 } from "@/lib/client-profile";
-import { safeHttpsUrl } from "@/lib/profiles";
 
 const countryCodeSet: ReadonlySet<string> = new Set(
   countries.map((country) => country.code),

@@ -34,6 +34,8 @@ export const queryKeys = {
     ] as const,
   notificationsUnread: (role: Role, scope?: Scope) =>
     [...base, "notifications", ...scoped(role, scope), "unread"] as const,
+  publicProfile: (kind: "talent" | "agency", id: string) =>
+    [...base, "profiles", kind, id] as const,
   conversationsAll: (role: Role, scope?: Scope) =>
     [...base, "conversations", ...scoped(role, scope)] as const,
   conversations: (role: Role, scope: Scope | undefined, params: PageParams) =>

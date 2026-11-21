@@ -2,6 +2,19 @@
 
 import { Icon } from "@iconify/react";
 import { formatCents } from "@onemarketplace/api-client";
+import {
+  contractErrorMessage,
+  contractErrorMessageOf,
+  contractTotals,
+  isHttpsUrl,
+  milestoneState,
+  nextDeadline,
+  startedAt,
+  sumContractTotals,
+  type ContractItem,
+  type MilestoneItem,
+  type MilestoneState,
+} from "@onemarketplace/web-core";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -22,31 +35,20 @@ import {
   canGiveReview,
   canReviewMilestone,
   canWithdrawContract,
-  contractErrorMessage,
-  contractErrorMessageOf,
   contractStatusLabel,
   contractStatusTone,
-  contractTotals,
   counterpartyLabel,
   findContract,
   formatDueDate,
   messagesLink,
   milestoneLabel,
-  milestoneState,
-  nextDeadline,
-  startedAt,
-  sumContractTotals,
   todayLocalDate,
   validateAddMilestone,
   validateContractReview,
   validateFeedback,
   validateRequirements,
-  type ContractItem,
   type ContractTone,
-  type MilestoneItem,
-  type MilestoneState,
 } from "@/lib/contracts";
-import { isHttpsUrl } from "@/lib/url";
 
 type Decision = {
   type: "changes" | "approve" | "activate";

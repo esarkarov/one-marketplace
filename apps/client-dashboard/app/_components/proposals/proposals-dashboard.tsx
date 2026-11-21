@@ -2,6 +2,7 @@
 
 import { Icon } from "@iconify/react";
 import { formatCents } from "@onemarketplace/api-client";
+import { isHttpsUrl } from "@onemarketplace/web-core";
 import { formatDistanceToNow } from "date-fns";
 import Image from "next/image";
 import Link from "next/link";
@@ -37,7 +38,6 @@ import {
   toProposalViews,
   type ProposalView,
 } from "@/lib/proposals";
-import { isHttpsUrl } from "@/lib/url";
 import { countries } from "@/utils/countries";
 
 const PAGE_BUTTON =

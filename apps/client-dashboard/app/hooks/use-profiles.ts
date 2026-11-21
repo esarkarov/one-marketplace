@@ -13,34 +13,6 @@ import {
   type AccountFilter,
 } from "@/lib/profiles";
 
-export const useTalentProfile = (id: string) => {
-  const api = useApi();
-  return useQuery({
-    queryKey: ["client-talent-profile", id],
-    retry: false,
-    queryFn: () =>
-      unwrap(
-        api.GET("/api/v1/freelancer/profile/{id}", {
-          params: { path: { id } },
-        }),
-      ),
-  });
-};
-
-export const useAgencyProfile = (id: string) => {
-  const api = useApi();
-  return useQuery({
-    queryKey: ["client-agency-profile", id],
-    retry: false,
-    queryFn: () =>
-      unwrap(
-        api.GET("/api/v1/agency/profile/{id}", {
-          params: { path: { id } },
-        }),
-      ),
-  });
-};
-
 export const useDashboardOverview = (enabled: boolean) => {
   const api = useApi();
   return useQuery({

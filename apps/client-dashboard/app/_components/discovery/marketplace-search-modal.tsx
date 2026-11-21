@@ -1,6 +1,11 @@
 "use client";
 
 import { Icon } from "@iconify/react";
+import {
+  initialsOf,
+  profileErrorMessage,
+  safeHttpsUrl,
+} from "@onemarketplace/web-core";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -9,11 +14,8 @@ import {
   ACCOUNT_FILTER_LABELS,
   ACCOUNT_FILTERS,
   accountTypeLabel,
-  initialsOf,
   isAgencyResult,
   marketplaceProfileHref,
-  profileErrorMessage,
-  safeHttpsUrl,
   type AccountFilter,
   type MarketplaceResult,
 } from "@/lib/profiles";

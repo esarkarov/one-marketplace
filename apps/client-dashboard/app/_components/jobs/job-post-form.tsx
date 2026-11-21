@@ -1,6 +1,7 @@
 "use client";
 
 import { isApiError } from "@onemarketplace/api-client";
+import { safeHttpsUrl } from "@onemarketplace/web-core";
 import { Icon } from "@iconify/react";
 import { addDays, isAfter, parseISO, startOfDay } from "date-fns";
 import {
@@ -33,7 +34,6 @@ import {
   type JobFormValues,
   type JobSaveStatus,
 } from "@/lib/jobs";
-import { safeHttpsUrl } from "@/lib/profiles";
 
 type JobPostValues = JobFormValues & {
   existingAttachments: JobAttachment[];

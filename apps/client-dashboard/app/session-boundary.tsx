@@ -3,20 +3,22 @@
 import { useAuth } from "@clerk/nextjs";
 import { unwrap } from "@onemarketplace/api-client";
 import {
+  decideAccountGate,
   queryKeys,
   resetWebCore,
   useAccount,
   useApi,
   useApiConfig,
   useMessagingSocket,
+  shouldPlayMessageSound,
   useNotificationStream,
 } from "@onemarketplace/web-core";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { decideAccountGate } from "../lib/account-gate";
-import { shouldPlayMessageSound } from "../lib/messages";
 import { messageSound } from "./hooks/message-sound";
+
+const ONBOARDING_PATH = "/profile/edit";
 
 const LANDING_PAGE =
   process.env.NEXT_PUBLIC_LANDING_PAGE ?? "http://localhost:3000";
@@ -55,6 +57,8 @@ function AccountGate({ children }: { children: React.ReactNode }) {
     status: query.status,
     auth: query.data,
     pathname,
+    expectedRole: "client",
+    onboardingPath: ONBOARDING_PATH,
   });
 
   const redirectTo = decision.action === "redirect" ? decision.to : null;

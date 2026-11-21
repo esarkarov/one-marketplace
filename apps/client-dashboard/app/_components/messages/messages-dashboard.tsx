@@ -3,32 +3,27 @@
 import { Icon } from "@iconify/react";
 import { formatCents } from "@onemarketplace/api-client";
 import {
+  ATTACHMENT_HINT,
+  isCounterpartyTyping,
+  isHttpsUrl,
+  latestServerMessageId,
+  messageErrorMessage,
+  readMarkKey,
   useAccount,
+  useConversationMessages,
   useConversations,
+  useMarkConversationRead,
   useMessagingSocket,
+  useSendMessage,
+  useStartMeeting,
+  validateAttachment,
 } from "@onemarketplace/web-core";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  useConversationMessages,
-  useMarkConversationRead,
-  useReviewMilestone,
-  useSendMessage,
-  useStartMeeting,
-} from "@/app/hooks/use-messages";
-import {
-  ATTACHMENT_HINT,
-  isCounterpartyTyping,
-  latestServerMessageId,
-  messageErrorMessage,
-  readMarkKey,
-  toConversationView,
-  toThread,
-  validateAttachment,
-} from "@/lib/messages";
-import { isHttpsUrl } from "@/lib/url";
+import { useReviewMilestone } from "@/app/hooks/use-messages";
+import { toConversationView, toThread } from "@/lib/messages";
 import {
   type ClientConversation,
   type ClientMessage,

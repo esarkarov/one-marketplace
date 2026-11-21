@@ -4,6 +4,12 @@ import type {
   Paths,
 } from "@onemarketplace/api-client";
 import {
+  centsToFormAmount,
+  toCents,
+  validateMoneyInput,
+  type MoneyBounds,
+} from "@onemarketplace/web-core";
+import {
   centsToDollarsString,
   dollarsToCents,
   errorMessage,
@@ -12,7 +18,6 @@ import {
 } from "@onemarketplace/api-client";
 
 export type JobPost = Components["schemas"]["JobsPostWithStats"];
-export type JobPostSaved = Components["schemas"]["JobsPost"];
 export type JobStatus = JobPost["status"];
 export type JobAttachment = NonNullable<JobPost["attachments"]>[number];
 export type JobBody =
@@ -21,7 +26,6 @@ export type JobBodyAttachment = NonNullable<JobBody["attachments"]>[number];
 export type JobSaveStatus = "DRAFT" | "PUBLISHED";
 
 export const JOB_NOT_FOUND_CODE = "JOB_NOT_FOUND";
-export const JOB_LOCKED_CODE = "JOB_LOCKED";
 export const JOB_PAGE_SIZE = 10;
 
 export const JOB_LIMITS = {
@@ -37,7 +41,6 @@ export const JOB_LIMITS = {
 
 export const JOB_MILESTONE_MIN_CENTS = 501;
 export const JOB_MILESTONE_MAX_CENTS = 100_000_000;
-export const MAX_MILESTONES = 20;
 
 const formatGroupedInteger = (value: number): string =>
   String(value).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
@@ -124,39 +127,13 @@ export const parseSkills = (value: string): string[] =>
     .map((skill) => skill.trim())
     .filter(Boolean);
 
-export const toCents = (amount: number | string): number | null => {
-  try {
-    return dollarsToCents(amount);
-  } catch {
-    return null;
-  }
-};
-
-export interface MilestoneAmountBounds {
-  minCents: number;
-  maxCents: number;
-}
-
 export const validateMilestoneAmount = (
   amount: number | string,
-  bounds: MilestoneAmountBounds = {
+  bounds: MoneyBounds = {
     minCents: JOB_MILESTONE_MIN_CENTS,
     maxCents: JOB_MILESTONE_MAX_CENTS,
   },
-): string | null => {
-  if (typeof amount === "number" && !Number.isFinite(amount)) {
-    return "Enter a valid number.";
-  }
-  const cents = toCents(amount);
-  if (cents === null) return "Use a plain amount with at most 2 decimals.";
-  if (cents < bounds.minCents) {
-    return `Budget must be at least ${formatCents(bounds.minCents)}.`;
-  }
-  if (cents > bounds.maxCents) {
-    return `Budget cannot exceed ${formatCents(bounds.maxCents)}.`;
-  }
-  return null;
-};
+): string | null => validateMoneyInput(amount, bounds);
 
 export const totalBudgetCents = (
   milestones: readonly { amount: number | string }[],
@@ -169,9 +146,6 @@ export const totalBudgetCents = (
 export const formatTotalBudget = (
   milestones: readonly { amount: number | string }[],
 ): string => formatCents(totalBudgetCents(milestones));
-
-export const centsToFormAmount = (cents: number): number =>
-  Number(centsToDollarsString(cents));
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const ISO_DATE_PREFIX = /^(\d{4}-\d{2}-\d{2})T/;

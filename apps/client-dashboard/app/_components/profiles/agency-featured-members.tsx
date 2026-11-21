@@ -6,9 +6,9 @@ import { useState } from "react";
 import {
   initialsOf,
   MEMBERS_COLLAPSED_COUNT,
-  memberProfileHref,
   type AgencyMember,
-} from "@/lib/profiles";
+} from "@onemarketplace/web-core";
+import { memberProfileHref } from "@/lib/profiles";
 
 const VISIBLE_SKILLS = 4;
 
