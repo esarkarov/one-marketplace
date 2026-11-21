@@ -4,8 +4,8 @@ What the project-level tooling in `.claude/` does and how to use it. The rules t
 
 ## What is installed
 
-- Hooks (Node `.mjs`, `.claude/hooks/`): `bash-guard` blocks git and gh writes, `rm`, npm, npx, yarn, `services/api/scripts/*.ts` and `.env` access; `protect-generated` blocks edits to `docs/api/openapi.json`, `packages/api-client/src/generated/*` and tracked migration files; `protect-files` blocks `.env*` and `pnpm-lock.yaml`; `format-edited` runs prettier (`--end-of-line auto`) on the file just edited; `trim-test-output` rewrites a plain test command so only failures and the summary come back. Bypass the trimming with `CLAUDE_FULL_TEST_OUTPUT=1` (as an environment variable or a command prefix). Check them all with `node .claude/hooks/selftest.mjs`.
-- Agents: `explorer` (haiku, read only, 40 lines), `test-runner` (haiku, failures and counts), `reviewer` (opus per the repo's model policy, read only), plus the existing architect, backend, database, frontend, infra, qa, design-ux and mechanical.
+- Hooks (Node `.mjs`, `.claude/hooks/`): `bash-guard` blocks git and gh writes, `rm`, npm, npx, yarn, `services/api/scripts/*.ts` and `.env` access (`.env.example` templates are allowed); `gh` is limited to `run list|view`, `pr view|list|checks`, `auth status` and plain GET `gh api` (no `-X`/`--method` other than GET, no `-f`/`-F`/`--field`/`--raw-field`/`--input`, no `graphql`); `protect-generated` blocks edits to `docs/api/openapi.json`, `packages/api-client/src/generated/*` and tracked migration files; `protect-files` blocks reading or editing `.env*` other than `.env.example`, and editing `pnpm-lock.yaml`; `format-edited` runs prettier (`--end-of-line auto`) on the file just edited; `trim-test-output` rewrites a plain test command so only failures and the summary come back. Bypass the trimming with `CLAUDE_FULL_TEST_OUTPUT=1` (as an environment variable or a command prefix). Check them all with `node .claude/hooks/selftest.mjs`.
+- Agents: `explorer` (haiku, read only, 40 lines), `test-runner` (haiku, failures and counts), `reviewer` (sonnet, read only), plus the existing architect, backend, database, frontend, infra, qa, design-ux and mechanical.
 - Skills: `api-change`, `frontend-batch`, `adr`, `ci-triage` (project skills, not in `skills-lock.json`, which pins vendored skills only).
 - Commands: `/verify`, `/commit-plan`, `/ci-status` (new), `/check`, `/feature`, `/db-change`, `/ui-review`, `/security-audit`.
 - `.claude/settings.local.json` is gitignored; personal permissions go there.
@@ -23,15 +23,15 @@ What the project-level tooling in `.claude/` does and how to use it. The rules t
 
 ## Which model and effort
 
-| Work                                | Model and effort                                            | Notes                                                                     |
-| ----------------------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------- |
-| Backend slice (route, money, state) | Plan with opus, high effort; implement with sonnet, medium  | Money, ordering and security logic: add mutation checks, review with opus |
-| Frontend sub-batch                  | Sonnet, medium; plan from `docs/frontend-migration-plan.md` | Explorer inventory first, one app per session                             |
-| Review                              | Opus (the `reviewer` agent), high; one pass per change      | Run after tier 2, on the working-tree diff                                |
-| Exploration, "where is X"           | Haiku via `explorer`                                        | Returns a short list, keeps file dumps out of the main context            |
-| Running tests and checks            | Haiku via `test-runner`                                     | Returns counts and failures only                                          |
-| Renames, docs wording, lint fixes   | Haiku via `mechanical`, low effort                          | Not for logic, money, auth or CI files                                    |
-| CI failure                          | Sonnet, medium, `ci-triage` skill                           | Reproduce the job's commands first                                        |
+| Work                                | Model and effort                                            | Notes                                                                             |
+| ----------------------------------- | ----------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| Backend slice (route, money, state) | Plan with opus, high effort; implement with sonnet, medium  | Money, ordering and security logic: add mutation checks, review with the reviewer |
+| Frontend sub-batch                  | Sonnet, medium; plan from `docs/frontend-migration-plan.md` | Explorer inventory first, one app per session                                     |
+| Review                              | Sonnet (the `reviewer` agent), high; one pass per change    | Run after tier 2, on the working-tree diff                                        |
+| Exploration, "where is X"           | Haiku via `explorer`                                        | Returns a short list, keeps file dumps out of the main context                    |
+| Running tests and checks            | Haiku via `test-runner`                                     | Returns counts and failures only                                                  |
+| Renames, docs wording, lint fixes   | Haiku via `mechanical`, low effort                          | Not for logic, money, auth or CI files                                            |
+| CI failure                          | Sonnet, medium, `ci-triage` skill                           | Reproduce the job's commands first                                                |
 
 ## Per stage
 

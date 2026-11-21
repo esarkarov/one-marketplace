@@ -34,11 +34,8 @@ const branchWriteFlags =
 
 const ghReadOnly = new Map([
   ["auth", new Set(["status"])],
-  ["run", new Set(["list", "view", "watch"])],
-  ["pr", new Set(["view", "list", "status", "diff", "checks"])],
-  ["issue", new Set(["view", "list", "status"])],
-  ["workflow", new Set(["list", "view"])],
-  ["repo", new Set(["view"])],
+  ["run", new Set(["list", "view"])],
+  ["pr", new Set(["view", "list", "checks"])],
 ]);
 
 const wrappers = new Set([
@@ -77,6 +74,8 @@ const forbiddenManagers = new Set(["npm", "npx", "yarn"]);
 const scriptRunners = new Set(["tsx", "node", "ts-node", "bun", "deno"]);
 const linters = new Set(["eslint", "prettier", "tsc"]);
 const envFile = /(^|[\\/=])\.env(\.[\w.-]+)?$/;
+const envTemplate = /(^|[\\/=])\.env\.example$/i;
+const isEnvFile = (token) => envFile.test(token) && !envTemplate.test(token);
 const scriptFile = /(^|[\\/])scripts[\\/][^\s]*\.(ts|mts|cts)$/;
 const envSafe = new Set(["ls", "dir", "git", "test", "stat"]);
 
@@ -174,14 +173,14 @@ const checkGh = (tokens, start) => {
   if (!sub) return null;
   if (sub === "api") {
     const methodIndex = args.findIndex((arg) => /^(-X|--method)$/i.test(arg));
-    const inline = args.find((arg) => /^--method=/i.test(arg));
+    const inline = args.find((arg) => /^(--method=|-X.)/i.test(arg));
     const method = (
       methodIndex >= 0
-        ? args[methodIndex + 1]
-        : (inline?.split("=")[1] ?? "GET")
+        ? (args[methodIndex + 1] ?? "")
+        : (inline?.replace(/^(--method=|-X)/i, "") ?? "GET")
     ).toUpperCase();
     const body = args.some((arg) =>
-      /^(-f|-F|--field|--raw-field|--input)(=|$)/.test(arg),
+      /^(-[fF]|--field|--raw-field|--input)/.test(arg),
     );
     const graphql = args.includes("graphql");
     return method !== "GET" || body || graphql
@@ -204,7 +203,7 @@ const analyse = (command) => {
       return "Deleting files is not allowed. List files to delete in the report instead.";
     if (forbiddenManagers.has(name))
       return "Use pnpm only, never npm, npx or yarn.";
-    if (!envSafe.has(name) && tokens.some((token) => envFile.test(token))) {
+    if (!envSafe.has(name) && tokens.some(isEnvFile)) {
       return "Never read or use .env files.";
     }
     if (textOnly.has(name) || name === "gitleaks") continue;

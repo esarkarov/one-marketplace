@@ -59,6 +59,9 @@
       "Bash(git remote -v)",
       "Bash(gh run list *)",
       "Bash(gh run view *)",
+      "Bash(gh pr view *)",
+      "Bash(gh pr list *)",
+      "Bash(gh pr checks *)",
       "Bash(gh auth status)",
       "Bash(gh api *code-scanning/alerts*)",
       "Bash(node .claude/scripts/changed-areas.mjs)",
@@ -72,10 +75,24 @@
       "Edit(./.claude/hooks/**)"
     ],
     "deny": [
-      "Read(**/.env*)",
-      "Edit(**/.env*)",
-      "Read(./.env*)",
-      "Read(!.env.example)",
+      "Read(**/.env)",
+      "Read(**/.env.local)",
+      "Read(**/.env.*.local)",
+      "Read(**/.env.production)",
+      "Read(**/.env.development)",
+      "Read(**/.env.test)",
+      "Read(**/.env.staging)",
+      "Read(**/.env.prod)",
+      "Read(**/.env.dev)",
+      "Edit(**/.env)",
+      "Edit(**/.env.local)",
+      "Edit(**/.env.*.local)",
+      "Edit(**/.env.production)",
+      "Edit(**/.env.development)",
+      "Edit(**/.env.test)",
+      "Edit(**/.env.staging)",
+      "Edit(**/.env.prod)",
+      "Edit(**/.env.dev)",
       "Bash(cat *.env)",
       "Bash(cat *.env.local)",
       "Bash(type *.env)",
@@ -155,14 +172,29 @@
       "Bash(gh auth logout *)",
       "Bash(gh api * -X *)",
       "Bash(gh api * --method *)",
+      "Bash(gh api * --method=*)",
       "Bash(gh api * -f *)",
       "Bash(gh api * -F *)",
-      "Bash(gh api * --input *)"
+      "Bash(gh api * --field *)",
+      "Bash(gh api * --raw-field *)",
+      "Bash(gh api * --input *)",
+      "Bash(gh api graphql*)",
+      "Bash(gh api * graphql*)"
     ]
   },
   "disabledMcpjsonServers": ["playwright"],
   "hooks": {
     "PreToolUse": [
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": ["${CLAUDE_PROJECT_DIR}/.claude/hooks/protect-files.mjs"]
+          }
+        ]
+      },
       {
         "matcher": "Edit|Write|NotebookEdit",
         "hooks": [

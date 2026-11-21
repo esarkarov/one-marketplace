@@ -6,7 +6,7 @@ pnpm monorepo for a freelancing marketplace. Rules here are summaries; the docs 
 
 - No git write of any kind (add, commit, push, reset, checkout, stash, tag, config). Agents never commit; print the command for the user (`/commit-plan`). A hook blocks these.
 - No deletions inside the repo. List files to delete in the report under FILES FOR ME TO DELETE.
-- Never read or edit `.env*` files. Never run `services/api/scripts/*.ts`.
+- Never read or edit `.env*` files, except `.env.example` templates at any depth (no secrets; readable and editable). Never run `services/api/scripts/*.ts`.
 - pnpm only, never npm, npx or yarn. Shared versions use `catalog:` (`pnpm-workspace.yaml`).
 - `typescript` is an alias for `@typescript/typescript6` and `tsc` comes from `@typescript/native`; keep both.
 - No comments in source code. Kebab-case folders and files.
@@ -64,14 +64,14 @@ pnpm monorepo for a freelancing marketplace. Rules here are summaries; the docs 
 ## Commits (the user commits, agents never do)
 
 - Conventional commits (`feat`, `fix`, `docs`, `chore`, `ci`, `style`, `refactor`, `test`), one concern per commit. Subject on one line; body lines at most 100 characters.
-- Trailers: commit messages end with `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>` and PR descriptions with `Generated with [Claude Code](https://claude.com/claude-code)` (the attribution lines the harness gives).
+- Trailers: commit messages always end with `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>`; add a `Claude-Session: <url>` trailer only when a session URL is present in the current session context, never invent one. PR descriptions with `Generated with [Claude Code](https://claude.com/claude-code)` (the attribution lines the harness gives).
 - `git add` narrow paths. `git add .` only after a `git status` check.
 - Hooks: pre-commit runs `gitleaks git --pre-commit --staged` then lint-staged (eslint --fix per workspace, prettier --write); commit-msg runs commitlint.
 
 ## Models and agents
 
-- Agents in `.claude/agents/` (architect, reviewer opus; backend, database, frontend, qa, design-ux, infra sonnet; mechanical, explorer, test-runner haiku). Skills: `api-change`, `frontend-batch`, `adr`, `ci-triage`. Commands: `/feature`, `/db-change`, `/ui-review`, `/security-audit`, `/check`, `/verify`, `/commit-plan`, `/ci-status`. Usage: `docs/claude-code-setup.md`.
-- Guards (`.claude/settings.json`, `.claude/hooks/`): bash-guard (git and gh writes, rm, npm, scripts, .env), protect-generated, protect-files, format-edited, trim-test-output (bypass: `CLAUDE_FULL_TEST_OUTPUT=1`). Self-test: `node .claude/hooks/selftest.mjs`.
+- Agents in `.claude/agents/` (architect opus; reviewer, backend, database, frontend, qa, design-ux, infra sonnet; mechanical, explorer, test-runner haiku). Skills: `api-change`, `frontend-batch`, `adr`, `ci-triage`. Commands: `/feature`, `/db-change`, `/ui-review`, `/security-audit`, `/check`, `/verify`, `/commit-plan`, `/ci-status`. Usage: `docs/claude-code-setup.md`.
+- Guards (`.claude/settings.json`, `.claude/hooks/`): bash-guard (git and gh writes, gh limited to run list|view, pr view|list|checks, auth status and GET api; rm, npm, scripts, .env except .env.example), protect-generated, protect-files, format-edited, trim-test-output (bypass: `CLAUDE_FULL_TEST_OUTPUT=1`). Self-test: `node .claude/hooks/selftest.mjs`.
 
 ## Compact instructions
 
