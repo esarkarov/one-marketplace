@@ -24,7 +24,12 @@ vi.mock("@/config/env.js", async (importOriginal) => {
   return { ...original, env: { ...original.env, clerkSecretKey: "sk_test" } };
 });
 
-vi.mock("@/infrastructure/video/daily.client.js", () => ({
+vi.mock("@/infrastructure/video/daily.client.js", async (importOriginal) => ({
+  DailyRequestError: (
+    await importOriginal<
+      typeof import("@/infrastructure/video/daily.client.js")
+    >()
+  ).DailyRequestError,
   createDailyRoom: mocks.createDailyRoom,
   createDailyJoinUrl: async (input: { roomUrl: string }) => input.roomUrl,
 }));
@@ -154,6 +159,47 @@ describe("POST /conversations/:conversationId/meetings", () => {
     expectNoClerkIds(existing.body, [fixture.clientId]);
     expect(second.data.id).toBe(first.data.id);
     expect(mocks.createDailyRoom).toHaveBeenCalledTimes(1);
+  });
+
+  it("answers 502 when the Daily request fails or times out", async () => {
+    const { DailyRequestError } =
+      await import("@/infrastructure/video/daily.client.js");
+    const cases = [
+      new DailyRequestError("Daily API request timed out.", {
+        timedOut: true,
+      }),
+      new DailyRequestError("rooms down", { status: 503, timedOut: false }),
+    ];
+    for (const failure of cases) {
+      const fixture = await seed();
+      mocks.createDailyRoom.mockRejectedValueOnce(failure);
+      const response = await request(app)
+        .post(`${API}/${fixture.conversationId}/meetings`)
+        .query({ role: "client" })
+        .set(as(fixture.clientId))
+        .send({});
+      expect(response.status).toBe(502);
+      expect(response.body.message).toBe("Internal server error.");
+      expect(response.body.success).toBe(false);
+      expect(typeof response.body.code).toBe("string");
+      expect(typeof response.body.requestId).toBe("string");
+      const count = await pool.query(
+        "select count(*)::int as n from meetings where conversation_id = $1",
+        [fixture.conversationId],
+      );
+      expect(count.rows[0].n).toBe(0);
+    }
+  });
+
+  it("keeps a non-Daily failure a 500", async () => {
+    const fixture = await seed();
+    mocks.createDailyRoom.mockRejectedValueOnce(new Error("boom"));
+    const response = await request(app)
+      .post(`${API}/${fixture.conversationId}/meetings`)
+      .query({ role: "client" })
+      .set(as(fixture.clientId))
+      .send({});
+    expect(response.status).toBe(500);
   });
 
   it("matches the 404 schema", async () => {

@@ -58,7 +58,7 @@ describe("imageKit client", () => {
     expect(hoisted.construct).not.toHaveBeenCalled();
   });
 
-  it("constructs once with the configured key on first use", async () => {
+  it("constructs once with the configured key, a 30 s timeout and no retries", async () => {
     hoisted.env.imageKitPrivateKey = "private_test_key";
     const { imageKit } = await loadClient();
 
@@ -68,6 +68,8 @@ describe("imageKit client", () => {
     expect(hoisted.construct).toHaveBeenCalledTimes(1);
     expect(hoisted.construct).toHaveBeenCalledWith({
       privateKey: "private_test_key",
+      timeout: 30_000,
+      maxRetries: 0,
     });
   });
 });

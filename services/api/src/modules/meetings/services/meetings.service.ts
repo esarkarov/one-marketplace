@@ -10,7 +10,10 @@ import {
 import { ApiError } from "@/shared/errors/api-error.js";
 import { errorLogAttributes } from "@/shared/logging/sanitize-log.js";
 import { logger } from "@/config/logger.js";
-import { createDailyRoom } from "@/infrastructure/video/daily.client.js";
+import {
+  createDailyRoom,
+  DailyRequestError,
+} from "@/infrastructure/video/daily.client.js";
 import {
   createMeetingJoinUrls,
   postSystemEventMessage,
@@ -32,6 +35,21 @@ const logOrphanedRoom = async (
         "task.meeting.room_name": roomName,
         "task.conversation.id": conversationId,
         ...errorLogAttributes(error),
+      },
+    });
+  } catch {}
+};
+
+const logDailyRequestFailed = async (error: DailyRequestError) => {
+  try {
+    await logger.warn({
+      message: "Daily room request failed",
+      eventName: "video.daily.request_failed",
+      attributes: {
+        ...(error.status === undefined
+          ? {}
+          : { "video.daily.status": error.status }),
+        "video.daily.timed_out": error.timedOut,
       },
     });
   } catch {}
@@ -71,7 +89,14 @@ export const startMeeting = async (conversationId: string, actorId: string) => {
   if (existing) return toJoinSummary(existing, actorId);
 
   const roomName = `conv-${conversationId}-${randomUUID().slice(0, 8)}`;
-  const room = await createDailyRoom(roomName);
+  let room;
+  try {
+    room = await createDailyRoom(roomName);
+  } catch (error) {
+    if (!(error instanceof DailyRequestError)) throw error;
+    await logDailyRequestFailed(error);
+    throw new ApiError(502, "Video room could not be created.");
+  }
 
   let result;
   try {

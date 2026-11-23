@@ -7,8 +7,12 @@ const hoisted = vi.hoisted(() => ({
 
 vi.mock("@/config/env.js", () => ({ env: hoisted.env }));
 
-const { createDailyJoinUrl, createDailyMeetingToken, createDailyRoom } =
-  await import("./daily.client.js");
+const {
+  createDailyJoinUrl,
+  createDailyMeetingToken,
+  createDailyRoom,
+  DailyRequestError,
+} = await import("./daily.client.js");
 
 const jsonResponse = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -48,6 +52,92 @@ describe("createDailyRoom", () => {
     expect(body.privacy).toBe("private");
     expect(body.name).toBe("room-a");
     expect(body.properties.eject_at_room_exp).toBe(true);
+  });
+});
+
+describe("dailyRequest timeout", () => {
+  it("passes an 8 s timeout signal to every request", async () => {
+    const timeoutSpy = vi.spyOn(AbortSignal, "timeout");
+    hoisted.fetch.mockResolvedValue(
+      jsonResponse({ id: "r", name: "room-a", url: "u" }),
+    );
+
+    await createDailyRoom("room-a");
+
+    expect(timeoutSpy).toHaveBeenCalledWith(8_000);
+    const [, init] = hoisted.fetch.mock.calls.at(-1) as [string, RequestInit];
+    expect(init.signal).toBeInstanceOf(AbortSignal);
+    timeoutSpy.mockRestore();
+  });
+
+  it("rejects with timedOut when fetch never resolves", async () => {
+    const controller = new AbortController();
+    const timeoutSpy = vi
+      .spyOn(AbortSignal, "timeout")
+      .mockReturnValue(controller.signal);
+    hoisted.fetch.mockImplementation(
+      (_url: string, init: RequestInit) =>
+        new Promise((_resolve, reject) => {
+          init.signal?.addEventListener("abort", () =>
+            reject(init.signal?.reason),
+          );
+        }),
+    );
+
+    const pending = createDailyRoom("room-a");
+    const assertion = expect(pending).rejects.toMatchObject({
+      name: "DailyRequestError",
+      timedOut: true,
+      status: undefined,
+      message: "Daily API request timed out.",
+    });
+    controller.abort(new DOMException("timed out", "TimeoutError"));
+
+    await assertion;
+    await expect(pending).rejects.toBeInstanceOf(DailyRequestError);
+    timeoutSpy.mockRestore();
+  });
+
+  it("reports a timeout while the response body is being read", async () => {
+    hoisted.fetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.reject(new DOMException("timed out", "TimeoutError")),
+    });
+
+    await expect(createDailyRoom("room-a")).rejects.toMatchObject({
+      name: "DailyRequestError",
+      timedOut: true,
+    });
+  });
+
+  it("keeps the message and adds the status on a non-ok response", async () => {
+    hoisted.fetch.mockResolvedValue(
+      jsonResponse({ error: "e", info: "bad room" }, 400),
+    );
+
+    await expect(createDailyRoom("room-a")).rejects.toMatchObject({
+      name: "DailyRequestError",
+      message: "bad room",
+      status: 400,
+      timedOut: false,
+    });
+  });
+
+  it("uses the generic message when the error body is empty", async () => {
+    hoisted.fetch.mockResolvedValue(new Response("not json", { status: 502 }));
+
+    await expect(createDailyRoom("room-a")).rejects.toThrow(
+      "Daily API request failed (502).",
+    );
+  });
+
+  it("does not wrap a missing key in DailyRequestError", async () => {
+    hoisted.env.dailyApiKey = undefined;
+
+    const error = await createDailyRoom("room-a").catch((e: unknown) => e);
+
+    expect(error).not.toBeInstanceOf(DailyRequestError);
   });
 });
 

@@ -1,6 +1,7 @@
 import { env } from "@/config/env.js";
 import {
   DAILY_API_BASE,
+  DAILY_TIMEOUT_MS,
   ROOM_TOKEN_EXPIRY_MARGIN_SECONDS,
   ROOM_TTL_SECONDS,
 } from "@/infrastructure/constants/index.js";
@@ -10,6 +11,25 @@ import type {
   DailyRoom,
 } from "@/infrastructure/types/index.js";
 
+export class DailyRequestError extends Error {
+  readonly status: number | undefined;
+  readonly timedOut: boolean;
+
+  constructor(
+    message: string,
+    details: { status?: number; timedOut: boolean },
+  ) {
+    super(message);
+    this.name = "DailyRequestError";
+    this.status = details.status;
+    this.timedOut = details.timedOut;
+  }
+}
+
+const isTimeoutError = (error: unknown): boolean =>
+  error instanceof Error &&
+  (error.name === "TimeoutError" || error.name === "AbortError");
+
 const dailyRequest = async <T>(
   path: string,
   init: RequestInit = {},
@@ -18,23 +38,41 @@ const dailyRequest = async <T>(
     throw new Error("DAILY_API_KEY is missing from the environment.");
   }
 
-  const response = await fetch(`${DAILY_API_BASE}${path}`, {
-    ...init,
-    headers: {
-      Authorization: `Bearer ${env.dailyApiKey}`,
-      "Content-Type": "application/json",
-      ...init.headers,
-    },
-  });
+  let response: Response;
+  let body: unknown;
+  try {
+    response = await fetch(`${DAILY_API_BASE}${path}`, {
+      ...init,
+      signal: AbortSignal.timeout(DAILY_TIMEOUT_MS),
+      headers: {
+        Authorization: `Bearer ${env.dailyApiKey}`,
+        "Content-Type": "application/json",
+        ...init.headers,
+      },
+    });
+    body = await response.json().catch((error: unknown) => {
+      if (isTimeoutError(error)) throw error;
+      return null;
+    });
+  } catch (error) {
+    if (isTimeoutError(error)) {
+      throw new DailyRequestError("Daily API request timed out.", {
+        timedOut: true,
+      });
+    }
+    throw error;
+  }
 
-  const body = await response.json().catch(() => null);
   if (!response.ok) {
     const errorBody = body as DailyErrorBody | null;
     const message =
       errorBody?.info ??
       errorBody?.error ??
       `Daily API request failed (${response.status}).`;
-    throw new Error(message);
+    throw new DailyRequestError(message, {
+      status: response.status,
+      timedOut: false,
+    });
   }
 
   return body as T;
