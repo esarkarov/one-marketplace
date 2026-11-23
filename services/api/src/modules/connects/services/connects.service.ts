@@ -198,6 +198,8 @@ export const completeConnectsPurchase = async (
   paymentId: string,
 ) => {
   const balance = await db.transaction(async (transaction) => {
+    await insertFreelancerConnectsIfAbsent(transaction, freelancerId, 0);
+
     const purchase = await insertFreelancerPurchaseIfNew(transaction, {
       freelancerId,
       purchasedConnects,
@@ -282,6 +284,8 @@ export const completeAgencyConnectsPurchase = async (
   paymentId: string,
 ) => {
   const balance = await db.transaction(async (transaction) => {
+    await insertAgencyConnectsIfAbsent(transaction, agencyId, 0);
+
     const purchase = await insertAgencyPurchaseIfNew(transaction, {
       agencyId,
       purchasedConnects,
