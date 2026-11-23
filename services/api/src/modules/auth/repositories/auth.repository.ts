@@ -150,6 +150,12 @@ export const listAccountDisplays = (executor: DbExecutor, authIds: string[]) =>
     .from(accounts)
     .where(inArray(accounts.auth_id, authIds));
 
+export const listAccountEmails = (executor: DbExecutor, authIds: string[]) =>
+  executor
+    .select({ authId: accounts.auth_id, email: accounts.email })
+    .from(accounts)
+    .where(inArray(accounts.auth_id, authIds));
+
 export const updateAccountDisplay = async (
   executor: DbExecutor,
   authId: string,

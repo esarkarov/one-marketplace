@@ -1088,6 +1088,97 @@ describe("admin reports against real Postgres", () => {
       expect(rows[0]!.senderName).toBe(expected[0]!.name);
     });
 
+    it("reads stored names, avatars and emails for proposals and contracts without calling Clerk", async () => {
+      const [client, named, bare] = await insertAccounts([
+        { role: "CLIENT", createdAt: OLD },
+        { role: "FREELANCER", createdAt: OLD },
+        { role: "FREELANCER", createdAt: OLD },
+      ]);
+      await db
+        .update(accounts)
+        .set({
+          display_name: "Stored Person",
+          avatar_url: "https://example.test/stored.png",
+        })
+        .where(eq(accounts.id, named!.id));
+      const [job] = await insertJobs(client!.authId, [far(5, 4)]);
+      const [namedProposal] = await insertProposals(
+        job!.id,
+        [far(6, 4)],
+        [named!.authId],
+      );
+      const [bareProposal] = await insertProposals(
+        job!.id,
+        [far(6, 5)],
+        [bare!.authId],
+      );
+      const namedContract = await insertContract({
+        clientId: client!.authId,
+        freelancerId: named!.authId,
+        jobId: job!.id,
+        status: "PENDING",
+        createdAt: far(7, 4),
+      });
+      const bareContract = await insertContract({
+        clientId: client!.authId,
+        freelancerId: bare!.authId,
+        jobId: job!.id,
+        status: "PENDING",
+        createdAt: far(7, 5),
+      });
+      const stored = await db
+        .select({ id: accounts.id, email: accounts.email })
+        .from(accounts)
+        .where(inArray(accounts.id, [named!.id, bare!.id]));
+      const emailOf = (id: string) =>
+        stored.find((row) => row.id === id)!.email;
+
+      const proposalRows = await page("proposals", 4, 0);
+      const contractRows = await page("contracts", 4, 0);
+
+      const byId = (rows: Array<{ id: string }>, id: string) =>
+        rows.find((row) => row.id === id)!;
+      expect(byId(proposalRows, namedProposal!.id)).toMatchObject({
+        senderName: "Stored Person",
+        senderAvatarUrl: "https://example.test/stored.png",
+        senderEmail: emailOf(named!.id),
+      });
+      expect(byId(proposalRows, bareProposal!.id)).toMatchObject({
+        senderName: emailOf(bare!.id),
+        senderAvatarUrl: null,
+        senderEmail: emailOf(bare!.id),
+      });
+      expect(byId(contractRows, namedContract)).toMatchObject({
+        talentName: "Stored Person",
+        talentAvatarUrl: "https://example.test/stored.png",
+        talentEmail: emailOf(named!.id),
+      });
+      expect(byId(contractRows, bareContract)).toMatchObject({
+        talentName: emailOf(bare!.id),
+        talentAvatarUrl: null,
+        talentEmail: emailOf(bare!.id),
+      });
+      expect(mocks.getUser).not.toHaveBeenCalled();
+    });
+
+    it("lists a 100-row accounts page without calling Clerk", async () => {
+      const created = await insertAccounts(
+        Array.from({ length: 100 }, (_, index) => ({
+          role: "FREELANCER" as const,
+          createdAt: far(1, 1 + (index % 28)),
+        })),
+      );
+      await pool.query(
+        "update accounts set display_name = null where id = any($1)",
+        [created.map((row) => row.id)],
+      );
+
+      const rows = await page("accounts", 100, 0);
+
+      expect(rows).toHaveLength(100);
+      expect(mocks.getUser).not.toHaveBeenCalled();
+    });
+
     it("exposes only public ids on every admin report that carries an account or party", async () => {
       const [client, talent, agencyOwner] = await insertAccounts([
         { role: "CLIENT", createdAt: far(4, 1) },

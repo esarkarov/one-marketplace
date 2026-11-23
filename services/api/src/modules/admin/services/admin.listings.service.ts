@@ -3,11 +3,13 @@ import {
   type AdminAccountType,
   ADMIN_TALENT_KIND,
 } from "@/modules/admin/constants/admin.constants.js";
-import { clerk } from "@/infrastructure/auth/clerk.client.js";
 import { db } from "@/database/client.js";
-import { env } from "@/config/env.js";
 import { requirePublicId } from "@/shared/ids/public-ids.js";
-import { findAccountPublicIds } from "@/modules/auth/index.js";
+import {
+  findAccountDisplays,
+  findAccountEmails,
+  findAccountPublicIds,
+} from "@/modules/auth/index.js";
 import {
   listAccountsWithCompany,
   listAgenciesWithOwner,
@@ -32,31 +34,27 @@ import {
 } from "@/shared/validation/utils/pagination.utils.js";
 import { mergePages } from "@/modules/admin/utils/admin.pagination.js";
 
-const clerkNames = async (authIds: string[]) => {
+const storedNames = async (authIds: string[]) => {
   const unique = [...new Set(authIds)];
   const names = new Map<
     string,
     { name: string; avatarUrl: string | null; email: string | null }
   >();
-  if (!unique.length || !env.clerkSecretKey) return names;
+  if (!unique.length) return names;
 
-  await Promise.all(
-    unique.map(async (authId) => {
-      try {
-        const user = await clerk.users.getUser(authId);
-        names.set(authId, {
-          name:
-            [user.firstName, user.lastName].filter(Boolean).join(" ") ||
-            user.emailAddresses[0]?.emailAddress ||
-            "Unknown",
-          avatarUrl: user.imageUrl || null,
-          email: user.emailAddresses[0]?.emailAddress ?? null,
-        });
-      } catch {
-        names.set(authId, { name: "Unknown", avatarUrl: null, email: null });
-      }
-    }),
-  );
+  const [displays, emails] = await Promise.all([
+    findAccountDisplays(unique),
+    findAccountEmails(unique),
+  ]);
+  for (const authId of unique) {
+    const display = displays.get(authId);
+    const email = emails.get(authId) ?? null;
+    names.set(authId, {
+      name: display?.displayName || email || "Unknown",
+      avatarUrl: display?.avatarUrl ?? null,
+      email,
+    });
+  }
   return names;
 };
 
@@ -73,7 +71,7 @@ export const getAdminAccounts = async (pagination: Pagination) => {
     listAgenciesWithOwner(db, fetchLimit),
   ]);
 
-  const names = await clerkNames(personalRows.map((row) => row.authId));
+  const names = await storedNames(personalRows.map((row) => row.authId));
 
   const people = personalRows.map((row) => ({
     id: row.id,
@@ -132,7 +130,7 @@ export const getAdminProposals = async ({ limit, offset }: Pagination) => {
   const freelancerIds = rows
     .filter((row) => row.senderType === "FREELANCER")
     .map((row) => row.senderAuthId);
-  const names = await clerkNames(freelancerIds);
+  const names = await storedNames(freelancerIds);
 
   const results = rows.map((row) => {
     const freelancer = names.get(row.senderAuthId);
@@ -181,7 +179,7 @@ export const getAdminContracts = async ({ limit, offset }: Pagination) => {
     .map((row) => row.freelancerAuthId)
     .filter((id): id is string => Boolean(id));
   const [names, accountIdByAuthId] = await Promise.all([
-    clerkNames(freelancerIds),
+    storedNames(freelancerIds),
     findAccountPublicIds(db, freelancerIds),
   ]);
 
@@ -266,7 +264,7 @@ export const getAdminTransactions = async (pagination: Pagination) => {
     agencyIds.length
       ? listAgencyNamesByIds(db, [...new Set(agencyIds)])
       : Promise.resolve([]),
-    clerkNames(freelancerIds),
+    storedNames(freelancerIds),
   ]);
   const agencyNameById = new Map(agencyNames.map((row) => [row.id, row.name]));
 

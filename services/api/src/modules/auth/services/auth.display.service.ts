@@ -6,6 +6,7 @@ import { CLERK_DISPLAY_SYNC_TIMEOUT_MS } from "@/modules/auth/constants/auth.con
 import {
   findAccountDisplay,
   listAccountDisplays,
+  listAccountEmails,
   updateAccountDisplay,
 } from "@/modules/auth/repositories/auth.repository.js";
 import type { AccountDisplay } from "@/modules/auth/types/auth.types.js";
@@ -43,6 +44,16 @@ export const findAccountDisplays = async (
       { displayName, avatarUrl },
     ]),
   );
+};
+
+export const findAccountEmails = async (
+  authIds: string[],
+): Promise<Map<string, string | null>> => {
+  const unique = [...new Set(authIds)];
+  if (unique.length === 0) return new Map();
+
+  const rows = await listAccountEmails(db, unique);
+  return new Map(rows.map(({ authId, email }) => [authId, email || null]));
 };
 
 const fetchWithTimeout = async (authId: string) => {

@@ -18,6 +18,7 @@ export {
 } from "./middleware/auth.middleware.js";
 export {
   findAccountDisplays,
+  findAccountEmails,
   syncAccountDisplay,
 } from "./services/auth.display.service.js";
 export type { AccountDisplay } from "./types/auth.types.js";
