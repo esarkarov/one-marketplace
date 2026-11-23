@@ -42,16 +42,16 @@ Legend: I integration, E end to end / manual.
 | #   | Scenario                 | Steps                                                                                                            | Expected                                                                                                               | Type |
 | --- | ------------------------ | ---------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ---- |
 | 4.1 | Malformed message        | In the UI publish `not json` to `notifications` with routing key `notifications.created`                         | `queue.message.invalid` logged; message appears in `notifications.dead` (Get messages with requeue off); no row stored | E    |
-| 4.2 | Invalid envelope         | Publish valid JSON missing `id` or with `version` 2                                                              | Same as 4.1                                                                                                            | E    |
+| 4.2 | Invalid envelope         | Publish valid JSON missing `id` or with `version` 1                                                              | Same as 4.1                                                                                                            | E    |
 | 4.3 | Permanent database error | Publish an envelope whose payload breaks a constraint (for example `type` longer than the column allows, if any) | Dead-lettered without requeue and without pausing the consumer                                                         | E    |
 | 4.4 | Inspect and purge        | Read a dead-lettered message in the UI, check `x-death` headers, then purge `notifications.dead`                 | Body is the original envelope; reason `rejected` for 4.1 to 4.3 and `delivery_limit` for section 5                     | E    |
 
 ## 5. Broker delivery limit
 
-| #   | Scenario                     | Steps                                                                                                                                       | Expected                                                                                                                                    | Type |
-| --- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| 5.1 | Consumer dies unacknowledged | Use a throwaway script that consumes from `notifications.storage` with manual ack and exits (or closes its channel) without acking, 6 times | The delivery count rises on each return; after the limit (5) the broker dead-letters the message to `notifications.dead` (`delivery_limit`) | E    |
-| 5.2 | Nack with requeue            | Same script, but `nack(requeue=true)` instead of dying                                                                                      | Delivery count does not rise (RabbitMQ 4.4 over AMQP 0.9.1, ADR 0004); this is why the API keeps its own count                              | E    |
+| #   | Scenario                     | Steps                                                                                                                                       | Expected                                                                                                                                                                                                                 | Type |
+| --- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---- |
+| 5.1 | Consumer dies unacknowledged | Use a throwaway script that consumes from `notifications.storage` with manual ack and exits (or closes its channel) without acking, 6 times | The delivery count rises on each return; after the limit (5) the broker dead-letters the message to `notifications.dead` (`delivery_limit`)                                                                              | E    |
+| 5.2 | Nack with requeue            | Same script, but `nack(requeue=true)` instead of dying                                                                                      | Delivery count does not rise (RabbitMQ 4.4 over AMQP 0.9.1, ADR 0004); this is why the API keeps its own count (evidence: `rabbitmq.client.integration.test.ts`, 7 requeued nacks on a limit-2 queue, no dead-lettering) | E    |
 
 Run 5.1 and 5.2 with the API stopped so it does not compete for messages.
 
@@ -74,6 +74,22 @@ No entry in the health response carries error text; failures are logged server-s
 | 7.3  | Not configured         | Start without `RABBITMQ_URL` and call it               | `rabbitmq: { ok: false }`                                                                                          | E    |
 
 Timing note for 2.3: `queue.publish.skipped` appears once the connection manager has noticed the drop. If a notification is triggered before that, a publish can still wait up to 2 s and log `queue.publish.failed` instead.
+
+## 8. Dead-letter monitor and runbook
+
+| #   | Scenario        | Steps                                                    | Expected                                                                                                                   | Type |
+| --- | --------------- | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ---- |
+| 8.1 | Empty queue     | Start the API with RabbitMQ and wait two minutes         | No `queue.dead_letter.*` log                                                                                               | E    |
+| 8.2 | Non-empty queue | Publish `not json` as in 4.1                             | `queue.consumer.dead_lettered` (`reason` invalid) at once; `queue.dead_letter.nonempty` with `depth` on every check (60 s) | E    |
+| 8.3 | Check failure   | Delete `notifications.dead` in the UI while the API runs | `queue.dead_letter.check_failed` at most once per 10 minutes; the notifications consumer keeps working                     | E    |
+| 8.4 | Shutdown        | Send SIGTERM                                             | No monitor activity after the consumer stops; exit code 0                                                                  | E    |
+
+Runbook when `queue.dead_letter.nonempty` fires:
+
+1. Open `http://127.0.0.1:15672`, queue `notifications.dead`, Get messages with requeue on.
+2. Read the `x-death` header: `reason` is `rejected` for malformed or permanently failing messages and `delivery_limit` for messages returned by a dying channel. Match `envelopeId` from `queue.consumer.dead_lettered` to the body `id`.
+3. Decide per message: replay (publish the body again to exchange `notifications`, routing key `notifications.created`; the insert is idempotent on `id`, so a replay never duplicates a row) or purge. Fix the cause first (database error class, invalid payload producer).
+4. Never auto-purge. Purge only after the decision above is recorded.
 
 ## Known unverified at QA time
 

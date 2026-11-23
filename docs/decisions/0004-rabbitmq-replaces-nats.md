@@ -22,7 +22,7 @@ Declared by `src/infrastructure/events/notification.topology.ts` and asserted on
 
 ### Envelope
 
-Every message is `{ id, type, version, occurredAt, payload }`: `id` is a UUID, `type` is `notifications.created`, `version` is 1, `occurredAt` is an ISO timestamp. It is validated with zod on the consumer side.
+Every message is `{ id, type, version, occurredAt, payload }`: `id` is a UUID, `type` is `notifications.created`, `version` is 2 (the literal checked by `notificationEnvelopeSchema`; a version 1 message is rejected as invalid), `occurredAt` is an ISO timestamp. It is validated with zod on the consumer side.
 
 ### Publishing
 
@@ -73,3 +73,12 @@ Without `RABBITMQ_URL` the publisher is a no-op, the consumer is not started, an
 - The publish-site list under Consequences is stale. The calls now live in the services: `proposals.submission.service.ts`, `proposals.review.service.ts`, `agency.invitations.service.ts`, `agency.profile.service.ts`, `contracts.checkout.service.ts`, `contracts.lifecycle.service.ts`, `contracts.milestones.service.ts` and `payouts.service.ts`.
 - "Optional" means the API starts without RabbitMQ. In practice RabbitMQ is the only notification write path: `sendNotification` only publishes, and the consumer is the only writer of the `notifications` row. Without a broker no notice is stored or pushed, and while the broker is disconnected a notice is skipped with no record (`queue.publish.skipped`).
 - ADR 0024 decides the follow-up: must-not-lose notices are written in the business transaction. This ADR's topology, envelope and consumer rules stay for the remaining notices.
+
+## Update 2026-11-23: dead-letter monitor and the real delivery bound
+
+- Envelope version 2 is the only accepted version. Version 1 messages fail validation and are dead-lettered as `invalid`.
+- The in-memory failure count in the consumer (limit `DEFAULT_DELIVERY_LIMIT`, 5) is the real bound on a poison message that the consumer keeps nacking with requeue. The broker `x-delivery-limit` does not bound it: the integration test in `rabbitmq.client.integration.test.ts` ("evidence: nack with requeue ...") nacks one message with `requeue=true` seven times on a queue declared with `x-delivery-limit` 2 on RabbitMQ 4.4.0; the broker redelivers it every time without an `x-delivery-count` header, `notifications.dead` stays empty and the message stays on `notifications.storage`. The broker limit still covers messages returned by a dying channel.
+- The counter has two weaknesses: it resets when the API restarts (a poison message can take up to five more attempts), and it is a FIFO map capped at 1000 ids (`MAX_TRACKED_FAILURES`), so the oldest failing id is forgotten when more than 1000 ids fail at once and its count restarts.
+- Monitor: when RabbitMQ is enabled, `startDeadLetterMonitor` (`infrastructure/events/notification.monitor.ts`) runs from `bootstrap/start.ts` after the consumer starts. Every `DEAD_LETTER_CHECK_INTERVAL_MS` (60 s) it runs a passive `checkQueue("notifications.dead")` on its own channel `notifications-monitor`, so a failed check closes only that channel. Depth 0 logs nothing; depth above 0 logs `queue.dead_letter.nonempty` (warn, `{ depth }`); a failed check logs `queue.dead_letter.check_failed` (warn), at most once per 10 minutes. The timer is `unref`'d and `shutdown.ts` clears it after the consumer stops and before RabbitMQ closes. Without `RABBITMQ_URL` nothing starts.
+- The consumer logs `queue.consumer.dead_lettered` (warn) with `{ reason: "permanent" | "exhausted" | "invalid", envelopeId }` where it nacks without requeue; `envelopeId` is null for an `invalid` message because the envelope could not be read.
+- Alert on `queue.dead_letter.nonempty` and `queue.consumer.dead_lettered`. The monitor never purges or replays; see the runbook in `docs/test-plans/api-rabbitmq.md`, section 8.

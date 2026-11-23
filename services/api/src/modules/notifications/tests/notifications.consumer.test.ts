@@ -12,10 +12,15 @@ const mocks = vi.hoisted(() => ({
   emitAgency: vi.fn(),
   logError: vi.fn(),
   logInfo: vi.fn(),
+  logWarn: vi.fn(),
 }));
 
 vi.mock("@/config/logger.js", () => ({
-  logger: { error: mocks.logError, info: mocks.logInfo },
+  logger: {
+    error: mocks.logError,
+    info: mocks.logInfo,
+    warn: mocks.logWarn,
+  },
 }));
 
 vi.mock("@/infrastructure/events/rabbitmq.client.js", () => ({
@@ -287,6 +292,26 @@ describe("notification consumer", () => {
     await consumer.stop();
 
     expect(channel.nack).toHaveBeenCalledWith(msg, false, false);
+    expect(mocks.logWarn).toHaveBeenCalledTimes(1);
+    expect(mocks.logWarn.mock.calls[0]![0]).toMatchObject({
+      eventName: "queue.consumer.dead_lettered",
+      attributes: { reason: "permanent" },
+    });
+  });
+
+  it("logs queue.consumer.dead_lettered for an invalid message and still nacks when the warn logger throws", async () => {
+    const { channel, consumer, deliver } = setup();
+    mocks.logWarn.mockRejectedValue(new Error("log down"));
+    await consumer.start();
+
+    deliver(message("not json"));
+    await consumer.stop();
+
+    expect(mocks.logWarn.mock.calls[0]![0]).toMatchObject({
+      eventName: "queue.consumer.dead_lettered",
+      attributes: { reason: "invalid", envelopeId: null },
+    });
+    expect(channel.nack.mock.calls[0]!.slice(1)).toEqual([false, false]);
   });
 
   it("requeues on a database error, pauses, and resumes after a successful ping", async () => {
@@ -406,11 +431,17 @@ describe("notification consumer", () => {
     handler(msg);
     await flush();
     expect(channel.nack).toHaveBeenLastCalledWith(msg, false, true);
+    expect(mocks.logWarn).not.toHaveBeenCalled();
 
     await vi.advanceTimersByTimeAsync(1_000);
     handler(msg);
     await flush();
     expect(channel.nack).toHaveBeenLastCalledWith(msg, false, false);
+    expect(mocks.logWarn).toHaveBeenCalledTimes(1);
+    expect(mocks.logWarn.mock.calls[0]![0]).toMatchObject({
+      eventName: "queue.consumer.dead_lettered",
+      attributes: { reason: "exhausted" },
+    });
 
     await consumer.stop();
   });

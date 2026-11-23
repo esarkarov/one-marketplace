@@ -7,6 +7,8 @@ const hoisted = vi.hoisted(() => ({
   connectRedis: vi.fn(),
   isRabbitEnabled: vi.fn(),
   startNotificationConsumer: vi.fn(),
+  startDeadLetterMonitor: vi.fn(),
+  stopDeadLetterMonitor: vi.fn(),
   initializeMessagingSocket: vi.fn(),
   startPayoutCron: vi.fn(),
   startRefundReconciliationCron: vi.fn(),
@@ -34,6 +36,10 @@ vi.mock("@/infrastructure/cache/redis.client.js", () => ({
 vi.mock("@/infrastructure/events/rabbitmq.client.js", () => ({
   isRabbitEnabled: hoisted.isRabbitEnabled,
   closeRabbit: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock("@/infrastructure/events/notification.monitor.js", () => ({
+  startDeadLetterMonitor: hoisted.startDeadLetterMonitor,
+  stopDeadLetterMonitor: hoisted.stopDeadLetterMonitor,
 }));
 vi.mock("@/modules/notifications/notifications.consumer.js", () => ({
   startNotificationConsumer: hoisted.startNotificationConsumer,
@@ -90,6 +96,10 @@ describe("startup order and failures", () => {
       .mockImplementation(async () => {
         hoisted.order.push("consumer");
       });
+    hoisted.startDeadLetterMonitor.mockReset().mockImplementation(() => {
+      hoisted.order.push("monitor");
+    });
+    hoisted.stopDeadLetterMonitor.mockReset().mockResolvedValue(undefined);
     hoisted.initializeMessagingSocket.mockReset().mockImplementation(() => {
       hoisted.order.push("socket");
     });
@@ -115,6 +125,7 @@ describe("startup order and failures", () => {
       "listen",
       "push",
       "consumer",
+      "monitor",
       "socket",
       "cron",
       "refund-cron",
@@ -140,6 +151,7 @@ describe("startup order and failures", () => {
 
     expect(hoisted.registerNotificationsPush).toHaveBeenCalledTimes(1);
     expect(hoisted.startNotificationConsumer).not.toHaveBeenCalled();
+    expect(hoisted.startDeadLetterMonitor).not.toHaveBeenCalled();
   });
 
   it("registers no pusher when the database check fails", async () => {
@@ -164,7 +176,18 @@ describe("startup order and failures", () => {
     expect(hoisted.initializeMessagingSocket).not.toHaveBeenCalled();
     expect(hoisted.startPayoutCron).not.toHaveBeenCalled();
     expect(hoisted.startRefundReconciliationCron).not.toHaveBeenCalled();
+    expect(hoisted.stopDeadLetterMonitor).toHaveBeenCalledTimes(1);
     expect(hoisted.exitWithFlush).toHaveBeenCalledTimes(1);
+    expect(hoisted.exitWithFlush).toHaveBeenCalledWith(1);
+  });
+
+  it("still closes rabbit and exits when stopping the monitor rejects", async () => {
+    hoisted.pingDatabase.mockRejectedValue(new Error("connection refused"));
+    hoisted.stopDeadLetterMonitor.mockRejectedValue(new Error("stuck"));
+    const { start, handleStartupFailure } = await load();
+
+    await start().catch(handleStartupFailure);
+
     expect(hoisted.exitWithFlush).toHaveBeenCalledWith(1);
   });
 

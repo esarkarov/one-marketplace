@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const hoisted = vi.hoisted(() => ({
   order: [] as string[],
+  rabbitOrder: [] as string[],
   waitForPayoutRun: vi.fn(),
   waitForRefundRun: vi.fn(),
   poolEnd: vi.fn(),
@@ -39,10 +40,19 @@ vi.mock("@/infrastructure/cache/redis.client.js", () => ({
   disconnectRedis: vi.fn(),
 }));
 vi.mock("@/infrastructure/events/rabbitmq.client.js", () => ({
-  closeRabbit: vi.fn(),
+  closeRabbit: async () => {
+    hoisted.rabbitOrder.push("close-rabbit");
+  },
+}));
+vi.mock("@/infrastructure/events/notification.monitor.js", () => ({
+  stopDeadLetterMonitor: () => {
+    hoisted.rabbitOrder.push("stop-monitor");
+  },
 }));
 vi.mock("@/modules/notifications/notifications.consumer.js", () => ({
-  stopNotificationConsumer: vi.fn(),
+  stopNotificationConsumer: async () => {
+    hoisted.rabbitOrder.push("stop-consumer");
+  },
 }));
 vi.mock("@/modules/messaging/messaging.socket.js", () => ({
   closeMessagingSocket: vi.fn(),
@@ -75,6 +85,7 @@ describe("shutdown payout drain", () => {
   beforeEach(() => {
     vi.resetModules();
     hoisted.order.length = 0;
+    hoisted.rabbitOrder.length = 0;
     hoisted.warn.mockReset().mockResolvedValue(undefined);
     hoisted.waitForRefundRun.mockReset().mockResolvedValue(undefined);
     hoisted.waitForPayoutRun.mockReset().mockResolvedValue(undefined);
@@ -118,6 +129,18 @@ describe("shutdown payout drain", () => {
     ]);
     expect(hoisted.warn).not.toHaveBeenCalled();
     expect(exit).toHaveBeenCalledWith(0);
+  });
+
+  it("stops the consumer, then the dead-letter monitor, then closes RabbitMQ", async () => {
+    const { shutdown } = await import("@/bootstrap/shutdown.js");
+
+    await shutdown("SIGTERM");
+
+    expect(hoisted.rabbitOrder).toEqual([
+      "stop-consumer",
+      "stop-monitor",
+      "close-rabbit",
+    ]);
   });
 
   it("warns and continues when the run outlasts the drain timeout", async () => {
@@ -229,6 +252,7 @@ describe("shutdown SSE streams", () => {
   beforeEach(() => {
     vi.resetModules();
     hoisted.order.length = 0;
+    hoisted.rabbitOrder.length = 0;
     hoisted.warn.mockReset().mockResolvedValue(undefined);
     hoisted.waitForRefundRun.mockReset().mockResolvedValue(undefined);
     hoisted.waitForPayoutRun.mockReset().mockResolvedValue(undefined);

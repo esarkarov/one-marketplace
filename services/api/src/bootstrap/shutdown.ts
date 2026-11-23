@@ -1,6 +1,7 @@
 import { logger, rootLogger } from "@/config/logger.js";
 import { pool } from "@/database/client.js";
 import { disconnectRedis } from "@/infrastructure/cache/redis.client.js";
+import { stopDeadLetterMonitor } from "@/infrastructure/events/notification.monitor.js";
 import { closeRabbit } from "@/infrastructure/events/rabbitmq.client.js";
 import {
   stopOrphanPaymentDetectionCron,
@@ -204,6 +205,7 @@ export const shutdown = async (reason: ShutdownReason): Promise<void> => {
   await runStep("notification consumer", () =>
     stopNotificationConsumer(CONNECTION_GRACE_MS),
   );
+  await runStep("dead letter monitor", stopDeadLetterMonitor);
   await runStep("rabbitmq", () => closeRabbit(SHUTDOWN_TIMEOUT_MS));
   await runStep("redis", disconnectRedis);
   await runStep("database pool", () => pool.end());

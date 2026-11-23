@@ -11,6 +11,7 @@ import type { TopologyOptions } from "@/infrastructure/types/index.js";
 let connection: AmqpConnectionManager | undefined;
 let publishChannel: ChannelWrapper | undefined;
 let consumerChannel: ChannelWrapper | undefined;
+let monitorChannel: ChannelWrapper | undefined;
 
 export const isRabbitEnabled = (): boolean => Boolean(env.rabbitmqUrl);
 
@@ -101,6 +102,18 @@ export const getRabbitConsumerChannel = (): ChannelWrapper =>
     "notifications-consumer",
   ));
 
+export const getRabbitMonitorChannel = (): ChannelWrapper =>
+  (monitorChannel ??= createRabbitChannel(
+    getConnection(),
+    "notifications-monitor",
+  ));
+
+export const resetRabbitMonitorChannel = async (): Promise<void> => {
+  const stale = monitorChannel;
+  monitorChannel = undefined;
+  await stale?.close().catch(() => undefined);
+};
+
 export const isRabbitConnected = (): boolean =>
   connection?.isConnected() ?? false;
 
@@ -111,10 +124,11 @@ export const getRabbitStatus = (): {
 
 export const closeRabbit = async (timeoutMs: number): Promise<void> => {
   const current = connection;
-  const channels = [publishChannel, consumerChannel];
+  const channels = [publishChannel, consumerChannel, monitorChannel];
   connection = undefined;
   publishChannel = undefined;
   consumerChannel = undefined;
+  monitorChannel = undefined;
   if (!current) return;
 
   let timer: NodeJS.Timeout | undefined;

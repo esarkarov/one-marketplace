@@ -42,9 +42,11 @@ const makeConnection = () => ({
 const {
   closeRabbit,
   getRabbitConsumerChannel,
+  getRabbitMonitorChannel,
   getRabbitStatus,
   isRabbitConnected,
   isRabbitEnabled,
+  resetRabbitMonitorChannel,
 } = await import("./rabbitmq.client.js");
 
 beforeEach(async () => {
@@ -93,6 +95,39 @@ describe("rabbitmq config", () => {
     expect(mocks.close).toHaveBeenCalled();
     expect(mocks.connectionClose).toHaveBeenCalledTimes(1);
     expect(isRabbitConnected()).toBe(false);
+  });
+
+  it("creates the monitor channel once and closes it with the others", async () => {
+    mocks.close.mockResolvedValue(undefined);
+    mocks.connectionClose.mockResolvedValue(undefined);
+    const first = getRabbitMonitorChannel();
+    getRabbitConsumerChannel();
+
+    expect(getRabbitMonitorChannel()).toBe(first);
+    await closeRabbit(1_000);
+
+    expect(mocks.close).toHaveBeenCalledTimes(2);
+  });
+
+  it("recreates the monitor channel after a reset and closes the stale one", async () => {
+    mocks.close.mockResolvedValue(undefined);
+    const first = getRabbitMonitorChannel();
+
+    await resetRabbitMonitorChannel();
+    const second = getRabbitMonitorChannel();
+
+    expect(second).not.toBe(first);
+    expect(mocks.close).toHaveBeenCalledTimes(1);
+    expect(mocks.connect).toHaveBeenCalledTimes(1);
+  });
+
+  it("reset does nothing without a monitor channel and survives a failing close", async () => {
+    await expect(resetRabbitMonitorChannel()).resolves.toBeUndefined();
+    expect(mocks.connect).not.toHaveBeenCalled();
+
+    mocks.close.mockRejectedValue(new Error("boom"));
+    getRabbitMonitorChannel();
+    await expect(resetRabbitMonitorChannel()).resolves.toBeUndefined();
   });
 
   it("returns when closing hangs", async () => {

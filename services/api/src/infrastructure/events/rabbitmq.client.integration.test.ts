@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { ChannelWrapper } from "amqp-connection-manager";
+import type { ConsumeMessage } from "amqplib";
 import {
   afterAll,
   afterEach,
@@ -199,6 +200,33 @@ describe.skipIf(!url || !isLocal)("rabbitmq integration", () => {
     expect(state.insertAttempts).toBeGreaterThanOrEqual(2);
     expect(state.emit).not.toHaveBeenCalled();
     expect(await count(names.storageQueue)).toBe(0);
+  }, 40_000);
+
+  it("evidence: nack with requeue does not advance the broker delivery count past the limit", async () => {
+    await publishNotificationEnvelope(publisher, newEnvelope(), prefix);
+    const seen: Array<unknown> = [];
+    let deliveries = 0;
+    let held: ConsumeMessage | undefined;
+    const { consumerTag } = await consumerChannel.consume(
+      names.storageQueue,
+      (message) => {
+        if (!message) return;
+        deliveries++;
+        seen.push(message.properties.headers?.["x-delivery-count"]);
+        if (deliveries <= 6) consumerChannel.nack(message, false, true);
+        else held = message;
+      },
+      { noAck: false, prefetch: 1 },
+    );
+
+    await waitFor(() => deliveries >= 7);
+    await consumerChannel.cancel(consumerTag);
+    consumerChannel.nack(held!, false, true);
+
+    expect(deliveries).toBeGreaterThanOrEqual(7);
+    expect(seen.filter((value) => value !== undefined)).toEqual([]);
+    expect(await count(names.deadLetterQueue)).toBe(0);
+    await waitFor(async () => (await count(names.storageQueue)) === 1);
   }, 40_000);
 
   it("inserts once when the same envelope is published twice", async () => {

@@ -25,6 +25,9 @@ vi.mock("@/infrastructure/cache/redis.client.js", () => ({
 vi.mock("@/infrastructure/events/rabbitmq.client.js", () => ({
   closeRabbit: vi.fn(),
 }));
+vi.mock("@/infrastructure/events/notification.monitor.js", () => ({
+  stopDeadLetterMonitor: vi.fn(),
+}));
 vi.mock("@/modules/notifications/notifications.consumer.js", () => ({
   stopNotificationConsumer: vi.fn(),
 }));
@@ -40,7 +43,7 @@ vi.mock("@/modules/payouts/payouts.cron.js", () => ({
 }));
 
 const flush = async () => {
-  for (let i = 0; i < 30; i += 1) {
+  for (let i = 0; i < 40; i += 1) {
     await Promise.resolve();
   }
 };

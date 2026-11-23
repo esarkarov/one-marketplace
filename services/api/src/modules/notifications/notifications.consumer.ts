@@ -75,6 +75,24 @@ export const createNotificationConsumer = (options: {
     } catch {}
   };
 
+  const logDeadLettered = async (
+    reason: "permanent" | "exhausted" | "invalid",
+    envelopeId: string | null,
+  ) => {
+    try {
+      await logger.warn({
+        message: "Message dead-lettered by the consumer",
+        eventName: "queue.consumer.dead_lettered",
+        attributes: {
+          "messaging.system": "rabbitmq",
+          "messaging.destination.name": queue,
+          reason,
+          envelopeId,
+        },
+      });
+    } catch {}
+  };
+
   const settle = async (action: () => void) => {
     try {
       action();
@@ -143,6 +161,7 @@ export const createNotificationConsumer = (options: {
 
     if (!parsed?.success) {
       await logFailure("Invalid message rejected", "queue.message.invalid");
+      await logDeadLettered("invalid", null);
       await settle(() => channel.nack(message, false, false));
       return;
     }
@@ -180,6 +199,8 @@ export const createNotificationConsumer = (options: {
           failures.delete(failures.keys().next().value!);
         }
       }
+      if (permanent) await logDeadLettered("permanent", id);
+      else if (exhausted) await logDeadLettered("exhausted", id);
       if (!permanent) await pause();
       await settle(() =>
         channel.nack(message, false, !(exhausted || permanent)),

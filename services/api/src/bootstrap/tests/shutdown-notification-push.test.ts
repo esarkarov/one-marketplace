@@ -39,6 +39,9 @@ vi.mock("@/infrastructure/cache/redis.client.js", () => ({
 vi.mock("@/infrastructure/events/rabbitmq.client.js", () => ({
   closeRabbit: vi.fn(),
 }));
+vi.mock("@/infrastructure/events/notification.monitor.js", () => ({
+  stopDeadLetterMonitor: vi.fn(),
+}));
 vi.mock("@/modules/notifications/notifications.consumer.js", () => ({
   stopNotificationConsumer: vi.fn(),
 }));

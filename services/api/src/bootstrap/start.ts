@@ -12,6 +12,10 @@ import {
   closeRabbit,
   isRabbitEnabled,
 } from "@/infrastructure/events/rabbitmq.client.js";
+import {
+  startDeadLetterMonitor,
+  stopDeadLetterMonitor,
+} from "@/infrastructure/events/notification.monitor.js";
 import { pingDatabase } from "@/modules/health/index.js";
 import { registerNotificationsPush } from "@/modules/notifications/services/notifications.push.service.js";
 import { startNotificationConsumer } from "@/modules/notifications/notifications.consumer.js";
@@ -53,6 +57,7 @@ export const start = async (): Promise<void> => {
   registerNotificationsPush();
   if (isRabbitEnabled()) {
     await startNotificationConsumer();
+    startDeadLetterMonitor();
   }
   initializeMessagingSocket(server);
   startPayoutCron();
@@ -78,6 +83,7 @@ export const handleStartupFailure = async (error: unknown): Promise<void> => {
     },
   });
   await disconnectRedis().catch(() => undefined);
+  await stopDeadLetterMonitor().catch(() => undefined);
   await closeRabbit(SHUTDOWN_TIMEOUT_MS).catch(() => undefined);
   await exitWithFlush(1);
 };
