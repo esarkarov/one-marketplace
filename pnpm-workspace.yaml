@@ -10,15 +10,15 @@ catalog:
   eslint-config-next: 16.4.6
   "@iconify/react": ^6.0.4
   react-hook-form: ^7.92.0
-  "@clerk/nextjs": ^7.10.0
-  "@clerk/shared": ^4.48.0
-  "@tanstack/react-query": ^5.108.0
+  "@clerk/nextjs": ^7.10.8
+  "@clerk/shared": ^4.48.3
+  "@tanstack/react-query": ^5.108.4
   socket.io-client: ^4.8.4
   timeago.js: ^4.3.1
   sonner: ^2.0.8
   openapi-fetch: ^0.17.0
   openapi-typescript: ^7.13.0
-  vitest: ^5.1.0
+  vitest: ^5.1.1
   jsdom: ^31.0.1
   "@testing-library/react": ^16.3.3
   "@testing-library/dom": ^10.4.2
