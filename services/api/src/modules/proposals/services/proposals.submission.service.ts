@@ -8,17 +8,13 @@ import {
 } from "@/modules/proposals/repositories/proposals.repository.js";
 import { findAccountIdByAuthId } from "@/modules/auth/index.js";
 import {
+  cacheAgencyConnects,
+  cacheFreelancerConnects,
   debitConnects,
   recordConnectsHistory,
 } from "@/modules/connects/index.js";
 import { ApiError } from "@/shared/errors/api-error.js";
-import {
-  CONNECTS_CACHE_TTL_SECONDS,
-  getAgencyConnectsCacheKey,
-  getConnectsCacheKey,
-  PROPOSAL_CONNECTS,
-} from "@/modules/connects/index.js";
-import { redis } from "@/infrastructure/cache/redis.client.js";
+import { PROPOSAL_CONNECTS } from "@/modules/connects/index.js";
 import { getAgencyTeamMemberIds } from "@/modules/agency/index.js";
 import { sendNotification } from "@/infrastructure/events/notification.publisher.js";
 
@@ -91,11 +87,7 @@ export const submitProposal = async (
     };
   });
 
-  await redis.setEx(
-    getConnectsCacheKey(freelancerId),
-    CONNECTS_CACHE_TTL_SECONDS,
-    String(result.connects),
-  );
+  await cacheFreelancerConnects(freelancerId, result.connects);
 
   await sendNotification({
     recipientId: result.clientId,
@@ -196,11 +188,7 @@ export const submitAgencyProposal = async (
     };
   });
 
-  await redis.setEx(
-    getAgencyConnectsCacheKey(agencyId),
-    CONNECTS_CACHE_TTL_SECONDS,
-    String(result.connects),
-  );
+  await cacheAgencyConnects(agencyId, result.connects);
 
   await sendNotification({
     recipientId: result.clientId,

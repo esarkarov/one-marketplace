@@ -29,13 +29,30 @@ import {
   recordConnectsHistory,
 } from "@/modules/connects/repositories/connects.repository.js";
 import { ApiError } from "@/shared/errors/api-error.js";
-import { redis } from "@/infrastructure/cache/redis.client.js";
+import {
+  cacheExpire,
+  cacheGet,
+  cacheSetEx,
+} from "@/infrastructure/cache/fail-open.cache.js";
 import { env } from "@/config/env.js";
 import { stripe } from "@/infrastructure/payments/stripe.client.js";
 
-const cacheBalance = (freelancerId: string, balance: number) =>
-  redis.setEx(
+export const cacheFreelancerConnects = (
+  freelancerId: string,
+  balance: number,
+): Promise<void> =>
+  cacheSetEx(
     getConnectsCacheKey(freelancerId),
+    CONNECTS_CACHE_TTL_SECONDS,
+    String(balance),
+  );
+
+export const cacheAgencyConnects = (
+  agencyId: string,
+  balance: number,
+): Promise<void> =>
+  cacheSetEx(
+    getAgencyConnectsCacheKey(agencyId),
     CONNECTS_CACHE_TTL_SECONDS,
     String(balance),
   );
@@ -60,7 +77,7 @@ export const addConnects = async (freelancerId: string) => {
     return balance;
   });
 
-  if (balance) await cacheBalance(freelancerId, balance.connects);
+  if (balance) await cacheFreelancerConnects(freelancerId, balance.connects);
   return balance;
 };
 
@@ -84,13 +101,7 @@ export const addAgencyConnects = async (agencyId: string) => {
     return balance;
   });
 
-  if (balance) {
-    await redis.setEx(
-      getAgencyConnectsCacheKey(agencyId),
-      CONNECTS_CACHE_TTL_SECONDS,
-      String(balance.connects),
-    );
-  }
+  if (balance) await cacheAgencyConnects(agencyId, balance.connects);
   return balance;
 };
 
@@ -98,17 +109,17 @@ export const getAgencyConnectsBalance = async (
   agencyId: string,
 ): Promise<number> => {
   const cacheKey = getAgencyConnectsCacheKey(agencyId);
-  const cachedConnects = await redis.get(cacheKey);
+  const cachedConnects = await cacheGet(cacheKey);
 
   if (cachedConnects !== null) {
-    await redis.expire(cacheKey, CONNECTS_CACHE_TTL_SECONDS);
+    await cacheExpire(cacheKey, CONNECTS_CACHE_TTL_SECONDS);
     return Number(cachedConnects);
   }
 
   const balance = await findAgencyConnectsBalance(db, agencyId);
 
   const value = balance?.connects ?? 0;
-  await redis.setEx(cacheKey, CONNECTS_CACHE_TTL_SECONDS, String(value));
+  await cacheAgencyConnects(agencyId, value);
   return value;
 };
 
@@ -235,7 +246,7 @@ export const completeConnectsPurchase = async (
 
     return updatedBalance;
   });
-  if (balance) await cacheBalance(freelancerId, balance.connects);
+  if (balance) await cacheFreelancerConnects(freelancerId, balance.connects);
 };
 
 export const createAgencyConnectsCheckout = async (
@@ -322,11 +333,5 @@ export const completeAgencyConnectsPurchase = async (
     return updatedBalance;
   });
 
-  if (balance) {
-    await redis.setEx(
-      getAgencyConnectsCacheKey(agencyId),
-      CONNECTS_CACHE_TTL_SECONDS,
-      String(balance.connects),
-    );
-  }
+  if (balance) await cacheAgencyConnects(agencyId, balance.connects);
 };

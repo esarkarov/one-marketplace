@@ -1,6 +1,8 @@
 export {
   addAgencyConnects,
   addConnects,
+  cacheAgencyConnects,
+  cacheFreelancerConnects,
   createAgencyConnectsCheckout,
   getAgencyConnectsBalance,
   getAgencyConnectsHistory,

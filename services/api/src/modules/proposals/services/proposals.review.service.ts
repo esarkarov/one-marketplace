@@ -7,6 +7,8 @@ import {
   markProposalViewedIfSubmitted,
 } from "@/modules/proposals/repositories/proposals.repository.js";
 import {
+  cacheAgencyConnects,
+  cacheFreelancerConnects,
   creditConnects,
   recordConnectsHistory,
 } from "@/modules/connects/index.js";
@@ -14,13 +16,7 @@ import { toProposalSenderId } from "@/modules/proposals/utils/proposals.mappers.
 import { findAccountIdByAuthId } from "@/modules/auth/index.js";
 import { requirePublicId } from "@/shared/ids/public-ids.js";
 import { ApiError } from "@/shared/errors/api-error.js";
-import {
-  CONNECTS_CACHE_TTL_SECONDS,
-  getAgencyConnectsCacheKey,
-  getConnectsCacheKey,
-  PROPOSAL_CONNECTS,
-} from "@/modules/connects/index.js";
-import { redis } from "@/infrastructure/cache/redis.client.js";
+import { PROPOSAL_CONNECTS } from "@/modules/connects/index.js";
 import { sendNotification } from "@/infrastructure/events/notification.publisher.js";
 import {
   insertNotification,
@@ -178,17 +174,9 @@ export const startProposalInterview = async (
   });
 
   if (result.senderType === "AGENCY" && result.agencyId) {
-    await redis.setEx(
-      getAgencyConnectsCacheKey(result.agencyId),
-      CONNECTS_CACHE_TTL_SECONDS,
-      String(result.connects),
-    );
+    await cacheAgencyConnects(result.agencyId, result.connects);
   } else {
-    await redis.setEx(
-      getConnectsCacheKey(result.freelancerId),
-      CONNECTS_CACHE_TTL_SECONDS,
-      String(result.connects),
-    );
+    await cacheFreelancerConnects(result.freelancerId, result.connects);
   }
 
   await emitConversationUpdate(result.conversationId);

@@ -12,6 +12,7 @@ import {
 
 const mocks = vi.hoisted(() => ({
   store: new Map<string, string>(),
+  failing: new Set<string>(),
   verifyToken: vi.fn(),
   customersCreate: vi.fn(),
   sessionsCreate: vi.fn(),
@@ -41,9 +42,16 @@ vi.mock("@/infrastructure/payments/stripe.client.js", () => ({
 
 vi.mock("@/infrastructure/cache/redis.client.js", () => ({
   redis: {
-    get: async (key: string) => mocks.store.get(key) ?? null,
-    expire: async () => true,
+    get: async (key: string) => {
+      if (mocks.failing.has("get")) throw new Error("redis get failed");
+      return mocks.store.get(key) ?? null;
+    },
+    expire: async () => {
+      if (mocks.failing.has("expire")) throw new Error("redis expire failed");
+      return true;
+    },
     setEx: async (key: string, _ttl: number, value: string) => {
+      if (mocks.failing.has("setEx")) throw new Error("redis setEx failed");
       mocks.store.set(key, value);
       return "OK";
     },
@@ -145,6 +153,7 @@ afterAll(async () => {
 beforeEach(() => {
   assertTestDatabase(process.env.DATABASE_URL, process.env.POSTGRES_DB);
   mocks.store.clear();
+  mocks.failing.clear();
   mocks.verifyToken.mockReset();
   mocks.customersCreate.mockReset();
   mocks.sessionsCreate.mockReset();
@@ -200,6 +209,51 @@ describe("GET /connects", () => {
       .set(as(clientId));
     expect(response.status).toBe(403);
     connectsResponses.balance[403].parse(response.body);
+  });
+});
+
+describe("connects routes while Redis fails", () => {
+  it.each([["get"], ["setEx"], ["get", "setEx", "expire"]])(
+    "GET /connects and /connects/history answer 200 from the database when %s rejects",
+    async (...operations: string[]) => {
+      const freelancerId = await seedFreelancer();
+      await pool.query(
+        "update connects set connects = 4321 where freelancer_id = $1",
+        [freelancerId],
+      );
+      for (const operation of operations) mocks.failing.add(operation);
+
+      const balance = await request(app)
+        .get(API)
+        .query({ role: "freelancer" })
+        .set(as(freelancerId));
+      expect(balance.status).toBe(200);
+      expect(
+        connectsResponses.balance[200].parse(balance.body).data.connects,
+      ).toBe(4321);
+
+      const history = await request(app)
+        .get(`${API}/history`)
+        .query({ role: "freelancer" })
+        .set(as(freelancerId));
+      expect(history.status).toBe(200);
+      expect(
+        connectsResponses.history[200].parse(history.body).data.results,
+      ).toHaveLength(2);
+    },
+  );
+
+  it("uses a cached balance and still answers 200 when expire rejects", async () => {
+    const freelancerId = await seedFreelancer();
+    mocks.store.set(getConnectsCacheKey(freelancerId), "12");
+    mocks.failing.add("expire");
+
+    const response = await request(app)
+      .get(API)
+      .query({ role: "freelancer" })
+      .set(as(freelancerId));
+
+    expect(response.status).toBe(200);
   });
 });
 

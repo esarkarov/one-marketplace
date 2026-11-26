@@ -73,10 +73,23 @@ export const getSystemHealth = async () => {
 
 const MAX_SCAN_KEYS = 200;
 
+const withRedisExplorer = async <T>(read: () => Promise<T>): Promise<T> => {
+  try {
+    return await read();
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    throw new ApiError(503, "Redis is unavailable.");
+  }
+};
+
 export const scanRedisKeys = async (pattern: string) => {
   if (!isAllowedRedisKey(pattern)) {
     throw new ApiError(400, "Invalid request.");
   }
+  return withRedisExplorer(() => readRedisKeys(pattern));
+};
+
+const readRedisKeys = async (pattern: string) => {
   const keys: string[] = [];
   let cursor = "0";
   do {
@@ -102,6 +115,10 @@ export const getRedisKeyValue = async (key: string) => {
   if (!isAllowedRedisKey(key)) {
     throw new ApiError(403, "Access to this Redis key is not allowed.");
   }
+  return withRedisExplorer(() => readRedisKeyValue(key));
+};
+
+const readRedisKeyValue = async (key: string) => {
   const type = await redis.type(key);
   let value: unknown;
 

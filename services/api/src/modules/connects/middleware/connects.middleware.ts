@@ -3,7 +3,11 @@ import { asyncHandler } from "@/middleware/utils/async-handler.utils.js";
 import { ApiError } from "@/shared/errors/api-error.js";
 import { CONNECTS_CACHE_TTL_SECONDS } from "@/modules/connects/constants/connects.constants.js";
 import { getConnectsCacheKey } from "@/modules/connects/utils/connects.cache-keys.js";
-import { redis } from "@/infrastructure/cache/redis.client.js";
+import {
+  cacheExpire,
+  cacheGet,
+} from "@/infrastructure/cache/fail-open.cache.js";
+import { cacheFreelancerConnects } from "@/modules/connects/services/connects.service.js";
 import { db } from "@/database/client.js";
 import { findFreelancerConnectsBalance } from "@/modules/connects/repositories/connects.repository.js";
 
@@ -17,11 +21,11 @@ export const availableConnects: RequestHandler = asyncHandler(
     }
 
     const cacheKey = getConnectsCacheKey(request.auth.userId);
-    const cachedConnects = await redis.get(cacheKey);
+    const cachedConnects = await cacheGet(cacheKey);
 
     if (cachedConnects !== null) {
       request.availableConnects = Number(cachedConnects);
-      await redis.expire(cacheKey, CONNECTS_CACHE_TTL_SECONDS);
+      await cacheExpire(cacheKey, CONNECTS_CACHE_TTL_SECONDS);
       next();
       return;
     }
@@ -32,10 +36,9 @@ export const availableConnects: RequestHandler = asyncHandler(
     );
 
     request.availableConnects = balance?.connects ?? 0;
-    await redis.setEx(
-      cacheKey,
-      CONNECTS_CACHE_TTL_SECONDS,
-      String(request.availableConnects),
+    await cacheFreelancerConnects(
+      request.auth.userId,
+      request.availableConnects,
     );
 
     next();

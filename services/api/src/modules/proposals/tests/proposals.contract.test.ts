@@ -14,6 +14,7 @@ import {
 
 const mocks = vi.hoisted(() => ({
   store: new Map<string, string>(),
+  setExFails: false,
   verifyToken: vi.fn(),
   getUser: vi.fn(),
   sendNotification: vi.fn(),
@@ -54,6 +55,7 @@ vi.mock("@/infrastructure/cache/redis.client.js", () => ({
     get: async (key: string) => mocks.store.get(key) ?? null,
     expire: async () => true,
     setEx: async (key: string, _ttl: number, value: string) => {
+      if (mocks.setExFails) throw new Error("redis setEx failed");
       mocks.store.set(key, value);
       return "OK";
     },
@@ -254,6 +256,7 @@ afterAll(async () => {
 beforeEach(() => {
   assertTestDatabase(process.env.DATABASE_URL, process.env.POSTGRES_DB);
   mocks.store.clear();
+  mocks.setExFails = false;
   mocks.verifyToken.mockReset();
   mocks.getUser.mockReset();
   mocks.sendNotification.mockReset();
@@ -667,6 +670,23 @@ describe("interview conversation writes", () => {
     });
   });
 
+  it("answers 201 and still emits the conversation update when the cache write rejects", async () => {
+    const { clientId, jobId } = await createClientWithJob();
+    const freelancerId = await createFreelancer();
+    const proposalId = await insertProposal(
+      jobId,
+      { id: freelancerId, type: "FREELANCER" },
+      "Cover letter for the interview.",
+    );
+    mocks.setExFails = true;
+
+    const response = await startInterview(clientId, proposalId, "Hello there.");
+
+    expect(response.status).toBe(201);
+    expect((await readThread(proposalId)).rows).toHaveLength(2);
+    expect(mocks.emitConversationUpdate).toHaveBeenCalled();
+  });
+
   it("writes the same thread for an agency proposal under the agency participant", async () => {
     const { clientId, jobId } = await createClientWithJob();
     const { ownerId, agencyId } = await createAgency();
@@ -823,6 +843,35 @@ describe("connects around proposals", () => {
       bystanderBefore,
     );
     expect(await balanceOf({ agencyId })).toEqual(agencyBefore);
+  });
+
+  it("answers 201 and keeps the debit when the post-commit cache write rejects", async () => {
+    const { jobId } = await createClientWithJob();
+    const freelancerId = await createFreelancer();
+    mocks.setExFails = true;
+
+    const response = await submitAsFreelancer(freelancerId, jobId);
+
+    expect(response.status).toBe(201);
+    expect(response.body.data.connects).toBe(100 - PROPOSAL_CONNECTS);
+    const after = await balanceOf({ freelancerId });
+    expect(after.connects).toBe(100 - PROPOSAL_CONNECTS);
+    expect(await historyOf(after.id)).toHaveLength(1);
+    expect(mocks.sendNotification).toHaveBeenCalled();
+  });
+
+  it("answers 201 for an agency submission when the post-commit cache write rejects", async () => {
+    const { jobId } = await createClientWithJob();
+    const { ownerId, agencyId } = await createAgency();
+    const before = await balanceOf({ agencyId });
+    mocks.setExFails = true;
+
+    const response = await submitAsAgency(ownerId, jobId);
+
+    expect(response.status).toBe(201);
+    expect((await balanceOf({ agencyId })).connects).toBe(
+      before.connects - PROPOSAL_CONNECTS,
+    );
   });
 
   it("charges the agency's balance for an agency submission", async () => {

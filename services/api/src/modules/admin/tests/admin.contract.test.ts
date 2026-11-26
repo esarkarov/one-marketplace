@@ -285,6 +285,43 @@ describe("GET /admin/system/redis/keys", () => {
     const body = adminResponses.redisKeys[200].parse(response.body);
     expect(body.data.keys.map((item) => item.key)).toContain(REDIS_KEY);
   });
+
+  it("answers 503 when the Redis scan rejects", async () => {
+    const scan = vi
+      .spyOn(redis, "scan")
+      .mockRejectedValueOnce(new Error("redis scan failed"));
+    try {
+      const response = await request(app)
+        .get(`${API}/system/redis/keys`)
+        .query({ pattern: `${REDIS_KEY}*` })
+        .set(admin());
+      expect(response.status).toBe(503);
+      expect(response.body).toMatchObject({
+        success: false,
+        code: "SERVICE_UNAVAILABLE",
+      });
+    } finally {
+      scan.mockRestore();
+    }
+  });
+
+  it("answers 503 when a Redis key read rejects", async () => {
+    const type = vi
+      .spyOn(redis, "type")
+      .mockRejectedValueOnce(new Error("redis type failed"));
+    try {
+      const response = await request(app)
+        .get(`${API}/system/redis/keys/${REDIS_KEY}`)
+        .set(admin());
+      expect(response.status).toBe(503);
+      expect(response.body).toMatchObject({
+        success: false,
+        code: "SERVICE_UNAVAILABLE",
+      });
+    } finally {
+      type.mockRestore();
+    }
+  });
 });
 
 describe("GET /admin/system/redis/keys/:key", () => {

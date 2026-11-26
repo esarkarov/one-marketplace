@@ -9,7 +9,10 @@ import {
 } from "@/modules/auth/constants/auth.constants.js";
 import { getAccountAuthCacheKey } from "@/infrastructure/utils/account-auth-cache-key.utils.js";
 import { verifyToken } from "@/infrastructure/auth/clerk.client.js";
-import { redis } from "@/infrastructure/cache/redis.client.js";
+import {
+  cacheGet,
+  cacheSetEx,
+} from "@/infrastructure/cache/fail-open.cache.js";
 import { db } from "@/database/client.js";
 import { findAccountOnboardingState } from "@/modules/auth/repositories/auth.repository.js";
 
@@ -42,17 +45,25 @@ export const getBearerToken = (authorizationHeader: string | undefined) => {
   return token || null;
 };
 
+const parseCachedAccountAuth = (
+  value: string | null,
+): CachedAccountAuth | null => {
+  if (!value) return null;
+  try {
+    return JSON.parse(value) as CachedAccountAuth;
+  } catch {
+    return null;
+  }
+};
+
 const isAccountAvailable = async (
   requestedRole: "client" | "freelancer",
   userId: string,
 ): Promise<CachedAccountAuth> => {
   const cacheKey = getAccountAuthCacheKey(userId, requestedRole);
-  const cachedValue = await redis.get(cacheKey);
+  const cached = parseCachedAccountAuth(await cacheGet(cacheKey));
 
-  if (cachedValue) {
-    const cached = JSON.parse(cachedValue) as CachedAccountAuth;
-    if (cached.accountId !== undefined) return cached;
-  }
+  if (cached && cached.accountId !== undefined) return cached;
 
   const databaseRole = requestedRole === "client" ? "CLIENT" : "FREELANCER";
 
@@ -66,7 +77,7 @@ const isAccountAvailable = async (
     isOnboarded: account?.isOnboardingComplete === true,
   };
 
-  await redis.setEx(
+  await cacheSetEx(
     cacheKey,
     accountAuth.accountExists
       ? ACCOUNT_AUTH_CACHE_TTL_SECONDS
