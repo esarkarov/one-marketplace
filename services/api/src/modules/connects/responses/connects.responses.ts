@@ -28,5 +28,6 @@ export const connectsResponses = {
   checkout: {
     200: ok(z.strictObject({ url: z.string() })),
     403: ErrorBody,
+    404: ErrorBody,
   },
 };

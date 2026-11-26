@@ -268,6 +268,41 @@ describe("POST /connects/checkout", () => {
   });
 });
 
+describe("POST /connects/checkout without a freelancer profile", () => {
+  it("answers 404 PROFILE_NOT_FOUND and creates no Stripe customer or session", async () => {
+    const accountOnly = await insertAccount("FREELANCER");
+    const response = await request(app)
+      .post(`${API}/checkout`)
+      .query({ role: "freelancer" })
+      .set(as(accountOnly))
+      .send({ connects: 20 });
+    expect(response.status).toBe(404);
+    expect(response.body).toMatchObject({
+      success: false,
+      code: "PROFILE_NOT_FOUND",
+      message: "Freelancer profile has not been completed.",
+    });
+    expect(mocks.customersCreate).not.toHaveBeenCalled();
+    expect(mocks.sessionsCreate).not.toHaveBeenCalled();
+    const stored = await pool.query(
+      "select stripe_customer_id from accounts where auth_id = $1",
+      [accountOnly],
+    );
+    expect(stored.rows[0].stripe_customer_id).toBeNull();
+  });
+
+  it("still creates a session once the profile row exists", async () => {
+    const freelancerId = await seedFreelancer();
+    const response = await request(app)
+      .post(`${API}/checkout`)
+      .query({ role: "freelancer" })
+      .set(as(freelancerId))
+      .send({ connects: 20 });
+    expect(response.status).toBe(200);
+    expect(mocks.sessionsCreate).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("connects checkout account write", () => {
   const OLD = new Date("2000-01-01T00:00:00.000Z");
 

@@ -1,6 +1,7 @@
 import { and, desc, eq, gte, sql } from "drizzle-orm";
 import type { DbExecutor } from "@/database/database.types.js";
 import { accounts } from "@/modules/auth/models/auth.model.js";
+import { freelancer_metadata } from "@/modules/freelancer/models/freelancer.model.js";
 import {
   connects,
   connects_history,
@@ -169,6 +170,18 @@ export const findCheckoutAccount = async (
     .where(eq(accounts.auth_id, authId))
     .limit(1);
   return account;
+};
+
+export const findFreelancerProfileAuthId = async (
+  executor: DbExecutor,
+  authId: string,
+) => {
+  const [profile] = await executor
+    .select({ authId: freelancer_metadata.auth_id })
+    .from(freelancer_metadata)
+    .where(eq(freelancer_metadata.auth_id, authId))
+    .limit(1);
+  return profile ?? null;
 };
 
 export const insertFreelancerPurchaseIfNew = async (

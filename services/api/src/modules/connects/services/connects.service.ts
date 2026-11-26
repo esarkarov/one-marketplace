@@ -20,6 +20,7 @@ import {
   findAgencyConnectsBalance,
   findAgencyConnectsHistory,
   findCheckoutAccount,
+  findFreelancerProfileAuthId,
   findFreelancerConnectsHistory,
   insertAgencyConnectsIfAbsent,
   insertAgencyPurchaseIfNew,
@@ -155,6 +156,14 @@ export const createConnectsCheckout = async (
   const account = await findCheckoutAccount(db, freelancerId);
 
   if (!account) throw new ApiError(404, "Freelancer account not found.");
+
+  if (!(await findFreelancerProfileAuthId(db, freelancerId))) {
+    throw new ApiError(
+      404,
+      "Freelancer profile has not been completed.",
+      "PROFILE_NOT_FOUND",
+    );
+  }
 
   let customerId = account.stripe_customer_id;
 
