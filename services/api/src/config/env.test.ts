@@ -190,6 +190,42 @@ describe("parseEnv", () => {
     });
   });
 
+  describe("telemetry", () => {
+    it.each(["off", "console", "otlp"] as const)("accepts mode %s", (value) => {
+      expect(parseEnv({ ...base, TELEMETRY_MODE: value }).telemetryMode).toBe(
+        value,
+      );
+    });
+
+    it("defaults to off with the local collector and the api service name", () => {
+      const parsed = parseEnv({ ...base, TELEMETRY_MODE: "" });
+
+      expect(parsed.telemetryMode).toBe("off");
+      expect(parsed.otlpEndpoint).toBe("http://127.0.0.1:4318");
+      expect(parsed.telemetryServiceName).toBe("onemarketplace-api");
+    });
+
+    it.each(["ON", "true", "grpc"])("rejects mode %s", (value) => {
+      expect(errorOf({ ...base, TELEMETRY_MODE: value })).toContain(
+        "- TELEMETRY_MODE: must be one of off, console, otlp",
+      );
+    });
+
+    it("rejects a non-http collector endpoint", () => {
+      expect(
+        errorOf({ ...base, OTEL_EXPORTER_OTLP_ENDPOINT: "grpc://collector" }),
+      ).toContain(
+        "- OTEL_EXPORTER_OTLP_ENDPOINT: must be an http:// or https:// URL",
+      );
+    });
+
+    it("rejects a service name with spaces", () => {
+      expect(
+        errorOf({ ...base, TELEMETRY_SERVICE_NAME: "one marketplace" }),
+      ).toContain("- TELEMETRY_SERVICE_NAME:");
+    });
+  });
+
   describe("ORPHAN_PAYMENT_DETECTION_MODE", () => {
     it.each(["off", "detect"] as const)("accepts %s", (value) => {
       expect(

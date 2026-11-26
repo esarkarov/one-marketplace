@@ -11,6 +11,7 @@ const SERVICE_FOLDERS = [
   "events",
   "payments",
   "storage",
+  "telemetry",
   "video",
 ];
 

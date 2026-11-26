@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { trace } from "@opentelemetry/api";
 import type { RequestHandler } from "express";
 
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9._-]{1,64}$/;
@@ -16,5 +17,6 @@ export const requestIdMiddleware: RequestHandler = (
 
   request.requestId = requestId;
   response.setHeader("x-request-id", requestId);
+  trace.getActiveSpan()?.setAttribute("app.request_id", requestId);
   next();
 };

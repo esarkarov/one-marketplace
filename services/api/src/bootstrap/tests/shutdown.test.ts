@@ -8,6 +8,7 @@ const hoisted = vi.hoisted(() => ({
   waitForPayoutRun: vi.fn(),
   waitForRefundRun: vi.fn(),
   poolEnd: vi.fn(),
+  shutdownTelemetry: vi.fn(),
   warn: vi.fn(),
   server: {
     current: undefined as
@@ -48,6 +49,9 @@ vi.mock("@/infrastructure/events/notification.monitor.js", () => ({
   stopDeadLetterMonitor: () => {
     hoisted.rabbitOrder.push("stop-monitor");
   },
+}));
+vi.mock("@/infrastructure/telemetry/sdk.js", () => ({
+  shutdownTelemetry: hoisted.shutdownTelemetry,
 }));
 vi.mock("@/modules/notifications/notifications.consumer.js", () => ({
   stopNotificationConsumer: async () => {
@@ -92,6 +96,7 @@ describe("shutdown payout drain", () => {
     hoisted.poolEnd.mockReset().mockImplementation(async () => {
       hoisted.order.push("pool-end");
     });
+    hoisted.shutdownTelemetry.mockReset().mockResolvedValue(undefined);
     exit = vi
       .spyOn(process, "exit")
       .mockImplementation((() => undefined) as never);
@@ -235,6 +240,22 @@ describe("shutdown payout drain", () => {
       "stop-refund-cron",
       "pool-end",
     ]);
+    expect(exit).toHaveBeenCalledWith(0);
+  });
+
+  it("flushes telemetry after the pool closes and before the process exits", async () => {
+    const seen: { poolEnded: boolean; exited: boolean }[] = [];
+    hoisted.shutdownTelemetry.mockImplementation(async () => {
+      seen.push({
+        poolEnded: hoisted.order.includes("pool-end"),
+        exited: exit.mock.calls.length > 0,
+      });
+    });
+    const { shutdown } = await import("@/bootstrap/shutdown.js");
+
+    await shutdown("SIGTERM");
+
+    expect(seen).toEqual([{ poolEnded: true, exited: false }]);
     expect(exit).toHaveBeenCalledWith(0);
   });
 

@@ -1,3 +1,4 @@
+import { isSpanContextValid, trace } from "@opentelemetry/api";
 import pino from "pino";
 import type { DestinationStream } from "pino";
 import { env } from "./env.js";
@@ -12,6 +13,38 @@ interface LogPayload {
 }
 
 type LogMethod = (payload: LogPayload) => Promise<void>;
+
+type LogLevel = "trace" | "debug" | "info" | "warn" | "error" | "fatal";
+
+export interface LogEvent {
+  eventName: string;
+  level: LogLevel;
+}
+
+export type LogEventListener = (event: LogEvent) => void;
+
+let logEventListener: LogEventListener | null = null;
+
+export const registerLogEventListener = (
+  listener: LogEventListener | null,
+): void => {
+  logEventListener = listener;
+};
+
+const notifyLogEvent = (eventName: string | undefined, level: LogLevel) => {
+  if (!logEventListener || !eventName) return;
+  try {
+    logEventListener({ eventName, level });
+  } catch {
+    return;
+  }
+};
+
+export const traceContextMixin = (): Record<string, string> => {
+  const context = trace.getActiveSpan()?.spanContext();
+  if (!context || !isSpanContextValid(context)) return {};
+  return { trace_id: context.traceId, span_id: context.spanId };
+};
 
 export interface AppLogger {
   trace: LogMethod;
@@ -35,6 +68,7 @@ export const createRootLogger = (
 ) => {
   const options: pino.LoggerOptions = {
     level,
+    mixin: traceContextMixin,
     redact: {
       paths: [
         "req.headers.authorization",
@@ -50,9 +84,7 @@ export const createRootLogger = (
 
 export const createAppLogger = (base: pino.Logger): AppLogger => {
   const write =
-    (
-      level: "trace" | "debug" | "info" | "warn" | "error" | "fatal",
-    ): LogMethod =>
+    (level: LogLevel): LogMethod =>
     ({ message, eventName, attributes }) => {
       const safeAttributes = attributes
         ? Object.fromEntries(
@@ -66,6 +98,7 @@ export const createAppLogger = (base: pino.Logger): AppLogger => {
         { eventName, attributes: safeAttributes },
         sanitizeForLog(message),
       );
+      notifyLogEvent(eventName, level);
       return Promise.resolve();
     };
 

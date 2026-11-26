@@ -3,6 +3,7 @@ import { pool } from "@/database/client.js";
 import { disconnectRedis } from "@/infrastructure/cache/redis.client.js";
 import { stopDeadLetterMonitor } from "@/infrastructure/events/notification.monitor.js";
 import { closeRabbit } from "@/infrastructure/events/rabbitmq.client.js";
+import { shutdownTelemetry } from "@/infrastructure/telemetry/sdk.js";
 import {
   stopOrphanPaymentDetectionCron,
   stopRefundReconciliationCron,
@@ -209,6 +210,7 @@ export const shutdown = async (reason: ShutdownReason): Promise<void> => {
   await runStep("rabbitmq", () => closeRabbit(SHUTDOWN_TIMEOUT_MS));
   await runStep("redis", disconnectRedis);
   await runStep("database pool", () => pool.end());
+  await runStep("telemetry", () => shutdownTelemetry());
 
   clearTimeout(forceExitTimer);
   await exitWithFlush(failed || crashed ? 1 : 0);

@@ -104,6 +104,32 @@ const optionalFeatures = z.object({
       .enum(["off", "detect"], { error: "must be one of off, detect" })
       .default("detect"),
   ),
+  TELEMETRY_MODE: z.preprocess(
+    emptyToUndefined,
+    z
+      .enum(["off", "console", "otlp"], {
+        error: "must be one of off, console, otlp",
+      })
+      .default("off"),
+  ),
+  OTEL_EXPORTER_OTLP_ENDPOINT: z.preprocess(
+    emptyToUndefined,
+    z
+      .string({ error: "must be a string" })
+      .regex(/^https?:\/\//, "must be an http:// or https:// URL")
+      .refine((value) => URL.canParse(value), "must be a valid URL")
+      .default("http://127.0.0.1:4318"),
+  ),
+  TELEMETRY_SERVICE_NAME: z.preprocess(
+    emptyToUndefined,
+    z
+      .string({ error: "must be a string" })
+      .regex(
+        /^[A-Za-z0-9._-]{1,64}$/,
+        "must be 1 to 64 letters, digits, dots, underscores or dashes",
+      )
+      .default("onemarketplace-api"),
+  ),
   CLERK_SECRET_KEY: optionalString,
   IMAGEKIT_PRIVATE_KEY: optionalString,
   STRIPE_SECRET_KEY: optionalString,
@@ -239,6 +265,9 @@ export const parseEnv = (source: Source) => {
     rabbitmqUrl: o.RABBITMQ_URL,
     refundReconciliationMode: o.REFUND_RECONCILIATION_MODE,
     orphanPaymentDetectionMode: o.ORPHAN_PAYMENT_DETECTION_MODE,
+    telemetryMode: o.TELEMETRY_MODE,
+    otlpEndpoint: o.OTEL_EXPORTER_OTLP_ENDPOINT,
+    telemetryServiceName: o.TELEMETRY_SERVICE_NAME,
     clerkSecretKey: o.CLERK_SECRET_KEY,
     imageKitPrivateKey: o.IMAGEKIT_PRIVATE_KEY,
     stripeSecretKey: o.STRIPE_SECRET_KEY,

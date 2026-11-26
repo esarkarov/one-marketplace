@@ -16,6 +16,11 @@ import {
   startDeadLetterMonitor,
   stopDeadLetterMonitor,
 } from "@/infrastructure/events/notification.monitor.js";
+import {
+  registerEventLoopGauge,
+  registerPoolGauges,
+} from "@/infrastructure/telemetry/gauges.js";
+import { pool } from "@/database/client.js";
 import { pingDatabase } from "@/modules/health/index.js";
 import { registerNotificationsPush } from "@/modules/notifications/services/notifications.push.service.js";
 import { startNotificationConsumer } from "@/modules/notifications/notifications.consumer.js";
@@ -58,6 +63,10 @@ export const start = async (): Promise<void> => {
   if (isRabbitEnabled()) {
     await startNotificationConsumer();
     startDeadLetterMonitor();
+  }
+  if (env.telemetryMode !== "off") {
+    registerPoolGauges(pool);
+    registerEventLoopGauge();
   }
   initializeMessagingSocket(server);
   startPayoutCron();
