@@ -168,10 +168,19 @@ export const insertPendingPayoutsForDueEarnings = async (
   `);
 };
 
-export const findClaimableCandidates = (executor: DbExecutor) =>
+export interface CandidateCursor {
+  createdAt: string;
+  id: string;
+}
+
+export const findClaimableCandidates = (
+  executor: DbExecutor,
+  options: { limit: number; after?: CandidateCursor },
+) =>
   executor
     .select({
       id: payout_history.id,
+      createdAt: sql<string>`${payout_history.created_at}::text`,
       earningHistoryId: payout_history.earning_history_id,
       amountCents: payout_history.amount_cents,
       status: payout_history.status,
@@ -192,9 +201,13 @@ export const findClaimableCandidates = (executor: DbExecutor) =>
           WHERE e.id = ${payout_history.earning_history_id}
             AND c.status = 'CANCELLED'
         )`,
+        options.after
+          ? sql`(${payout_history.created_at}, ${payout_history.id}) > (${options.after.createdAt}::timestamptz, ${options.after.id}::uuid)`
+          : undefined,
       ),
     )
-    .orderBy(asc(payout_history.created_at));
+    .orderBy(asc(payout_history.created_at), asc(payout_history.id))
+    .limit(options.limit);
 
 export const failProcessingPayoutIfAttemptsMatch = (
   executor: DbExecutor,

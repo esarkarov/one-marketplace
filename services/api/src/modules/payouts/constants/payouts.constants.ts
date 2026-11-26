@@ -1,3 +1,6 @@
 export const EARNINGS_HOLD_PERIOD_DAYS = 5;
 export const EARNINGS_HOLD_PERIOD_MS =
   EARNINGS_HOLD_PERIOD_DAYS * 24 * 60 * 60 * 1000;
+export const PAYOUT_BATCH_SIZE = 50;
+export const PAYOUT_MAX_PER_TICK = 500;
+export const PAYOUT_TICK_BUDGET_MS = 45 * 60_000;

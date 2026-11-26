@@ -109,7 +109,11 @@ import {
   PayoutTransitionError,
   type PayoutStatus,
 } from "@/modules/payouts/utils/payouts.state.js";
-import { transitionPayoutIfAllowed } from "@/modules/payouts/repositories/payouts.repository.js";
+import {
+  findClaimableCandidates,
+  transitionPayoutIfAllowed,
+} from "@/modules/payouts/repositories/payouts.repository.js";
+import { PAYOUT_BATCH_SIZE } from "@/modules/payouts/constants/payouts.constants.js";
 import { processDuePayouts } from "@/modules/payouts/services/payouts.service.js";
 
 interface LogEntry {
@@ -1319,6 +1323,97 @@ describe("payout flow against real Postgres", () => {
         last_error: "destination_changed",
         next_retry_at: null,
       });
+    });
+  });
+
+  describe("bounded candidate scan", () => {
+    const OLD = "2001-02-03 04:05:06.123456+00";
+
+    const setCreatedAt = (ids: string[], timestamp: string) =>
+      pool.query(
+        "update payout_history set created_at = $1::timestamptz where id = any($2::uuid[])",
+        [timestamp, ids],
+      );
+
+    const createPayouts = async (count: number) =>
+      Promise.all(
+        Array.from({ length: count }, () => data.createPayoutFixture()),
+      );
+
+    it("orders equal created_at by id and pages through them one by one without repeats or gaps", async () => {
+      const fixtures = await createPayouts(6);
+      const ids = fixtures.map((fixture) => fixture.payoutId!);
+      await setCreatedAt(ids, OLD);
+      const sorted = [...ids].sort();
+
+      const page = await findClaimableCandidates(db, { limit: 6 });
+      expect(page.map((row) => row.id)).toEqual(sorted);
+
+      const seen: string[] = [];
+      let after: { createdAt: string; id: string } | undefined;
+      for (let index = 0; index < 6; index += 1) {
+        const [row] = await findClaimableCandidates(db, { limit: 1, after });
+        seen.push(row!.id);
+        after = { createdAt: row!.createdAt, id: row!.id };
+      }
+      expect(seen).toEqual(sorted);
+    });
+
+    it("returns only rows after the cursor", async () => {
+      const fixtures = await createPayouts(3);
+      const ids = fixtures.map((fixture) => fixture.payoutId!);
+      await setCreatedAt([ids[0]!], "2001-02-03 04:05:06.000001+00");
+      await setCreatedAt([ids[1]!], "2001-02-03 04:05:06.000002+00");
+      await setCreatedAt([ids[2]!], "2001-02-03 04:05:06.000003+00");
+
+      const [first] = await findClaimableCandidates(db, { limit: 1 });
+      expect(first!.id).toBe(ids[0]);
+
+      const rest = await findClaimableCandidates(db, {
+        limit: 50,
+        after: { createdAt: first!.createdAt, id: first!.id },
+      });
+      const restIds = rest.map((row) => row.id);
+      expect(restIds).not.toContain(ids[0]);
+      expect(restIds.slice(0, 2)).toEqual([ids[1], ids[2]]);
+    });
+
+    it("still excludes payouts of cancelled contracts", async () => {
+      const cancelled = await data.createPayoutFixture({
+        earning: { contractStatus: "CANCELLED" },
+      });
+      const open = await data.createPayoutFixture();
+      await setCreatedAt([cancelled.payoutId!, open.payoutId!], OLD);
+
+      const page = await findClaimableCandidates(db, { limit: 50 });
+      const pageIds = page.map((row) => row.id);
+
+      expect(pageIds).toContain(open.payoutId);
+      expect(pageIds).not.toContain(cancelled.payoutId);
+    });
+
+    it("pays a newer payout behind more than one batch of permanently skipped older rows", async () => {
+      const blocked = await createPayouts(PAYOUT_BATCH_SIZE + 5);
+      for (const fixture of blocked) {
+        accountBehaviour.set(fixture.connectAccountId!, "restricted");
+      }
+      await setCreatedAt(
+        blocked.map((fixture) => fixture.payoutId!),
+        OLD,
+      );
+      const payable = await data.createPayoutFixture();
+      const id = payable.payoutId!;
+
+      const summary = await processDuePayouts();
+
+      expect(summary.stoppedEarly).toBeNull();
+      expect(summary.skipped).toBeGreaterThanOrEqual(PAYOUT_BATCH_SIZE + 5);
+      expect(createCallsFor(id)).toHaveLength(1);
+      expect((await readPayout(id))!.status).toBe("PAID");
+      for (const fixture of blocked) {
+        expect(stripeCallCount(fixture.payoutId!)).toBe(0);
+        expect((await readPayout(fixture.payoutId!))!.status).toBe("PENDING");
+      }
     });
   });
 

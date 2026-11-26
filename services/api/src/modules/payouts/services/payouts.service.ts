@@ -1,4 +1,9 @@
-import { EARNINGS_HOLD_PERIOD_MS } from "@/modules/payouts/constants/payouts.constants.js";
+import {
+  EARNINGS_HOLD_PERIOD_MS,
+  PAYOUT_BATCH_SIZE,
+  PAYOUT_MAX_PER_TICK,
+  PAYOUT_TICK_BUDGET_MS,
+} from "@/modules/payouts/constants/payouts.constants.js";
 import { stripe } from "@/infrastructure/payments/stripe.client.js";
 import { db } from "@/database/client.js";
 import {
@@ -26,22 +31,27 @@ import {
   markPayoutNotifiedIfUnnotified,
   markProcessingPayoutPaidIfAttemptsMatch,
   parkProcessingPayoutIfAttemptsMatch,
+  type CandidateCursor,
   type PayoutRecord,
 } from "@/modules/payouts/repositories/payouts.repository.js";
 
 const TRANSFER_LIST_LIMIT = 10;
+
+type StoppedEarly = "budget" | "cap" | null;
 
 interface PayoutRunSummary {
   checked: number;
   paid: number;
   skipped: number;
   failed: number;
+  stoppedEarly: StoppedEarly;
 }
 
 type Outcome = "paid" | "skipped" | "failed";
 
 interface Candidate {
   id: string;
+  createdAt: string;
   earningHistoryId: string;
   amountCents: number;
   status: string;
@@ -151,18 +161,23 @@ const createDueRows = async (): Promise<void> => {
   await insertPendingPayoutsForDueEarnings(db, cutoff);
 };
 
-const selectCandidates = async (): Promise<Candidate[]> =>
-  (await findClaimableCandidates(db)).map((row) => ({
-    id: row.id,
-    earningHistoryId: row.earningHistoryId,
-    amountCents: row.amountCents,
-    status: row.status,
-    freelancerId: row.freelancerId,
-    agencyId: row.agencyId,
-    stripeConnectAccountId: row.freelancerId
-      ? row.freelancerAccountId
-      : row.agencyAccountId,
-  }));
+const selectCandidates = async (
+  after: CandidateCursor | undefined,
+): Promise<Candidate[]> =>
+  (await findClaimableCandidates(db, { limit: PAYOUT_BATCH_SIZE, after })).map(
+    (row) => ({
+      id: row.id,
+      createdAt: row.createdAt,
+      earningHistoryId: row.earningHistoryId,
+      amountCents: row.amountCents,
+      status: row.status,
+      freelancerId: row.freelancerId,
+      agencyId: row.agencyId,
+      stripeConnectAccountId: row.freelancerId
+        ? row.freelancerAccountId
+        : row.agencyAccountId,
+    }),
+  );
 
 const isTransfersActive = async (
   candidate: Candidate,
@@ -463,31 +478,73 @@ const processCandidate = async (candidate: Candidate): Promise<Outcome> => {
   return "paid";
 };
 
-export const processDuePayouts = async (): Promise<PayoutRunSummary> => {
+const runStep = async <T>(step: () => Promise<T>): Promise<T> => {
   try {
-    await sweepUnnotified();
+    return await step();
   } catch (error) {
     await logger.error({
-      message: "Payout notification sweep failed",
-      eventName: "payment.payout.notification_failed",
+      message: "Payout run failed",
+      eventName: "payout.run.failed",
       attributes: { ...errorIdentity(error) },
     });
+    throw error;
   }
-  await createDueRows();
-  const candidates = await selectCandidates();
+};
 
-  let paid = 0;
-  let skipped = 0;
-  let failed = 0;
+const stopReason = (startedAt: number, processed: number): StoppedEarly => {
+  if (Date.now() - startedAt >= PAYOUT_TICK_BUDGET_MS) return "budget";
+  if (processed >= PAYOUT_MAX_PER_TICK) return "cap";
+  return null;
+};
 
+const logStop = async (
+  reason: Exclude<StoppedEarly, null>,
+  processed: number,
+): Promise<void> => {
+  if (reason === "budget") {
+    await logger.warn({
+      message: "Payout run stopped at the time budget",
+      eventName: "payout.run.budget_exhausted",
+      attributes: { "payout.processed": processed },
+    });
+    return;
+  }
+  await logger.warn({
+    message: "Payout run stopped at the per-tick cap",
+    eventName: "payout.run.capped",
+    attributes: {
+      "payout.processed": processed,
+      "payout.cap": PAYOUT_MAX_PER_TICK,
+    },
+  });
+};
+
+interface RunTally {
+  processed: number;
+  paid: number;
+  skipped: number;
+  failed: number;
+}
+
+const processBatch = async (
+  candidates: Candidate[],
+  startedAt: number,
+  tally: RunTally,
+): Promise<StoppedEarly> => {
   for (const candidate of candidates) {
+    const reason = stopReason(startedAt, tally.processed);
+    if (reason) {
+      await logStop(reason, tally.processed);
+      return reason;
+    }
+    tally.processed += 1;
     try {
       const outcome = await processCandidate(candidate);
-      if (outcome === "paid") paid += 1;
-      else if (outcome === "failed") failed += 1;
-      else skipped += 1;
+      if (outcome === "paid") tally.paid += 1;
+      else if (outcome === "failed") tally.failed += 1;
+      else tally.skipped += 1;
     } catch (error) {
-      failed += 1;
+      tally.failed += 1;
       await logger.error({
         message: "Payout processing error",
         eventName: "payout.failed",
@@ -500,12 +557,41 @@ export const processDuePayouts = async (): Promise<PayoutRunSummary> => {
       });
     }
   }
+  return null;
+};
+
+export const processDuePayouts = async (): Promise<PayoutRunSummary> => {
+  const startedAt = Date.now();
+  try {
+    await sweepUnnotified();
+  } catch (error) {
+    await logger.error({
+      message: "Payout notification sweep failed",
+      eventName: "payment.payout.notification_failed",
+      attributes: { ...errorIdentity(error) },
+    });
+  }
+  await runStep(createDueRows);
+
+  const tally: RunTally = { processed: 0, paid: 0, skipped: 0, failed: 0 };
+  let stoppedEarly: StoppedEarly = null;
+  let cursor: CandidateCursor | undefined;
+
+  while (stoppedEarly === null) {
+    const after = cursor;
+    const candidates = await runStep(() => selectCandidates(after));
+    const last = candidates.at(-1);
+    if (!last) break;
+    stoppedEarly = await processBatch(candidates, startedAt, tally);
+    cursor = { createdAt: last.createdAt, id: last.id };
+  }
 
   const summary: PayoutRunSummary = {
-    checked: candidates.length,
-    paid,
-    skipped,
-    failed,
+    checked: tally.processed,
+    paid: tally.paid,
+    skipped: tally.skipped,
+    failed: tally.failed,
+    stoppedEarly,
   };
   await logger.info({
     message: "Payout run complete",
@@ -515,6 +601,7 @@ export const processDuePayouts = async (): Promise<PayoutRunSummary> => {
       "payout.paid": summary.paid,
       "payout.skipped": summary.skipped,
       "payout.failed": summary.failed,
+      "payout.stopped_early": summary.stoppedEarly ?? "none",
     },
   });
 
