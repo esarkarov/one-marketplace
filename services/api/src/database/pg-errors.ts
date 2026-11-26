@@ -1,5 +1,6 @@
-export const isUniqueViolation = (
+const hasConstraintViolation = (
   error: unknown,
+  sqlState: string,
   constraintName: string,
 ): boolean => {
   for (
@@ -11,7 +12,17 @@ export const isUniqueViolation = (
       code?: unknown;
       constraint?: unknown;
     };
-    if (code === "23505" && constraint === constraintName) return true;
+    if (code === sqlState && constraint === constraintName) return true;
   }
   return false;
 };
+
+export const isForeignKeyViolation = (
+  error: unknown,
+  constraintName: string,
+): boolean => hasConstraintViolation(error, "23503", constraintName);
+
+export const isUniqueViolation = (
+  error: unknown,
+  constraintName: string,
+): boolean => hasConstraintViolation(error, "23505", constraintName);

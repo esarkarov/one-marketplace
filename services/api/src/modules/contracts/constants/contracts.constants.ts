@@ -1,3 +1,5 @@
+import { STRIPE_PERMANENT_REFUND_ERROR_CODES } from "@/infrastructure/constants/payments.constants.js";
+
 export const CONTRACT_LIMITS = {
   milestoneRequirementsMax: 500,
   milestoneTitleMin: 3,
@@ -29,11 +31,7 @@ export const REFUND_RECONCILIATION = {
   originalKeyWindowMs: 23 * HOUR_MS,
   maxConsecutiveUnavailable: 3,
   lastErrorMaxLength: 200,
-  permanentErrorCodes: [
-    "charge_not_refundable",
-    "refund_disputed_payment",
-    "resource_missing",
-  ],
+  permanentErrorCodes: STRIPE_PERMANENT_REFUND_ERROR_CODES,
 } as const;
 
 export const ORPHAN_PAYMENT_DETECTION = {

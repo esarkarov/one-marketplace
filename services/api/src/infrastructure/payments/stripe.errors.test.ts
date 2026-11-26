@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { REFUND_RECONCILIATION } from "@/modules/contracts/constants/contracts.constants.js";
+import { STRIPE_PERMANENT_REFUND_ERROR_CODES } from "@/infrastructure/constants/payments.constants.js";
 import {
   isPermanentRefundCode,
   isStripeUnavailable,
   stripeErrorFields,
-} from "@/modules/contracts/utils/contracts.stripe-errors.js";
+} from "./stripe.errors.js";
 
 describe("isPermanentRefundCode", () => {
-  it.each(REFUND_RECONCILIATION.permanentErrorCodes)(
+  it.each(STRIPE_PERMANENT_REFUND_ERROR_CODES)(
     "treats %s as permanent",
     (code) => {
       expect(isPermanentRefundCode(code)).toBe(true);
@@ -15,7 +15,7 @@ describe("isPermanentRefundCode", () => {
   );
 
   it("lists exactly the three reconciliation codes", () => {
-    expect([...REFUND_RECONCILIATION.permanentErrorCodes]).toEqual([
+    expect([...STRIPE_PERMANENT_REFUND_ERROR_CODES]).toEqual([
       "charge_not_refundable",
       "refund_disputed_payment",
       "resource_missing",

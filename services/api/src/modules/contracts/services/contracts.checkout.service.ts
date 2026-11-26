@@ -1,6 +1,15 @@
 import type Stripe from "stripe";
 import { env } from "@/config/env.js";
 import { stripe } from "@/infrastructure/payments/stripe.client.js";
+import {
+  isPermanentRefundCode,
+  stripeErrorFields,
+} from "@/infrastructure/payments/stripe.errors.js";
+import {
+  paymentIntentIdOf,
+  refundTarget,
+  type RefundReason,
+} from "@/infrastructure/payments/stripe.refunds.js";
 import { db } from "@/database/client.js";
 import { logger } from "@/config/logger.js";
 import { setStripeCustomerId } from "@/modules/auth/index.js";
@@ -19,10 +28,6 @@ import {
   findProposalOfferForCheckout,
 } from "@/modules/contracts/repositories/contracts.repository.js";
 import { markMilestoneFundedIfPending } from "@/modules/contracts/repositories/contracts.state.repository.js";
-import {
-  isPermanentRefundCode,
-  stripeErrorFields,
-} from "@/modules/contracts/utils/contracts.stripe-errors.js";
 import {
   insertContractNotice,
   pushContractNotice,
@@ -43,37 +48,9 @@ export type UnfulfillableReason =
   | "amount_mismatch"
   | "milestone_not_fundable";
 
-type RefundReason = "duplicate" | "requested_by_customer";
-
-const paymentIntentIdOf = (session: Stripe.Checkout.Session) =>
-  typeof session.payment_intent === "string"
-    ? session.payment_intent
-    : session.payment_intent?.id;
-
-const isChargeAlreadyRefunded = (error: unknown) =>
-  typeof error === "object" &&
-  error !== null &&
-  "code" in error &&
-  error.code === "charge_already_refunded";
-
-interface RefundTarget {
-  checkoutSessionId: string | null;
-  paymentIntentId: string;
-  amountCents: number | null;
-}
-
-class RefundNotCompletedError extends Error {
-  override name = "RefundNotCompletedError";
-}
-
 class PaymentIntentUnavailableError extends Error {
   override name = "PaymentIntentUnavailableError";
 }
-
-const UNSETTLED_REFUND_STATUSES = new Set<string | null>([
-  "failed",
-  "canceled",
-]);
 
 const resolveWebhookPaymentIntentId = async (
   session: Stripe.Checkout.Session,
@@ -130,55 +107,6 @@ const issueRefund = async (
       },
     });
   }
-};
-
-const refundTarget = async (
-  target: RefundTarget,
-  reason: RefundReason,
-  cause: string,
-  options: { rejectUnsettled?: boolean; keySuffix?: string } = {},
-): Promise<Stripe.Response<Stripe.Refund> | null> => {
-  const { paymentIntentId } = target;
-  const attributes = {
-    "stripe.checkout_session_id": target.checkoutSessionId,
-    "stripe.payment_intent_id": paymentIntentId,
-    "payment.refund_cause": cause,
-    "payment.amount_cents": target.amountCents,
-  };
-
-  let refund: Stripe.Response<Stripe.Refund>;
-  try {
-    refund = await stripe.refunds.create(
-      { payment_intent: paymentIntentId, reason },
-      {
-        idempotencyKey: `refund:${paymentIntentId}:${reason}${options.keySuffix ?? ""}`,
-      },
-    );
-    if (
-      options.rejectUnsettled &&
-      UNSETTLED_REFUND_STATUSES.has(refund.status)
-    ) {
-      throw new RefundNotCompletedError(`Refund ${refund.status}.`);
-    }
-  } catch (error) {
-    if (isChargeAlreadyRefunded(error)) return null;
-    await logger.error({
-      message: "Payment refund failed.",
-      eventName: "payment.refund.failed",
-      attributes: {
-        ...attributes,
-        "error.name": error instanceof Error ? error.name : "UnknownError",
-      },
-    });
-    throw error;
-  }
-
-  await logger.warn({
-    message: "Payment refunded.",
-    eventName: "payment.refunded",
-    attributes,
-  });
-  return refund;
 };
 
 export const refundDuplicatePayment = (

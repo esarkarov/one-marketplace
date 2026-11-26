@@ -14,7 +14,7 @@ import {
   isPermanentRefundCode,
   isStripeUnavailable,
   stripeErrorFields,
-} from "@/modules/contracts/utils/contracts.stripe-errors.js";
+} from "@/infrastructure/payments/stripe.errors.js";
 import {
   refundContractFirstPayment,
   resolveContractPaymentIntentId,

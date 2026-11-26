@@ -184,6 +184,16 @@ export const findFreelancerProfileAuthId = async (
   return profile ?? null;
 };
 
+export const findPurchaseIdByPaymentId = (
+  executor: DbExecutor,
+  paymentId: string,
+) =>
+  executor
+    .select({ id: connects_purchase_history.id })
+    .from(connects_purchase_history)
+    .where(eq(connects_purchase_history.payment_id, paymentId))
+    .limit(1);
+
 export const insertFreelancerPurchaseIfNew = async (
   executor: DbExecutor,
   input: {

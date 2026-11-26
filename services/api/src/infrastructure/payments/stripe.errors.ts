@@ -1,4 +1,4 @@
-import { REFUND_RECONCILIATION } from "@/modules/contracts/constants/contracts.constants.js";
+import { STRIPE_PERMANENT_REFUND_ERROR_CODES } from "@/infrastructure/constants/payments.constants.js";
 
 export const stripeErrorFields = (error: unknown) => {
   if (typeof error !== "object" || error === null) return {};
@@ -31,6 +31,4 @@ export const isPermanentRefundCode = (
   code: string | undefined,
 ): code is string =>
   code !== undefined &&
-  (REFUND_RECONCILIATION.permanentErrorCodes as readonly string[]).includes(
-    code,
-  );
+  (STRIPE_PERMANENT_REFUND_ERROR_CODES as readonly string[]).includes(code);
