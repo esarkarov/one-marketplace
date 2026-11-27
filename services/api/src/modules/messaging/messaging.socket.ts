@@ -1,7 +1,10 @@
 import type { Server as HttpServer } from "node:http";
 import { Server } from "socket.io";
+import type { Socket } from "socket.io";
 import { socketCorsOptions } from "@/config/cors.js";
 import { db } from "@/database/client.js";
+import { logger } from "@/config/logger.js";
+import { errorLogAttributes } from "@/shared/logging/sanitize-log.js";
 import {
   listConversationIdsOfParticipant,
   listParticipantsOfConversations,
@@ -83,16 +86,32 @@ export const authenticateHandshake = async (auth: {
   return account;
 };
 
+export const authorizeSocket = async (
+  socket: Pick<Socket, "data" | "handshake">,
+  next: (error?: Error) => void,
+) => {
+  try {
+    socket.data.auth = await authenticateHandshake(socket.handshake.auth);
+    next();
+  } catch (error) {
+    if (error instanceof ApiError && error.statusCode < 500) {
+      next(new Error(error.message));
+      return;
+    }
+    await logger
+      .error({
+        message: "Socket handshake failed",
+        eventName: "messaging.socket.handshake_failed",
+        attributes: errorLogAttributes(error),
+      })
+      .catch(() => {});
+    next(new Error("Internal server error."));
+  }
+};
+
 export const initializeMessagingSocket = (server: HttpServer) => {
   io = new Server(server, { cors: socketCorsOptions });
-  io.use(async (socket, next) => {
-    try {
-      socket.data.auth = await authenticateHandshake(socket.handshake.auth);
-      next();
-    } catch (error) {
-      next(new Error(error instanceof Error ? error.message : "Unauthorized"));
-    }
-  });
+  io.use(authorizeSocket);
 
   io.on("connection", async (socket) => {
     const userId = socket.data.auth.userId as string;

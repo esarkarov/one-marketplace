@@ -9,6 +9,12 @@ import {
 } from "@/shared/logging/sanitize-log.js";
 
 const STACK_LIMIT = 2000;
+const INVALID_JSON_BODY_MESSAGE = "Invalid JSON body.";
+
+const isJsonParseFailure = (error: unknown): boolean =>
+  typeof error === "object" &&
+  error !== null &&
+  (error as { type?: unknown }).type === "entity.parse.failed";
 
 const stackWithoutMessage = (error: Error): string => {
   const stack = error.stack ?? "";
@@ -87,8 +93,11 @@ export const errorHandler: ErrorRequestHandler = (
     return;
   }
 
-  const message =
-    error instanceof Error ? error.message : "Request could not be processed.";
+  const message = isJsonParseFailure(error)
+    ? INVALID_JSON_BODY_MESSAGE
+    : error instanceof Error
+      ? error.message
+      : "Request could not be processed.";
 
   const code =
     error instanceof ApiError ? error.code : defaultErrorCode(statusCode);

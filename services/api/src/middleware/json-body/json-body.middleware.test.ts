@@ -1,6 +1,11 @@
 import express from "express";
 import request from "supertest";
 import { describe, expect, it } from "vitest";
+import { createRootLogger } from "@/config/logger.js";
+import { captureLogs } from "@/test/support/capture-logs.js";
+import { errorHandler } from "@/middleware/error/error.middleware.js";
+import { createHttpLogger } from "@/middleware/http-logger/http-logger.middleware.js";
+import { requestIdMiddleware } from "@/middleware/request-id/request-id.middleware.js";
 import { isLargeBodyRoute, jsonBody } from "./json-body.middleware.js";
 
 describe("isLargeBodyRoute", () => {
@@ -59,5 +64,55 @@ describe("jsonBody", () => {
       .send("{bad");
 
     expect(response.status).toBe(400);
+  });
+});
+
+describe("jsonBody parse failures", () => {
+  const secret = "test-secret-pw-7731";
+  const fragment = secret.slice(0, 8);
+  const buildApp = () => {
+    const { stream, output } = captureLogs();
+    const app = express();
+    app.use(requestIdMiddleware);
+    app.use(createHttpLogger(createRootLogger(stream, "trace")));
+    app.use(jsonBody);
+    app.post("/api/v1/auth/sign-up", (_req, res) => {
+      res.status(201).json({ ok: true });
+    });
+    app.use(errorHandler);
+    return { app, output };
+  };
+
+  it("answers a fixed message that repeats no part of a malformed body", async () => {
+    const { app, output } = buildApp();
+    const response = await request(app)
+      .post("/api/v1/auth/sign-up")
+      .set("Content-Type", "application/json")
+      .send(`{"password":${secret},"role":"client"}`);
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      success: false,
+      message: "Invalid JSON body.",
+      code: "BAD_REQUEST",
+      requestId: response.headers["x-request-id"],
+    });
+    expect(JSON.stringify(response.body)).not.toContain(fragment);
+    expect(JSON.stringify(response.body)).not.toContain("assword");
+    expect(output()).toContain(response.headers["x-request-id"] as string);
+    expect(output()).not.toContain(fragment);
+    expect(output()).not.toContain("assword");
+  });
+
+  it("keeps the 413 answer for a body over the limit", async () => {
+    const { app } = buildApp();
+    const response = await request(app)
+      .post("/api/v1/auth/sign-up")
+      .set("Content-Type", "application/json")
+      .send(JSON.stringify({ padding: "x".repeat(200 * 1024) }));
+
+    expect(response.status).toBe(413);
+    expect(response.body.message).not.toBe("Invalid JSON body.");
+    expect(response.body.code).toBe("PAYLOAD_TOO_LARGE");
   });
 });

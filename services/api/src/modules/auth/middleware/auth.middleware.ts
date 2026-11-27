@@ -88,6 +88,22 @@ const isAccountAvailable = async (
   return accountAuth;
 };
 
+const verifyClaims = async (token: string): Promise<AuthClaims> => {
+  try {
+    const claims = await verifyToken(token, {
+      secretKey: env.clerkSecretKey,
+      authorizedParties: allowedOrigins,
+    });
+
+    return {
+      userId: claims.sub,
+      sessionId: typeof claims.sid === "string" ? claims.sid : undefined,
+    };
+  } catch {
+    throw new ApiError(401, "Authentication token is invalid or expired.");
+  }
+};
+
 export const authenticateAccount = async (
   token: unknown,
   requestedRole: unknown,
@@ -102,19 +118,11 @@ export const authenticateAccount = async (
     throw new ApiError(503, "Authentication is not configured.");
   }
 
-  try {
-    const claims = await verifyToken(token, {
-      secretKey: env.clerkSecretKey,
-      authorizedParties: allowedOrigins,
-    });
-    return {
-      ...(await isAccountAvailable(requestedRole, claims.sub)),
-      sessionId: typeof claims.sid === "string" ? claims.sid : undefined,
-    };
-  } catch (error) {
-    if (error instanceof ApiError) throw error;
-    throw new ApiError(401, "Authentication token is invalid or expired.");
-  }
+  const claims = await verifyClaims(token);
+  return {
+    ...(await isAccountAvailable(requestedRole, claims.userId)),
+    sessionId: claims.sessionId,
+  };
 };
 
 const requireBearerToken = (request: Request) => {
@@ -135,22 +143,6 @@ const readRequestedRole = (request: Request): AccountRole => {
   }
 
   return requestedRole;
-};
-
-const verifyClaims = async (token: string): Promise<AuthClaims> => {
-  try {
-    const claims = await verifyToken(token, {
-      secretKey: env.clerkSecretKey,
-      authorizedParties: allowedOrigins,
-    });
-
-    return {
-      userId: claims.sub,
-      sessionId: typeof claims.sid === "string" ? claims.sid : undefined,
-    };
-  } catch {
-    throw new ApiError(401, "Authentication token is invalid or expired.");
-  }
 };
 
 const loadRequestAuth = async (
