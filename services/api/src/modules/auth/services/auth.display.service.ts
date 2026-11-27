@@ -95,7 +95,7 @@ export const syncAccountDisplay = async (
     try {
       await logFailure("sync_failed", error);
     } catch {
-      // logging must never break the caller
+      return stored;
     }
     return stored;
   }

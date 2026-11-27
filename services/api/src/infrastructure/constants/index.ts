@@ -63,12 +63,7 @@ export const REDIS_QUIT_TIMEOUT_MS = 2_000;
 export const CACHE_COMMAND_TIMEOUT_MS = 300;
 export const CACHE_DEGRADED_LOG_INTERVAL_MS = 60_000;
 
-export const STRIPE_PAYOUT_ELIGIBLE_COUNTRIES = new Set([
-  "US",
-  "GB",
-  "CA",
-  "CH",
-  // EEA: EU member states + Iceland, Liechtenstein, Norway
+export const EU_MEMBER_STATE_COUNTRY_CODES = [
   "AT",
   "BE",
   "BG",
@@ -96,7 +91,19 @@ export const STRIPE_PAYOUT_ELIGIBLE_COUNTRIES = new Set([
   "SI",
   "ES",
   "SE",
-  "IS",
-  "LI",
-  "NO",
+] as const;
+
+export const EEA_NON_EU_COUNTRY_CODES = ["IS", "LI", "NO"] as const;
+
+export const EEA_COUNTRY_CODES = [
+  ...EU_MEMBER_STATE_COUNTRY_CODES,
+  ...EEA_NON_EU_COUNTRY_CODES,
+] as const;
+
+export const STRIPE_PAYOUT_ELIGIBLE_COUNTRIES: ReadonlySet<string> = new Set([
+  "US",
+  "GB",
+  "CA",
+  "CH",
+  ...EEA_COUNTRY_CODES,
 ]);
