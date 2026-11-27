@@ -28,7 +28,7 @@ export type ShutdownReason =
   NodeJS.Signals | "uncaughtException" | "unhandledRejection" | "serverError";
 
 export const SHUTDOWN_TIMEOUT_MS = 10_000;
-const CONNECTION_GRACE_MS = 3_000;
+export const CONNECTION_GRACE_MS = 3_000;
 export const PAYOUT_DRAIN_TIMEOUT_MS =
   SHUTDOWN_TIMEOUT_MS - 2 * CONNECTION_GRACE_MS;
 

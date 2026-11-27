@@ -23,7 +23,10 @@ import {
 import { pool } from "@/database/client.js";
 import { pingDatabase } from "@/modules/health/index.js";
 import { registerNotificationsPush } from "@/modules/notifications/services/notifications.push.service.js";
-import { startNotificationConsumer } from "@/modules/notifications/notifications.consumer.js";
+import {
+  startNotificationConsumer,
+  stopNotificationConsumer,
+} from "@/modules/notifications/notifications.consumer.js";
 import { initializeMessagingSocket } from "@/modules/messaging/messaging.socket.js";
 import {
   startOrphanPaymentDetectionCron,
@@ -32,7 +35,11 @@ import {
 import { startPayoutCron } from "@/modules/payouts/payouts.cron.js";
 import { handleFatalError } from "./crash-handlers.js";
 import { setHttpServer } from "./http-server.js";
-import { exitWithFlush, SHUTDOWN_TIMEOUT_MS } from "./shutdown.js";
+import {
+  CONNECTION_GRACE_MS,
+  exitWithFlush,
+  SHUTDOWN_TIMEOUT_MS,
+} from "./shutdown.js";
 
 const listen = (server: Server): Promise<void> =>
   new Promise((resolve, reject) => {
@@ -82,6 +89,17 @@ export const start = async (): Promise<void> => {
   });
 };
 
+const settleWithin = (step: () => Promise<void>, timeoutMs: number) => {
+  let timer: NodeJS.Timeout | undefined;
+  return Promise.race([
+    step().catch(() => undefined),
+    new Promise<void>((resolve) => {
+      timer = setTimeout(resolve, timeoutMs);
+      timer.unref();
+    }),
+  ]).finally(() => clearTimeout(timer));
+};
+
 export const handleStartupFailure = async (error: unknown): Promise<void> => {
   await logger.fatal({
     message: `Failed to start ${SERVICE_NAME}`,
@@ -92,6 +110,10 @@ export const handleStartupFailure = async (error: unknown): Promise<void> => {
     },
   });
   await disconnectRedis().catch(() => undefined);
+  await settleWithin(
+    () => stopNotificationConsumer(CONNECTION_GRACE_MS),
+    2 * CONNECTION_GRACE_MS,
+  );
   await stopDeadLetterMonitor().catch(() => undefined);
   await closeRabbit(SHUTDOWN_TIMEOUT_MS).catch(() => undefined);
   await exitWithFlush(1);

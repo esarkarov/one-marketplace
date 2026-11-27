@@ -7,6 +7,7 @@ const hoisted = vi.hoisted(() => ({
   connectRedis: vi.fn(),
   isRabbitEnabled: vi.fn(),
   startNotificationConsumer: vi.fn(),
+  stopNotificationConsumer: vi.fn(),
   startDeadLetterMonitor: vi.fn(),
   stopDeadLetterMonitor: vi.fn(),
   initializeMessagingSocket: vi.fn(),
@@ -43,6 +44,7 @@ vi.mock("@/infrastructure/events/notification.monitor.js", () => ({
 }));
 vi.mock("@/modules/notifications/notifications.consumer.js", () => ({
   startNotificationConsumer: hoisted.startNotificationConsumer,
+  stopNotificationConsumer: hoisted.stopNotificationConsumer,
 }));
 vi.mock(
   "@/modules/notifications/services/notifications.push.service.js",
@@ -66,6 +68,7 @@ vi.mock("@/bootstrap/crash-handlers.js", () => ({
 vi.mock("@/bootstrap/shutdown.js", () => ({
   exitWithFlush: hoisted.exitWithFlush,
   SHUTDOWN_TIMEOUT_MS: 10_000,
+  CONNECTION_GRACE_MS: 3_000,
 }));
 
 class FakeServer extends EventEmitter {
@@ -100,6 +103,7 @@ describe("startup order and failures", () => {
       hoisted.order.push("monitor");
     });
     hoisted.stopDeadLetterMonitor.mockReset().mockResolvedValue(undefined);
+    hoisted.stopNotificationConsumer.mockReset().mockResolvedValue(undefined);
     hoisted.initializeMessagingSocket.mockReset().mockImplementation(() => {
       hoisted.order.push("socket");
     });
@@ -189,6 +193,53 @@ describe("startup order and failures", () => {
     await start().catch(handleStartupFailure);
 
     expect(hoisted.exitWithFlush).toHaveBeenCalledWith(1);
+  });
+
+  it("stops a running consumer before the monitor when startup fails after it started", async () => {
+    hoisted.initializeMessagingSocket.mockImplementation(() => {
+      throw new Error("socket failed");
+    });
+    const { start, handleStartupFailure } = await load();
+
+    await start().catch(handleStartupFailure);
+
+    expect(hoisted.stopNotificationConsumer).toHaveBeenCalledTimes(1);
+    expect(hoisted.stopNotificationConsumer).toHaveBeenCalledWith(3_000);
+    expect(
+      hoisted.stopNotificationConsumer.mock.invocationCallOrder[0],
+    ).toBeLessThan(
+      hoisted.stopDeadLetterMonitor.mock.invocationCallOrder[0] ?? 0,
+    );
+    expect(hoisted.exitWithFlush).toHaveBeenCalledWith(1);
+  });
+
+  it("still stops the monitor and exits when stopping the consumer rejects", async () => {
+    hoisted.pingDatabase.mockRejectedValue(new Error("connection refused"));
+    hoisted.stopNotificationConsumer.mockRejectedValue(new Error("stuck"));
+    const { start, handleStartupFailure } = await load();
+
+    await start().catch(handleStartupFailure);
+
+    expect(hoisted.stopDeadLetterMonitor).toHaveBeenCalledTimes(1);
+    expect(hoisted.exitWithFlush).toHaveBeenCalledWith(1);
+  });
+
+  it("still exits when stopping the consumer never settles", async () => {
+    vi.useFakeTimers();
+    try {
+      hoisted.pingDatabase.mockRejectedValue(new Error("connection refused"));
+      hoisted.stopNotificationConsumer.mockReturnValue(new Promise(() => {}));
+      const { start, handleStartupFailure } = await load();
+
+      const failure = start().catch(handleStartupFailure);
+      await vi.advanceTimersByTimeAsync(6_000);
+      await failure;
+
+      expect(hoisted.stopDeadLetterMonitor).toHaveBeenCalledTimes(1);
+      expect(hoisted.exitWithFlush).toHaveBeenCalledWith(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("exits non-zero and starts nothing when listen fails", async () => {
