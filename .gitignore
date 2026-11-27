@@ -9,6 +9,8 @@ build/
 dist/
 coverage/
 .turbo/
+infra/load/results/*
+!infra/load/results/.gitkeep
 
 .env*
 !.env.example

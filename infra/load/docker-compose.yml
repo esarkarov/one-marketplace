@@ -1,0 +1,23 @@
+name: onemarketplace-load
+
+services:
+  k6:
+    image: grafana/k6:2.4.0
+    working_dir: /load
+    volumes:
+      - ./:/load
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      BASE_URL: ${BASE_URL:-http://host.docker.internal:4000}
+      SMOKE: ${SMOKE:-}
+      P95_MS: ${P95_MS:-}
+      RUN_NAME: ${RUN_NAME:-public-read}
+    command:
+      - run
+      - --no-usage-report
+      - --summary-trend-stats
+      - avg,min,med,max,p(90),p(95),p(99)
+      - --summary-export
+      - results/${RUN_NAME:-public-read}.json
+      - scenarios/public-read.js
