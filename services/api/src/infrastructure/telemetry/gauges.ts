@@ -7,6 +7,12 @@ export interface PoolCounts {
   readonly waitingCount: number;
 }
 
+export interface OutboxGaugeValues {
+  readonly pending: number;
+  readonly oldestPendingAgeMs: number;
+  readonly dead: number;
+}
+
 const EVENT_LOOP_RESOLUTION_MS = 20;
 const NANOSECONDS_PER_MILLISECOND = 1_000_000;
 
@@ -38,4 +44,19 @@ export const registerEventLoopGauge = (): (() => void) => {
     remove();
     histogram.disable();
   };
+};
+
+export const registerOutboxGauges = (
+  read: () => OutboxGaugeValues | undefined,
+): (() => void) => {
+  const removers = [
+    registerGauge("outbox.pending", () => read()?.pending),
+    registerGauge(
+      "outbox.oldest_pending_age_ms",
+      () => read()?.oldestPendingAgeMs,
+      "ms",
+    ),
+    registerGauge("outbox.dead", () => read()?.dead),
+  ];
+  return () => removers.forEach((remove) => remove());
 };

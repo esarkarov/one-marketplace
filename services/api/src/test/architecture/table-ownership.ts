@@ -30,6 +30,8 @@ export const tableOwners: Record<string, string> = {
 
   notifications: "notification-store",
 
+  outbox_events: "outbox",
+
   contractStatus: "contracts",
   contractMilestoneStatus: "contracts",
   contracts: "contracts",

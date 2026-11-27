@@ -23,6 +23,9 @@ export const COUNTED_LOG_EVENTS: ReadonlySet<string> = new Set([
   "payout.run.capped",
   "payout.run.budget_exhausted",
   "video.daily.request_failed",
+  "outbox.relay.failed",
+  "outbox.relay.lag",
+  "outbox.event.dead",
 ]);
 
 export interface ExternalCall {

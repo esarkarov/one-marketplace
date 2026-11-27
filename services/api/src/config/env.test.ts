@@ -190,6 +190,26 @@ describe("parseEnv", () => {
     });
   });
 
+  describe("OUTBOX_MODE", () => {
+    it.each(["off", "shadow", "on"] as const)("accepts %s", (value) => {
+      expect(parseEnv({ ...base, OUTBOX_MODE: value }).outboxMode).toBe(value);
+    });
+
+    it.each([undefined, ""])("defaults %s to off", (value) => {
+      expect(parseEnv({ ...base, OUTBOX_MODE: value }).outboxMode).toBe("off");
+    });
+
+    it.each(["ON", "true", "detect"])("rejects %s", (value) => {
+      const message = errorOf({ ...base, OUTBOX_MODE: value });
+
+      expect(message).toContain("Invalid optional variables:");
+      expect(message).toContain(
+        "- OUTBOX_MODE: must be one of off, shadow, on",
+      );
+      expect(message).not.toContain("Missing or invalid required");
+    });
+  });
+
   describe("external call retries", () => {
     it("defaults to on", () => {
       expect(parseEnv(base).externalCallRetries).toBe("on");
@@ -356,6 +376,10 @@ describe("parseEnv", () => {
 
     it("defaults the refund reconciliation mode to detect", () => {
       expect(parseEnv(production).refundReconciliationMode).toBe("detect");
+    });
+
+    it("defaults the outbox mode to off", () => {
+      expect(parseEnv(production).outboxMode).toBe("off");
     });
 
     it("defaults the orphan payment detection mode to detect", () => {

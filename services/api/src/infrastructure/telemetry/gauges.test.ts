@@ -1,7 +1,12 @@
 import { metrics } from "@opentelemetry/api";
 import { MeterProvider, MetricReader } from "@opentelemetry/sdk-metrics";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { registerEventLoopGauge, registerPoolGauges } from "./gauges.js";
+import {
+  registerEventLoopGauge,
+  registerOutboxGauges,
+  registerPoolGauges,
+  type OutboxGaugeValues,
+} from "./gauges.js";
 
 class TestReader extends MetricReader {
   protected onShutdown(): Promise<void> {
@@ -69,5 +74,23 @@ describe("registerEventLoopGauge", () => {
     remove();
     await new Promise((resolve) => setTimeout(resolve, 40));
     expect((await values())["nodejs.eventloop.delay.p99"]).toBe(p99);
+  });
+});
+
+describe("registerOutboxGauges", () => {
+  it("reports nothing before the first stats read, then the latest stats", async () => {
+    const source: { stats?: OutboxGaugeValues } = {};
+    const remove = registerOutboxGauges(() => source.stats);
+
+    expect(await values()).toEqual({});
+
+    source.stats = { pending: 3, oldestPendingAgeMs: 61_000, dead: 1 };
+    expect(await values()).toEqual({
+      "outbox.pending": 3,
+      "outbox.oldest_pending_age_ms": 61_000,
+      "outbox.dead": 1,
+    });
+
+    remove();
   });
 });

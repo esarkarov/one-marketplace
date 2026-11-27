@@ -1,0 +1,15 @@
+export const OUTBOX_BATCH_SIZE = 50;
+export const OUTBOX_LEASE_MS = 60_000;
+export const OUTBOX_BATCH_BUDGET_MS = 30_000;
+export const OUTBOX_MAX_ATTEMPTS = 10;
+export const OUTBOX_BACKOFF_BASE_MS = 5_000;
+export const OUTBOX_BACKOFF_MAX_MS = 10 * 60_000;
+export const OUTBOX_IDLE_INTERVAL_MS = 1_000;
+export const OUTBOX_RETENTION_MS = 7 * 24 * 60 * 60_000;
+export const OUTBOX_RETENTION_BATCH_SIZE = 500;
+export const OUTBOX_RETENTION_INTERVAL_MS = 60_000;
+export const OUTBOX_STATS_INTERVAL_MS = 10_000;
+export const OUTBOX_LAG_THRESHOLD_MS = 60_000;
+export const OUTBOX_LAG_LOG_INTERVAL_MS = 60_000;
+export const OUTBOX_LAST_ERROR_MAX_LENGTH = 500;
+export const OUTBOX_RELAY_SPAN_NAME = "outbox.relay.publish";

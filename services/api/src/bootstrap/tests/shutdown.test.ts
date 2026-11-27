@@ -5,6 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const hoisted = vi.hoisted(() => ({
   order: [] as string[],
   rabbitOrder: [] as string[],
+  outboxOrder: [] as string[],
+  waitForOutboxRun: vi.fn(),
   waitForPayoutRun: vi.fn(),
   waitForRefundRun: vi.fn(),
   poolEnd: vi.fn(),
@@ -43,6 +45,7 @@ vi.mock("@/infrastructure/cache/redis.client.js", () => ({
 vi.mock("@/infrastructure/events/rabbitmq.client.js", () => ({
   closeRabbit: async () => {
     hoisted.rabbitOrder.push("close-rabbit");
+    hoisted.outboxOrder.push("close-rabbit");
   },
 }));
 vi.mock("@/infrastructure/events/notification.monitor.js", () => ({
@@ -52,6 +55,12 @@ vi.mock("@/infrastructure/events/notification.monitor.js", () => ({
 }));
 vi.mock("@/infrastructure/telemetry/sdk.js", () => ({
   shutdownTelemetry: hoisted.shutdownTelemetry,
+}));
+vi.mock("@/modules/outbox/index.js", () => ({
+  stopOutboxRelay: () => {
+    hoisted.outboxOrder.push("stop-relay");
+  },
+  waitForOutboxRelayRun: hoisted.waitForOutboxRun,
 }));
 vi.mock("@/modules/notifications/notifications.consumer.js", () => ({
   stopNotificationConsumer: async () => {
@@ -90,6 +99,8 @@ describe("shutdown payout drain", () => {
     vi.resetModules();
     hoisted.order.length = 0;
     hoisted.rabbitOrder.length = 0;
+    hoisted.outboxOrder.length = 0;
+    hoisted.waitForOutboxRun.mockReset().mockResolvedValue(undefined);
     hoisted.warn.mockReset().mockResolvedValue(undefined);
     hoisted.waitForRefundRun.mockReset().mockResolvedValue(undefined);
     hoisted.waitForPayoutRun.mockReset().mockResolvedValue(undefined);
@@ -146,6 +157,56 @@ describe("shutdown payout drain", () => {
       "stop-monitor",
       "close-rabbit",
     ]);
+  });
+
+  it("stops the outbox relay and awaits its in-flight run before closing RabbitMQ", async () => {
+    let finish!: () => void;
+    hoisted.waitForOutboxRun.mockReturnValue(
+      new Promise<void>((resolve) => {
+        finish = () => {
+          hoisted.outboxOrder.push("relay-run-finished");
+          resolve();
+        };
+      }),
+    );
+    const { shutdown } = await import("@/bootstrap/shutdown.js");
+
+    const done = shutdown("SIGTERM");
+    await flush();
+    expect(hoisted.outboxOrder).toEqual(["stop-relay"]);
+    expect(hoisted.rabbitOrder).toEqual([]);
+
+    finish();
+    await done;
+
+    expect(hoisted.outboxOrder).toEqual([
+      "stop-relay",
+      "relay-run-finished",
+      "close-rabbit",
+    ]);
+    expect(hoisted.warn).not.toHaveBeenCalled();
+    expect(exit).toHaveBeenCalledWith(0);
+  });
+
+  it("warns and still closes RabbitMQ when the outbox relay run outlasts the drain timeout", async () => {
+    vi.useFakeTimers();
+    hoisted.waitForOutboxRun.mockReturnValue(
+      new Promise<void>(() => undefined),
+    );
+    const { shutdown, PAYOUT_DRAIN_TIMEOUT_MS } =
+      await import("@/bootstrap/shutdown.js");
+
+    const done = shutdown("SIGTERM");
+    await vi.advanceTimersByTimeAsync(PAYOUT_DRAIN_TIMEOUT_MS);
+    await done;
+
+    expect(hoisted.warn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventName: "system.shutdown.outbox_relay_run_timeout",
+      }),
+    );
+    expect(hoisted.outboxOrder).toEqual(["stop-relay", "close-rabbit"]);
+    expect(exit).toHaveBeenCalledWith(0);
   });
 
   it("warns and continues when the run outlasts the drain timeout", async () => {

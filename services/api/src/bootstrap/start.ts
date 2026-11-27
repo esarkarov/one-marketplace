@@ -18,6 +18,7 @@ import {
 } from "@/infrastructure/events/notification.monitor.js";
 import {
   registerEventLoopGauge,
+  registerOutboxGauges,
   registerPoolGauges,
 } from "@/infrastructure/telemetry/gauges.js";
 import { pool } from "@/database/client.js";
@@ -32,6 +33,12 @@ import {
   startOrphanPaymentDetectionCron,
   startRefundReconciliationCron,
 } from "@/modules/contracts/index.js";
+import {
+  getOutboxStats,
+  startOutboxRelay,
+  stopOutboxRelay,
+  waitForOutboxRelayRun,
+} from "@/modules/outbox/index.js";
 import { startPayoutCron } from "@/modules/payouts/payouts.cron.js";
 import { handleFatalError } from "./crash-handlers.js";
 import { setHttpServer } from "./http-server.js";
@@ -67,13 +74,18 @@ export const start = async (): Promise<void> => {
   await listen(server);
 
   registerNotificationsPush();
+  const relayOutbox = isRabbitEnabled() && env.outboxMode !== "off";
   if (isRabbitEnabled()) {
     await startNotificationConsumer();
     startDeadLetterMonitor();
   }
+  if (relayOutbox) {
+    startOutboxRelay();
+  }
   if (env.telemetryMode !== "off") {
     registerPoolGauges(pool);
     registerEventLoopGauge();
+    if (relayOutbox) registerOutboxGauges(getOutboxStats);
   }
   initializeMessagingSocket(server);
   startPayoutCron();
@@ -110,6 +122,8 @@ export const handleStartupFailure = async (error: unknown): Promise<void> => {
     },
   });
   await disconnectRedis().catch(() => undefined);
+  stopOutboxRelay();
+  await settleWithin(waitForOutboxRelayRun, CONNECTION_GRACE_MS);
   await settleWithin(
     () => stopNotificationConsumer(CONNECTION_GRACE_MS),
     2 * CONNECTION_GRACE_MS,

@@ -28,6 +28,12 @@ vi.mock("@/infrastructure/events/rabbitmq.client.js", () => ({
 vi.mock("@/infrastructure/events/notification.monitor.js", () => ({
   stopDeadLetterMonitor: vi.fn(),
 }));
+vi.mock("@/modules/outbox/index.js", () => ({
+  startOutboxRelay: vi.fn(),
+  stopOutboxRelay: vi.fn(),
+  waitForOutboxRelayRun: vi.fn().mockResolvedValue(undefined),
+  getOutboxStats: vi.fn(),
+}));
 vi.mock("@/modules/notifications/notifications.consumer.js", () => ({
   stopNotificationConsumer: vi.fn(),
 }));

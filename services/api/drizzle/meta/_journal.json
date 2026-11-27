@@ -78,6 +78,13 @@
       "when": 1795107330899,
       "tag": "0010_contracts_refund_reconciliation",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1795801031439,
+      "tag": "0011_outbox_events",
+      "breakpoints": true
     }
   ]
 }

@@ -108,3 +108,7 @@ Five flows now write the `notifications` row inside the business transaction wit
 - Interview: inserted after the guarded state change, the conversation and the connects refund, in the same transaction. PROPOSAL_VIEWED stays on RabbitMQ.
 - Invitation: the invitee lookup, the insert and the invitation write share the transaction; only the push keeps the try, catch and log (`task.agency.invitation_notify_failed`). A failed insert fails the request like any write. A recipient who is not a freelancer, is unknown or already belongs to an agency gets no notice, as before. The answered-invitation notice stays on RabbitMQ.
 - No migration, no registry or allowlist change, and `docs/api/openapi.json` is unchanged.
+
+## Update 2026-11-27: optional outbox for the eight RabbitMQ notices
+
+The eight notices that still go through `sendNotification` (CONTRACT_ACCEPTED, MILESTONE_ADDED, CONTRACT_COMPLETED, REVIEW_RECEIVED, PROPOSAL_RECEIVED, PROPOSAL_VIEWED, the answered-invitation notice and AGENCY_WELCOME_BONUS) can optionally go through the outbox of ADR 0029 (`OUTBOX_MODE`, default `off`). They stay best-effort by product choice; the outbox is adopted for learning, not because loss was observed. The section "Why not a relay or RabbitMQ as the transport" still holds for the must-not-lose set, which keeps its direct in-transaction write. As of this update the outbox module, relay and flag exist, but no call site uses `enqueueNotification` yet (roadmap 1.4 part B), so all eight are still sent directly in every mode.

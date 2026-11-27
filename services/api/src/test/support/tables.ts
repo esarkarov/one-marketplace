@@ -28,6 +28,7 @@ export {
 } from "@/modules/messaging/models/messaging.model.js";
 export { meetings } from "@/modules/meetings/models/meetings.model.js";
 export { notifications } from "@/modules/notification-store/models/notification-store.model.js";
+export { outbox_events } from "@/modules/outbox/models/outbox.model.js";
 export {
   contractStatus,
   contractMilestoneStatus,

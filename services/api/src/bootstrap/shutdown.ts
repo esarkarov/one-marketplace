@@ -11,6 +11,10 @@ import {
   waitForRefundReconciliationRun,
 } from "@/modules/contracts/index.js";
 import { registerNotificationPusher } from "@/modules/notification-store/index.js";
+import {
+  stopOutboxRelay,
+  waitForOutboxRelayRun,
+} from "@/modules/outbox/index.js";
 import { stopNotificationConsumer } from "@/modules/notifications/notifications.consumer.js";
 import { closeMessagingSocket } from "@/modules/messaging/messaging.socket.js";
 import {
@@ -80,6 +84,13 @@ const drainOrphanPaymentDetectionRun = (): Promise<void> =>
     waitForOrphanPaymentDetectionRun,
     "Orphan payment detection run still in flight at shutdown. Continuing.",
     "system.shutdown.orphan_payment_detection_run_timeout",
+  );
+
+const drainOutboxRelayRun = (): Promise<void> =>
+  drainRun(
+    waitForOutboxRelayRun,
+    "Outbox relay run still in flight at shutdown. Continuing.",
+    "system.shutdown.outbox_relay_run_timeout",
   );
 
 let httpClosed: Promise<Error | undefined> | undefined;
@@ -194,11 +205,13 @@ export const shutdown = async (reason: ShutdownReason): Promise<void> => {
     void stopOrphanPaymentDetectionCron();
     return stopRefundReconciliationCron();
   });
+  await runStep("outbox relay", stopOutboxRelay);
   await runStep("background runs", () =>
     Promise.all([
       drainPayoutRun(),
       drainRefundReconciliationRun(),
       drainOrphanPaymentDetectionRun(),
+      drainOutboxRelayRun(),
     ]).then(() => undefined),
   );
   await runStep("http server", closeHttpServer);

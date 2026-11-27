@@ -17,6 +17,39 @@ const hoisted = vi.hoisted(() => ({
   handleFatalError: vi.fn(),
   exitWithFlush: vi.fn(),
   createServer: vi.fn(),
+  startOutboxRelay: vi.fn(),
+  stopOutboxRelay: vi.fn(),
+  waitForOutboxRelayRun: vi.fn(),
+  getOutboxStats: vi.fn(),
+  registerOutboxGauges: vi.fn(),
+  flags: { outboxMode: "off", telemetryMode: "off" },
+}));
+
+vi.mock("@/config/env.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/config/env.js")>();
+  return {
+    ...actual,
+    env: {
+      ...actual.env,
+      get outboxMode() {
+        return hoisted.flags.outboxMode;
+      },
+      get telemetryMode() {
+        return hoisted.flags.telemetryMode;
+      },
+    },
+  };
+});
+vi.mock("@/infrastructure/telemetry/gauges.js", () => ({
+  registerPoolGauges: vi.fn(),
+  registerEventLoopGauge: vi.fn(),
+  registerOutboxGauges: hoisted.registerOutboxGauges,
+}));
+vi.mock("@/modules/outbox/index.js", () => ({
+  startOutboxRelay: hoisted.startOutboxRelay,
+  stopOutboxRelay: hoisted.stopOutboxRelay,
+  waitForOutboxRelayRun: hoisted.waitForOutboxRelayRun,
+  getOutboxStats: hoisted.getOutboxStats,
 }));
 
 vi.mock("node:http", () => ({ createServer: hoisted.createServer }));
@@ -117,6 +150,14 @@ describe("startup order and failures", () => {
       hoisted.order.push("push");
     });
     hoisted.handleFatalError.mockReset().mockResolvedValue(undefined);
+    hoisted.flags.outboxMode = "off";
+    hoisted.flags.telemetryMode = "off";
+    hoisted.startOutboxRelay.mockReset().mockImplementation(() => {
+      hoisted.order.push("outbox-relay");
+    });
+    hoisted.stopOutboxRelay.mockReset();
+    hoisted.waitForOutboxRelayRun.mockReset().mockResolvedValue(undefined);
+    hoisted.registerOutboxGauges.mockReset();
     hoisted.exitWithFlush.mockReset().mockResolvedValue(undefined);
   });
 
@@ -156,6 +197,73 @@ describe("startup order and failures", () => {
     expect(hoisted.registerNotificationsPush).toHaveBeenCalledTimes(1);
     expect(hoisted.startNotificationConsumer).not.toHaveBeenCalled();
     expect(hoisted.startDeadLetterMonitor).not.toHaveBeenCalled();
+  });
+
+  it.each(["shadow", "on"])(
+    "starts the outbox relay after the consumer and monitor in %s mode",
+    async (mode) => {
+      hoisted.flags.outboxMode = mode;
+      const { start } = await load();
+      await start();
+
+      expect(hoisted.order).toEqual([
+        "listen",
+        "push",
+        "consumer",
+        "monitor",
+        "outbox-relay",
+        "socket",
+        "cron",
+        "refund-cron",
+      ]);
+      expect(hoisted.registerOutboxGauges).not.toHaveBeenCalled();
+    },
+  );
+
+  it("does not start the outbox relay when the mode is off", async () => {
+    const { start } = await load();
+    await start();
+
+    expect(hoisted.startOutboxRelay).not.toHaveBeenCalled();
+  });
+
+  it("does not start the outbox relay when RabbitMQ is disabled, whatever the mode", async () => {
+    hoisted.flags.outboxMode = "on";
+    hoisted.isRabbitEnabled.mockReturnValue(false);
+    const { start } = await load();
+    await start();
+
+    expect(hoisted.startOutboxRelay).not.toHaveBeenCalled();
+  });
+
+  it("registers the outbox gauges only when telemetry is on and the relay runs", async () => {
+    hoisted.flags.outboxMode = "on";
+    hoisted.flags.telemetryMode = "console";
+    const { start } = await load();
+    await start();
+
+    expect(hoisted.registerOutboxGauges).toHaveBeenCalledWith(
+      hoisted.getOutboxStats,
+    );
+  });
+
+  it("stops the outbox relay and awaits its run before the consumer when startup fails", async () => {
+    hoisted.flags.outboxMode = "on";
+    hoisted.initializeMessagingSocket.mockImplementation(() => {
+      throw new Error("socket failed");
+    });
+    const { start, handleStartupFailure } = await load();
+
+    await start().catch(handleStartupFailure);
+
+    expect(hoisted.stopOutboxRelay).toHaveBeenCalledTimes(1);
+    expect(hoisted.waitForOutboxRelayRun).toHaveBeenCalledTimes(1);
+    expect(
+      hoisted.waitForOutboxRelayRun.mock.invocationCallOrder[0] ?? 0,
+    ).toBeLessThan(
+      hoisted.stopNotificationConsumer.mock.invocationCallOrder[0] ?? 0,
+    );
+    expect(hoisted.exitWithFlush).toHaveBeenCalledWith(1);
   });
 
   it("registers no pusher when the database check fails", async () => {
