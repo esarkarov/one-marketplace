@@ -1,6 +1,6 @@
 # Load baseline (public reads)
 
-Measures how the API behaves under a stepped, open-model load on its public read routes, so later changes (telemetry, caching, patterns from the learning roadmap) can be compared against numbers instead of guesses. Method and limits: ADR 0027 (`docs/decisions/0027-load-baseline-method.md`). Results go into a copy of `docs/performance/baseline-TEMPLATE.md`.
+Measures how the API behaves under a stepped, open-model load on its public read routes, so later changes (telemetry, caching, patterns from the learning roadmap) can be compared against numbers instead of guesses. Method and limits: ADR 0027 (`docs/decisions/0027-load-baseline-method.md`). Results go into a copy of `docs/performance/baseline-template.md`.
 
 ## Scope and limits
 

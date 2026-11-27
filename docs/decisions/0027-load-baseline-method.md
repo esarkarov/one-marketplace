@@ -15,7 +15,7 @@ The learning roadmap (`docs/research/backend-evolution/04-learning-roadmap.md`, 
 - Mix: 50 % job feed, 25 % freelancer search, 10 % agency search, 15 % `/api/v1/ready` as a control, assigned by iteration number so the mix is exact.
 - Data: a dedicated local database `onemarketplace_load` on the local Docker Postgres, filled by `infra/load/seed/seed.sql` (10 000 published jobs, 5 000 freelancers, 1 000 agencies). The API runs from `dist` with its logs in a file.
 - Three runs per configuration, API restarted before each run, reported as median and spread (max minus min) per stage. Two configurations: `TELEMETRY_MODE=off` and `TELEMETRY_MODE=otlp` against the local Grafana stack, which also gives `db.pool.waiting` and the event-loop p99.
-- Results: `docs/performance/baseline-<date>.md` from `docs/performance/baseline-TEMPLATE.md`. Steps: `infra/load/README.md`.
+- Results: `docs/performance/baseline-<date>.md` from `docs/performance/baseline-template.md`. Steps: `infra/load/README.md`.
 
 ### Limits
 
