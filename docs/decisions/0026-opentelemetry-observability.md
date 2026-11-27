@@ -1,10 +1,10 @@
 # 0026: OpenTelemetry traces and metrics behind a flag
 
-Status: adopted for learning (2026-11-27, learning roadmap item 1.1, part A)
+Status: adopted for learning (2026-11-27, learning roadmap item 1.1, parts A and B)
 
 ## Context
 
-The API had logs only: no traces, no metrics, and the alert names in `services/api/AGENTS.md` were log event names nobody counted (evaluation C1, `docs/research/backend-evolution/02-evaluation.md`). The learning roadmap (`docs/research/backend-evolution/04-learning-roadmap.md`, Part 3, 1.1) asks for OpenTelemetry behind a flag that is off by default, so the API without the flag behaves as before. Part B (a local Grafana stack in `infra/docker`) is a later step and is not part of this record.
+The API had logs only: no traces, no metrics, and the alert names in `services/api/AGENTS.md` were log event names nobody counted (evaluation C1, `docs/research/backend-evolution/02-evaluation.md`). The learning roadmap (`docs/research/backend-evolution/04-learning-roadmap.md`, Part 3, 1.1) asks for OpenTelemetry behind a flag that is off by default, so the API without the flag behaves as before. Part B adds a local Grafana stack in `infra/docker` (see Consequences).
 
 A step 0 spike (throwaway preloads `services/api/otel-spike.mjs` and `otel-spike-io.mjs`, against the built `dist` on Node 26) settled the open points before the build.
 
@@ -38,14 +38,14 @@ A step 0 spike (throwaway preloads `services/api/otel-spike.mjs` and `otel-spike
 
 ### Spike and evidence results per instrumentation
 
-| Instrumentation        | Works                  | Notes                                                                                                                                                         |
-| ---------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| http 0.301.2           | yes                    | server span `GET /api/v1/jobs/public` with `http.route`; scrubbed keys absent                                                                                 |
-| express 0.73.0         | yes                    | route templates appear with the sync hooks; one stray `router - /sign-up` span per request under `/api/v1` is an accepted upstream quirk of Express 5 routers |
-| pg 0.78.0              | yes                    | `pg-pool.connect` and `pg.query:SELECT` spans; SQL text with placeholders, no parameter values                                                                |
-| redis 0.73.0           | yes                    | node-redis 6.3.1 produces `redis-EVAL` (rate limiter) and `redis-connect` spans; `db.query.text` is the command name only                                     |
-| amqplib 0.72.0         | not verified in part A | no public request publishes; publish through `amqp-connection-manager` stays to be checked in part B                                                          |
-| router instrumentation | not used               | duplicates Express 5 spans with express (evaluation C1)                                                                                                       |
+| Instrumentation        | Works         | Notes                                                                                                                                                                                                                                                                       |
+| ---------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| http 0.301.2           | yes           | server span `GET /api/v1/jobs/public` with `http.route`; scrubbed keys absent                                                                                                                                                                                               |
+| express 0.73.0         | yes           | route templates appear with the sync hooks; one stray `router - /sign-up` span per request under `/api/v1` is an accepted upstream quirk of Express 5 routers                                                                                                               |
+| pg 0.78.0              | yes           | `pg-pool.connect` and `pg.query:SELECT` spans; SQL text with placeholders, no parameter values                                                                                                                                                                              |
+| redis 0.73.0           | yes           | node-redis 6.3.1 produces `redis-EVAL` (rate limiter) and `redis-connect` spans; `db.query.text` is the command name only                                                                                                                                                   |
+| amqplib 0.72.0         | yes (publish) | step 0: `getRabbitPublishChannel().publish(...)` with an unroutable routing key produced `publish <default>` (kind PRODUCER) in the same trace as its parent; `messaging.url` shows the username and masks the password as `***`; consumer-side propagation is not verified |
+| router instrumentation | not used      | duplicates Express 5 spans with express (evaluation C1)                                                                                                                                                                                                                     |
 
 Evidence (mode `console`, `pnpm start:observed`, 2026-11-27): one `GET /api/v1/jobs/public?query=...&limit=5` with an `Authorization: Bearer ...` header produced one trace of 27 spans (http, express, redis, pg). A text search of the span dump found neither the query value, the token, `Bearer`, an `Authorization` key, a client or peer address nor a user agent. The pino-http line of that request carried the trace's `trace_id` and the server span's `span_id`. With Redis paused, `app.log.events{event_name="rate_limit.store.error", level="warn"}` was exported with value 1; `cache.redis.degraded` is covered by a unit test through the real logger and a real counter, because its only request-path caller sits behind Clerk token verification. Mode `off` is covered by the unchanged suite. A second run sent `POST /api/v1/auth/sign-up` with a malformed JSON body containing a marker word: the `jsonBody` span had status `ERROR` and one exception event with only `exception.type: SyntaxError`; the marker, `exception.message`, `url.path` and the process resource attributes were absent from the span dump.
 
@@ -54,7 +54,9 @@ Evidence (mode `console`, `pnpm start:observed`, 2026-11-27): one `GET /api/v1/j
 - Dependencies (API only, pinned): `@opentelemetry/api` 1.10.0, `sdk-node`, `exporter-trace-otlp-http`, `exporter-metrics-otlp-http`, `instrumentation`, `instrumentation-http` 0.301.2, `instrumentation-express` 0.73.0, `instrumentation-pg` 0.78.0, `instrumentation-amqplib` 0.72.0, `instrumentation-redis` 0.73.0, `sdk-metrics` and `sdk-trace` 3.1.1, `import-in-the-middle` 3.7.0. `sdk-trace` is a runtime dependency because the SDK file uses its span processor and console exporter. `sdk-node` pulls `protobufjs`, whose postinstall only prints a version-scheme warning and is not needed.
 - Full SQL text (with placeholders) is a span attribute in modes other than `off`. Inline literals in raw SQL would appear there; parameters do not.
 - Span attributes are not covered by the pino redaction; new instrumentations or hooks must be checked for leaks the same way.
+- The RabbitMQ username in the amqplib `messaging.url` attribute observed in step 0 is the local development one; redact that attribute before any shared environment uses telemetry.
 - Outgoing HTTP calls carry a W3C `traceparent` header to third parties (Stripe, Clerk, Daily, ImageKit) when telemetry is on.
 - Enforced by `sdk.test.ts` (mode off loads nothing, attribute and error-detail scrubbing, shutdown bound), `metrics.test.ts`, `gauges.test.ts`, `logger.test.ts` (mixin, listener), `request-id.middleware.test.ts`, `shutdown.test.ts` (ordering) and `infrastructure-layout.test.ts` (`telemetry` service folder).
 - Reverse: `TELEMETRY_MODE=off` (the default), or revert the change.
-- Open: amqplib publish spans and trace propagation into the consumer; latency cost against the 1.2 load baseline (accept at most +10 % p95); the Grafana stack (part B).
+- Open: trace propagation into the AMQP consumer; latency cost against the 1.2 load baseline (accept at most +10 % p95).
+- Local backend (part B): `infra/docker/docker-compose.observability.yml` runs `grafana/otel-lgtm:0.41.1` (`pnpm infra:obs:up|down`), Grafana on `127.0.0.1:3010`, OTLP HTTP on `127.0.0.1:4318`; steps in `docs/test-plans/api-observability.md`.

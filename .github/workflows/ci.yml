@@ -303,6 +303,9 @@ jobs:
       - name: Validate compose file
         run: docker compose -f infra/docker/docker-compose.yml config -q
 
+      - name: Validate observability compose file
+        run: docker compose -f infra/docker/docker-compose.observability.yml config -q
+
       - name: Require every credential
         run: |
           for var in POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB REDIS_PASSWORD RABBITMQ_USER RABBITMQ_PASSWORD; do

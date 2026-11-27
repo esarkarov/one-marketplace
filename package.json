@@ -18,7 +18,9 @@
     "infra:up": "docker compose --env-file .env -f infra/docker/docker-compose.yml up -d --wait",
     "infra:down": "docker compose --env-file .env -f infra/docker/docker-compose.yml down",
     "infra:reset": "docker compose --env-file .env -f infra/docker/docker-compose.yml down -v",
-    "infra:logs": "docker compose --env-file .env -f infra/docker/docker-compose.yml logs -f"
+    "infra:logs": "docker compose --env-file .env -f infra/docker/docker-compose.yml logs -f",
+    "infra:obs:up": "docker compose -f infra/docker/docker-compose.observability.yml up -d --wait",
+    "infra:obs:down": "docker compose -f infra/docker/docker-compose.observability.yml down"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.4",

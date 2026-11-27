@@ -1,8 +1,8 @@
-# Test plan: API observability (OpenTelemetry, part A)
+# Test plan: API observability (OpenTelemetry, parts A and B)
 
 ## Scope
 
-`services/api` telemetry behind `TELEMETRY_MODE` (ADR 0026): `src/bootstrap/instrumentation.ts`, `src/infrastructure/telemetry/{sdk,metrics,gauges}.ts`, the logger mixin and log-event listener in `src/config/logger.ts`, `app.request_id` in the request-id middleware, the gauges in `bootstrap/start.ts` and the `telemetry` shutdown step. Part B (Grafana container) is not covered.
+`services/api` telemetry behind `TELEMETRY_MODE` (ADR 0026): `src/bootstrap/instrumentation.ts`, `src/infrastructure/telemetry/{sdk,metrics,gauges}.ts`, the logger mixin and log-event listener in `src/config/logger.ts`, `app.request_id` in the request-id middleware, the gauges in `bootstrap/start.ts` and the `telemetry` shutdown step. Part B: the local backend `infra/docker/docker-compose.observability.yml` (`grafana/otel-lgtm:0.41.1`, section 6).
 
 Use throwaway credentials only. Never print the real `.env`.
 
@@ -14,7 +14,10 @@ Legend: U unit, E end to end / manual.
 
 - Built: `TELEMETRY_MODE=console PORT=4100 pnpm --filter @onemarketplace/api start:observed`
 - Dev: `TELEMETRY_MODE=console pnpm --filter @onemarketplace/api dev:observed`
-- With a collector: `TELEMETRY_MODE=otlp OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318` and either command.
+- With the local Grafana stack (section 6):
+  1. `pnpm infra:obs:up` (waits until the container is healthy, about 40 s on first start).
+  2. `TELEMETRY_MODE=otlp OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318 PORT=4100 pnpm --filter @onemarketplace/api start:observed` (or `dev:observed`).
+  3. Stop the API with Ctrl+C, then `pnpm infra:obs:down`. Data stays in the volume `onemarketplace-observability_lgtm-data`; removing it (`docker compose -f infra/docker/docker-compose.observability.yml down -v`) deletes all stored traces and metrics, ask first.
 - Never set the preload through `NODE_OPTIONS`.
 
 ## 1. Mode off
@@ -60,5 +63,25 @@ Legend: U unit, E end to end / manual.
 
 ## 5. Not yet verified
 
-- amqplib publish spans through `amqp-connection-manager` and trace propagation into the consumer (part B).
+- Trace propagation into the AMQP consumer (publish spans through `amqp-connection-manager` were verified in step 0, ADR 0026).
 - Latency cost against the 1.2 load baseline (at most +10 % p95).
+
+## 6. Local Grafana stack (mode otlp, part B)
+
+Grafana: http://localhost:3010. The image ships Grafana with the login `admin` / `admin`; it is a well-known default for this development-only image (bound to `127.0.0.1`), not a project secret. Never reuse it elsewhere or expose the port. Only `127.0.0.1:3010` (Grafana) and `127.0.0.1:4318` (OTLP HTTP) are published; override with `GRAFANA_PORT` and `OTEL_HTTP_PORT` in the shell if they clash (the scripts do not read `.env`). After changing `OTEL_HTTP_PORT`, set `OTEL_EXPORTER_OTLP_ENDPOINT` to match.
+
+Where to look:
+
+- Traces: Explore, data source Tempo, query type Search, service `onemarketplace-api`; or paste a `trace_id` from an API log line.
+- Metrics: Explore, data source Prometheus. Dots become underscores: `db_pool_total`, `db_pool_idle`, `db_pool_waiting`, `nodejs_eventloop_delay_p99_milliseconds`, `app_log_events_total`, `http_server_request_duration_seconds_*`. HTTP API: `.../proxy/uid/prometheus/api/v1/query?query=db_pool_total`.
+- Logs: the API does not export logs over OTLP, so Loki stays empty. Logs stay on the API's stdout; match them to a trace by `trace_id`.
+
+| #   | Scenario                 | Steps                                                                                                                        | Expected                                                                                                                                      | Type |
+| --- | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
+| 6.1 | Stack starts and stops   | `pnpm infra:obs:up`, then `pnpm infra:obs:down`                                                                              | container `onemarketplace-lgtm` healthy; down removes container and network, keeps the volume; the shared `onemarketplace` stack is untouched | E    |
+| 6.2 | Trace arrives in Tempo   | `curl -H "x-request-id: obs-b-1" "http://127.0.0.1:4100/api/v1/jobs/public?limit=5"`, fetch the logged `trace_id` from Tempo | `GET /api/v1/jobs/public` with express, `pg.query:SELECT`, `redis-EVAL` spans and `app.request_id: obs-b-1`                                   | E    |
+| 6.3 | No leaks in stored spans | search the Tempo JSON of 6.2 for `limit=5`, `url.query`, `Bearer`, `client.address`, `user_agent`                            | no match                                                                                                                                      | E    |
+| 6.4 | Gauges in Prometheus     | wait 10 s, query `db_pool_total`                                                                                             | one series, `service_name="onemarketplace-api"`                                                                                               | E    |
+| 6.5 | Log event counter        | row 3.2 against this stack, wait 20 s, query `app_log_events_total`                                                          | series with `event_name="rate_limit.store.error"`, `level="warn"`                                                                             | E    |
+
+Evidence (2026-11-27, `start:observed`, image 0.41.1): 6.1 to 6.5 passed. Stack healthy after 37 s; the trace held http, express, pg and redis spans; the Tempo JSON had no match for any 6.3 term; `db_pool_*`, `nodejs_eventloop_delay_p99_milliseconds` and `app_log_events_total{event_name="rate_limit.store.error"} 1` were in Prometheus; Loki had no labels, as expected.
