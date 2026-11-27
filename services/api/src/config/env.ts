@@ -104,6 +104,10 @@ const optionalFeatures = z.object({
       .enum(["off", "detect"], { error: "must be one of off, detect" })
       .default("detect"),
   ),
+  EXTERNAL_CALL_RETRIES: z.preprocess(
+    emptyToUndefined,
+    z.enum(["on", "off"], { error: "must be one of on, off" }).default("on"),
+  ),
   TELEMETRY_MODE: z.preprocess(
     emptyToUndefined,
     z
@@ -265,6 +269,7 @@ export const parseEnv = (source: Source) => {
     rabbitmqUrl: o.RABBITMQ_URL,
     refundReconciliationMode: o.REFUND_RECONCILIATION_MODE,
     orphanPaymentDetectionMode: o.ORPHAN_PAYMENT_DETECTION_MODE,
+    externalCallRetries: o.EXTERNAL_CALL_RETRIES,
     telemetryMode: o.TELEMETRY_MODE,
     otlpEndpoint: o.OTEL_EXPORTER_OTLP_ENDPOINT,
     telemetryServiceName: o.TELEMETRY_SERVICE_NAME,

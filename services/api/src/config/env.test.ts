@@ -190,6 +190,27 @@ describe("parseEnv", () => {
     });
   });
 
+  describe("external call retries", () => {
+    it("defaults to on", () => {
+      expect(parseEnv(base).externalCallRetries).toBe("on");
+      expect(
+        parseEnv({ ...base, EXTERNAL_CALL_RETRIES: "" }).externalCallRetries,
+      ).toBe("on");
+    });
+
+    it.each(["on", "off"] as const)("accepts %s", (value) => {
+      expect(
+        parseEnv({ ...base, EXTERNAL_CALL_RETRIES: value }).externalCallRetries,
+      ).toBe(value);
+    });
+
+    it.each(["OFF", "true", "0"])("rejects %s", (value) => {
+      expect(errorOf({ ...base, EXTERNAL_CALL_RETRIES: value })).toContain(
+        "- EXTERNAL_CALL_RETRIES: must be one of on, off",
+      );
+    });
+  });
+
   describe("telemetry", () => {
     it.each(["off", "console", "otlp"] as const)("accepts mode %s", (value) => {
       expect(parseEnv({ ...base, TELEMETRY_MODE: value }).telemetryMode).toBe(

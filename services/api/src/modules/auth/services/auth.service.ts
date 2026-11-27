@@ -1,4 +1,5 @@
 import { clerk } from "@/infrastructure/auth/clerk.client.js";
+import { callExternal } from "@/infrastructure/utils/external-call.utils.js";
 import { ApiError } from "@/shared/errors/api-error.js";
 import { db } from "@/database/client.js";
 import {
@@ -19,19 +20,8 @@ interface SignupInput {
 const toDatabaseRole = (role: SignupInput["role"]): "CLIENT" | "FREELANCER" =>
   role === "client" ? "CLIENT" : "FREELANCER";
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-const getClerkUserWithRetry = async (userId: string) => {
-  const delaysMs = [300, 600];
-  for (let attempt = 0; ; attempt += 1) {
-    try {
-      return await clerk.users.getUser(userId);
-    } catch (error) {
-      if (attempt >= delaysMs.length) throw error;
-      await sleep(delaysMs[attempt]!);
-    }
-  }
-};
+const getClerkUserWithRetry = (userId: string) =>
+  callExternal("clerk.signup.getUser", () => clerk.users.getUser(userId));
 
 export const receiveSignup = async (
   input: SignupInput,

@@ -1,15 +1,19 @@
 import { env } from "@/config/env.js";
 import {
   DAILY_API_BASE,
-  DAILY_TIMEOUT_MS,
   ROOM_TOKEN_EXPIRY_MARGIN_SECONDS,
   ROOM_TTL_SECONDS,
 } from "@/infrastructure/constants/index.js";
+import type { ExternalPolicyKey } from "@/infrastructure/types/external-call.types.js";
 import type {
   DailyErrorBody,
   DailyMeetingToken,
   DailyRoom,
 } from "@/infrastructure/types/index.js";
+import {
+  callExternal,
+  ExternalCallError,
+} from "@/infrastructure/utils/external-call.utils.js";
 
 export class DailyRequestError extends Error {
   readonly status: number | undefined;
@@ -17,9 +21,12 @@ export class DailyRequestError extends Error {
 
   constructor(
     message: string,
-    details: { status?: number; timedOut: boolean },
+    details: { status?: number; timedOut: boolean; cause?: unknown },
   ) {
-    super(message);
+    super(
+      message,
+      details.cause === undefined ? undefined : { cause: details.cause },
+    );
     this.name = "DailyRequestError";
     this.status = details.status;
     this.timedOut = details.timedOut;
@@ -30,22 +37,22 @@ const isTimeoutError = (error: unknown): boolean =>
   error instanceof Error &&
   (error.name === "TimeoutError" || error.name === "AbortError");
 
-const dailyRequest = async <T>(
-  path: string,
-  init: RequestInit = {},
-): Promise<T> => {
-  if (!env.dailyApiKey) {
-    throw new Error("DAILY_API_KEY is missing from the environment.");
-  }
+const DAILY_TIMEOUT_MESSAGE = "Daily API request timed out.";
 
+const dailyRequestOnce = async <T>(
+  path: string,
+  init: RequestInit,
+  apiKey: string,
+  signal: AbortSignal,
+): Promise<T> => {
   let response: Response;
   let body: unknown;
   try {
     response = await fetch(`${DAILY_API_BASE}${path}`, {
       ...init,
-      signal: AbortSignal.timeout(DAILY_TIMEOUT_MS),
+      signal,
       headers: {
-        Authorization: `Bearer ${env.dailyApiKey}`,
+        Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
         ...init.headers,
       },
@@ -56,7 +63,7 @@ const dailyRequest = async <T>(
     });
   } catch (error) {
     if (isTimeoutError(error)) {
-      throw new DailyRequestError("Daily API request timed out.", {
+      throw new DailyRequestError(DAILY_TIMEOUT_MESSAGE, {
         timedOut: true,
       });
     }
@@ -78,8 +85,47 @@ const dailyRequest = async <T>(
   return body as T;
 };
 
+const toDailyError = (error: unknown): unknown => {
+  if (!(error instanceof ExternalCallError)) return error;
+  if (error.kind === "aborted") return error;
+  if (error.kind === "timeout") {
+    return new DailyRequestError(DAILY_TIMEOUT_MESSAGE, {
+      timedOut: true,
+      cause: error,
+    });
+  }
+  if (error.cause instanceof DailyRequestError) {
+    return new DailyRequestError(error.cause.message, {
+      ...(error.cause.status === undefined
+        ? {}
+        : { status: error.cause.status }),
+      timedOut: error.cause.timedOut,
+      cause: error,
+    });
+  }
+  return error.cause;
+};
+
+const dailyRequest = async <T>(
+  policyKey: ExternalPolicyKey,
+  path: string,
+  init: RequestInit = {},
+): Promise<T> => {
+  const apiKey = env.dailyApiKey;
+  if (!apiKey) {
+    throw new Error("DAILY_API_KEY is missing from the environment.");
+  }
+  try {
+    return await callExternal(policyKey, (signal) =>
+      dailyRequestOnce<T>(path, init, apiKey, signal),
+    );
+  } catch (error) {
+    throw toDailyError(error);
+  }
+};
+
 export const createDailyRoom = (roomName: string): Promise<DailyRoom> =>
-  dailyRequest<DailyRoom>("/rooms", {
+  dailyRequest<DailyRoom>("daily.createRoom", "/rooms", {
     method: "POST",
     body: JSON.stringify({
       name: roomName,
@@ -102,7 +148,7 @@ interface DailyMeetingTokenInput {
 export const createDailyMeetingToken = (
   input: DailyMeetingTokenInput,
 ): Promise<DailyMeetingToken> =>
-  dailyRequest<DailyMeetingToken>("/meeting-tokens", {
+  dailyRequest<DailyMeetingToken>("daily.createToken", "/meeting-tokens", {
     method: "POST",
     body: JSON.stringify({
       properties: {

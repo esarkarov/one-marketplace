@@ -32,8 +32,10 @@ const { syncAccountDisplay } =
   await import("@/modules/auth/services/auth.display.service.js");
 const { receiveSignup } =
   await import("@/modules/auth/services/auth.service.js");
-const { CLERK_DISPLAY_SYNC_TIMEOUT_MS } =
-  await import("@/modules/auth/constants/auth.constants.js");
+const { EXTERNAL_POLICIES } =
+  await import("@/infrastructure/constants/index.js");
+const CLERK_DISPLAY_SYNC_TIMEOUT_MS =
+  EXTERNAL_POLICIES["clerk.syncDisplay"].timeoutMs;
 
 const clerkUser = (overrides: Record<string, unknown> = {}) => ({
   firstName: "Ada",
@@ -56,6 +58,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers();
+  vi.restoreAllMocks();
 });
 
 describe("syncAccountDisplay", () => {
@@ -106,11 +109,16 @@ describe("syncAccountDisplay", () => {
     await expect(syncAccountDisplay("user_1")).resolves.toEqual(stored);
 
     expect(mocks.updateAccountDisplay).not.toHaveBeenCalled();
-    expect(mocks.warn).toHaveBeenCalledTimes(1);
-    const payload = JSON.stringify(mocks.warn.mock.calls[0]);
-    expect(payload).toContain("account.display_sync.failed");
-    expect(payload).not.toContain("user_1");
-    expect(payload).not.toContain("clerk down");
+    const payloads = mocks.warn.mock.calls.map((call) => JSON.stringify(call));
+    expect(
+      payloads.filter((payload) =>
+        payload.includes("account.display_sync.failed"),
+      ),
+    ).toHaveLength(1);
+    for (const payload of payloads) {
+      expect(payload).not.toContain("user_1");
+      expect(payload).not.toContain("clerk down");
+    }
   });
 
   it("returns the stored values when Clerk does not answer in time", async () => {
@@ -172,6 +180,48 @@ describe("receiveSignup display fields", () => {
         avatarUrl: "https://img.test/ada.png",
       }),
     );
+  });
+
+  it("retries a transient Clerk failure within the signup policy delays", async () => {
+    vi.useFakeTimers();
+    vi.spyOn(Math, "random").mockReturnValue(0.999_999);
+    mocks.getUser
+      .mockRejectedValueOnce(Object.assign(new Error("busy"), { status: 503 }))
+      .mockRejectedValueOnce(Object.assign(new Error("busy"), { status: 429 }))
+      .mockResolvedValueOnce(clerkUser());
+
+    const pending = receiveSignup(input);
+    await vi.advanceTimersByTimeAsync(300 + 600);
+
+    await pending;
+    expect(mocks.getUser).toHaveBeenCalledTimes(3);
+    expect(mocks.insertAccountIfAbsent).toHaveBeenCalledTimes(1);
+  });
+
+  it("gives up after three Clerk attempts", async () => {
+    vi.useFakeTimers();
+    mocks.getUser.mockRejectedValue(
+      Object.assign(new Error("busy"), { status: 503 }),
+    );
+
+    const pending = receiveSignup(input).catch((error: unknown) => error);
+    await vi.advanceTimersByTimeAsync(300 + 600);
+
+    expect(await pending).toMatchObject({ kind: "status", attempts: 3 });
+    expect(mocks.getUser).toHaveBeenCalledTimes(3);
+    expect(mocks.insertAccountIfAbsent).not.toHaveBeenCalled();
+  });
+
+  it("does not retry a Clerk client error", async () => {
+    mocks.getUser.mockRejectedValue(
+      Object.assign(new Error("missing"), { status: 404 }),
+    );
+
+    await expect(receiveSignup(input)).rejects.toMatchObject({
+      status: 404,
+      attempts: 1,
+    });
+    expect(mocks.getUser).toHaveBeenCalledTimes(1);
   });
 
   it("keeps a missing name null", async () => {

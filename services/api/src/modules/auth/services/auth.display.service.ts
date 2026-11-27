@@ -2,7 +2,7 @@ import { env } from "@/config/env.js";
 import { logger } from "@/config/logger.js";
 import { db } from "@/database/client.js";
 import { clerk } from "@/infrastructure/auth/clerk.client.js";
-import { CLERK_DISPLAY_SYNC_TIMEOUT_MS } from "@/modules/auth/constants/auth.constants.js";
+import { callExternal } from "@/infrastructure/utils/external-call.utils.js";
 import {
   findAccountDisplay,
   listAccountDisplays,
@@ -56,20 +56,8 @@ export const findAccountEmails = async (
   return new Map(rows.map(({ authId, email }) => [authId, email || null]));
 };
 
-const fetchWithTimeout = async (authId: string) => {
-  let timer: NodeJS.Timeout | undefined;
-  const timeout = new Promise<never>((_, reject) => {
-    timer = setTimeout(
-      () => reject(new Error("Clerk display sync timed out")),
-      CLERK_DISPLAY_SYNC_TIMEOUT_MS,
-    );
-  });
-  try {
-    return await Promise.race([clerk.users.getUser(authId), timeout]);
-  } finally {
-    clearTimeout(timer);
-  }
-};
+const fetchWithTimeout = (authId: string) =>
+  callExternal("clerk.syncDisplay", () => clerk.users.getUser(authId));
 
 const logFailure = (reason: string, error?: unknown) =>
   logger.warn({

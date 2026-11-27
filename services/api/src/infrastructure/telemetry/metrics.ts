@@ -28,7 +28,7 @@ export const COUNTED_LOG_EVENTS: ReadonlySet<string> = new Set([
 export interface ExternalCall {
   service: string;
   operation: string;
-  outcome: "success" | "failure" | "timeout" | "circuit_open";
+  outcome: "success" | "failure" | "timeout" | "aborted" | "circuit_open";
   durationMs: number;
   attempts: number;
 }

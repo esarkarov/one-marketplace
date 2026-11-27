@@ -1,7 +1,49 @@
+import type { ExternalPolicy } from "@/infrastructure/types/external-call.types.js";
+
 export const DAILY_API_BASE = "https://api.daily.co/v1";
 export const ROOM_TTL_SECONDS = 60 * 60 * 6;
 export const ROOM_TOKEN_EXPIRY_MARGIN_SECONDS = 300;
 export const DAILY_TIMEOUT_MS = 8_000;
+export const EXTERNAL_RETRYABLE_STATUSES: ReadonlySet<number> = new Set([
+  429, 502, 503, 504,
+]);
+export const EXTERNAL_RETRYABLE_NETWORK_CODES: ReadonlySet<string> = new Set([
+  "ECONNRESET",
+  "ECONNREFUSED",
+  "ETIMEDOUT",
+  "EAI_AGAIN",
+]);
+export const EXTERNAL_RETRYABLE_NETWORK_CODE_PREFIX = "UND_ERR_";
+export const EXTERNAL_MIN_ATTEMPT_MS = 100;
+
+export const EXTERNAL_POLICIES = {
+  "daily.createRoom": {
+    target: "daily",
+    operation: "createRoom",
+    timeoutMs: DAILY_TIMEOUT_MS,
+    idempotent: false,
+  },
+  "daily.createToken": {
+    target: "daily",
+    operation: "createToken",
+    timeoutMs: DAILY_TIMEOUT_MS,
+    idempotent: true,
+    retry: { max: 1, baseMs: 200, maxMs: 1_000, totalBudgetMs: 12_000 },
+  },
+  "clerk.signup.getUser": {
+    target: "clerk",
+    operation: "signup.getUser",
+    timeoutMs: 5_000,
+    idempotent: true,
+    retry: { max: 2, baseMs: 300, maxMs: 600, totalBudgetMs: 10_000 },
+  },
+  "clerk.syncDisplay": {
+    target: "clerk",
+    operation: "syncDisplay",
+    timeoutMs: 2_000,
+    idempotent: true,
+  },
+} as const satisfies Record<string, ExternalPolicy>;
 export const IMAGEKIT_TIMEOUT_MS = 30_000;
 export const STRIPE_TIMEOUT_MS = 30_000;
 export const PUBLISH_TIMEOUT_MS = 2_000;

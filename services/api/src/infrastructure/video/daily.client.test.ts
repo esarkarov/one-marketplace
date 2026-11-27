@@ -196,6 +196,58 @@ describe("createDailyMeetingToken", () => {
   });
 });
 
+describe("Daily retry policies", () => {
+  const tokenInput = {
+    roomName: "room-a",
+    userId: "u",
+    userName: "n",
+    expiresAt: 1,
+  };
+
+  it("never retries room creation", async () => {
+    hoisted.fetch.mockImplementation(async () =>
+      jsonResponse({ info: "busy" }, 503),
+    );
+
+    await expect(createDailyRoom("room-a")).rejects.toMatchObject({
+      name: "DailyRequestError",
+      message: "busy",
+      status: 503,
+      timedOut: false,
+    });
+    expect(hoisted.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("retries a token request once after a 502", async () => {
+    hoisted.fetch
+      .mockResolvedValueOnce(jsonResponse({ info: "bad gateway" }, 502))
+      .mockResolvedValueOnce(jsonResponse({ token: "tok" }));
+
+    await expect(createDailyMeetingToken(tokenInput)).resolves.toEqual({
+      token: "tok",
+    });
+    expect(hoisted.fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps the Daily error after the token retry is used up", async () => {
+    hoisted.fetch.mockImplementation(async () =>
+      jsonResponse({ info: "unavailable" }, 503),
+    );
+
+    const error = await createDailyMeetingToken(tokenInput).catch(
+      (e: unknown) => e,
+    );
+
+    expect(error).toBeInstanceOf(DailyRequestError);
+    expect(error).toMatchObject({
+      message: "unavailable",
+      status: 503,
+      timedOut: false,
+    });
+    expect(hoisted.fetch).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe("createDailyJoinUrl", () => {
   const startedAt = () => new Date(Date.now() - 60_000);
 
