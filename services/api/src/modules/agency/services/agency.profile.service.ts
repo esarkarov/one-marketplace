@@ -14,7 +14,11 @@ import { env } from "@/config/env.js";
 import { logger } from "@/config/logger.js";
 import { errorLogAttributes } from "@/shared/logging/sanitize-log.js";
 import { addAgencyConnects } from "@/modules/connects/index.js";
-import { sendNotification } from "@/infrastructure/events/notification.publisher.js";
+import { notificationEventId } from "@/modules/notification-store/index.js";
+import {
+  enqueueNotificationAfterCommit,
+  sendUnlessQueued,
+} from "@/modules/outbox/index.js";
 import { INITIAL_CONNECTS } from "@/modules/connects/index.js";
 import { getJSSContribution } from "@/modules/freelancer/index.js";
 import {
@@ -491,14 +495,23 @@ export const updateAgencyProfile = async (
     try {
       const balance = await addAgencyConnects(result.id);
       if (balance) {
-        await sendNotification({
+        const notice = {
           agencyId: result.id,
           type: "AGENCY_WELCOME_BONUS",
           title: "Welcome Connects added",
           message: `Your agency received ${INITIAL_CONNECTS} welcome Connects.`,
           link: "/finances?section=connects",
           metadata: { connects: INITIAL_CONNECTS },
-        });
+          eventId: notificationEventId(
+            "AGENCY_WELCOME_BONUS",
+            result.id,
+            "welcome-bonus",
+          ),
+        };
+        await sendUnlessQueued(
+          await enqueueNotificationAfterCommit(notice),
+          notice,
+        );
       }
     } catch (error) {
       await logger.error({

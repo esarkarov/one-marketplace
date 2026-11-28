@@ -47,6 +47,7 @@ import {
   currentTraceparent,
   withRelaySpan,
 } from "@/modules/outbox/utils/outbox.trace.js";
+import { OutboxPayloadError } from "@/modules/outbox/utils/outbox.errors.js";
 
 const payloadSchema = notificationEnvelopeSchema.shape.payload;
 
@@ -68,6 +69,9 @@ export const enqueueNotification = async (
   const mode = resolveOutboxMode();
   if (mode === "off") return false;
   const { eventId, ...payload } = input;
+  if (!payloadSchema.safeParse(payload).success) {
+    throw new OutboxPayloadError(input.type);
+  }
   await insertOutboxEvent(executor, {
     eventId,
     payload,
@@ -141,6 +145,27 @@ const warnDisabledOnce = async () => {
       eventName: "outbox.relay.disabled",
     }),
   );
+};
+
+export const enqueueNotificationAfterCommit = async (
+  input: OutboxNotificationInput,
+): Promise<boolean> => {
+  try {
+    return await enqueueNotification(db, input);
+  } catch (error) {
+    await safeLog(() =>
+      logger.warn({
+        message: "Outbox enqueue failed; sending directly",
+        eventName: "outbox.enqueue.failed",
+        attributes: {
+          "notification.type": input.type,
+          "error.type": error instanceof Error ? error.name : "UnknownError",
+          ...errorLogAttributes(error),
+        },
+      }),
+    );
+    return false;
+  }
 };
 
 type RowOutcome = "published" | "retried" | "dead" | "released" | "stale";

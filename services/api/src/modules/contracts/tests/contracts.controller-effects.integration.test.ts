@@ -99,6 +99,7 @@ vi.mock("@/modules/messaging/messaging.socket.js", async (importOriginal) => ({
 }));
 
 import { db, pool } from "@/database/client.js";
+import { notificationEventId } from "@/modules/notification-store/index.js";
 import {
   accounts,
   agency_members,
@@ -480,6 +481,11 @@ describe("accept offer effects", () => {
     expect(mocks.sendNotification).toHaveBeenNthCalledWith(1, {
       recipientId: fixture.clientId,
       type: "CONTRACT_ACCEPTED",
+      eventId: notificationEventId(
+        "CONTRACT_ACCEPTED",
+        fixture.contractId,
+        "accepted-client",
+      ),
       title: "Contract offer accepted",
       message: `The freelancer accepted your offer for “${CONTRACT_TITLE}”.`,
       link,
@@ -488,6 +494,11 @@ describe("accept offer effects", () => {
     expect(mocks.sendNotification).toHaveBeenNthCalledWith(2, {
       recipientId: fixture.ownerId,
       type: "CONTRACT_ACCEPTED",
+      eventId: notificationEventId(
+        "CONTRACT_ACCEPTED",
+        fixture.contractId,
+        "accepted-talent",
+      ),
       title: "Contract started",
       message: `Your contract for “${CONTRACT_TITLE}” is now active.`,
       link,
@@ -517,6 +528,11 @@ describe("accept offer effects", () => {
     expect(mocks.sendNotification).toHaveBeenNthCalledWith(1, {
       recipientId: fixture.clientId,
       type: "CONTRACT_ACCEPTED",
+      eventId: notificationEventId(
+        "CONTRACT_ACCEPTED",
+        fixture.contractId,
+        "accepted-client",
+      ),
       title: "Contract offer accepted",
       message: `The agency accepted your offer for “${CONTRACT_TITLE}”.`,
       link,
@@ -525,6 +541,11 @@ describe("accept offer effects", () => {
     expect(mocks.sendNotification).toHaveBeenNthCalledWith(2, {
       agencyId: fixture.agencyId,
       type: "CONTRACT_ACCEPTED",
+      eventId: notificationEventId(
+        "CONTRACT_ACCEPTED",
+        fixture.contractId,
+        "accepted-talent",
+      ),
       title: "Contract started",
       message: `Your contract for “${CONTRACT_TITLE}” is now active.`,
       link,
@@ -935,6 +956,11 @@ describe("finish contract effects", () => {
     expect(mocks.sendNotification).toHaveBeenCalledWith({
       recipientId: fixture.ownerId,
       type: "CONTRACT_COMPLETED",
+      eventId: notificationEventId(
+        "CONTRACT_COMPLETED",
+        fixture.contractId,
+        "completed",
+      ),
       title: "Contract completed",
       message: `The contract “${CONTRACT_TITLE}” was completed.`,
       link: `/contracts?contractId=${fixture.contractId}`,
@@ -959,6 +985,11 @@ describe("finish contract effects", () => {
     expect(mocks.sendNotification).toHaveBeenCalledWith({
       agencyId: fixture.agencyId,
       type: "CONTRACT_COMPLETED",
+      eventId: notificationEventId(
+        "CONTRACT_COMPLETED",
+        fixture.contractId,
+        "completed",
+      ),
       title: "Contract completed",
       message: `The contract “${CONTRACT_TITLE}” was completed.`,
       link: `/contracts?contractId=${fixture.contractId}`,
@@ -985,6 +1016,11 @@ describe("finish contract effects", () => {
     expect(mocks.sendNotification).toHaveBeenCalledWith({
       recipientId: fixture.clientId,
       type: "REVIEW_RECEIVED",
+      eventId: notificationEventId(
+        "REVIEW_RECEIVED",
+        fixture.contractId,
+        "review-freelancer",
+      ),
       title: "New review received",
       message: `You received a review for “${CONTRACT_TITLE}”.`,
       link: `/contracts?contractId=${fixture.contractId}`,

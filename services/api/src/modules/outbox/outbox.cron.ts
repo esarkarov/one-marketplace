@@ -76,7 +76,7 @@ export const startOutboxRelay = (): void => {
   lastStatsAt = Number.NEGATIVE_INFINITY;
   lastRetentionAt = Number.NEGATIVE_INFINITY;
   lastLagLogAt = Number.NEGATIVE_INFINITY;
-  schedule(0);
+  if (!inFlightRun) schedule(0);
   void logger.info({
     message: "Outbox relay started",
     eventName: "outbox.relay.started",

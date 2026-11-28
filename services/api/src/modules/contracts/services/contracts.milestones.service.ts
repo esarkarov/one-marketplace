@@ -4,7 +4,12 @@ import { isUniqueViolation } from "@/database/pg-errors.js";
 import { appendJobMilestone } from "@/modules/jobs/index.js";
 import { ApiError } from "@/shared/errors/api-error.js";
 import { splitFee } from "@/shared/money/money.js";
-import { sendNotification } from "@/infrastructure/events/notification.publisher.js";
+import { notificationEventId } from "@/modules/notification-store/index.js";
+import {
+  enqueueNotification,
+  sendUnlessQueued,
+  type OutboxNotificationInput,
+} from "@/modules/outbox/index.js";
 import {
   insertContractNotice,
   pushContractNotice,
@@ -293,6 +298,26 @@ export const reviewContractMilestone = async (
   ...args: Parameters<typeof reviewContractMilestoneWithNotice>
 ) => (await reviewContractMilestoneWithNotice(...args)).milestone;
 
+const milestoneAddedNotice = (input: {
+  contractId: string;
+  milestoneId: string;
+  title: string;
+  recipientId: string;
+  agencyId: string | null;
+}): OutboxNotificationInput => {
+  const content = {
+    type: "MILESTONE_ADDED",
+    title: "New contract milestone",
+    message: `The client added “${input.title}” to your contract.`,
+    link: `/contracts?contractId=${input.contractId}`,
+    metadata: { contractId: input.contractId, milestoneId: input.milestoneId },
+    eventId: notificationEventId("MILESTONE_ADDED", input.milestoneId, "added"),
+  };
+  return input.agencyId
+    ? { agencyId: input.agencyId, ...content }
+    : { recipientId: input.recipientId, ...content };
+};
+
 export const addContractMilestone = async (
   contractId: string,
   clientId: string,
@@ -332,6 +357,13 @@ export const addContractMilestone = async (
       position: state.nextPosition,
     });
     if (!milestone) throw new ApiError(500, "Milestone could not be added.");
+    const notice = milestoneAddedNotice({
+      contractId: contract.id,
+      milestoneId: milestone.id,
+      title: input.title,
+      recipientId: freelancerAccountId,
+      agencyId: contract.agencyId,
+    });
 
     await appendJobMilestone(
       transaction,
@@ -347,7 +379,12 @@ export const addContractMilestone = async (
     await addToContractTotal(transaction, contract.id, input.amountCents, now);
 
     if (!contract.conversationId) {
-      return { milestoneId: milestone.id, conversationId: null };
+      return {
+        milestoneId: milestone.id,
+        conversationId: null,
+        notice,
+        queued: await enqueueNotification(transaction, notice),
+      };
     }
     const [message] = await appendConversationMessages(transaction, {
       conversationId: contract.conversationId,
@@ -373,34 +410,12 @@ export const addContractMilestone = async (
     return {
       milestoneId: milestone.id,
       conversationId: contract.conversationId,
+      notice,
+      queued: await enqueueNotification(transaction, notice),
     };
   });
 
-  await sendNotification(
-    contract.agencyId
-      ? {
-          agencyId: contract.agencyId,
-          type: "MILESTONE_ADDED",
-          title: "New contract milestone",
-          message: `The client added “${input.title}” to your contract.`,
-          link: `/contracts?contractId=${contract.id}`,
-          metadata: {
-            contractId: contract.id,
-            milestoneId: result.milestoneId,
-          },
-        }
-      : {
-          recipientId: freelancerAccountId,
-          type: "MILESTONE_ADDED",
-          title: "New contract milestone",
-          message: `The client added “${input.title}” to your contract.`,
-          link: `/contracts?contractId=${contract.id}`,
-          metadata: {
-            contractId: contract.id,
-            milestoneId: result.milestoneId,
-          },
-        },
-  );
+  await sendUnlessQueued(result.queued, result.notice);
   if (result.conversationId)
     await emitConversationUpdate(result.conversationId);
 

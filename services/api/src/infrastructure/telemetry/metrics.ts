@@ -26,6 +26,7 @@ export const COUNTED_LOG_EVENTS: ReadonlySet<string> = new Set([
   "outbox.relay.failed",
   "outbox.relay.lag",
   "outbox.event.dead",
+  "outbox.enqueue.failed",
 ]);
 
 export interface ExternalCall {

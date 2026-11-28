@@ -16,7 +16,31 @@ import {
 import { ApiError } from "@/shared/errors/api-error.js";
 import { PROPOSAL_CONNECTS } from "@/modules/connects/index.js";
 import { getAgencyTeamMemberIds } from "@/modules/agency/index.js";
-import { sendNotification } from "@/infrastructure/events/notification.publisher.js";
+import { notificationEventId } from "@/modules/notification-store/index.js";
+import {
+  enqueueNotification,
+  sendUnlessQueued,
+  type OutboxNotificationInput,
+} from "@/modules/outbox/index.js";
+
+const proposalReceivedNotice = (input: {
+  proposalId: string;
+  jobId: string;
+  clientId: string;
+  message: string;
+}): OutboxNotificationInput => ({
+  recipientId: input.clientId,
+  type: "PROPOSAL_RECEIVED",
+  title: "New proposal received",
+  message: input.message,
+  link: `/proposals/${input.jobId}`,
+  metadata: { proposalId: input.proposalId, jobId: input.jobId },
+  eventId: notificationEventId(
+    "PROPOSAL_RECEIVED",
+    input.proposalId,
+    "received",
+  ),
+});
 
 export const submitProposal = async (
   freelancerId: string,
@@ -77,6 +101,12 @@ export const submitProposal = async (
       description: job.title,
       amount: -PROPOSAL_CONNECTS,
     });
+    const notice = proposalReceivedNotice({
+      proposalId: proposal.id,
+      jobId: input.jobId,
+      clientId: job.clientId,
+      message: `A freelancer applied to “${job.title}”.`,
+    });
     return {
       proposal,
       senderAccountId,
@@ -84,19 +114,14 @@ export const submitProposal = async (
       clientId: job.clientId,
       clientAccountId: job.clientAccountId,
       jobTitle: job.title,
+      notice,
+      queued: await enqueueNotification(transaction, notice),
     };
   });
 
   await cacheFreelancerConnects(freelancerId, result.connects);
 
-  await sendNotification({
-    recipientId: result.clientId,
-    type: "PROPOSAL_RECEIVED",
-    title: "New proposal received",
-    message: `A freelancer applied to “${result.jobTitle}”.`,
-    link: `/proposals/${input.jobId}`,
-    metadata: { proposalId: result.proposal.id, jobId: input.jobId },
-  });
+  await sendUnlessQueued(result.queued, result.notice);
 
   return {
     proposal: toProposalResponse(
@@ -178,6 +203,12 @@ export const submitAgencyProposal = async (
       amount: -PROPOSAL_CONNECTS,
     });
 
+    const notice = proposalReceivedNotice({
+      proposalId: proposal.id,
+      jobId: input.jobId,
+      clientId: job.clientId,
+      message: `${agency.name} applied to “${job.title}”.`,
+    });
     return {
       proposal,
       connects: balance.connects,
@@ -185,19 +216,14 @@ export const submitAgencyProposal = async (
       clientAccountId: job.clientAccountId,
       jobTitle: job.title,
       agencyName: agency.name,
+      notice,
+      queued: await enqueueNotification(transaction, notice),
     };
   });
 
   await cacheAgencyConnects(agencyId, result.connects);
 
-  await sendNotification({
-    recipientId: result.clientId,
-    type: "PROPOSAL_RECEIVED",
-    title: "New proposal received",
-    message: `${result.agencyName} applied to “${result.jobTitle}”.`,
-    link: `/proposals/${input.jobId}`,
-    metadata: { proposalId: result.proposal.id, jobId: input.jobId },
-  });
+  await sendUnlessQueued(result.queued, result.notice);
 
   return {
     proposal: toProposalResponse(

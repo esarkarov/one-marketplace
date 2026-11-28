@@ -55,10 +55,14 @@ vi.mock("@/modules/outbox/repositories/outbox.repository.js", () => ({
 
 const {
   enqueueNotification,
+  enqueueNotificationAfterCommit,
   outboxBackoffMs,
   relayOutboxBatch,
   sendUnlessQueued,
 } = await import("@/modules/outbox/services/outbox.service.js");
+
+const { OutboxPayloadError } =
+  await import("@/modules/outbox/utils/outbox.errors.js");
 
 const EVENT_ID = "0b6c5a3e-6f1d-5b6e-9c2a-1f3e4d5c6b7a";
 
@@ -140,6 +144,112 @@ describe("enqueueNotification", () => {
     expect(hoisted.insertOutboxEvent.mock.calls[0]?.[1]).toMatchObject({
       traceparent: null,
     });
+  });
+});
+
+describe("enqueueNotification payload validation", () => {
+  const executor = { name: "tx" } as never;
+
+  const malformed = [
+    ["no title", { recipientId: "user_1", type: "X", message: "m" }],
+    ["no target", { type: "X", title: "t", message: "m" }],
+    [
+      "a non-uuid agency id",
+      { agencyId: "agency-1", type: "X", title: "t", message: "m" },
+    ],
+    [
+      "a float amount in metadata",
+      { ...payload, metadata: { amountCents: 12.5 } },
+    ],
+    ["a dollar amount in metadata", { ...payload, metadata: { amount: 10 } }],
+  ] as const;
+
+  it.each(["shadow", "on"])(
+    "rejects every malformed payload in %s mode and inserts nothing",
+    async (mode) => {
+      hoisted.flags.outboxMode = mode;
+      for (const [, bad] of malformed) {
+        await expect(
+          enqueueNotification(executor, {
+            ...(bad as typeof payload),
+            eventId: EVENT_ID,
+          }),
+        ).rejects.toBeInstanceOf(OutboxPayloadError);
+      }
+      expect(hoisted.insertOutboxEvent).not.toHaveBeenCalled();
+    },
+  );
+
+  it("does not validate when the mode is off, so off stays as today", async () => {
+    await expect(
+      enqueueNotification(executor, {
+        ...(malformed[0][1] as typeof payload),
+        eventId: EVENT_ID,
+      }),
+    ).resolves.toBe(false);
+  });
+
+  it("accepts a valid agency payload with cents metadata", async () => {
+    hoisted.flags.outboxMode = "on";
+    const agencyPayload = {
+      agencyId: "5f0b8a52-3a3c-4d0e-9a51-0c3b2f6e7d10",
+      type: "MILESTONE_ADDED",
+      title: "t",
+      message: "m",
+      metadata: { amountCents: 1500 },
+    };
+
+    await expect(
+      enqueueNotification(executor, { ...agencyPayload, eventId: EVENT_ID }),
+    ).resolves.toBe(true);
+    expect(hoisted.insertOutboxEvent).toHaveBeenCalledWith(executor, {
+      eventId: EVENT_ID,
+      payload: agencyPayload,
+      traceparent: null,
+    });
+  });
+});
+
+describe("enqueueNotificationAfterCommit", () => {
+  const input = { ...payload, eventId: EVENT_ID };
+
+  it("returns the mode result after inserting with the pool", async () => {
+    hoisted.flags.outboxMode = "on";
+
+    expect(await enqueueNotificationAfterCommit(input)).toBe(true);
+    expect(hoisted.insertOutboxEvent).toHaveBeenCalledWith(
+      { name: "db" },
+      expect.objectContaining({ eventId: EVENT_ID }),
+    );
+  });
+
+  it("logs outbox.enqueue.failed and returns false so the caller sends directly", async () => {
+    hoisted.flags.outboxMode = "on";
+    hoisted.insertOutboxEvent.mockRejectedValue(new Error("db down"));
+
+    expect(await enqueueNotificationAfterCommit(input)).toBe(false);
+    expect(hoisted.warn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        eventName: "outbox.enqueue.failed",
+        attributes: expect.objectContaining({
+          "notification.type": "PROPOSAL_RECEIVED",
+        }),
+      }),
+    );
+  });
+
+  it("returns false for a malformed payload instead of throwing", async () => {
+    hoisted.flags.outboxMode = "on";
+
+    expect(
+      await enqueueNotificationAfterCommit({
+        type: "X",
+        title: "t",
+        message: "m",
+        eventId: EVENT_ID,
+      } as typeof input),
+    ).toBe(false);
+    expect(hoisted.insertOutboxEvent).not.toHaveBeenCalled();
   });
 });
 

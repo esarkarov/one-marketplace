@@ -1,5 +1,6 @@
 export {
   enqueueNotification,
+  enqueueNotificationAfterCommit,
   getOutboxStats,
   sendUnlessQueued,
 } from "./services/outbox.service.js";

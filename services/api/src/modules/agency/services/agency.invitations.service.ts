@@ -10,7 +10,10 @@ import { ApiError } from "@/shared/errors/api-error.js";
 import type { DbExecutor } from "@/database/database.types.js";
 import { logger } from "@/config/logger.js";
 import { errorLogAttributes } from "@/shared/logging/sanitize-log.js";
-import { sendNotification } from "@/infrastructure/events/notification.publisher.js";
+import {
+  enqueueNotificationAfterCommit,
+  sendUnlessQueued,
+} from "@/modules/outbox/index.js";
 import {
   insertNotification,
   notificationEventId,
@@ -318,18 +321,28 @@ export const respondToAgencyInvitation = async (
     const { displayName } = await syncAccountDisplay(userId);
     const responderName = displayName ?? account.email;
 
-    await sendNotification({
+    const type = accept
+      ? "AGENCY_INVITATION_ACCEPTED"
+      : "AGENCY_INVITATION_DECLINED";
+    const notice = {
       agencyId: invitation.agencyId,
-      type: accept
-        ? "AGENCY_INVITATION_ACCEPTED"
-        : "AGENCY_INVITATION_DECLINED",
+      type,
       title: accept ? "Invitation accepted" : "Invitation declined",
       message: accept
         ? `${responderName} accepted your invitation to join ${invitation.agencyName}.`
         : `${responderName} declined your invitation to join ${invitation.agencyName}.`,
       link: "/team",
       metadata: { invitationId },
-    });
+      eventId: notificationEventId(
+        type,
+        invitationId,
+        accept ? "accepted" : "declined",
+      ),
+    };
+    await sendUnlessQueued(
+      await enqueueNotificationAfterCommit(notice),
+      notice,
+    );
   }
 
   return { accepted: accept };

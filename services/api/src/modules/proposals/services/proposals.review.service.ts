@@ -17,7 +17,10 @@ import { findAccountIdByAuthId } from "@/modules/auth/index.js";
 import { requirePublicId } from "@/shared/ids/public-ids.js";
 import { ApiError } from "@/shared/errors/api-error.js";
 import { PROPOSAL_CONNECTS } from "@/modules/connects/index.js";
-import { sendNotification } from "@/infrastructure/events/notification.publisher.js";
+import {
+  enqueueNotificationAfterCommit,
+  sendUnlessQueued,
+} from "@/modules/outbox/index.js";
 import {
   insertNotification,
   notificationEventId,
@@ -193,24 +196,24 @@ export const markProposalViewed = async (
   );
 
   if (proposal.changed) {
-    await sendNotification(
+    const content = {
+      type: "PROPOSAL_VIEWED",
+      title: "Your proposal was viewed",
+      message: `A client viewed your proposal for “${proposal.jobTitle}”.`,
+      metadata: { proposalId: proposal.id },
+      eventId: notificationEventId("PROPOSAL_VIEWED", proposal.id, "viewed"),
+    };
+    const notice =
       recipient.senderType === "AGENCY"
-        ? {
-            agencyId: recipient.senderId,
-            type: "PROPOSAL_VIEWED",
-            title: "Your proposal was viewed",
-            message: `A client viewed your proposal for “${proposal.jobTitle}”.`,
-            link: "/proposals",
-            metadata: { proposalId: proposal.id },
-          }
+        ? { agencyId: recipient.senderId, ...content, link: "/proposals" }
         : {
             recipientId: recipient.senderId,
-            type: "PROPOSAL_VIEWED",
-            title: "Your proposal was viewed",
-            message: `A client viewed your proposal for “${proposal.jobTitle}”.`,
+            ...content,
             link: "/my-proposals",
-            metadata: { proposalId: proposal.id },
-          },
+          };
+    await sendUnlessQueued(
+      await enqueueNotificationAfterCommit(notice),
+      notice,
     );
   }
 

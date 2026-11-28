@@ -300,6 +300,11 @@ describe("proposal viewed notification", () => {
     expect(mocks.sendNotification).toHaveBeenCalledWith({
       recipientId: fixture.freelancerId,
       type: "PROPOSAL_VIEWED",
+      eventId: notificationEventId(
+        "PROPOSAL_VIEWED",
+        fixture.proposalId,
+        "viewed",
+      ),
       title: "Your proposal was viewed",
       message: "A client viewed your proposal for “Effects job”.",
       link: "/my-proposals",
@@ -330,6 +335,11 @@ describe("proposal viewed notification", () => {
     expect(mocks.sendNotification).toHaveBeenCalledWith({
       agencyId: fixture.agencyId,
       type: "PROPOSAL_VIEWED",
+      eventId: notificationEventId(
+        "PROPOSAL_VIEWED",
+        fixture.proposalId,
+        "viewed",
+      ),
       title: "Your proposal was viewed",
       message: "A client viewed your proposal for “Effects job”.",
       link: "/proposals",

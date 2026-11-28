@@ -95,7 +95,11 @@ describe("log event counter", () => {
   });
 
   it("allowlists the 12 evaluated names and the five wave one names", () => {
-    expect(COUNTED_LOG_EVENTS.size).toBe(20);
+    expect(COUNTED_LOG_EVENTS.size).toBe(21);
+  });
+
+  it("counts the outbox post-commit enqueue fallback", () => {
+    expect(COUNTED_LOG_EVENTS.has("outbox.enqueue.failed")).toBe(true);
   });
 });
 

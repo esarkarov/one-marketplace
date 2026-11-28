@@ -1,10 +1,17 @@
 import type Stripe from "stripe";
 import { db } from "@/database/client.js";
 import { isUniqueViolation } from "@/database/pg-errors.js";
-import { insertNotification } from "@/modules/notification-store/index.js";
+import {
+  insertNotification,
+  notificationEventId,
+} from "@/modules/notification-store/index.js";
 import { markPaymentMethodVerified } from "@/modules/auth/index.js";
 import { ApiError } from "@/shared/errors/api-error.js";
-import { sendNotification } from "@/infrastructure/events/notification.publisher.js";
+import {
+  enqueueNotification,
+  sendUnlessQueued,
+  type OutboxNotificationInput,
+} from "@/modules/outbox/index.js";
 import {
   insertContractNotice,
   pushContractNotice,
@@ -82,6 +89,38 @@ const contractHasIncompleteMilestones = () =>
     "CONTRACT_HAS_INCOMPLETE_MILESTONES",
   );
 
+const contractFinishedNotice = (contract: {
+  id: string;
+  title: string;
+  revieweeId: string;
+  agencyId: string | null;
+  newlyCompleted: boolean;
+  role: "client" | "freelancer";
+}): OutboxNotificationInput => {
+  const type = contract.newlyCompleted
+    ? "CONTRACT_COMPLETED"
+    : "REVIEW_RECEIVED";
+  const content = {
+    type,
+    title: contract.newlyCompleted
+      ? "Contract completed"
+      : "New review received",
+    message: contract.newlyCompleted
+      ? `The contract “${contract.title}” was completed.`
+      : `You received a review for “${contract.title}”.`,
+    link: `/contracts?contractId=${contract.id}`,
+    metadata: { contractId: contract.id },
+    eventId: notificationEventId(
+      type,
+      contract.id,
+      contract.newlyCompleted ? "completed" : `review-${contract.role}`,
+    ),
+  };
+  return contract.agencyId
+    ? { agencyId: contract.agencyId, ...content }
+    : { recipientId: contract.revieweeId, ...content };
+};
+
 export const finishContractWithReview = async (
   contractId: string,
   reviewerId: string,
@@ -118,8 +157,16 @@ export const finishContractWithReview = async (
     role === "client" ? freelancerAccountId : contract.clientId;
   const now = new Date();
   const newlyCompleted = contract.status === "ACTIVE";
+  const notice = contractFinishedNotice({
+    id: contract.id,
+    title: contract.title,
+    revieweeId,
+    agencyId: role === "client" ? contract.agencyId : null,
+    newlyCompleted,
+    role,
+  });
 
-  await db
+  const queued = await db
     .transaction(async (transaction) => {
       const [locked] = await lockContractStatusForUpdate(
         transaction,
@@ -170,7 +217,7 @@ export const finishContractWithReview = async (
         });
       }
 
-      if (!newlyCompleted) return;
+      if (!newlyCompleted) return enqueueNotification(transaction, notice);
 
       const [completed] = await markContractCompletedIfActive(
         transaction,
@@ -210,6 +257,8 @@ export const finishContractWithReview = async (
           },
         });
       }
+
+      return enqueueNotification(transaction, notice);
     })
     .catch((error: unknown) => {
       if (isUniqueViolation(error, REVIEW_CONTRACT_REVIEWER_UNIQUE)) {
@@ -225,7 +274,53 @@ export const finishContractWithReview = async (
     agencyId: role === "client" ? contract.agencyId : null,
     conversationId: contract.conversationId,
     newlyCompleted,
+    notice,
+    queued,
   };
+};
+
+const contractAcceptedNotices = (contract: {
+  id: string;
+  title: string;
+  clientId: string;
+  freelancerId: string;
+  agencyId: string | null;
+  conversationId: string;
+}): OutboxNotificationInput[] => {
+  const link = `/messages?conversationId=${contract.conversationId}`;
+  const metadata = { contractId: contract.id };
+  const started = {
+    type: "CONTRACT_ACCEPTED",
+    title: "Contract started",
+    message: `Your contract for “${contract.title}” is now active.`,
+    link,
+    metadata,
+    eventId: notificationEventId(
+      "CONTRACT_ACCEPTED",
+      contract.id,
+      "accepted-talent",
+    ),
+  };
+  return [
+    {
+      recipientId: contract.clientId,
+      type: "CONTRACT_ACCEPTED",
+      title: "Contract offer accepted",
+      message: contract.agencyId
+        ? `The agency accepted your offer for “${contract.title}”.`
+        : `The freelancer accepted your offer for “${contract.title}”.`,
+      link,
+      metadata,
+      eventId: notificationEventId(
+        "CONTRACT_ACCEPTED",
+        contract.id,
+        "accepted-client",
+      ),
+    },
+    contract.agencyId
+      ? { agencyId: contract.agencyId, ...started }
+      : { recipientId: contract.freelancerId, ...started },
+  ];
 };
 
 export const acceptContract = async (
@@ -254,8 +349,9 @@ export const acceptContract = async (
       "CONTRACT_OFFER_NOT_ACCEPTABLE",
     );
 
+  const notices = contractAcceptedNotices({ ...offer, freelancerId });
   const now = new Date();
-  await db.transaction(async (transaction) => {
+  const queued = await db.transaction(async (transaction) => {
     const [contract] = await markContractActiveIfPending(
       transaction,
       offer.id,
@@ -297,9 +393,15 @@ export const acceptContract = async (
     });
     if (!message)
       throw new ApiError(500, "Contract message could not be sent.");
+
+    let queued = false;
+    for (const notice of notices) {
+      queued = await enqueueNotification(transaction, notice);
+    }
+    return queued;
   });
 
-  return { ...offer, freelancerId };
+  return { ...offer, freelancerId, notices, queued };
 };
 
 export type CancelActor =
@@ -555,37 +657,9 @@ export const acceptOffer = async (
 
   await emitConversationUpdate(contract.conversationId, userId);
 
-  await Promise.all([
-    sendNotification({
-      recipientId: contract.clientId,
-      type: "CONTRACT_ACCEPTED",
-      title: "Contract offer accepted",
-      message: contract.agencyId
-        ? `The agency accepted your offer for “${contract.title}”.`
-        : `The freelancer accepted your offer for “${contract.title}”.`,
-      link: `/messages?conversationId=${contract.conversationId}`,
-      metadata: { contractId: contract.id },
-    }),
-    sendNotification(
-      contract.agencyId
-        ? {
-            agencyId: contract.agencyId,
-            type: "CONTRACT_ACCEPTED",
-            title: "Contract started",
-            message: `Your contract for “${contract.title}” is now active.`,
-            link: `/messages?conversationId=${contract.conversationId}`,
-            metadata: { contractId: contract.id },
-          }
-        : {
-            recipientId: contract.freelancerId,
-            type: "CONTRACT_ACCEPTED",
-            title: "Contract started",
-            message: `Your contract for “${contract.title}” is now active.`,
-            link: `/messages?conversationId=${contract.conversationId}`,
-            metadata: { contractId: contract.id },
-          },
-    ),
-  ]);
+  await Promise.all(
+    contract.notices.map((notice) => sendUnlessQueued(contract.queued, notice)),
+  );
 
   return contract;
 };
@@ -724,37 +798,7 @@ export const finishContractAsParty = async (
   if (contract.conversationId && contract.newlyCompleted) {
     await emitConversationUpdate(contract.conversationId, userId);
   }
-  await sendNotification(
-    contract.agencyId
-      ? {
-          agencyId: contract.agencyId,
-          type: contract.newlyCompleted
-            ? "CONTRACT_COMPLETED"
-            : "REVIEW_RECEIVED",
-          title: contract.newlyCompleted
-            ? "Contract completed"
-            : "New review received",
-          message: contract.newlyCompleted
-            ? `The contract “${contract.title}” was completed.`
-            : `You received a review for “${contract.title}”.`,
-          link: `/contracts?contractId=${contract.id}`,
-          metadata: { contractId: contract.id },
-        }
-      : {
-          recipientId: contract.revieweeId,
-          type: contract.newlyCompleted
-            ? "CONTRACT_COMPLETED"
-            : "REVIEW_RECEIVED",
-          title: contract.newlyCompleted
-            ? "Contract completed"
-            : "New review received",
-          message: contract.newlyCompleted
-            ? `The contract “${contract.title}” was completed.`
-            : `You received a review for “${contract.title}”.`,
-          link: `/contracts?contractId=${contract.id}`,
-          metadata: { contractId: contract.id },
-        },
-  );
+  await sendUnlessQueued(contract.queued, contract.notice);
 
   return contract;
 };
